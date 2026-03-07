@@ -237,6 +237,7 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
 
     fn valid_base_config() -> &'static str {
         r#"
@@ -428,6 +429,37 @@ PreToolUse = ["log"]
         assert!(
             matches!(err, ConfigError::NonIntegerVersion { .. }),
             "expected non-integer version error for negative value, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn renders_resolved_config_for_config_subcommand() {
+        let parsed = parse_config_str(valid_base_config(), "in-memory")
+            .expect("config should parse for render");
+        let rendered = parsed
+            .to_pretty_toml()
+            .expect("resolved config should render to TOML");
+
+        assert!(rendered.contains("[meta]"));
+        assert!(rendered.contains("[hooks]"));
+        assert!(rendered.contains("[logging]"));
+    }
+
+    #[test]
+    fn parses_config_under_five_ms_median() {
+        let mut samples = Vec::new();
+        for _ in 0..21 {
+            let started = Instant::now();
+            let _ =
+                parse_config_str(valid_base_config(), "in-memory").expect("config should parse");
+            samples.push(started.elapsed());
+        }
+
+        samples.sort_unstable();
+        let median = samples[samples.len() / 2];
+        assert!(
+            median < Duration::from_millis(5),
+            "median config parse time {median:?} exceeded 5ms target"
         );
     }
 }

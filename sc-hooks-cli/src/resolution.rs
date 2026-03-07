@@ -210,6 +210,31 @@ mod tests {
         }
     }
 
+    fn make_counting_manifest_plugin(path: &Path, manifest: &str, counter_path: &Path) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
+        }
+        if let Some(parent) = counter_path.parent() {
+            fs::create_dir_all(parent).expect("counter parent directory should be creatable");
+        }
+
+        let script = format!(
+            "#!/bin/sh\nCOUNT_FILE=\"{counter}\"\nif [ \"$1\" = \"--manifest\" ]; then\n  count=0\n  if [ -f \"$COUNT_FILE\" ]; then\n    count=$(cat \"$COUNT_FILE\")\n  fi\n  count=$((count + 1))\n  echo \"$count\" > \"$COUNT_FILE\"\n  cat <<'JSON'\n{manifest}\nJSON\n  exit 0\nfi\ncat >/dev/null\ncat <<'JSON'\n{{\"action\":\"proceed\"}}\nJSON\n",
+            counter = counter_path.display()
+        );
+        fs::write(path, script).expect("plugin script should be writable");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(path)
+                .expect("plugin metadata should be available")
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(path, perms).expect("plugin should be made executable");
+        }
+    }
+
     #[test]
     fn wildcard_matcher_matches_any_event() {
         assert!(matches_event(&["*".to_string()], Some("Write")));
@@ -477,6 +502,53 @@ PreToolUse = ["guard-paths"]
         )
         .expect("resolution should succeed");
         assert!(handlers.is_empty());
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn caches_manifest_loads_per_invocation() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("current_dir should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+
+        let counter = Path::new(".sc-hooks/state/manifest-count.txt");
+        make_counting_manifest_plugin(
+            Path::new(".sc-hooks/plugins/cached"),
+            r#"{"contract_version":1,"name":"cached","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+            counter,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["cached", "cached"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let handlers = resolve_chain(
+            &cfg,
+            "PreToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Sync,
+            None,
+            None,
+            &BTreeSet::new(),
+        )
+        .expect("resolution should succeed");
+        assert_eq!(handlers.len(), 2);
+
+        let counter_value =
+            fs::read_to_string(counter).expect("manifest counter file should be created");
+        assert_eq!(counter_value.trim(), "1");
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

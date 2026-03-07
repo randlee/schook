@@ -25,10 +25,12 @@ pub struct HandlerResultLog {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DispatchLogEntry {
+    pub ts: String,
     pub ts_millis: u128,
     pub hook: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<String>,
+    pub matcher: String,
     pub mode: String,
     pub handlers: Vec<String>,
     pub results: Vec<HandlerResultLog>,
@@ -85,6 +87,37 @@ pub fn now_ts_millis() -> u128 {
         .unwrap_or_default()
 }
 
+pub fn now_ts_iso8601() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default();
+    #[cfg(unix)]
+    {
+        let raw = seconds as nix::libc::time_t;
+        // SAFETY: `gmtime_r` writes to the provided `tm` for a valid `time_t` pointer.
+        unsafe {
+            let mut tm: nix::libc::tm = std::mem::zeroed();
+            if nix::libc::gmtime_r(&raw, &mut tm).is_null() {
+                return seconds.to_string();
+            }
+            format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+                tm.tm_year + 1900,
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                tm.tm_hour,
+                tm.tm_min,
+                tm.tm_sec
+            )
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        seconds.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,9 +128,11 @@ mod tests {
         let log_path = temp.path().join("logs").join("hooks.jsonl");
 
         let entry = DispatchLogEntry {
+            ts: "2026-03-07T00:00:01Z".to_string(),
             ts_millis: 1,
             hook: "PreToolUse".to_string(),
             event: Some("Write".to_string()),
+            matcher: "Write".to_string(),
             mode: "sync".to_string(),
             handlers: vec!["guard-paths".to_string()],
             results: vec![HandlerResultLog {
@@ -121,8 +156,10 @@ mod tests {
         let content = fs::read_to_string(log_path).expect("log file should be readable");
         let line = content.lines().next().expect("line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("entry should be json");
+        assert_eq!(parsed["ts"], "2026-03-07T00:00:01Z");
         assert_eq!(parsed["hook"], "PreToolUse");
         assert_eq!(parsed["event"], "Write");
+        assert_eq!(parsed["matcher"], "Write");
         assert_eq!(parsed["mode"], "sync");
         assert_eq!(parsed["exit"], 0);
         assert_eq!(parsed["results"][0]["action"], "proceed");

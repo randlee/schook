@@ -57,6 +57,9 @@ pub fn run_fire(
 mod tests {
     use super::*;
     use crate::config;
+    use crate::test_support;
+    use std::path::Path;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn fire_returns_no_handlers_when_chain_missing() {
@@ -75,5 +78,47 @@ PreToolUse = ["log"]
         let response =
             run_fire(&cfg, "PostToolUse", Some("Write"), None).expect("fire should execute");
         assert_eq!(response, "no handlers matched");
+    }
+
+    #[test]
+    fn zero_match_fast_path_is_under_two_ms_and_writes_no_log() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PostToolUse = ["log"]
+
+[logging]
+hook_log = ".sc-hooks/logs/hooks.jsonl"
+level = "info"
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let started = Instant::now();
+        let response =
+            run_fire(&cfg, "PreToolUse", Some("Write"), None).expect("fire should execute");
+        let elapsed = started.elapsed();
+        assert_eq!(response, "no handlers matched");
+        assert!(
+            elapsed < Duration::from_millis(2),
+            "zero-match fire elapsed {elapsed:?} exceeded 2ms target"
+        );
+        assert!(
+            !Path::new(".sc-hooks/logs/hooks.jsonl").exists(),
+            "zero-match path should not write dispatch logs"
+        );
+
+        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

@@ -104,3 +104,31 @@ pub fn render_reference() -> String {
     }
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_full_exit_code_reference_with_remediation() {
+        let rendered = render_reference();
+        for entry in all() {
+            assert!(
+                rendered.contains(&entry.code.to_string()),
+                "missing code {}",
+                entry.code
+            );
+            assert!(
+                rendered.contains(entry.name),
+                "missing exit code name {}",
+                entry.name
+            );
+            assert!(
+                rendered.contains(entry.remediation),
+                "missing remediation for {}",
+                entry.name
+            );
+        }
+        assert!(rendered.contains("Exit Code Reference:"));
+    }
+}
