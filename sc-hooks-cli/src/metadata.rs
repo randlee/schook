@@ -30,7 +30,7 @@ pub struct RuntimeMetadata {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookEnv {
     hook_type: String,
-    hook_event: String,
+    hook_event: Option<String>,
     metadata_path: PathBuf,
 }
 
@@ -38,7 +38,7 @@ impl HookEnv {
     fn new(hook_type: &str, event: Option<&str>, metadata_path: PathBuf) -> Self {
         Self {
             hook_type: hook_type.to_string(),
-            hook_event: event.unwrap_or_default().to_string(),
+            hook_event: event.map(str::to_string),
             metadata_path,
         }
     }
@@ -48,6 +48,7 @@ impl HookEnv {
 pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
+    // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
 }
 
@@ -163,8 +164,10 @@ pub fn assemble_metadata(
 pub fn inject_env_vars(command: &mut Command, env: &HookEnv) {
     command
         .env(ENV_HOOK_TYPE, &env.hook_type)
-        .env(ENV_HOOK_EVENT, &env.hook_event)
         .env(ENV_HOOK_METADATA, &env.metadata_path);
+    if let Some(event) = env.hook_event.as_ref() {
+        command.env(ENV_HOOK_EVENT, event);
+    }
 }
 
 fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFileGuard, CliError> {
@@ -350,5 +353,48 @@ PreToolUse = ["log"]
         let metadata_path = prepared.env.metadata_path.clone();
         drop(prepared);
         assert!(!metadata_path.exists());
+    }
+
+    #[test]
+    fn omits_sc_hook_event_when_event_is_absent() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let config = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["log"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+        let runtime = RuntimeMetadata {
+            agent_pid: 11,
+            agent_type: None,
+            session_id: None,
+            repo_path: None,
+            repo_branch: None,
+            working_dir: "/repo".to_string(),
+        };
+
+        let prepared =
+            prepare_with_runtime(&config, "PreToolUse", None, None, &runtime, temp.path())
+                .expect("metadata should prepare");
+
+        let mut command = Command::new("sh");
+        command
+            .arg("-c")
+            .arg("if [ -z \"${SC_HOOK_EVENT+x}\" ]; then printf 'unset'; else printf 'set'; fi");
+        inject_env_vars(&mut command, &prepared.env);
+        let output = command.output().expect("command should execute");
+        assert!(output.status.success());
+        assert_eq!(
+            String::from_utf8(output.stdout).expect("stdout should be utf8"),
+            "unset"
+        );
     }
 }
