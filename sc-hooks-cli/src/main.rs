@@ -124,39 +124,42 @@ fn run() -> Result<(), CliError> {
             let mode = args.mode();
             let session_id = metadata::current_session_id();
             let disabled_plugins = session::load_disabled_plugins(session_id.as_deref());
+            let is_session_end = args.hook == "SessionEnd";
 
-            let handlers = resolution::resolve_chain(
-                &config,
-                &args.hook,
-                args.event.as_deref(),
-                mode,
-                payload.as_ref(),
-                args.async_bucket.as_deref(),
-                &disabled_plugins,
-            )?;
+            let run_result = (|| -> Result<(), CliError> {
+                let handlers = resolution::resolve_chain(
+                    &config,
+                    &args.hook,
+                    args.event.as_deref(),
+                    mode,
+                    payload.as_ref(),
+                    args.async_bucket.as_deref(),
+                    &disabled_plugins,
+                )?;
 
-            if handlers.is_empty() {
-                if args.hook == "SessionEnd" {
-                    session::clear_session(session_id.as_deref())?;
+                if handlers.is_empty() {
+                    return Ok(());
                 }
-                return Ok(());
-            }
 
-            match dispatch::execute_chain(
-                &handlers,
-                &config,
-                &args.hook,
-                args.event.as_deref(),
-                mode,
-                payload.as_ref(),
-            )? {
-                dispatch::DispatchOutcome::Proceed => Ok(()),
-                dispatch::DispatchOutcome::Blocked { reason } => Err(CliError::Blocked { reason }),
-            }?;
+                match dispatch::execute_chain(
+                    &handlers,
+                    &config,
+                    &args.hook,
+                    args.event.as_deref(),
+                    mode,
+                    payload.as_ref(),
+                )? {
+                    dispatch::DispatchOutcome::Proceed => Ok(()),
+                    dispatch::DispatchOutcome::Blocked { reason } => {
+                        Err(CliError::Blocked { reason })
+                    }
+                }
+            })();
 
-            if args.hook == "SessionEnd" {
+            if is_session_end {
                 session::clear_session(session_id.as_deref())?;
             }
+            run_result?;
         }
         Commands::Audit => {
             return Err(CliError::AuditFailure {

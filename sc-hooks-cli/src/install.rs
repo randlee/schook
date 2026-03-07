@@ -9,7 +9,6 @@ use crate::errors::CliError;
 use crate::events;
 
 const DEFAULT_SETTINGS_PATH: &str = ".claude/settings.json";
-const DEFAULT_ASYNC_BUCKET: &str = "0-30000";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct InstallSettings {
@@ -41,7 +40,7 @@ pub struct InstallPlan {
 struct HandlerInstallSpec {
     mode: sc_hooks_core::dispatch::DispatchMode,
     matchers: Vec<String>,
-    async_bucket: String,
+    async_range: (u64, u64),
 }
 
 pub fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
@@ -135,7 +134,7 @@ fn collect_specs_for_hook(
         specs.push(HandlerInstallSpec {
             mode: manifest.mode,
             matchers: manifest.matchers,
-            async_bucket: async_bucket_for_response_time(manifest.response_time.as_ref()),
+            async_range: async_range_for_response_time(manifest.response_time.as_ref()),
         });
     }
 
@@ -144,9 +143,7 @@ fn collect_specs_for_hook(
 
 fn build_matcher_entries(hook_name: &str, specs: &[HandlerInstallSpec]) -> Vec<MatcherEntry> {
     let mut explicit_matchers = BTreeSet::new();
-    let has_wildcard = specs
-        .iter()
-        .any(|spec| spec.matchers.iter().any(|matcher| matcher == "*"));
+    let has_wildcard_only = specs.iter().any(is_wildcard_only_spec);
 
     for spec in specs {
         for matcher in &spec.matchers {
@@ -157,7 +154,7 @@ fn build_matcher_entries(hook_name: &str, specs: &[HandlerInstallSpec]) -> Vec<M
     }
 
     let mut all_matchers: Vec<String> = explicit_matchers.into_iter().collect();
-    if has_wildcard {
+    if has_wildcard_only {
         all_matchers.push("*".to_string());
     }
 
@@ -170,11 +167,11 @@ fn build_matcher_entries(hook_name: &str, specs: &[HandlerInstallSpec]) -> Vec<M
             })
             .count();
 
-        let mut async_buckets = BTreeSet::new();
+        let mut async_ranges = Vec::new();
         for spec in specs {
             if spec.mode == sc_hooks_core::dispatch::DispatchMode::Async && applies(spec, &matcher)
             {
-                async_buckets.insert(spec.async_bucket.clone());
+                async_ranges.push(spec.async_range);
             }
         }
 
@@ -187,7 +184,7 @@ fn build_matcher_entries(hook_name: &str, specs: &[HandlerInstallSpec]) -> Vec<M
             });
         }
 
-        for bucket in async_buckets {
+        for bucket in merged_async_buckets(&async_ranges) {
             hooks.push(CommandHook {
                 hook_type: "command".to_string(),
                 command: build_run_command(hook_name, &matcher, true, Some(&bucket)),
@@ -224,17 +221,51 @@ fn build_run_command(hook: &str, matcher: &str, is_async: bool, bucket: Option<&
 }
 
 fn applies(spec: &HandlerInstallSpec, matcher: &str) -> bool {
+    if matcher == "*" {
+        return is_wildcard_only_spec(spec);
+    }
+
     spec.matchers.iter().any(|declared| declared == "*")
         || spec.matchers.iter().any(|declared| declared == matcher)
 }
 
-fn async_bucket_for_response_time(
+fn async_range_for_response_time(
     response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> String {
+) -> (u64, u64) {
     match response_time {
-        Some(range) => format!("{}-{}", range.min_ms, range.max_ms),
-        None => DEFAULT_ASYNC_BUCKET.to_string(),
+        Some(range) => (range.min_ms, range.max_ms),
+        None => (0, 30_000),
     }
+}
+
+fn merged_async_buckets(ranges: &[(u64, u64)]) -> Vec<String> {
+    if ranges.is_empty() {
+        return Vec::new();
+    }
+
+    let mut sorted = ranges.to_vec();
+    sorted.sort_by_key(|(min, max)| (*min, *max));
+
+    let mut merged: Vec<(u64, u64)> = Vec::new();
+    for (min, max) in sorted {
+        if let Some((last_min, last_max)) = merged.last_mut()
+            && min <= last_max.saturating_add(1)
+        {
+            *last_min = (*last_min).min(min);
+            *last_max = (*last_max).max(max);
+            continue;
+        }
+        merged.push((min, max));
+    }
+
+    merged
+        .into_iter()
+        .map(|(min, max)| format!("{min}-{max}"))
+        .collect()
+}
+
+fn is_wildcard_only_spec(spec: &HandlerInstallSpec) -> bool {
+    spec.matchers.len() == 1 && spec.matchers[0] == "*"
 }
 
 fn builtin_spec(handler_name: &str) -> Option<HandlerInstallSpec> {
@@ -242,7 +273,7 @@ fn builtin_spec(handler_name: &str) -> Option<HandlerInstallSpec> {
         "log" => Some(HandlerInstallSpec {
             mode: sc_hooks_core::dispatch::DispatchMode::Sync,
             matchers: vec!["*".to_string()],
-            async_bucket: DEFAULT_ASYNC_BUCKET.to_string(),
+            async_range: (0, 30_000),
         }),
         _ => None,
     }
@@ -381,6 +412,118 @@ PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
             .expect("wildcard entry should exist for log builtin");
         assert_eq!(wildcard.hooks.len(), 1);
         assert!(wildcard.hooks[0].command.contains("--sync"));
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn wildcard_entry_only_includes_wildcard_only_handlers() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/mixed"),
+            r#"{
+"contract_version":1,
+"name":"mixed",
+"mode":"sync",
+"hooks":["PreToolUse"],
+"matchers":["Write","*"],
+"requires":{}
+}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["mixed"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let plan = build_settings(&cfg).expect("install plan should build");
+        let entries = plan
+            .settings
+            .hooks
+            .get("PreToolUse")
+            .expect("PreToolUse should exist");
+        assert!(entries.iter().any(|entry| entry.matcher == "Write"));
+        assert!(!entries.iter().any(|entry| entry.matcher == "*"));
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn overlaps_are_merged_into_single_async_bucket() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/a"),
+            r#"{
+"contract_version":1,
+"name":"a",
+"mode":"async",
+"hooks":["PreToolUse"],
+"matchers":["Write"],
+"response_time":{"min_ms":10,"max_ms":100},
+"requires":{}
+}"#,
+        );
+        make_plugin(
+            Path::new(".sc-hooks/plugins/b"),
+            r#"{
+"contract_version":1,
+"name":"b",
+"mode":"async",
+"hooks":["PreToolUse"],
+"matchers":["Write"],
+"response_time":{"min_ms":50,"max_ms":200},
+"requires":{}
+}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["a", "b"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let plan = build_settings(&cfg).expect("install plan should build");
+        let write = plan
+            .settings
+            .hooks
+            .get("PreToolUse")
+            .expect("PreToolUse should exist")
+            .iter()
+            .find(|entry| entry.matcher == "Write")
+            .expect("Write matcher should exist");
+
+        let async_commands: Vec<&CommandHook> = write
+            .hooks
+            .iter()
+            .filter(|hook| hook.r#async == Some(true))
+            .collect();
+        assert_eq!(async_commands.len(), 1);
+        assert!(async_commands[0].command.contains("--async-bucket 10-200"));
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

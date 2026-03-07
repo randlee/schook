@@ -84,7 +84,7 @@ pub fn resolve_chain(
 
         if mode == sc_hooks_core::dispatch::DispatchMode::Async
             && let Some(bucket) = async_bucket
-            && response_time_bucket(manifest.response_time.as_ref()) != bucket
+            && !bucket_matches_manifest(bucket, manifest.response_time.as_ref())
         {
             continue;
         }
@@ -130,13 +130,31 @@ pub fn resolve_chain(
     Ok(resolved)
 }
 
-pub fn response_time_bucket(
+fn response_time_range(
     response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> String {
+) -> (u64, u64) {
     match response_time {
-        Some(range) => format!("{}-{}", range.min_ms, range.max_ms),
-        None => "0-30000".to_string(),
+        Some(range) => (range.min_ms, range.max_ms),
+        None => (0, 30_000),
     }
+}
+
+fn bucket_matches_manifest(
+    requested_bucket: &str,
+    response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
+) -> bool {
+    let Some((bucket_min, bucket_max)) = parse_bucket_range(requested_bucket) else {
+        return false;
+    };
+    let (plugin_min, plugin_max) = response_time_range(response_time);
+    bucket_min <= plugin_max && plugin_min <= bucket_max.saturating_add(1)
+}
+
+fn parse_bucket_range(bucket: &str) -> Option<(u64, u64)> {
+    let (min, max) = bucket.split_once('-')?;
+    let min = min.parse::<u64>().ok()?;
+    let max = max.parse::<u64>().ok()?;
+    Some((min, max))
 }
 
 fn resolve_builtin(
@@ -360,6 +378,55 @@ PreToolUse = ["notify"]
         )
         .expect("resolution should succeed");
         assert_eq!(matched.len(), 1);
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn merged_async_bucket_matches_overlapping_plugin_range() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("current_dir should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/context-a"),
+            r#"{
+"contract_version":1,
+"name":"context-a",
+"mode":"async",
+"hooks":["PreToolUse"],
+"matchers":["Write"],
+"response_time":{"min_ms":50,"max_ms":200},
+"requires":{}
+}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["context-a"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let handlers = resolve_chain(
+            &cfg,
+            "PreToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Async,
+            None,
+            Some("10-200"),
+            &BTreeSet::new(),
+        )
+        .expect("resolution should succeed");
+        assert_eq!(handlers.len(), 1);
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

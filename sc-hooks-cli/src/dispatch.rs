@@ -111,6 +111,12 @@ pub fn execute_chain(
                 })? {
                     TimeoutOutcome::TimedOut => {
                         disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                            async_system_message.push(format!(
+                                "hook {handler_name} timed out — disabled. Run 'sc-hooks test {handler_name}' to diagnose."
+                            ));
+                            continue;
+                        }
                         return Err(CliError::Timeout {
                             message: format!("plugin `{handler_name}` exceeded timeout"),
                         });
@@ -229,7 +235,7 @@ pub fn execute_chain(
 }
 
 fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
-    let _ = session::mark_plugin_disabled(session_id, handler_name);
+    let _ = session::mark_plugin_disabled(session_id, handler_name, "runtime-error");
 }
 
 fn run_builtin(
