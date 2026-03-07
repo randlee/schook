@@ -120,7 +120,8 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 |----|-------------|----------|---------------------|
 | EVT-001 | The host shall maintain a canonical taxonomy of valid events per hook type. | Must | `sc-hooks handlers --events` lists all valid events per hook type. |
 | EVT-002 | Valid PreToolUse/PostToolUse events shall include: `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Agent`, `NotebookEdit`, `TodoWrite`, `AskFollowup`, `SendMessage`, `Task`, and `*`. | Must | Audit validates plugin matchers against this list. |
-| EVT-003 | Lifecycle hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `Notification`) have no event sub-types. Plugins for these hooks shall declare `matchers: ["*"]`. | Must | Audit flags non-`*` matchers on lifecycle hooks as errors. |
+| EVT-003 | Lifecycle and agent-team hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `TeammateIdle`, `PermissionRequest`, `Stop`) use `*` matchers only. `Notification` supports `idle_prompt` and `*`. | Must | Audit flags non-`*` matchers on lifecycle hooks as errors (except `Notification` which allows named matchers). |
+| EVT-005 | The host shall recognize all Claude Code hook types including agent-teams events: `TeammateIdle`, `PermissionRequest`, `Stop`. | Must | Plugins can register for these hook types in config and manifests. |
 | EVT-004 | Audit shall warn (not fail) on unrecognized event names, to allow forward compatibility as Claude Code adds new events. | Should | An event name not in the taxonomy produces a warning, not an error. |
 
 ### 3.6 Error Handling & Plugin Validation

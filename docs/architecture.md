@@ -443,17 +443,20 @@ The install algorithm is deterministic:
 
 Valid events per hook type (based on Claude Code's hook system):
 
-| Hook Type | Valid Events |
-|-----------|-------------|
-| `PreToolUse` | `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Agent`, `NotebookEdit`, `TodoWrite`, `AskFollowup`, `SendMessage`, `Task`, `*` (any tool) |
-| `PostToolUse` | Same as PreToolUse |
-| `PreCompact` | *(no event sub-types — always fires)* |
-| `PostCompact` | *(no event sub-types — always fires)* |
-| `SessionStart` | *(no event sub-types — always fires)* |
-| `SessionEnd` | *(no event sub-types — always fires)* |
-| `Notification` | *(no event sub-types — always fires)* |
+| Hook Type | Valid Events | Description |
+|-----------|-------------|-------------|
+| `PreToolUse` | `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Agent`, `NotebookEdit`, `TodoWrite`, `AskFollowup`, `SendMessage`, `Task`, `*` | Before tool execution. Sync plugins can block. |
+| `PostToolUse` | Same as PreToolUse | After tool execution. Cleanup, state update, audit. |
+| `PreCompact` | `*` only | Before context compaction. |
+| `PostCompact` | `*` only | After context compaction. |
+| `SessionStart` | `*` only | Session initialization. Identity setup, state init. |
+| `SessionEnd` | `*` only | Session termination. Cleanup, state finalization. |
+| `Notification` | `idle_prompt`, `*` | Notification events (e.g., idle timeout heartbeat). |
+| `TeammateIdle` | `*` only | Agent-teams: teammate goes idle after a turn. Presence tracking. |
+| `PermissionRequest` | `*` only | Agent-teams: agent requests user permission. |
+| `Stop` | `*` only | Agent-teams: agent stops/pauses after response turn. |
 
-Lifecycle hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `Notification`) have no event sub-types. Plugins for these hooks should declare `matchers: ["*"]`. The `audit` command validates matcher names against this taxonomy.
+Lifecycle hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `Notification`, `TeammateIdle`, `PermissionRequest`, `Stop`) use `*` matchers. Plugins for these hooks should declare `matchers: ["*"]`. The `audit` command validates matcher names against this taxonomy.
 
 **Note:** This taxonomy reflects current Claude Code hook points. As Claude Code evolves, new hook types and events may be added. The `audit` command will warn on unrecognized hook types or events but not fail, to allow forward compatibility.
 
@@ -752,16 +755,22 @@ The SDK is optional. Plugins can implement the JSON protocol directly in any lan
 
 sc-hooks ships with common-case handlers that cover frequent patterns:
 
-| Plugin | Mode | Description |
-|--------|------|-------------|
-| `log` | sync (builtin) | Logs hook invocations. Always available. |
-| `guard-paths` | sync | Blocks writes to denied paths. Reads deny/allow patterns from its own config. |
-| `conditional-source` | async | Reads a file and returns its contents as `additionalContext`, optionally filtered by conditions on the incoming metadata JSON. |
-| `template-source` | async | Reads a Jinja2 template file and renders it using the incoming metadata JSON as context. Returns the rendered output as `additionalContext`. Enables dynamic context injection without writing a custom plugin. |
-| `notify` | async | Sends notifications (ATM messages, webhooks). Forks and returns immediately. |
-| `save-context` | sync | Persists context before compaction events. |
+| Plugin | Mode | Hook Types | Description |
+|--------|------|------------|-------------|
+| `log` | sync (builtin) | any | Logs hook invocations. Always available. |
+| `guard-paths` | sync | PreToolUse | Blocks writes to denied paths. Reads deny/allow patterns from its own config. |
+| `identity-state` | sync | PreToolUse, PostToolUse | Paired Pre/Post handler: writes process-scoped identity context (PID-keyed temp file) before tool execution, cleans up after. Enables downstream CLI tools to discover agent identity. |
+| `event-relay` | async | any | General-purpose event relay to external daemon (Unix socket, TCP, webhook). Configurable event mapping and payload templates. Replaces per-event relay scripts. Forks and returns immediately. |
+| `policy-enforcer` | sync | PreToolUse | Access control: enforces spawn policies, team membership, named-teammate requirements. Reads agent prompt frontmatter and team config. Can block unauthorized operations. |
+| `conditional-source` | async | any | Reads a file and returns its contents as `additionalContext`, optionally filtered by conditions on the incoming metadata/payload JSON. |
+| `template-source` | async | any | Reads a Jinja2 template file and renders it using the incoming metadata JSON as context. Returns the rendered output as `additionalContext`. Enables dynamic context injection without writing a custom plugin. |
+| `notify` | async | any | Sends notifications (ATM messages, webhooks). Forks and returns immediately. |
+| `save-context` | sync | PreCompact | Persists context before compaction events. |
+| `audit-logger` | async | any | Appends hook events to durable JSONL audit log. Configurable event filtering and retention. |
 
 These serve as both useful tools and reference implementations for plugin authors.
+
+**Design note:** The `identity-state` and `event-relay` plugins replace the most common patterns found in existing Python hook implementations (ATM identity management and daemon event relaying). The `policy-enforcer` replaces the `gate-agent-spawns` pattern. Together, these three plugins cover ~90% of existing hook functionality.
 
 ## 13. Project Structure
 
@@ -781,7 +790,7 @@ sc-hooks/
 │   ├── Cargo.toml
 │   └── src/
 │       ├── main.rs           # clap: run, audit, fire, install, test, exit-codes
-│       ├── config.rs         # TOML parsing (4 sections)
+│       ├── config.rs         # TOML parsing (5 sections)
 │       ├── metadata.rs       # assemble JSON from config + runtime
 │       ├── resolve.rs        # name → builtin | plugin binary
 │       ├── manifest.rs       # call --manifest, parse + cache
@@ -803,10 +812,14 @@ sc-hooks/
 │       └── fixtures.rs       # test fixture builders
 ├── plugins/                  # pre-made plugins (each compiles independently)
 │   ├── guard-paths/
+│   ├── identity-state/
+│   ├── event-relay/
+│   ├── policy-enforcer/
 │   ├── conditional-source/
 │   ├── template-source/
 │   ├── notify/
-│   └── save-context/
+│   ├── save-context/
+│   └── audit-logger/
 └── shims/
     ├── codex-shim.sh
     └── gemini-shim.sh
