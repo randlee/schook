@@ -111,26 +111,25 @@ pub fn run(
                     continue;
                 };
 
-                if let Some(rule) = requirement.validate.as_ref() {
-                    if let Some((rule, _)) = sc_hooks_core::validation::parse_validation_rule(rule)
-                    {
-                        match rule {
-                            sc_hooks_core::validation::ValidationRule::DirExists => {
-                                if value.as_str().is_none_or(|path| !Path::new(path).is_dir()) {
-                                    report.errors.push(format!(
-                                        "AUD-004 `{handler_name}` dir_exists failed for `{field}`"
-                                    ));
-                                }
+                if let Some(rule) = requirement.validate.as_ref()
+                    && let Some((rule, _)) = sc_hooks_core::validation::parse_validation_rule(rule)
+                {
+                    match rule {
+                        sc_hooks_core::validation::ValidationRule::DirExists => {
+                            if value.as_str().is_none_or(|path| !Path::new(path).is_dir()) {
+                                report.errors.push(format!(
+                                    "AUD-004 `{handler_name}` dir_exists failed for `{field}`"
+                                ));
                             }
-                            sc_hooks_core::validation::ValidationRule::FileExists => {
-                                if value.as_str().is_none_or(|path| !Path::new(path).is_file()) {
-                                    report.errors.push(format!(
-                                        "AUD-004 `{handler_name}` file_exists failed for `{field}`"
-                                    ));
-                                }
-                            }
-                            _ => {}
                         }
+                        sc_hooks_core::validation::ValidationRule::FileExists => {
+                            if value.as_str().is_none_or(|path| !Path::new(path).is_file()) {
+                                report.errors.push(format!(
+                                    "AUD-004 `{handler_name}` file_exists failed for `{field}`"
+                                ));
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
