@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "sc-hooks-cli",
+  "sc-hooks-sdk",
+  "sc-hooks-test",
+]
+resolver = "2"
