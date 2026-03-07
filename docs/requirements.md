@@ -87,6 +87,18 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 | MTR-003 | A plugin with `matchers: ["*"]` shall be included in all matcher entries for its hook type. | Must | A `log` plugin matching `*` appears in every generated entry for its hook type. |
 | MTR-004 | `sc-hooks install` shall not generate a hook entry for a matcher+mode combination with zero applicable plugins. | Must | If no async plugins match event `Read`, no async entry is generated for `Read`. |
 
+### 3.4a Payload Conditions
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|----|-------------|----------|---------------------|
+| PLC-001 | Plugins may declare `payload_conditions` in their manifest — an array of conditions on the hook payload that must all pass for the plugin to execute. | Must | A plugin with `payload_conditions: [{"path": "tool_input.command", "op": "contains", "value": "atm"}]` is only invoked when the bash command contains "atm". |
+| PLC-002 | Payload conditions shall be evaluated at runtime after event matching but before plugin invocation. If any condition fails, the plugin is silently skipped (not an error). | Must | A plugin whose conditions don't match produces no error, no log entry, and no process spawn. |
+| PLC-003 | The `path` field in a condition shall use dot-notation relative to the `payload` object. A path that doesn't resolve is treated as absent. | Must | `"path": "tool_input.file_path"` accesses `payload.tool_input.file_path`. |
+| PLC-004 | The host shall support these condition operators: `exists`, `not_exists`, `equals`, `not_equals`, `contains`, `starts_with`, `matches` (glob), `one_of`, `regex`. | Must | Each operator works correctly per its definition. `matches` uses glob semantics. `regex` uses standard regex. |
+| PLC-005 | Multiple conditions in the array shall be AND-ed: all must pass. | Must | Two conditions where one passes and one fails → plugin skipped. |
+| PLC-006 | `sc-hooks audit` shall validate payload condition syntax (recognized operators, valid path notation, valid regex/glob patterns) but shall not validate path existence (paths depend on runtime payload). | Must | A condition with an unrecognized operator fails audit. A valid condition with a runtime-dependent path passes audit. |
+| PLC-007 | Payload conditions shall not affect `sc-hooks install` output. Conditions are evaluated at runtime only; installation is driven by `matchers` alone. | Must | Two plugins with identical matchers but different payload conditions generate the same install entries. |
+
 ### 3.5 Timeout & Long-Running Plugins
 
 | ID | Requirement | Priority | Acceptance Criteria |

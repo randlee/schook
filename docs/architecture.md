@@ -163,6 +163,9 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
   "mode": "sync",
   "hooks": ["PreToolUse"],
   "matchers": ["Write", "Bash", "Edit"],
+  "payload_conditions": [
+    { "path": "tool_input.file_path", "op": "exists" }
+  ],
   "timeout_ms": 5000,
   "long_running": false,
   "requires": {
@@ -189,6 +192,7 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
 | `mode` | string | yes | `"sync"` or `"async"`. Determines which chain the plugin runs in. |
 | `hooks` | array | yes | Hook types this plugin handles (e.g., `["PreToolUse", "PostToolUse"]`). |
 | `matchers` | array | yes | Event patterns this plugin matches. `["*"]` matches all events. `["Write", "Bash"]` matches only those events. Used by `sc-hooks install` to generate precise Claude Code `matcher` entries. |
+| `payload_conditions` | array | no | Conditions on the hook payload that must be satisfied for this plugin to execute. Evaluated at runtime after event matching. If any condition fails, the plugin is skipped (not an error). See §5.9 for condition operators. |
 | `timeout_ms` | integer | no | Expected maximum execution time in milliseconds. Default: 5000ms for sync, 30000ms for async. The host kills the plugin if it exceeds this. |
 | `long_running` | boolean | no | If `true`, the host applies an extended timeout (or no timeout) for this plugin. Use sparingly—only for plugins that genuinely block on external input (e.g., waiting for a Slack response). Must be justified in the manifest `description` field. Audit warns on long-running plugins. |
 | `response_time` | object | no | Async plugins only. Declares expected response time range: `{"min_ms": 10, "max_ms": 100}`. Used by the host to group async plugins into time-bucketed hook entries for efficient aggregation (see §10). |
@@ -348,6 +352,82 @@ For **async** invocations, timeout is handled differently:
 - An `ai_notification` is included so the AI session is informed, but it arrives as context on the next turn, not as a blocking error.
 
 This means async plugin failures degrade gracefully: the AI tool continues working, and the user/AI is notified that context from the failed plugin is unavailable.
+
+### 5.9 Payload Conditions
+
+Plugins can declare conditions on the hook payload that must be satisfied for the plugin to execute. This is evaluated **at runtime** after event matching but before the plugin is invoked. If any condition fails, the plugin is silently skipped (not an error — the condition simply didn't match).
+
+**Why this exists:** Real-world hooks frequently need to inspect payload content to decide whether to act. For example:
+- `atm-identity-write` only runs when the bash command contains "atm"
+- `gate-agent-spawns` only enforces policies for specific `subagent_type` values
+- `guard-paths` only cares about writes to certain file patterns
+
+Without payload conditions, every plugin would need to implement its own "should I run?" logic, read the full payload, and return `proceed` as a no-op. Payload conditions let the host skip the plugin entirely — no process spawn, no overhead.
+
+**Condition format:**
+
+```json
+"payload_conditions": [
+  { "path": "tool_input.command", "op": "contains", "value": "atm" },
+  { "path": "tool_input.file_path", "op": "matches", "value": "src/**/*.rs" }
+]
+```
+
+Multiple conditions are **AND**-ed: all must pass for the plugin to run. For OR logic, register the plugin multiple times with different conditions (or use `"op": "one_of"`).
+
+**Supported operators:**
+
+| Operator | Description | Value Type | Example |
+|----------|-------------|------------|---------|
+| `exists` | Field is present and non-null | *(none)* | `{ "path": "tool_input.file_path", "op": "exists" }` |
+| `not_exists` | Field is absent or null | *(none)* | `{ "path": "tool_input.is_background", "op": "not_exists" }` |
+| `equals` | Exact string match | string | `{ "path": "tool_input.subagent_type", "op": "equals", "value": "rust-developer" }` |
+| `not_equals` | Negated exact match | string | `{ "path": "tool_input.subagent_type", "op": "not_equals", "value": "general-purpose" }` |
+| `contains` | Substring match | string | `{ "path": "tool_input.command", "op": "contains", "value": "atm" }` |
+| `starts_with` | Prefix match | string | `{ "path": "tool_input.file_path", "op": "starts_with", "value": "src/" }` |
+| `matches` | Glob pattern match | glob string | `{ "path": "tool_input.file_path", "op": "matches", "value": "**/*.rs" }` |
+| `one_of` | Value is one of listed strings | array | `{ "path": "tool_input.subagent_type", "op": "one_of", "value": ["scrum-master", "rust-developer"] }` |
+| `regex` | Regex match | regex string | `{ "path": "tool_input.command", "op": "regex", "value": "^(atm|sc-hooks)\\s" }` |
+
+**Path resolution:** The `path` field uses dot-notation to traverse the payload JSON. `tool_input.command` accesses `payload.tool_input.command`. The path is relative to the `payload` object (not the full metadata).
+
+**Behavior when path doesn't resolve:**
+- `exists` → condition fails (skip plugin)
+- `not_exists` → condition passes
+- All other operators → condition fails (skip plugin)
+
+**Audit integration:** `sc-hooks audit` validates that payload conditions use recognized operators and valid path syntax. It cannot validate path existence (paths depend on runtime payload), but it can check syntax.
+
+**Examples from real-world hooks:**
+
+```json
+// identity-state: only run when bash command invokes atm CLI
+{
+  "name": "identity-state",
+  "matchers": ["Bash"],
+  "payload_conditions": [
+    { "path": "tool_input.command", "op": "contains", "value": "atm" }
+  ]
+}
+
+// policy-enforcer: only run for named-teammate spawn policies
+{
+  "name": "policy-enforcer",
+  "matchers": ["Task"],
+  "payload_conditions": [
+    { "path": "tool_input.subagent_type", "op": "exists" }
+  ]
+}
+
+// guard-paths: only run when a file path is being written
+{
+  "name": "guard-paths",
+  "matchers": ["Write", "Edit"],
+  "payload_conditions": [
+    { "path": "tool_input.file_path", "op": "exists" }
+  ]
+}
+```
 
 ## 6. Handler Resolution
 
