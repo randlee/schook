@@ -5,6 +5,7 @@ use crate::config::ScHooksConfig;
 use crate::errors::CliError;
 use crate::metadata;
 use crate::resolution::{BuiltinHandler, HandlerTarget, ResolvedHandler};
+use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 
 #[derive(Debug)]
@@ -22,6 +23,8 @@ pub fn execute_chain(
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
     let prepared = metadata::prepare_for_dispatch(config, hook, event, payload)?;
+    let mut async_additional_context = Vec::new();
+    let mut async_system_message = Vec::new();
 
     for handler in handlers {
         let handler_name = &handler.name;
@@ -73,8 +76,11 @@ pub fn execute_chain(
                     .stdout(std::process::Stdio::piped())
                     .stderr(std::process::Stdio::piped())
                     .spawn()
-                    .map_err(|err| CliError::PluginError {
-                        message: format!("failed to spawn `{handler_name}`: {err}"),
+                    .map_err(|err| {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        CliError::PluginError {
+                            message: format!("failed to spawn `{handler_name}`: {err}"),
+                        }
                     })?;
 
                 if let Some(mut stdin) = child.stdin.take() {
@@ -84,11 +90,12 @@ pub fn execute_chain(
                         }
                     })?;
                     use std::io::Write;
-                    stdin
-                        .write_all(&body)
-                        .map_err(|err| CliError::PluginError {
+                    stdin.write_all(&body).map_err(|err| {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        CliError::PluginError {
                             message: format!("failed to write stdin payload: {err}"),
-                        })?;
+                        }
+                    })?;
                 }
 
                 let timeout_ms = resolve_timeout_ms(
@@ -97,11 +104,19 @@ pub fn execute_chain(
                     plugin.manifest.long_running,
                 );
                 let status = match wait_with_timeout(&mut child, timeout_ms).map_err(|err| {
+                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
                     CliError::PluginError {
                         message: format!("failed while waiting for `{handler_name}`: {err}"),
                     }
                 })? {
                     TimeoutOutcome::TimedOut => {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                            async_system_message.push(format!(
+                                "hook {handler_name} timed out — disabled. Run 'sc-hooks test {handler_name}' to diagnose."
+                            ));
+                            continue;
+                        }
                         return Err(CliError::Timeout {
                             message: format!("plugin `{handler_name}` exceeded timeout"),
                         });
@@ -112,23 +127,28 @@ pub fn execute_chain(
                 use std::io::Read;
                 let mut stdout = Vec::new();
                 if let Some(mut out) = child.stdout.take() {
-                    out.read_to_end(&mut stdout)
-                        .map_err(|err| CliError::PluginError {
+                    out.read_to_end(&mut stdout).map_err(|err| {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        CliError::PluginError {
                             message: format!("failed to read plugin stdout: {err}"),
-                        })?;
+                        }
+                    })?;
                 }
                 let mut stderr = Vec::new();
                 if let Some(mut err) = child.stderr.take() {
-                    err.read_to_end(&mut stderr)
-                        .map_err(|read_err| CliError::PluginError {
+                    err.read_to_end(&mut stderr).map_err(|read_err| {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                        CliError::PluginError {
                             message: format!("failed to read plugin stderr: {read_err}"),
-                        })?;
+                        }
+                    })?;
                 }
 
                 let stdout_text = String::from_utf8_lossy(&stdout);
                 let stderr_text = String::from_utf8_lossy(&stderr);
 
                 if !status.success() {
+                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
                     return Err(CliError::PluginError {
                         message: format!(
                             "plugin `{}` exited non-zero status {:?}; stderr={}",
@@ -142,21 +162,45 @@ pub fn execute_chain(
                 let parsed = serde_json::from_str::<sc_hooks_core::results::HookResult>(
                     &stdout_text,
                 )
-                .map_err(|err| CliError::PluginError {
-                    message: format!(
-                        "plugin `{handler_name}` returned invalid JSON: {err}; stderr={stderr_text}"
-                    ),
+                .map_err(|err| {
+                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                    CliError::PluginError {
+                        message: format!(
+                            "plugin `{handler_name}` returned invalid JSON: {err}; stderr={stderr_text}"
+                        ),
+                    }
                 })?;
 
                 match parsed.action {
-                    sc_hooks_core::results::HookAction::Proceed => {}
+                    sc_hooks_core::results::HookAction::Proceed => {
+                        if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                            if let Some(context) = parsed.additional_context {
+                                async_additional_context.push(context);
+                            }
+                            if let Some(message) = parsed.system_message {
+                                async_system_message.push(message);
+                            }
+                        }
+                    }
                     sc_hooks_core::results::HookAction::Block => {
+                        if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                            disable_plugin_for_session(
+                                prepared.session_id.as_deref(),
+                                handler_name,
+                            );
+                            return Err(CliError::PluginError {
+                                message: format!(
+                                    "{handler_name}: async plugins cannot return block action"
+                                ),
+                            });
+                        }
                         let reason = parsed
                             .reason
                             .unwrap_or_else(|| "plugin blocked without reason".to_string());
                         return Ok(DispatchOutcome::Blocked { reason });
                     }
                     sc_hooks_core::results::HookAction::Error => {
+                        disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
                         let message = parsed
                             .message
                             .unwrap_or_else(|| "plugin reported error".to_string());
@@ -169,7 +213,29 @@ pub fn execute_chain(
         }
     }
 
+    if mode == sc_hooks_core::dispatch::DispatchMode::Async
+        && (!async_additional_context.is_empty() || !async_system_message.is_empty())
+    {
+        let output = serde_json::json!({
+            "additionalContext": if async_additional_context.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::String(async_additional_context.join("\n---\n"))
+            },
+            "systemMessage": if async_system_message.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::String(async_system_message.join("\n"))
+            }
+        });
+        println!("{output}");
+    }
+
     Ok(DispatchOutcome::Proceed)
+}
+
+fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
+    let _ = session::mark_plugin_disabled(session_id, handler_name, "runtime-error");
 }
 
 fn run_builtin(
@@ -249,6 +315,8 @@ PreToolUse = ["guard-paths"]
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
+            None,
+            &std::collections::BTreeSet::new(),
         )
         .expect("resolution should succeed");
 
