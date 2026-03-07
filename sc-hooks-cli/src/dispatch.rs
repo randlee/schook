@@ -196,10 +196,11 @@ pub fn execute_chain(
                     Ok(TimeoutOutcome::Completed(status)) => status,
                     Ok(TimeoutOutcome::TimedOut) => {
                         disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
-                        let ai_message = ai_notification(
+                        let ai_message = ai_notification_with_timeout(
                             handler_name,
                             "timed-out",
                             "increase timeout_ms or optimize plugin execution.",
+                            timeout_ms,
                         );
                         log_results.push(error_result(
                             handler_name,
@@ -594,10 +595,13 @@ fn emit_dispatch_log(
     exit: i32,
     ai_notification: Option<String>,
 ) -> Result<(), CliError> {
+    let matcher = event.unwrap_or("*").to_string();
     let entry = logging::DispatchLogEntry {
+        ts: logging::now_ts_iso8601(),
         ts_millis: logging::now_ts_millis(),
         hook: hook.to_string(),
         event: event.map(str::to_string),
+        matcher,
         mode: mode.as_str().to_string(),
         handlers: handler_chain.to_vec(),
         results,
@@ -650,6 +654,15 @@ fn error_result(
 }
 
 fn ai_notification(handler_name: &str, error_type: &str, guidance: &str) -> String {
+    ai_notification_with_timeout(handler_name, error_type, guidance, None)
+}
+
+fn ai_notification_with_timeout(
+    handler_name: &str,
+    error_type: &str,
+    guidance: &str,
+    timeout_ms: Option<u64>,
+) -> String {
     match error_type {
         "invalid-json" => {
             format!("hook {handler_name} returned invalid JSON — disabled. Please notify user!")
@@ -658,7 +671,8 @@ fn ai_notification(handler_name: &str, error_type: &str, guidance: &str) -> Stri
             format!("hook {handler_name} exited non-zero — disabled. Please notify user!")
         }
         "timed-out" => format!(
-            "hook {handler_name} timed out — disabled. Run 'sc-hooks test {handler_name}' to diagnose."
+            "hook {handler_name} timed out after {}ms — disabled. Run 'sc-hooks test {handler_name}' to diagnose.",
+            timeout_ms.unwrap_or_default()
         ),
         _ => format!("hook {handler_name} {error_type} — disabled. {guidance}"),
     }
@@ -817,9 +831,27 @@ level = "info"
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");
         assert_eq!(parsed["hook"], "PreToolUse");
+        assert_eq!(parsed["matcher"], "Write");
+        assert!(
+            parsed["ts"]
+                .as_str()
+                .is_some_and(|value| value.ends_with('Z')),
+            "dispatch log should contain ISO8601 UTC timestamp"
+        );
         assert_eq!(parsed["exit"], 0);
 
         std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn timeout_ai_notification_includes_duration() {
+        let message = ai_notification_with_timeout(
+            "guard-paths",
+            "timed-out",
+            "increase timeout",
+            Some(5000),
+        );
+        assert!(message.contains("timed out after 5000ms"));
     }
 
     #[test]

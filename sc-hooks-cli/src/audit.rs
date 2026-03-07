@@ -66,6 +66,13 @@ pub fn run(
                     "AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"
                 ));
             }
+            if manifest.mode == sc_hooks_core::dispatch::DispatchMode::Async
+                && manifest.long_running
+            {
+                report.errors.push(format!(
+                    "AUD-006 handler `{handler_name}` declares blocking behavior (long_running=true) while mode=async"
+                ));
+            }
 
             if manifest.long_running
                 && manifest
@@ -457,6 +464,43 @@ PostToolUse = ["notify"]
 
         let report = run(&cfg, AuditOptions { strict: true }).expect("audit should execute");
         assert!(report.errors.iter().any(|entry| entry.contains("SEC-004")));
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn audit_rejects_async_handlers_declaring_blocking_behavior() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/notify"),
+            r#"{"contract_version":1,"name":"notify","mode":"async","hooks":["PostToolUse"],"matchers":["*"],"long_running":true,"description":"wait for remote ack","requires":{}}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PostToolUse = ["notify"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|entry| { entry.contains("AUD-006") && entry.contains("blocking behavior") })
+        );
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }
