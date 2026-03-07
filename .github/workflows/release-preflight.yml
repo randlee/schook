@@ -1,0 +1,96 @@
+name: Release Preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version candidate (e.g. 0.1.0 or v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Normalize version input
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='${{ github.event.inputs.version }}'
+          tag="$raw"
+          [[ "$tag" == v* ]] || tag="v${tag}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: '$raw' (expected X.Y.Z or vX.Y.Z)" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate workspace version matches
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.meta.outputs.release_version }}'
+          python3 - <<'PY' "$VERSION"
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          version = sys.argv[1]
+          root_toml = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))
+          ws_ver = root_toml.get("workspace", {}).get("package", {}).get("version")
+          if ws_ver != version:
+              raise SystemExit(f"workspace version mismatch: expected {version}, got {ws_ver}")
+
+          crates = [
+              "sc-hooks-cli/Cargo.toml",
+              "sc-hooks-sdk/Cargo.toml",
+              "sc-hooks-test/Cargo.toml",
+          ]
+          for rel in crates:
+              data = tomllib.loads((Path(rel)).read_text(encoding="utf-8"))
+              pkg = data.get("package", {})
+              v = pkg.get("version")
+              if isinstance(v, str):
+                  if v != version:
+                      raise SystemExit(f"{rel}: version mismatch: expected {version}, got {v}")
+              elif isinstance(v, dict):
+                  if v.get("workspace") is not True:
+                      raise SystemExit(f"{rel}: expected workspace version, got {v}")
+          print(f"workspace + crate versions validated: {version}")
+          PY
+
+      - name: Cargo package dry-run (SDK first, then CLI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::sc-hooks-sdk package"
+          cargo package -p sc-hooks-sdk --locked --no-verify
+          echo "::endgroup::"
+          echo "::group::sc-hooks-sdk publish-dry-run"
+          cargo publish -p sc-hooks-sdk --dry-run --locked --no-verify
+          echo "::endgroup::"
+          echo "::group::sc-hooks-cli locked-check"
+          cargo check -p sc-hooks-cli --locked
+          echo "::endgroup::"
+          echo "::group::sc-hooks-test locked-check"
+          cargo check -p sc-hooks-test --locked
+          echo "::endgroup::"
+
+      - name: Full test suite
+        run: cargo test --locked --all
+
+      - name: Clippy (release profile)
+        run: cargo clippy --all-targets --all-features -- -D warnings

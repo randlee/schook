@@ -1,0 +1,237 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.0 or v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  gate-and-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      release_version: ${{ steps.meta.outputs.release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize version input
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw='${{ github.event.inputs.version }}'
+          tag="$raw"
+          [[ "$tag" == v* ]] || tag="v${tag}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: '$raw' (expected X.Y.Z or vX.Y.Z)" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate workspace version matches release
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.meta.outputs.release_version }}'
+          python3 - <<'PY' "$VERSION"
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          version = sys.argv[1]
+          root_toml = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))
+          ws_ver = root_toml.get("workspace", {}).get("package", {}).get("version")
+          if ws_ver != version:
+              raise SystemExit(f"workspace version mismatch: expected {version}, got {ws_ver}")
+          print(f"workspace version validated: {version}")
+          PY
+
+      - name: Ensure tag exists or create it
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ steps.meta.outputs.release_tag }}'
+          main_sha="$(git rev-parse origin/main)"
+          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${tag}" | awk '{print $1}' || true)"
+          if [[ -n "$remote_tag_sha" ]]; then
+            if [[ "$remote_tag_sha" == "$main_sha" ]]; then
+              echo "Tag ${tag} already exists and points to origin/main, skipping creation"
+              exit 0
+            else
+              echo "Tag ${tag} exists but points to ${remote_tag_sha}, not origin/main (${main_sha})" >&2
+              exit 1
+            fi
+          fi
+          echo "Creating tag ${tag} at origin/main (${main_sha})"
+          git tag "$tag" origin/main
+          git push origin "$tag"
+
+  build:
+    needs: gate-and-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Ensure cross-compilation target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.target }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --bin sc-hooks
+
+      - name: Package (unix)
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          VERSION='${{ needs.gate-and-tag.outputs.release_version }}'
+          ARCHIVE="sc-hooks_${VERSION}_${{ matrix.target }}.tar.gz"
+          cd target/${{ matrix.target }}/release
+          tar czf "../../../${ARCHIVE}" sc-hooks
+          cd ../../..
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Package (windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $VERSION = '${{ needs.gate-and-tag.outputs.release_version }}'
+          $ARCHIVE = "sc-hooks_${VERSION}_${{ matrix.target }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/sc-hooks.exe" -DestinationPath $ARCHIVE
+          echo "ARCHIVE=$ARCHIVE" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+
+  publish-crates:
+    needs: [gate-and-tag, build]
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish crates in dependency order
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+
+          crate_exists() {
+            cargo search "$1" --limit 1 | grep -F "$1 = \"$2\"" >/dev/null
+          }
+
+          publish_if_missing() {
+            local crate="$1"
+            local wait_after="${2:-no}"
+            if crate_exists "$crate" "$version"; then
+              echo "${crate} ${version} already published; skipping"
+              return 0
+            fi
+            echo "Publishing ${crate} ${version}"
+            cargo publish -p "$crate" --locked
+            if [[ "$wait_after" == "yes" ]]; then
+              echo "Waiting for crates.io index propagation"
+              sleep 60
+            fi
+          }
+
+          # Publish SDK first (dependency of CLI)
+          publish_if_missing sc-hooks-sdk yes
+          # Then CLI binary
+          publish_if_missing sc-hooks-cli no
+          # Test crate (optional, for consumers)
+          publish_if_missing sc-hooks-test no
+
+  release:
+    needs: [gate-and-tag, build, publish-crates]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect archives and generate checksums
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec mv {} release/ \;
+          cd release
+          sha256sum * > checksums.txt
+          echo "Release assets:"
+          ls -lh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.gate-and-tag.outputs.release_tag }}
+          generate_release_notes: true
+          files: |
+            release/*
+
+  update-homebrew:
+    needs: [gate-and-tag, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Homebrew tap
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: sc-hooks
+          homebrew-tap: randlee/homebrew-tap
+          tag-name: ${{ needs.gate-and-tag.outputs.release_tag }}
+          download-url: https://github.com/randlee/schook/releases/download/${{ needs.gate-and-tag.outputs.release_tag }}/sc-hooks_${{ needs.gate-and-tag.outputs.release_version }}_x86_64-unknown-linux-gnu.tar.gz
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
