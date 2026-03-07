@@ -128,19 +128,20 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), ManifestError> {
         return Err(ManifestError::InvalidTimeout);
     }
 
-    if let Some(response_time) = &manifest.response_time {
-        if response_time.min_ms > response_time.max_ms {
-            return Err(ManifestError::InvalidResponseTimeRange);
-        }
+    if let Some(response_time) = &manifest.response_time
+        && response_time.min_ms > response_time.max_ms
+    {
+        return Err(ManifestError::InvalidResponseTimeRange);
     }
 
-    if manifest.long_running {
-        let Some(description) = manifest.description.as_ref() else {
-            return Err(ManifestError::MissingLongRunningDescription);
-        };
-        if description.trim().is_empty() {
-            return Err(ManifestError::MissingLongRunningDescription);
-        }
+    if manifest.long_running
+        && manifest
+            .description
+            .as_ref()
+            .map(|description| description.trim().is_empty())
+            .unwrap_or(true)
+    {
+        return Err(ManifestError::MissingLongRunningDescription);
     }
 
     validate_field_specs(&manifest.requires)?;
