@@ -188,11 +188,10 @@ pub fn execute_chain(
                                 prepared.session_id.as_deref(),
                                 handler_name,
                             );
-                            return Err(CliError::PluginError {
-                                message: format!(
-                                    "{handler_name}: async plugins cannot return block action"
-                                ),
-                            });
+                            async_system_message.push(format!(
+                                "hook {handler_name} protocol violation (async returned block) — disabled. Please notify user!"
+                            ));
+                            continue;
                         }
                         let reason = parsed
                             .reason
