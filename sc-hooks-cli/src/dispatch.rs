@@ -455,14 +455,13 @@ pub fn execute_chain(
                                 event,
                                 mode,
                                 &handler_chain,
-                                log_results,
+                                log_results.clone(),
                                 started.elapsed().as_millis(),
-                                sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                                sc_hooks_core::exit_codes::SUCCESS,
                                 Some(ai_message.clone()),
                             );
-                            return Err(CliError::PluginError {
-                                message: ai_message,
-                            });
+                            async_system_message.push(ai_message);
+                            continue;
                         }
 
                         let reason = parsed
