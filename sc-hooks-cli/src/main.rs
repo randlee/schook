@@ -1,6 +1,8 @@
+mod builtins;
 mod config;
 mod dispatch;
 mod errors;
+mod metadata;
 mod resolution;
 #[cfg(test)]
 mod test_support;

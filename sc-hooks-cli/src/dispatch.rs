@@ -1,7 +1,9 @@
 use serde_json::Value;
 
+use crate::builtins;
 use crate::config::ScHooksConfig;
 use crate::errors::CliError;
+use crate::metadata;
 use crate::resolution::{BuiltinHandler, HandlerTarget, ResolvedHandler};
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 
@@ -19,17 +21,18 @@ pub fn execute_chain(
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
+    let prepared = metadata::prepare_for_dispatch(config, hook, event, payload)?;
+
     for handler in handlers {
         let handler_name = &handler.name;
         match &handler.target {
             HandlerTarget::Builtin(builtin) => {
-                run_builtin(builtin, hook, event, mode)?;
+                run_builtin(builtin, config, hook, event, mode)?;
             }
             HandlerTarget::Plugin(plugin) => {
-                let metadata = minimal_metadata(config)?;
                 let stdin_payload = sc_hooks_sdk::manifest::build_plugin_input(
                     &plugin.manifest,
-                    &metadata,
+                    &prepared.metadata,
                     hook,
                     event,
                     payload,
@@ -63,7 +66,9 @@ pub fn execute_chain(
                     },
                 })?;
 
-                let mut child = std::process::Command::new(&plugin.executable_path)
+                let mut command = std::process::Command::new(&plugin.executable_path);
+                metadata::inject_env_vars(&mut command, &prepared.env);
+                let mut child = command
                     .stdin(std::process::Stdio::piped())
                     .stdout(std::process::Stdio::piped())
                     .stderr(std::process::Stdio::piped())
@@ -169,27 +174,16 @@ pub fn execute_chain(
 
 fn run_builtin(
     builtin: &BuiltinHandler,
+    config: &ScHooksConfig,
     hook: &str,
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
 ) -> Result<(), CliError> {
     match builtin {
         BuiltinHandler::Log => {
-            eprintln!(
-                "builtin log handler: hook={} event={} mode={}",
-                hook,
-                event.unwrap_or("<none>"),
-                mode.as_str()
-            );
-            Ok(())
+            builtins::log::write_entry(&config.logging.hook_log, hook, event, mode)
         }
     }
-}
-
-fn minimal_metadata(config: &ScHooksConfig) -> Result<Value, CliError> {
-    let mapped = config.mapped_context_metadata();
-    serde_json::to_value(mapped)
-        .map_err(|err| CliError::internal(format!("metadata conversion failed: {err}")))
 }
 
 #[cfg(test)]
