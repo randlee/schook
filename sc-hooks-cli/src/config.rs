@@ -31,7 +31,6 @@ impl ScHooksConfig {
         })
     }
 
-    #[allow(dead_code)]
     pub fn mapped_context_metadata(&self) -> BTreeMap<String, Value> {
         map_context_to_metadata(&self.context)
     }
@@ -39,7 +38,7 @@ impl ScHooksConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetaConfig {
-    pub version: i64,
+    pub version: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -168,7 +167,6 @@ pub fn parse_config_str(
     })
 }
 
-#[allow(dead_code)]
 pub fn map_context_to_metadata(context: &BTreeMap<String, Value>) -> BTreeMap<String, Value> {
     let mut mapped = BTreeMap::new();
 
@@ -229,7 +227,7 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
         None => Err(ConfigError::MissingVersion {
             location: source.to_string(),
         }),
-        Some(Value::Integer(_)) => Ok(()),
+        Some(Value::Integer(value)) if *value >= 0 => Ok(()),
         Some(_) => Err(ConfigError::NonIntegerVersion {
             location: source.to_string(),
         }),
@@ -413,6 +411,23 @@ PreToolUse = ["log"]
         assert!(
             matches!(err, ConfigError::NonIntegerVersion { .. }),
             "expected non-integer version error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_negative_meta_version() {
+        let config = r#"
+[meta]
+version = -1
+
+[hooks]
+PreToolUse = ["log"]
+"#;
+
+        let err = parse_config_str(config, "in-memory").expect_err("negative version must fail");
+        assert!(
+            matches!(err, ConfigError::NonIntegerVersion { .. }),
+            "expected non-integer version error for negative value, got {err:?}"
         );
     }
 }
