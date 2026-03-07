@@ -5,6 +5,7 @@ mod dispatch;
 mod errors;
 mod events;
 mod fire;
+mod handlers;
 mod install;
 mod logging;
 mod metadata;
@@ -33,7 +34,7 @@ enum Commands {
     Run(RunArgs),
 
     /// Validate config + handlers + data flow
-    Audit,
+    Audit(AuditArgs),
 
     /// Diagnostic trigger with synthetic/real payload
     Fire(FireArgs),
@@ -45,7 +46,7 @@ enum Commands {
     Config,
 
     /// List available builtins and discovered plugins
-    Handlers,
+    Handlers(HandlersArgs),
 
     /// Run compliance tests against a plugin
     Test(TestArgs),
@@ -96,6 +97,24 @@ struct FireArgs {
     /// Optional JSON payload for diagnostic invocation
     #[arg(long)]
     payload: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct AuditArgs {
+    /// Treat unacknowledged sandbox requirements as errors
+    #[arg(long)]
+    strict: bool,
+
+    /// Reset persisted session disable state before running audit
+    #[arg(long)]
+    reset: bool,
+}
+
+#[derive(Debug, Args)]
+struct HandlersArgs {
+    /// Show canonical event taxonomy by hook type
+    #[arg(long)]
+    events: bool,
 }
 
 #[derive(Debug, Args)]
@@ -169,9 +188,18 @@ fn run() -> Result<(), CliError> {
             }
             run_result?;
         }
-        Commands::Audit => {
+        Commands::Audit(args) => {
+            if args.reset {
+                session::clear_all_sessions()?;
+                println!("reset: cleared .sc-hooks/state/session.json");
+            }
             let config = config::load_default_config()?;
-            let report = audit::run(&config)?;
+            let report = audit::run(
+                &config,
+                audit::AuditOptions {
+                    strict: args.strict,
+                },
+            )?;
             let rendered = audit::render(&report);
             println!("{rendered}");
             if report.has_errors() {
@@ -213,8 +241,13 @@ fn run() -> Result<(), CliError> {
             let rendered = config.to_pretty_toml()?;
             println!("{rendered}");
         }
-        Commands::Handlers => {
-            println!("not yet implemented");
+        Commands::Handlers(args) => {
+            if args.events {
+                println!("{}", handlers::render_events());
+            } else {
+                let report = handlers::discover()?;
+                println!("{}", handlers::render(&report));
+            }
         }
         Commands::Test(args) => {
             let report = testing::run_plugin_compliance(&args.plugin)?;

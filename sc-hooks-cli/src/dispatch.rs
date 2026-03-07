@@ -673,6 +673,7 @@ mod tests {
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::Path;
+    use std::time::{Duration, Instant};
 
     fn make_plugin(path: &Path, manifest: &str, runtime_output: &str) {
         if let Some(parent) = path.parent() {
@@ -817,6 +818,69 @@ level = "info"
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");
         assert_eq!(parsed["hook"], "PreToolUse");
         assert_eq!(parsed["exit"], 0);
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn builtin_only_chain_completes_under_ten_ms_median() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["log"]
+
+[logging]
+hook_log = ".sc-hooks/logs/hooks.jsonl"
+level = "info"
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let handlers = resolution::resolve_chain(
+            &cfg,
+            "PreToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Sync,
+            None,
+            None,
+            &BTreeSet::new(),
+        )
+        .expect("resolution should succeed");
+        assert_eq!(handlers.len(), 1);
+
+        let mut samples = Vec::new();
+        for _ in 0..15 {
+            let started = Instant::now();
+            let outcome = execute_chain(
+                &handlers,
+                &cfg,
+                "PreToolUse",
+                Some("Write"),
+                sc_hooks_core::dispatch::DispatchMode::Sync,
+                None,
+            )
+            .expect("dispatch should succeed");
+            assert!(matches!(outcome, DispatchOutcome::Proceed));
+            samples.push(started.elapsed());
+        }
+
+        samples.sort_unstable();
+        let median = samples[samples.len() / 2];
+        assert!(
+            median < Duration::from_millis(10),
+            "median builtin chain runtime {median:?} exceeded 10ms target"
+        );
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

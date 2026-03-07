@@ -68,6 +68,37 @@ pub fn is_wildcard_only_hook(hook: &str) -> bool {
     )
 }
 
+pub fn canonical_events_for_hook(hook: &str) -> Vec<&'static str> {
+    if is_tool_hook(hook) {
+        return TOOL_EVENTS.to_vec();
+    }
+    if hook == "Notification" {
+        return NOTIFICATION_EVENTS.to_vec();
+    }
+    if is_wildcard_only_hook(hook) {
+        return vec!["*"];
+    }
+    vec!["*"]
+}
+
+pub fn canonical_taxonomy() -> Vec<(&'static str, Vec<&'static str>)> {
+    vec![
+        ("PreToolUse", canonical_events_for_hook("PreToolUse")),
+        ("PostToolUse", canonical_events_for_hook("PostToolUse")),
+        ("PreCompact", canonical_events_for_hook("PreCompact")),
+        ("PostCompact", canonical_events_for_hook("PostCompact")),
+        ("SessionStart", canonical_events_for_hook("SessionStart")),
+        ("SessionEnd", canonical_events_for_hook("SessionEnd")),
+        ("Notification", canonical_events_for_hook("Notification")),
+        ("TeammateIdle", canonical_events_for_hook("TeammateIdle")),
+        (
+            "PermissionRequest",
+            canonical_events_for_hook("PermissionRequest"),
+        ),
+        ("Stop", canonical_events_for_hook("Stop")),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +134,16 @@ mod tests {
         assert!(result.errors.is_empty());
         assert_eq!(result.warnings.len(), 1);
         assert!(result.warnings[0].contains("heartbeat"));
+    }
+
+    #[test]
+    fn taxonomy_exposes_known_hooks_and_events() {
+        let taxonomy = canonical_taxonomy();
+        assert!(taxonomy.iter().any(|(hook, _)| *hook == "PreToolUse"));
+        let notification = taxonomy
+            .iter()
+            .find(|(hook, _)| *hook == "Notification")
+            .expect("notification hook should exist");
+        assert!(notification.1.contains(&"idle_prompt"));
     }
 }

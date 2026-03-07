@@ -74,6 +74,20 @@ pub fn clear_session(session_id: Option<&str>) -> Result<(), CliError> {
     write_store(&path, &store)
 }
 
+pub fn clear_all_sessions() -> Result<(), CliError> {
+    let path = state_path();
+    if !path.exists() {
+        return Ok(());
+    }
+
+    fs::remove_file(&path).map_err(|err| {
+        CliError::internal(format!(
+            "failed removing session state {}: {err}",
+            path.display()
+        ))
+    })
+}
+
 fn now_timestamp() -> String {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -229,6 +243,25 @@ mod tests {
             fs::read_to_string(".sc-hooks/state/session.json").expect("state file should exist");
         assert!(content.contains('T'));
         assert!(content.contains('Z'));
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn clear_all_sessions_removes_state_file() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+            .expect("disable state should persist");
+        assert!(Path::new(".sc-hooks/state/session.json").exists());
+
+        clear_all_sessions().expect("clear_all_sessions should succeed");
+        assert!(!Path::new(".sc-hooks/state/session.json").exists());
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }
