@@ -398,6 +398,13 @@ dependencies = [
 [[package]]
 name = "sc-hooks-test"
 version = "0.1.0"
+dependencies = [
+ "sc-hooks-core",
+ "sc-hooks-sdk",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
 
 [[package]]
 name = "semver"

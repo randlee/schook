@@ -732,4 +732,67 @@ PreToolUse = ["guard-paths"]
         ));
         assert!(warning.is_some());
     }
+
+    #[test]
+    fn integration_dispatch_writes_structured_log_entry() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .expect("cwd lock should acquire");
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let original = std::env::current_dir().expect("cwd should resolve");
+        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/guard-paths"),
+            r#"{"contract_version":1,"name":"guard-paths","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+            r#"{"action":"proceed"}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[logging]
+hook_log = ".sc-hooks/logs/hooks.jsonl"
+level = "info"
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let handlers = resolution::resolve_chain(
+            &cfg,
+            "PreToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Sync,
+            None,
+            None,
+            &BTreeSet::new(),
+        )
+        .expect("resolution should succeed");
+
+        let outcome = execute_chain(
+            &handlers,
+            &cfg,
+            "PreToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Sync,
+            None,
+        )
+        .expect("dispatch should succeed");
+        assert!(matches!(outcome, DispatchOutcome::Proceed));
+
+        let log_path = Path::new(".sc-hooks/logs/hooks.jsonl");
+        let rendered = fs::read_to_string(log_path).expect("log should be readable");
+        let line = rendered.lines().last().expect("log line should exist");
+        let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");
+        assert_eq!(parsed["hook"], "PreToolUse");
+        assert_eq!(parsed["exit"], 0);
+
+        std::env::set_current_dir(original).expect("cwd should restore");
+    }
 }
