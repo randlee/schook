@@ -1,6 +1,6 @@
 # sc-hooks — Architecture Document
 
-> Version 0.2.0 — March 2026 — DRAFT
+> Version 0.2.1 — March 2026 — DRAFT
 
 ## 1. Overview
 
@@ -110,18 +110,45 @@ PreCompact = ["save-context", "log"]
 [logging]
 hook_log = ".sc-hooks/logs/hooks.jsonl"
 level = "info"
+
+[sandbox]
+allow_network = ["notify"]
+allow_paths = { "guard-paths" = [".sc-hooks/guard-paths.toml"] }
 ```
 
-The config has exactly four sections:
+The config has exactly five recognized sections:
 
-| Section | Purpose |
-|---------|---------|
-| `[meta]` | Config format version (integer). Required. |
-| `[context]` | Static key-value pairs merged into metadata JSON under the `team` subsection. |
-| `[hooks]` | Maps hook type names to ordered arrays of handler names. |
-| `[logging]` | Dispatch log path and level. |
+| Section | Required | Purpose |
+|---------|----------|---------|
+| `[meta]` | **yes** | Config format version (integer). |
+| `[hooks]` | **yes** | Maps hook type names to ordered arrays of handler names. |
+| `[context]` | no | Static key-value pairs merged into metadata JSON (see §4.1 for mapping rules). |
+| `[logging]` | no | Dispatch log path and level. Defaults: `hook_log = ".sc-hooks/logs/hooks.jsonl"`, `level = "info"`. |
+| `[sandbox]` | no | Explicit sandbox overrides for plugins that need expanded access (see §14). |
 
-There are no per-handler configuration blocks in this file. If a handler needs settings, it reads its own configuration (e.g., guard-paths reads `.sc-hooks/guard-paths.toml` or similar). This keeps the dispatcher config auditable at a glance.
+Any top-level section not in this list is a parse error. There are no per-handler configuration blocks in this file. If a handler needs its own settings, it reads its own configuration file (e.g., guard-paths reads `.sc-hooks/guard-paths.toml`). This keeps the dispatcher config auditable at a glance.
+
+### 4.1 Context Mapping Rules
+
+The `[context]` section provides flat key-value pairs that the host maps into nested JSON paths under a deterministic scheme:
+
+```toml
+[context]
+team = "calibration"
+project = "p3-platform"
+```
+
+Maps to:
+```json
+{ "team": { "name": "calibration" }, "project": "p3-platform" }
+```
+
+**Rules:**
+- The key `team` is special: its value becomes `team.name` in the metadata JSON. This is the only implicit nesting.
+- All other keys map to top-level fields in the metadata JSON: `project = "foo"` → `metadata.project = "foo"`.
+- Dot-notation keys in context are literal (not expanded): `foo.bar = "x"` → `metadata["foo.bar"] = "x"`. Use this for custom fields that plugins reference via dot-path requires.
+- Plugin `requires` fields like `team.name` are satisfied by `[context] team = "calibration"` via the special-case mapping.
+- Plugin `requires` fields for paths not produced by context or runtime discovery will fail validation at audit time.
 
 ## 5. Plugin Protocol
 
@@ -158,7 +185,7 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | yes | Plugin identifier. Must match the executable name. |
-| `contract_version` | integer | yes | JSON contract version this plugin speaks. The host uses this to determine compatibility. Version 1 is the initial contract. When the host introduces breaking changes to the input/output JSON schema, it increments the contract version. The host maintains backward compatibility: a v2 host can invoke v1 plugins by adapting the JSON envelope. A v1 host encountering a v2 plugin reports an incompatibility error at audit time. |
+| `contract_version` | integer | yes | JSON contract version this plugin speaks (see §5.7 for compatibility rules). |
 | `mode` | string | yes | `"sync"` or `"async"`. Determines which chain the plugin runs in. |
 | `hooks` | array | yes | Hook types this plugin handles (e.g., `["PreToolUse", "PostToolUse"]`). |
 | `matchers` | array | yes | Event patterns this plugin matches. `["*"]` matches all events. `["Write", "Bash"]` matches only those events. Used by `sc-hooks install` to generate precise Claude Code `matcher` entries. |
@@ -184,7 +211,10 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
 
 ### 5.3 Input (Host → Plugin)
 
-The host writes a JSON object to the plugin's stdin containing only the fields declared in `requires` and `optional`:
+The host writes a JSON object to the plugin's stdin containing two categories of data:
+
+1. **Metadata fields** — only the fields declared in `requires` and `optional`, filtered from the assembled metadata.
+2. **Payload** — the `payload` field is a **passthrough**: it is always included verbatim from the AI tool's hook invocation if present, regardless of whether the plugin declares it in `requires` or `optional`. It is not subject to metadata filtering. If the AI tool sends no payload, the `payload` field is omitted entirely (not null, not empty object).
 
 ```json
 {
@@ -195,7 +225,7 @@ The host writes a JSON object to the plugin's stdin containing only the fields d
 }
 ```
 
-The `payload` field is passed verbatim from the AI tool's hook invocation. If the AI tool sends no payload, the field is omitted (not null, not empty object). Plugins must handle the absent-payload case.
+The `hook` field (`hook.type` and `hook.event`) is also always included as context, regardless of `requires` declarations. Plugins must handle the absent-payload case gracefully.
 
 ### 5.4 Output (Plugin → Host)
 
@@ -237,6 +267,21 @@ The host enforces strict protocol compliance. A plugin that violates the protoco
 
 **Principle:** A broken plugin must never silently corrupt the hook chain or leave Claude Code in an undefined state. Every failure is visible and actionable.
 
+#### Disable State Persistence
+
+Since sc-hooks is invoked as a one-shot CLI process per hook fire, disable state must be persisted across invocations. The host maintains a **session state file** at `.sc-hooks/state/session.json` keyed by the AI tool's session ID (from `SC_HOOK_SESSION_ID` env var or discovery). This file records:
+
+```json
+{
+  "session_id": "abc123",
+  "disabled_plugins": {
+    "broken-plugin": { "reason": "invalid_json", "disabled_at": "2026-03-06T10:23:46Z" }
+  }
+}
+```
+
+On each invocation, the host reads this file and skips disabled plugins. The file is cleaned up when the session ends (via `SessionEnd` hook) or when `sc-hooks audit --reset` is run. If the file is missing or unreadable, all plugins are considered enabled (fail-open for state, fail-safe for protocol).
+
 ### 5.6 Timeout & Long-Running Plugins
 
 Every plugin invocation has a timeout enforced by the host:
@@ -270,6 +315,39 @@ pub trait LongRunning: SyncHandler {
 ```
 
 This allows flexibility for corner cases (Slack approval flows, external CI waits) while making the decision explicit and auditable.
+
+### 5.7 Contract Version Compatibility
+
+The `contract_version` field in the manifest declares which version of the host↔plugin JSON contract the plugin implements. This is **not** a plugin version — it's the protocol envelope version.
+
+**Compatibility matrix:**
+
+| Host Version | Plugin Version | Behavior |
+|-------------|---------------|----------|
+| 1 | 1 | Full compatibility. |
+| 2 | 1 | Host adapts: sends v1-format input, accepts v1-format output. Plugin works unchanged. |
+| 2 | 2 | Full compatibility. |
+| 1 | 2 | **Incompatible.** Audit reports error. Plugin not loaded at runtime. |
+| N | M (M > N) | Incompatible. Audit error. |
+| N | M (M ≤ N) | Host adapts to plugin's declared version. |
+
+**Rules:**
+- The host always adapts **downward** to the plugin's declared version. A v3 host can talk to v1, v2, or v3 plugins.
+- The host never adapts **upward**. A v1 host cannot invoke a v2 plugin because it doesn't know the v2 schema.
+- When the contract version increments, the changelog must document exactly which input/output fields changed and how the host adapts for older plugins.
+- For MVP, only contract version 1 exists. The compatibility machinery is designed but not exercised until v2 is introduced.
+
+### 5.8 Async Timeout & Exit Semantics
+
+For **sync** invocations, timeout produces exit code 6 (`TIMEOUT`), which Claude Code interprets as a tool-use failure.
+
+For **async** invocations, timeout is handled differently:
+- The timed-out plugin is disabled (same as sync).
+- The async chain's overall result is still `proceed` (exit 0) — async failures do not block tool use.
+- The timeout is logged with `"async_timeout": true` in the dispatch log entry.
+- An `ai_notification` is included so the AI session is informed, but it arrives as context on the next turn, not as a blocking error.
+
+This means async plugin failures degrade gracefully: the AI tool continues working, and the user/AI is notified that context from the failed plugin is unavailable.
 
 ## 6. Handler Resolution
 
@@ -337,6 +415,50 @@ Exit Code Reference:
 
 The `install` command reads the sc-hooks config and all plugin manifests, then generates the correct `.claude/settings.json` entries. **Plugins declare their event matchers** in their manifest, and `install` uses these to generate precise Claude Code `matcher` entries—not blanket `"*"` wildcards.
 
+#### Claude Code Matcher Semantics
+
+Claude Code evaluates hook entries in order and runs **all matching entries** (not first-match). Given multiple entries for the same hook type, every entry whose `matcher` matches the event will fire. This means:
+
+- An entry with `"matcher": "Write"` fires only for Write events.
+- An entry with `"matcher": "*"` fires for all events.
+- Both can fire for the same event — Claude Code runs all matches.
+
+`sc-hooks install` leverages this: specific matchers handle targeted plugins, and wildcard matchers handle plugins that apply to everything. There is no exclusion — a `*` entry always fires alongside specific entries.
+
+#### Install Algorithm
+
+The install algorithm is deterministic:
+
+1. For each hook type in `[hooks]`, collect all handler names.
+2. Resolve each handler and load its manifest (matchers, mode).
+3. Compute the **union of all specific matchers** (non-`*`) across all plugins for this hook type.
+4. For each specific matcher (e.g., `"Write"`):
+   a. Collect all plugins whose matchers include this event OR include `"*"`.
+   b. Split into sync and async groups.
+   c. Generate one Claude Code hook entry per non-empty group.
+5. If any plugins have **only** `"*"` matchers (no specific matchers at all), generate a `"*"` entry for them. This covers events not explicitly listed by any plugin.
+6. If ALL plugins use `"*"`, generate a single `"*"` entry (no per-event entries needed).
+
+#### Event Taxonomy
+
+Valid events per hook type (based on Claude Code's hook system):
+
+| Hook Type | Valid Events |
+|-----------|-------------|
+| `PreToolUse` | `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Agent`, `NotebookEdit`, `TodoWrite`, `AskFollowup`, `SendMessage`, `Task`, `*` (any tool) |
+| `PostToolUse` | Same as PreToolUse |
+| `PreCompact` | *(no event sub-types — always fires)* |
+| `PostCompact` | *(no event sub-types — always fires)* |
+| `SessionStart` | *(no event sub-types — always fires)* |
+| `SessionEnd` | *(no event sub-types — always fires)* |
+| `Notification` | *(no event sub-types — always fires)* |
+
+Lifecycle hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `Notification`) have no event sub-types. Plugins for these hooks should declare `matchers: ["*"]`. The `audit` command validates matcher names against this taxonomy.
+
+**Note:** This taxonomy reflects current Claude Code hook points. As Claude Code evolves, new hook types and events may be added. The `audit` command will warn on unrecognized hook types or events but not fail, to allow forward compatibility.
+
+#### Example
+
 ```
 $ sc-hooks install
 
@@ -346,18 +468,18 @@ Installing hooks for PreToolUse:
   collect-context (async) matches: Write, Bash
 
   Generated entries:
-    matcher "Write" → sync: [guard-paths, log] + async: [collect-context]  (2 entries)
-    matcher "Bash"  → sync: [guard-paths, log] + async: [collect-context]  (2 entries)
-    matcher "Edit"  → sync: [guard-paths, log]                            (1 entry)
-    matcher "*"     → sync: [log]                                          (1 entry, excludes Write/Bash/Edit)
+    matcher "Write" → sync: [guard-paths, log] + async: [collect-context]  (2 hooks)
+    matcher "Bash"  → sync: [guard-paths, log] + async: [collect-context]  (2 hooks)
+    matcher "Edit"  → sync: [guard-paths, log]                            (1 hook)
+    matcher "*"     → sync: [log]                                          (1 hook, for all other events)
 
 Installing hooks for PostToolUse:
   log (sync) matches: *
   notify (async) matches: *
-  → matcher "*" → 2 entries (sync + async)
+  → matcher "*" → 2 hooks (sync + async)
 ```
 
-The generated settings.json uses the most specific matchers possible:
+Generated settings.json:
 
 ```jsonc
 // .claude/settings.json (generated by sc-hooks install)
@@ -381,6 +503,12 @@ The generated settings.json uses the most specific matchers possible:
       "matcher": "Edit",
       "hooks": [
         { "type": "command", "command": "sc-hooks run PreToolUse Edit --sync" }
+      ]
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        { "type": "command", "command": "sc-hooks run PreToolUse --sync" }
       ]
     }
   ]
@@ -421,7 +549,7 @@ Plugins that fail compliance testing are rejected by `audit` and will not be loa
 
 ## 8. Audit System
 
-The audit command validates the entire hook system without executing any handler logic:
+The audit command validates the entire hook system using **static analysis only** — it reads manifests and config but never executes hook logic or sends input to plugins. The async-no-block constraint (§5.4, §10.2) is enforced by checking the manifest's `mode` declaration, not by running the plugin and observing its output. Runtime violations (e.g., an async plugin that ignores its own manifest and returns `block`) are caught by the dispatch error handler (§5.5) at invocation time.
 
 ```
 $ sc-hooks audit
@@ -474,7 +602,7 @@ Async time buckets:
 
 ### 9.1 Host Dispatch Log
 
-The host logs every dispatch-level event: which hook fired, which handlers ran, their results, and timing. This is the host's responsibility and the only log the host writes.
+The host logs every dispatch that executes at least one handler: which hook fired, which handlers ran, their results, and timing. Zero-match invocations (no plugins match the event) produce no log entry and exit immediately (see §3.2 execution flow, DSP-008). This is the host's responsibility and the only log the host writes.
 
 Log path and level are configured in `[logging]`:
 
