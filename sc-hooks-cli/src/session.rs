@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,10 +9,16 @@ use crate::errors::CliError;
 
 const STATE_PATH: &str = ".sc-hooks/state/session.json";
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct DisabledPluginInfo {
+    reason: String,
+    disabled_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 struct SessionRecord {
     #[serde(default)]
-    disabled_plugins: BTreeSet<String>,
+    disabled_plugins: BTreeMap<String, DisabledPluginInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -29,11 +36,15 @@ pub fn load_disabled_plugins(session_id: Option<&str>) -> BTreeSet<String> {
     store
         .sessions
         .get(session_id)
-        .map(|record| record.disabled_plugins.clone())
+        .map(|record| record.disabled_plugins.keys().cloned().collect())
         .unwrap_or_default()
 }
 
-pub fn mark_plugin_disabled(session_id: Option<&str>, plugin: &str) -> Result<(), CliError> {
+pub fn mark_plugin_disabled(
+    session_id: Option<&str>,
+    plugin: &str,
+    reason: &str,
+) -> Result<(), CliError> {
     let Some(session_id) = normalize_session_id(session_id) else {
         return Ok(());
     };
@@ -41,7 +52,13 @@ pub fn mark_plugin_disabled(session_id: Option<&str>, plugin: &str) -> Result<()
     let path = state_path();
     let mut store = read_store(&path).unwrap_or_default();
     let record = store.sessions.entry(session_id.to_string()).or_default();
-    record.disabled_plugins.insert(plugin.to_string());
+    record.disabled_plugins.insert(
+        plugin.to_string(),
+        DisabledPluginInfo {
+            reason: reason.to_string(),
+            disabled_at: now_timestamp(),
+        },
+    );
 
     write_store(&path, &store)
 }
@@ -55,6 +72,14 @@ pub fn clear_session(session_id: Option<&str>) -> Result<(), CliError> {
     let mut store = read_store(&path).unwrap_or_default();
     store.sessions.remove(session_id);
     write_store(&path, &store)
+}
+
+fn now_timestamp() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default();
+    seconds.to_string()
 }
 
 fn state_path() -> PathBuf {
@@ -120,9 +145,10 @@ mod tests {
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
 
-        mark_plugin_disabled(Some("session-a"), "guard-paths")
+        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
-        mark_plugin_disabled(Some("session-a"), "notify").expect("second plugin should persist");
+        mark_plugin_disabled(Some("session-a"), "notify", "timeout")
+            .expect("second plugin should persist");
 
         let loaded = load_disabled_plugins(Some("session-a"));
         assert!(loaded.contains("guard-paths"));
@@ -155,7 +181,7 @@ mod tests {
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
 
-        mark_plugin_disabled(Some("session-a"), "guard-paths")
+        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
         clear_session(Some("session-a")).expect("session clear should succeed");
 

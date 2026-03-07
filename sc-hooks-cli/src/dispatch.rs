@@ -208,6 +208,21 @@ pub fn execute_chain(
                             None,
                             Some(true),
                         ));
+                        if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                            let _ = emit_dispatch_log(
+                                config,
+                                hook,
+                                event,
+                                mode,
+                                &handler_chain,
+                                log_results.clone(),
+                                started.elapsed().as_millis(),
+                                sc_hooks_core::exit_codes::SUCCESS,
+                                Some(ai_message.clone()),
+                            );
+                            async_system_message.push(ai_message);
+                            continue;
+                        }
                         let _ = emit_dispatch_log(
                             config,
                             hook,
@@ -550,6 +565,10 @@ pub fn execute_chain(
     Ok(DispatchOutcome::Proceed)
 }
 
+fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
+    let _ = session::mark_plugin_disabled(session_id, handler_name, "runtime-error");
+}
+
 fn run_builtin(
     builtin: &BuiltinHandler,
     config: &ScHooksConfig,
@@ -562,10 +581,6 @@ fn run_builtin(
             builtins::log::write_entry(&config.logging.hook_log, hook, event, mode)
         }
     }
-}
-
-fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
-    let _ = session::mark_plugin_disabled(session_id, handler_name);
 }
 
 #[allow(clippy::too_many_arguments)]
