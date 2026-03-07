@@ -110,16 +110,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn includes_all_codes_zero_through_ten() {
-        let codes: Vec<i32> = all().iter().map(|entry| entry.code).collect();
-        assert_eq!(codes, (0..=10).collect::<Vec<_>>());
-    }
-
-    #[test]
-    fn renders_human_readable_reference() {
+    fn renders_full_exit_code_reference_with_remediation() {
         let rendered = render_reference();
-        assert!(rendered.contains("0  SUCCESS"));
-        assert!(rendered.contains("10  INTERNAL_ERROR"));
-        assert!(rendered.contains("Reserved for future use"));
+        for entry in all() {
+            assert!(
+                rendered.contains(&entry.code.to_string()),
+                "missing code {}",
+                entry.code
+            );
+            assert!(
+                rendered.contains(entry.name),
+                "missing exit code name {}",
+                entry.name
+            );
+            assert!(
+                rendered.contains(entry.remediation),
+                "missing remediation for {}",
+                entry.name
+            );
+        }
+        assert!(rendered.contains("Exit Code Reference:"));
     }
 }

@@ -31,7 +31,6 @@ impl ScHooksConfig {
         })
     }
 
-    #[allow(dead_code)]
     pub fn mapped_context_metadata(&self) -> BTreeMap<String, Value> {
         map_context_to_metadata(&self.context)
     }
@@ -39,7 +38,7 @@ impl ScHooksConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetaConfig {
-    pub version: i64,
+    pub version: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -168,7 +167,6 @@ pub fn parse_config_str(
     })
 }
 
-#[allow(dead_code)]
 pub fn map_context_to_metadata(context: &BTreeMap<String, Value>) -> BTreeMap<String, Value> {
     let mut mapped = BTreeMap::new();
 
@@ -229,7 +227,7 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
         None => Err(ConfigError::MissingVersion {
             location: source.to_string(),
         }),
-        Some(Value::Integer(_)) => Ok(()),
+        Some(Value::Integer(value)) if *value >= 0 => Ok(()),
         Some(_) => Err(ConfigError::NonIntegerVersion {
             location: source.to_string(),
         }),
@@ -239,6 +237,7 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
 
     fn valid_base_config() -> &'static str {
         r#"
@@ -413,6 +412,54 @@ PreToolUse = ["log"]
         assert!(
             matches!(err, ConfigError::NonIntegerVersion { .. }),
             "expected non-integer version error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_negative_meta_version() {
+        let config = r#"
+[meta]
+version = -1
+
+[hooks]
+PreToolUse = ["log"]
+"#;
+
+        let err = parse_config_str(config, "in-memory").expect_err("negative version must fail");
+        assert!(
+            matches!(err, ConfigError::NonIntegerVersion { .. }),
+            "expected non-integer version error for negative value, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn renders_resolved_config_for_config_subcommand() {
+        let parsed = parse_config_str(valid_base_config(), "in-memory")
+            .expect("config should parse for render");
+        let rendered = parsed
+            .to_pretty_toml()
+            .expect("resolved config should render to TOML");
+
+        assert!(rendered.contains("[meta]"));
+        assert!(rendered.contains("[hooks]"));
+        assert!(rendered.contains("[logging]"));
+    }
+
+    #[test]
+    fn parses_config_under_five_ms_median() {
+        let mut samples = Vec::new();
+        for _ in 0..21 {
+            let started = Instant::now();
+            let _ =
+                parse_config_str(valid_base_config(), "in-memory").expect("config should parse");
+            samples.push(started.elapsed());
+        }
+
+        samples.sort_unstable();
+        let median = samples[samples.len() / 2];
+        assert!(
+            median < Duration::from_millis(5),
+            "median config parse time {median:?} exceeded 5ms target"
         );
     }
 }

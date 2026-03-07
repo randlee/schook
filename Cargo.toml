@@ -1,7 +1,11 @@
 [workspace]
 members = [
   "sc-hooks-cli",
+  "sc-hooks-core",
   "sc-hooks-sdk",
   "sc-hooks-test",
 ]
 resolver = "2"
+
+[workspace.package]
+version = "0.1.0"

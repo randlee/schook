@@ -1,10 +1,17 @@
 [package]
 name = "sc-hooks-cli"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }
+nix = { version = "0.30.1", features = ["signal", "process"] }
+sc-hooks-core = { path = "../sc-hooks-core" }
+sc-hooks-sdk = { path = "../sc-hooks-sdk" }
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.145"
 thiserror = "2.0.12"
 toml = "0.8.20"
+
+[dev-dependencies]
+tempfile = "3.23.0"
