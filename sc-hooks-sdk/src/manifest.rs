@@ -345,6 +345,102 @@ fn set_value_by_path(root: &mut Map<String, Value>, path: &str, value: Value) {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ManifestBuilder {
+    manifest: Manifest,
+}
+
+impl ManifestBuilder {
+    pub fn new(name: impl Into<String>, mode: sc_hooks_core::dispatch::DispatchMode) -> Self {
+        Self {
+            manifest: Manifest {
+                contract_version: HOST_CONTRACT_VERSION,
+                name: name.into(),
+                mode,
+                hooks: Vec::new(),
+                matchers: vec!["*".to_string()],
+                payload_conditions: Vec::new(),
+                timeout_ms: None,
+                long_running: false,
+                response_time: None,
+                requires: BTreeMap::new(),
+                optional: BTreeMap::new(),
+                sandbox: None,
+                description: None,
+            },
+        }
+    }
+
+    pub fn hooks(mut self, hooks: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.manifest.hooks = hooks.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn matchers(mut self, matchers: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.manifest.matchers = matchers.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.manifest.timeout_ms = Some(timeout_ms);
+        self
+    }
+
+    pub fn long_running(mut self, description: impl Into<String>) -> Self {
+        self.manifest.long_running = true;
+        self.manifest.description = Some(description.into());
+        self
+    }
+
+    pub fn response_time(mut self, min_ms: u64, max_ms: u64) -> Self {
+        self.manifest.response_time =
+            Some(sc_hooks_core::manifest::ResponseTimeRange { min_ms, max_ms });
+        self
+    }
+
+    pub fn require_field(
+        mut self,
+        path: impl Into<String>,
+        field_type: FieldType,
+        validate: Option<impl Into<String>>,
+    ) -> Self {
+        self.manifest.requires.insert(
+            path.into(),
+            FieldRequirement {
+                field_type,
+                validate: validate.map(Into::into),
+            },
+        );
+        self
+    }
+
+    pub fn optional_field(
+        mut self,
+        path: impl Into<String>,
+        field_type: FieldType,
+        validate: Option<impl Into<String>>,
+    ) -> Self {
+        self.manifest.optional.insert(
+            path.into(),
+            FieldRequirement {
+                field_type,
+                validate: validate.map(Into::into),
+            },
+        );
+        self
+    }
+
+    pub fn build(self) -> Result<Manifest, ManifestError> {
+        validate_manifest(&self.manifest)?;
+        Ok(self.manifest)
+    }
+
+    pub fn build_json(self) -> Result<String, ManifestError> {
+        let manifest = self.build()?;
+        serde_json::to_string_pretty(&manifest).map_err(|err| ManifestError::Parse(err.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,5 +519,19 @@ mod tests {
                 "payload": {"tool_input": {"command": "atm send"}}
             })
         );
+    }
+
+    #[test]
+    fn manifest_builder_creates_valid_manifest() {
+        let manifest = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
+            .hooks(["PostToolUse"])
+            .matchers(["Write", "Bash"])
+            .response_time(100, 1000)
+            .optional_field("team.name", FieldType::String, Some("non_empty"))
+            .build()
+            .expect("builder should produce valid manifest");
+        assert_eq!(manifest.name, "notify");
+        assert_eq!(manifest.mode, sc_hooks_core::dispatch::DispatchMode::Async);
+        assert_eq!(manifest.hooks, vec!["PostToolUse".to_string()]);
     }
 }
