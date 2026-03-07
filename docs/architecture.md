@@ -1,6 +1,6 @@
 # sc-hooks — Architecture Document
 
-> Version 0.1.0 — March 2026 — DRAFT
+> Version 0.2.0 — March 2026 — DRAFT
 
 ## 1. Overview
 
@@ -12,10 +12,12 @@ The system replaces a fragile Python-based hook dispatcher with a compiled, test
 
 - **Simple config:** The TOML config maps hook names to handler names. That is the entire config surface. Handler-specific settings are the handler's concern.
 - **JSON as the universal contract:** Metadata, payloads, and results all flow as JSON. No C ABI, no shared memory, no unsafe. Plugins are processes, not libraries.
-- **Manifest-declared requirements:** Each plugin advertises what metadata fields it needs and their validation rules. The host validates before invocation. Failures are caught at audit time, not runtime.
+- **Manifest-declared requirements:** Each plugin advertises what metadata fields it needs, their validation rules, what events it matches, and its execution characteristics. The host validates before invocation. Failures are caught at audit time, not runtime.
 - **Language-agnostic plugins:** A plugin is any executable that responds to `--manifest` and reads JSON from stdin. Rust, Python, bash—whatever solves the problem. Swap a Rust plugin for a Python script to debug, swap back when fixed.
 - **AI-agnostic dispatch:** The environment contract (minimal env vars + JSON metadata) allows thin shims to adapt non-Claude AI tools (Codex, Gemini) to the same hook system.
 - **Fast by default:** Compiled Rust host. Builtins run in-process. External plugins are processes, but the host returns immediately for async follow-up work (the plugin forks its own background tasks).
+- **Fail safe, fail loud:** Plugins that violate the protocol (invalid JSON, unexpected exits, timeout) are disabled and the error is reported to both the dispatch log and the AI session. A broken plugin must never silently corrupt the hook chain.
+- **Sandbox-aware:** The host respects the sandboxing rules of the calling AI tool. Plugins declare what filesystem paths and resources they need; the host validates access before invocation and provides an override mechanism for authorized cases.
 
 ## 3. System Architecture
 
@@ -23,38 +25,44 @@ The system replaces a fragile Python-based hook dispatcher with a compiled, test
 
 | Layer | Artifact | Responsibility |
 |-------|----------|----------------|
-| Host | sc-hooks-cli (binary) | Config parsing, metadata assembly, plugin resolution, input validation, dispatch, structured logging, audit, diagnostic fire |
-| SDK | sc-hooks-sdk (Rust crate) | Optional helper library. Provides manifest builder, stdin/stdout protocol handling, typed result types. Not required—plugins can implement the protocol directly. |
-| Plugins | Standalone executables | Implement hook behavior. Advertise requirements via manifest. Receive validated JSON on stdin. Return action result on stdout. |
+| Host | sc-hooks-cli (binary) | Config parsing, metadata assembly, plugin resolution, input validation, dispatch, timeout enforcement, structured logging, audit, diagnostic fire, exit code management |
+| SDK | sc-hooks-sdk (Rust crate) | Trait-based plugin framework: `SyncHandler`, `AsyncHandler`, `LongRunning`, `AsyncContextSource`. Manifest builder, stdin/stdout protocol handling, typed result types. Pre-made handler implementations for common patterns. |
+| Test Harness | sc-hooks-test (Rust crate) | Plugin compliance testing: manifest validation, protocol conformance, timeout behavior, error handling, matcher verification. Used by plugin authors in their test suites. |
+| Plugins | Standalone executables | Implement hook behavior. Advertise requirements and matchers via manifest. Receive validated JSON on stdin. Return action result on stdout. |
+| Pre-made Plugins | Bundled executables | Common-case handlers shipped with sc-hooks: conditional file source, Jinja2 template source, log, notify. |
 
 ### 3.2 Execution Flow
 
 ```
-Claude Code hook fires
+Claude Code hook fires (event-specific via matcher)
   → sc-hooks run <hook-type> [event] --sync|--async
   → load .sc-hooks/config.toml
   → resolve handler chain for hook+event
   → filter chain by mode (sync or async)
   → for each handler in chain:
       → load manifest (cached after first call)
+      → verify event matches plugin's declared matchers
       → validate metadata against manifest requirements
+      → start timeout clock (default or plugin-declared)
       → pipe validated JSON subset to plugin stdin
       → read result JSON from plugin stdout
+      → if timeout exceeded: kill plugin, log error, disable for session
+      → if invalid JSON returned: log error, disable plugin, notify AI session
       → if action=block or action=error: short-circuit, return to caller
   → log structured dispatch entry to hook log
-  → exit code back to Claude Code
+  → exit with defined exit code
 ```
 
 ### 3.3 Plugin Model
 
 A plugin is any executable that implements two behaviors:
 
-- **Manifest response:** When called with `--manifest`, returns a JSON object declaring its name, protocol version, execution mode, supported hooks, required metadata fields, and validation rules.
+- **Manifest response:** When called with `--manifest`, returns a JSON object declaring its name, contract version, execution mode, supported hooks, **event matchers**, required metadata fields, validation rules, and execution characteristics (timeout expectations, long-running declaration).
 - **Hook handling:** When called normally, reads a JSON object from stdin (containing only the fields it declared as required/optional), performs its work, and writes a result JSON to stdout.
 
 This means a plugin can be a compiled Rust binary (using sc-hooks-sdk for convenience), a Python script with a shebang line, a bash script that uses jq for JSON processing, or any executable in any language that speaks the protocol.
 
-**Critical design point:** there is no plugin versioning system. If a plugin has a bug, replace the executable with a working one (in any language). The manifest is the version—if the host can read it, the plugin is compatible. The `protocol` field (integer) handles breaking changes to the JSON contract itself.
+**Critical design point:** there is no plugin versioning system. If a plugin has a bug, replace the executable with a working one (in any language). The manifest is the version—if the host can read it, the plugin is compatible. The `contract_version` field (integer) handles breaking changes to the JSON contract itself (see §5.1).
 
 ### 3.4 Metadata Model
 
@@ -88,7 +96,7 @@ Three env vars, not twenty. If a handler needs specific fields, it reads them fr
 # .sc-hooks/config.toml
 
 [meta]
-version = "1"
+version = 1
 
 [context]
 team = "calibration"
@@ -98,7 +106,20 @@ project = "p3-platform"
 PreToolUse = ["guard-paths", "log"]
 PostToolUse = ["log", "notify"]
 PreCompact = ["save-context", "log"]
+
+[logging]
+hook_log = ".sc-hooks/logs/hooks.jsonl"
+level = "info"
 ```
+
+The config has exactly four sections:
+
+| Section | Purpose |
+|---------|---------|
+| `[meta]` | Config format version (integer). Required. |
+| `[context]` | Static key-value pairs merged into metadata JSON under the `team` subsection. |
+| `[hooks]` | Maps hook type names to ordered arrays of handler names. |
+| `[logging]` | Dispatch log path and level. |
 
 There are no per-handler configuration blocks in this file. If a handler needs settings, it reads its own configuration (e.g., guard-paths reads `.sc-hooks/guard-paths.toml` or similar). This keeps the dispatcher config auditable at a glance.
 
@@ -111,9 +132,12 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
 ```json
 {
   "name": "guard-paths",
-  "protocol": 1,
+  "contract_version": 1,
   "mode": "sync",
   "hooks": ["PreToolUse"],
+  "matchers": ["Write", "Bash", "Edit"],
+  "timeout_ms": 5000,
+  "long_running": false,
   "requires": {
     "repo.path": { "type": "string", "validate": "dir_exists" },
     "repo.branch": { "type": "string", "validate": "non_empty" },
@@ -121,14 +145,30 @@ Every plugin must respond to the `--manifest` flag with a JSON declaration:
   },
   "optional": {
     "team.name": { "type": "string" }
+  },
+  "sandbox": {
+    "paths": [".sc-hooks/guard-paths.toml"],
+    "needs_network": false
   }
 }
 ```
 
-**The `mode` field** declares the plugin's execution expectation:
+**Field reference:**
 
-- **sync:** Plugin makes blocking decisions (proceed/block/error). Runs in the synchronous hook chain. Must return fast.
-- **async:** Plugin performs context collection, logging, or long-running work. Runs in the async hook chain. Cannot block. May return `additionalContext` for the AI tool's next turn.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Plugin identifier. Must match the executable name. |
+| `contract_version` | integer | yes | JSON contract version this plugin speaks. The host uses this to determine compatibility. Version 1 is the initial contract. When the host introduces breaking changes to the input/output JSON schema, it increments the contract version. The host maintains backward compatibility: a v2 host can invoke v1 plugins by adapting the JSON envelope. A v1 host encountering a v2 plugin reports an incompatibility error at audit time. |
+| `mode` | string | yes | `"sync"` or `"async"`. Determines which chain the plugin runs in. |
+| `hooks` | array | yes | Hook types this plugin handles (e.g., `["PreToolUse", "PostToolUse"]`). |
+| `matchers` | array | yes | Event patterns this plugin matches. `["*"]` matches all events. `["Write", "Bash"]` matches only those events. Used by `sc-hooks install` to generate precise Claude Code `matcher` entries. |
+| `timeout_ms` | integer | no | Expected maximum execution time in milliseconds. Default: 5000ms for sync, 30000ms for async. The host kills the plugin if it exceeds this. |
+| `long_running` | boolean | no | If `true`, the host applies an extended timeout (or no timeout) for this plugin. Use sparingly—only for plugins that genuinely block on external input (e.g., waiting for a Slack response). Must be justified in the manifest `description` field. Audit warns on long-running plugins. |
+| `response_time` | object | no | Async plugins only. Declares expected response time range: `{"min_ms": 10, "max_ms": 100}`. Used by the host to group async plugins into time-bucketed hook entries for efficient aggregation (see §10). |
+| `requires` | object | yes | Metadata fields the plugin needs, with dot-path keys and validation rules. |
+| `optional` | object | no | Metadata fields the plugin can use but doesn't require. |
+| `sandbox` | object | no | Resource declarations for sandbox compliance (see §14). |
+| `description` | string | no | Human-readable description. Required if `long_running` is true (must justify why). |
 
 ### 5.2 Validation Rules
 
@@ -155,6 +195,8 @@ The host writes a JSON object to the plugin's stdin containing only the fields d
 }
 ```
 
+The `payload` field is passed verbatim from the AI tool's hook invocation. If the AI tool sends no payload, the field is omitted (not null, not empty object). Plugins must handle the absent-payload case.
+
 ### 5.4 Output (Plugin → Host)
 
 Sync-mode plugins return an action:
@@ -177,7 +219,57 @@ Async-mode plugins return context instead of decisions:
 }
 ```
 
-The host aggregates `additionalContext` from all async plugins and passes it through to the AI tool. Async plugins must not return `block`—the audit command enforces this.
+The host aggregates `additionalContext` from async plugins within the same time bucket and passes it through to the AI tool (see §10 for aggregation strategy). Async plugins must not return `block`—the audit command enforces this.
+
+### 5.5 Error Handling & Plugin Validation
+
+The host enforces strict protocol compliance. A plugin that violates the protocol is **disabled for the remainder of the session** and the error is reported to both the dispatch log and the AI session.
+
+| Failure Mode | Host Behavior |
+|-------------|---------------|
+| Plugin writes invalid JSON to stdout | Disable plugin. Log error. Report to AI: `"hook <name> returned invalid JSON — disabled. Please notify user!"` |
+| Plugin exits non-zero without output | Disable plugin. Log exit code and any stderr. Report to AI. |
+| Plugin exceeds timeout | Kill process (SIGTERM, then SIGKILL after 1s). Disable plugin. Log timeout. Report to AI. |
+| Plugin writes multiple JSON objects | First valid object is used. Warning logged. |
+| Plugin writes to stderr | Captured and included in dispatch log entry. Not forwarded to AI unless the plugin also fails. |
+| Manifest missing required fields | Rejected at audit time. Not loaded at runtime. |
+| Manifest declares `mode=async` but returns `action=block` | Treated as protocol error. Disable plugin. Log violation. |
+
+**Principle:** A broken plugin must never silently corrupt the hook chain or leave Claude Code in an undefined state. Every failure is visible and actionable.
+
+### 5.6 Timeout & Long-Running Plugins
+
+Every plugin invocation has a timeout enforced by the host:
+
+| Mode | Default Timeout | Override |
+|------|----------------|----------|
+| Sync | 5,000ms | Plugin declares `timeout_ms` in manifest |
+| Async | 30,000ms | Plugin declares `timeout_ms` in manifest |
+| Long-running | No default limit | Plugin declares `long_running: true` + `timeout_ms` (optional hard cap) |
+
+**Long-running plugins** implement the `LongRunning` trait (SDK) or declare `"long_running": true` in their manifest. This signals to the host that the plugin may block on external input (e.g., send a Slack message and wait for user response, prompt for MFA, wait for CI status). The host:
+
+1. Applies the plugin's declared `timeout_ms` if present, otherwise no timeout
+2. Logs a warning at audit time: "long-running plugin detected"
+3. Requires the manifest to include a `description` explaining why long-running is needed
+4. Monitors the plugin process and reports status to the dispatch log at intervals
+
+**The `LongRunning` trait** (SDK):
+```rust
+pub trait LongRunning: SyncHandler {
+    /// Human-readable justification for why this handler blocks.
+    fn justification(&self) -> &str;
+
+    /// Optional hard timeout. None = no limit (host will still log periodic status).
+    fn hard_timeout(&self) -> Option<Duration>;
+
+    /// Called periodically by the SDK runner to report progress.
+    /// Return false to signal the host should cancel.
+    fn progress(&self) -> bool { true }
+}
+```
+
+This allows flexibility for corner cases (Slack approval flows, external CI waits) while making the decision explicit and auditable.
 
 ## 6. Handler Resolution
 
@@ -203,79 +295,153 @@ SUBCOMMANDS:
   install                  Generate .claude/settings.json hook entries
   config                   Show resolved configuration
   handlers                 List available builtins + discovered plugins
+  test <plugin>            Run compliance tests against a plugin
+  exit-codes               Show exit code reference
 ```
 
-### 7.1 Hook Installation
+### 7.1 Exit Codes
 
-The `install` command reads the sc-hooks config and all plugin manifests, then generates the correct `.claude/settings.json` entries. When a hook event has both sync and async plugins, it installs two handler entries:
+The host uses structured exit codes so callers (Claude Code, CI, scripts) can programmatically determine what happened:
+
+| Code | Name | Meaning |
+|------|------|---------|
+| 0 | `SUCCESS` | All handlers returned `proceed`. |
+| 1 | `BLOCKED` | A sync handler returned `action=block`. Reason on stderr. |
+| 2 | `PLUGIN_ERROR` | A handler returned `action=error` or produced invalid output. |
+| 3 | `CONFIG_ERROR` | Config file missing, malformed, or invalid. |
+| 4 | `RESOLUTION_ERROR` | One or more handlers could not be resolved. |
+| 5 | `VALIDATION_ERROR` | Metadata validation failed for a handler's requirements. |
+| 6 | `TIMEOUT` | A handler exceeded its timeout. |
+| 7 | `AUDIT_FAILURE` | `sc-hooks audit` found errors. |
+| 10 | `INTERNAL_ERROR` | Unexpected host error (panic, I/O failure). |
+
+Run `sc-hooks exit-codes` for the full reference with descriptions and suggested remediation:
+
+```
+$ sc-hooks exit-codes
+Exit Code Reference:
+  0  SUCCESS           All handlers proceeded successfully.
+  1  BLOCKED           A sync handler blocked the action.
+                       → Check stderr for the block reason.
+                       → Review the blocking plugin's deny rules.
+  2  PLUGIN_ERROR      A handler returned an error or violated protocol.
+                       → Check dispatch log for details.
+                       → Run 'sc-hooks test <plugin>' to diagnose.
+  3  CONFIG_ERROR      Configuration is invalid.
+                       → Run 'sc-hooks config' to see parsed output.
+                       → Run 'sc-hooks audit' for detailed validation.
+  ...
+```
+
+### 7.2 Hook Installation
+
+The `install` command reads the sc-hooks config and all plugin manifests, then generates the correct `.claude/settings.json` entries. **Plugins declare their event matchers** in their manifest, and `install` uses these to generate precise Claude Code `matcher` entries—not blanket `"*"` wildcards.
 
 ```
 $ sc-hooks install
 
 Installing hooks for PreToolUse:
-  sync chain:  guard-paths, log
-  async chain: collect-context
-  → 2 entries in .claude/settings.json
+  guard-paths (sync) matches: Write, Bash, Edit
+  log (sync) matches: *
+  collect-context (async) matches: Write, Bash
+
+  Generated entries:
+    matcher "Write" → sync: [guard-paths, log] + async: [collect-context]  (2 entries)
+    matcher "Bash"  → sync: [guard-paths, log] + async: [collect-context]  (2 entries)
+    matcher "Edit"  → sync: [guard-paths, log]                            (1 entry)
+    matcher "*"     → sync: [log]                                          (1 entry, excludes Write/Bash/Edit)
 
 Installing hooks for PostToolUse:
-  sync chain:  log
-  async chain: notify
-  → 2 entries
-
-Installing hooks for PreCompact:
-  sync chain:  save-context, log
-  → 1 entry
+  log (sync) matches: *
+  notify (async) matches: *
+  → matcher "*" → 2 entries (sync + async)
 ```
 
-The generated settings.json:
+The generated settings.json uses the most specific matchers possible:
 
 ```jsonc
 // .claude/settings.json (generated by sc-hooks install)
 "hooks": {
-  "PreToolUse": [{
-    "matcher": "*",
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PreToolUse --sync" },
-      { "type": "command", "command": "sc-hooks run PreToolUse --async", "async": true }
-    ]
-  }],
-  "PostToolUse": [{
-    "matcher": "*",
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PostToolUse --sync" },
-      { "type": "command", "command": "sc-hooks run PostToolUse --async", "async": true }
-    ]
-  }],
-  "PreCompact": [{
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PreCompact --sync" }
-    ]
-  }]
+  "PreToolUse": [
+    {
+      "matcher": "Write",
+      "hooks": [
+        { "type": "command", "command": "sc-hooks run PreToolUse Write --sync" },
+        { "type": "command", "command": "sc-hooks run PreToolUse Write --async", "async": true }
+      ]
+    },
+    {
+      "matcher": "Bash",
+      "hooks": [
+        { "type": "command", "command": "sc-hooks run PreToolUse Bash --sync" },
+        { "type": "command", "command": "sc-hooks run PreToolUse Bash --async", "async": true }
+      ]
+    },
+    {
+      "matcher": "Edit",
+      "hooks": [
+        { "type": "command", "command": "sc-hooks run PreToolUse Edit --sync" }
+      ]
+    }
+  ]
 }
 ```
 
-If a hook event has only sync plugins, only one entry is generated. If only async plugins, only the async entry. The user never manually writes these entries—`install` handles it.
+**Key principle:** There is zero reason to invoke sc-hooks if the event doesn't match any plugin. The `install` command ensures Claude Code only calls sc-hooks when at least one plugin is interested in the event.
+
+**Note (post-MVP):** Merging with existing manually-configured hooks in settings.json is a nice-to-have feature. For MVP, `install` manages a clearly delimited section. Future versions may support non-destructive merge.
+
+### 7.3 Plugin Compliance Testing
+
+The `test` command runs the test harness against a plugin to verify protocol compliance:
+
+```
+$ sc-hooks test guard-paths
+
+Plugin: guard-paths
+  ✓ Manifest: valid JSON, all required fields present
+  ✓ Contract version: 1 (compatible with host)
+  ✓ Mode: sync
+  ✓ Matchers: ["Write", "Bash", "Edit"] (valid event names)
+  ✓ Timeout: 5000ms (within bounds)
+  ✓ Requires: all fields satisfiable
+  ✓ Protocol: returns valid JSON on stdin input
+  ✓ Protocol: returns action field (proceed/block/error)
+  ✓ Protocol: handles missing optional fields gracefully
+  ✓ Protocol: handles empty payload
+  ✓ Protocol: exits 0 on success
+  ✓ Timeout: completes within declared timeout_ms
+  ✗ Protocol: stderr output on normal execution (warning: debug output detected)
+
+11 passed, 0 failed, 1 warning
+Plugin is COMPLIANT.
+```
+
+Plugins that fail compliance testing are rejected by `audit` and will not be loaded at runtime.
 
 ## 8. Audit System
 
-The audit command validates the entire hook system without executing any handlers:
+The audit command validates the entire hook system without executing any handler logic:
 
 ```
 $ sc-hooks audit
 
 Config: .sc-hooks/config.toml
-Protocol: 1
+Contract version: 1
 
 Plugins:
-  ✓ guard-paths    (protocol=1, mode=sync)
-  ✓ log            (builtin, mode=sync)
-  ✓ collect-context (protocol=1, mode=async)
-  ✓ notify         (protocol=1, mode=async)
+  ✓ guard-paths    (contract=1, mode=sync, matchers=[Write,Bash,Edit], timeout=5000ms)
+  ✓ log            (builtin, mode=sync, matchers=[*])
+  ✓ collect-context (contract=1, mode=async, matchers=[Write,Bash], response_time=10-100ms)
+  ✓ notify         (contract=1, mode=async, matchers=[*], response_time=1000-5000ms)
+  ⚠ slack-approval (contract=1, mode=sync, long_running=true, timeout=300000ms)
+    → Warning: long-running plugin. Justification: "Waits for Slack thread reply."
 
 Hook chains:
   PreToolUse:
-    sync:  [guard-paths, log]
-    async: [collect-context]
+    matchers: Write, Bash, Edit, *
+    sync:  [guard-paths (Write,Bash,Edit), log (*)]
+    async: [collect-context (Write,Bash)]
     guard-paths requires:
       ✓ repo.path     (dir_exists) → /home/rand/src/p3 exists
       ✓ repo.branch   (non_empty)  → "feature/cal-v2"
@@ -284,18 +450,24 @@ Hook chains:
       ✓ repo.path     (dir_exists)
 
   PostToolUse:
-    sync:  [log]
-    async: [notify]
+    sync:  [log (*)]
+    async: [notify (*)]
     notify requires:
       ✓ team.name     (non_empty)  → "calibration"
-      ✗ atm.inbox     (non_empty)  → missing from context
+
+Sandbox:
+  ✓ guard-paths: paths [.sc-hooks/guard-paths.toml] — accessible
+  ✓ notify: needs_network=true — allowed by sandbox override
 
 Install plan:
-  PreToolUse  → 2 entries (sync + async)
-  PostToolUse → 2 entries (sync + async)
-  PreCompact  → 1 entry  (sync only)
+  PreToolUse  → 3 matcher entries (Write: 2, Bash: 2, Edit: 1)
+  PostToolUse → 1 matcher entry (* : 2)
 
-1 error: notify requires 'atm.inbox' but it is not provided
+Async time buckets:
+  PreToolUse/async: [collect-context] bucket 10-100ms
+  PostToolUse/async: [notify] bucket 1000-5000ms
+
+0 errors, 1 warning
 ```
 
 ## 9. Observability
@@ -303,6 +475,8 @@ Install plan:
 ### 9.1 Host Dispatch Log
 
 The host logs every dispatch-level event: which hook fired, which handlers ran, their results, and timing. This is the host's responsibility and the only log the host writes.
+
+Log path and level are configured in `[logging]`:
 
 ```toml
 [logging]
@@ -319,6 +493,7 @@ If a plugin needs additional logging, that is the plugin's responsibility. The h
   "ts": "2026-03-06T10:23:45.123Z",
   "hook": "PreToolUse",
   "event": "Write",
+  "matcher": "Write",
   "mode": "sync",
   "handlers": ["guard-paths", "log"],
   "results": [
@@ -330,32 +505,81 @@ If a plugin needs additional logging, that is the plugin's responsibility. The h
 }
 ```
 
+Error entries include additional detail:
+
+```json
+{
+  "ts": "2026-03-06T10:23:46.456Z",
+  "hook": "PreToolUse",
+  "event": "Write",
+  "mode": "sync",
+  "handlers": ["broken-plugin"],
+  "results": [
+    {
+      "handler": "broken-plugin",
+      "action": "error",
+      "error_type": "invalid_json",
+      "stderr": "Traceback (most recent call last):\n  ...",
+      "ms": 12,
+      "disabled": true
+    }
+  ],
+  "total_ms": 12,
+  "exit": 2,
+  "ai_notification": "hook broken-plugin returned invalid JSON — disabled. Please notify user!"
+}
+```
+
 ## 10. Sync/Async Execution Model
 
 Each plugin declares its execution mode in its manifest. The host uses this to split handler chains and generate correct AI tool integration.
 
 ### 10.1 Sync Plugins
 
-Sync plugins make blocking decisions. They run sequentially in a chain that short-circuits on block/error. Claude Code waits for the result. Use sync mode for: path guards, permission decisions, input validation—anything that must complete before the tool action proceeds.
+Sync plugins make blocking decisions. They run sequentially in a chain that short-circuits on block/error. Claude Code waits for the result. Use sync mode for: path guards, permission checks, input validation, pre-flight logging, rate limiting, workspace state assertions—anything that must complete before the tool action proceeds.
 
 ### 10.2 Async Plugins
 
-Async plugins perform context collection, notifications, or long-running analysis. Claude Code does not wait for them—it starts the async chain and continues immediately. When the async chain completes, any `additionalContext` or `systemMessage` is delivered to the AI on the next conversation turn.
+Async plugins perform work that doesn't gate the tool action: context collection, notifications, analysis, telemetry, compaction triggers, audit trail writes, CI polling, and any other background processing. Claude Code does not wait for them—it starts the async chain and continues immediately. When the async chain completes, any `additionalContext` or `systemMessage` is delivered to the AI on the next conversation turn.
 
 Async plugins cannot return `block`. The audit command enforces this constraint.
 
-### 10.3 Chain Splitting
+### 10.3 Async Time Buckets & Aggregation
 
-When a single hook event (e.g., PreToolUse) has both sync and async plugins, `sc-hooks install` generates two Claude Code hook entries for that event. The `--sync` invocation runs only sync-mode plugins; the `--async` invocation runs only async-mode plugins. This is invisible to the plugin author—each plugin only sees its own chain.
+Async plugins declare a `response_time` range in their manifest: `{"min_ms": 10, "max_ms": 100}`. The host uses this to group async plugins into **time buckets** during installation.
 
-Example: `PreToolUse = ["guard-paths", "collect-context"]` where guard-paths is sync and collect-context is async:
+**Why time buckets matter:** If two async plugins have wildly different response times (e.g., 10–100ms vs 5–10s), aggregating their output into a single Claude Code async hook entry means the fast plugin's context is delayed until the slow one finishes. Instead, `sc-hooks install` generates separate async hook entries for different time buckets, so fast context arrives early and slow context arrives when ready.
 
-- Claude Code fires PreToolUse
-- Two sc-hooks processes start: one sync (blocking), one async (background)
-- Sync chain: guard-paths runs, returns proceed/block
-- Async chain: collect-context runs in background, returns additionalContext on next turn
+**Bucketing rules:**
+- Plugins whose `response_time` ranges overlap or are adjacent are grouped into the same bucket.
+- Plugins with non-overlapping ranges (e.g., max of one < min of another) become separate hook entries.
+- Plugins that omit `response_time` go into a default bucket (0–30000ms).
 
-### 10.4 Handler-Internal Async
+**Aggregation within a bucket:**
+- `additionalContext` strings from all plugins in the bucket are concatenated with a `\n---\n` separator.
+- `systemMessage` strings are concatenated with `\n`.
+- If only one plugin is in the bucket, its output is passed through unmodified.
+
+**SDK traits for async plugins:**
+
+```rust
+/// Implement this for async plugins that provide context to the AI.
+pub trait AsyncContextSource: AsyncHandler {
+    /// Expected response time range. Used for time-bucket grouping.
+    fn response_time(&self) -> ResponseTimeRange;
+}
+
+pub struct ResponseTimeRange {
+    pub min_ms: u64,
+    pub max_ms: u64,
+}
+```
+
+### 10.4 Chain Splitting & Matcher Integration
+
+When a single hook event (e.g., PreToolUse/Write) has both sync and async plugins that match, `sc-hooks install` generates two Claude Code hook entries for that matcher: one sync (blocking), one async (background). If only sync plugins match, only the sync entry is generated. If only async match, only async. Combined with per-event matchers, this means Claude Code only invokes sc-hooks when there's actual work to do.
+
+### 10.5 Handler-Internal Async
 
 Independent of the sync/async chain split, any plugin (sync or async) may internally fork a detached child process for follow-up work. A sync plugin that sends an ATM notification can fork the notification send and return proceed immediately. The dispatcher does not know about the fork. This is the plugin's concern.
 
@@ -379,37 +603,80 @@ esac
 
 Handlers do not care which AI tool invoked them. They read metadata JSON. Same handlers, same logging, same audit.
 
-## 12. Project Structure
+## 12. SDK & Pre-made Plugins
+
+### 12.1 SDK Traits
+
+The sc-hooks-sdk crate provides traits that plugin authors implement:
+
+| Trait | Purpose |
+|-------|---------|
+| `SyncHandler` | Base trait for sync plugins. Requires `handle(&self, input: HookInput) -> HookResult`. |
+| `AsyncHandler` | Base trait for async plugins. Returns `AsyncResult` with optional `additionalContext` and `systemMessage`. |
+| `LongRunning` | Extension trait for sync plugins that may block on external input. Requires justification. |
+| `AsyncContextSource` | Extension trait for async plugins. Declares response time range for bucketing. |
+| `ManifestBuilder` | Fluent API for generating correct manifest JSON. |
+| `PluginRunner` | Handles `--manifest` flag detection, stdin/stdout protocol, and error wrapping. |
+
+The SDK is optional. Plugins can implement the JSON protocol directly in any language. The SDK simply makes it easier for Rust plugin authors and ensures protocol compliance.
+
+### 12.2 Pre-made Plugins
+
+sc-hooks ships with common-case handlers that cover frequent patterns:
+
+| Plugin | Mode | Description |
+|--------|------|-------------|
+| `log` | sync (builtin) | Logs hook invocations. Always available. |
+| `guard-paths` | sync | Blocks writes to denied paths. Reads deny/allow patterns from its own config. |
+| `conditional-source` | async | Reads a file and returns its contents as `additionalContext`, optionally filtered by conditions on the incoming metadata JSON. |
+| `template-source` | async | Reads a Jinja2 template file and renders it using the incoming metadata JSON as context. Returns the rendered output as `additionalContext`. Enables dynamic context injection without writing a custom plugin. |
+| `notify` | async | Sends notifications (ATM messages, webhooks). Forks and returns immediately. |
+| `save-context` | sync | Persists context before compaction events. |
+
+These serve as both useful tools and reference implementations for plugin authors.
+
+## 13. Project Structure
 
 ```
 sc-hooks/
 ├── Cargo.toml                # workspace
-├── sc-hooks-sdk/             # optional helper for Rust plugins
+├── sc-hooks-sdk/             # trait-based plugin framework
 │   ├── Cargo.toml
 │   └── src/
 │       ├── lib.rs
-│       ├── manifest.rs       # Manifest builder
+│       ├── traits.rs         # SyncHandler, AsyncHandler, LongRunning, AsyncContextSource
+│       ├── manifest.rs       # ManifestBuilder
 │       ├── validate.rs       # Validation rule types
-│       ├── runner.rs         # --manifest + stdin/stdout protocol
-│       └── result.rs         # HookResult enum
+│       ├── runner.rs         # --manifest + stdin/stdout protocol + error wrapping
+│       └── result.rs         # HookResult, AsyncResult enums
 ├── sc-hooks-cli/             # the host binary
 │   ├── Cargo.toml
 │   └── src/
-│       ├── main.rs           # clap: run, audit, fire, install
-│       ├── config.rs         # TOML parsing
+│       ├── main.rs           # clap: run, audit, fire, install, test, exit-codes
+│       ├── config.rs         # TOML parsing (4 sections)
 │       ├── metadata.rs       # assemble JSON from config + runtime
 │       ├── resolve.rs        # name → builtin | plugin binary
 │       ├── manifest.rs       # call --manifest, parse + cache
 │       ├── validate.rs       # validate metadata against requirements
-│       ├── dispatch.rs       # pipe JSON → plugin → read result
-│       ├── install.rs        # generate .claude/settings.json
+│       ├── dispatch.rs       # pipe JSON → plugin → read result → timeout enforcement
+│       ├── install.rs        # generate .claude/settings.json with matcher routing
 │       ├── builtins/
 │       │   └── log.rs
 │       ├── audit.rs
 │       ├── fire.rs
+│       ├── testing.rs        # plugin compliance test runner
+│       ├── exit_codes.rs     # exit code definitions and help text
 │       └── logging.rs
-├── plugins/                  # each compiles independently
+├── sc-hooks-test/            # test harness crate (used by plugin authors)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── compliance.rs     # manifest validation, protocol conformance checks
+│       └── fixtures.rs       # test fixture builders
+├── plugins/                  # pre-made plugins (each compiles independently)
 │   ├── guard-paths/
+│   ├── conditional-source/
+│   ├── template-source/
 │   ├── notify/
 │   └── save-context/
 └── shims/
@@ -417,10 +684,50 @@ sc-hooks/
     └── gemini-shim.sh
 ```
 
-## 13. Open Design Decisions
+## 14. Security Model
+
+### 14.1 Sandbox Compliance
+
+The host respects the sandboxing rules of the calling AI tool. Claude Code enforces a sandbox that restricts file access, network access, and process spawning. Plugins inherit these restrictions.
+
+**Plugin resource declarations** allow the host to validate access before invocation:
+
+```json
+"sandbox": {
+  "paths": [".sc-hooks/guard-paths.toml", ".sc-hooks/deny-patterns/"],
+  "needs_network": false
+}
+```
+
+The `audit` command verifies that declared paths exist and are accessible. At runtime, the host checks declared paths before invocation.
+
+### 14.2 Sandbox Overrides
+
+Some plugins legitimately need access beyond the default sandbox (e.g., a notify plugin needs network access to send a webhook). The override mechanism:
+
+1. Plugin declares its needs in the `sandbox` manifest field.
+2. `sc-hooks audit` reports all sandbox requirements and flags any that exceed defaults.
+3. The config can explicitly allow overrides:
+
+```toml
+[sandbox]
+allow_network = ["notify"]
+allow_paths = { "guard-paths" = [".sc-hooks/guard-paths.toml"] }
+```
+
+4. Unacknowledged sandbox requirements cause `audit` to warn (not fail by default). A `--strict` flag makes them errors.
+
+### 14.3 Plugin Integrity
+
+- `audit` warns if plugin executables are world-writable or not owned by the current user.
+- `audit` warns if the `.sc-hooks/plugins/` directory has overly permissive permissions.
+- Future: optional plugin signature verification (post-MVP, tracked with Synaptic Canvas plugin marketplace).
+
+## 15. Open Design Decisions
 
 - **Config discovery:** Walk up from CWD to find `.sc-hooks/config.toml` (mirrors `.claude/` behavior), or explicit `--config` flag, or both?
-- **Manifest caching:** Cache manifests in memory per invocation, or persist to disk with invalidation on plugin mtime change?
-- **Config inheritance:** Should a global `~/.config/sc-hooks/config.toml` provide defaults that repo-level configs extend? Useful for logging defaults.
+- **Manifest caching:** Cache manifests in memory per invocation (baseline), or persist to disk with invalidation on plugin mtime change (optimization)?
+- **Config inheritance:** Should a global `~/.config/sc-hooks/config.toml` provide defaults that repo-level configs extend? Useful for logging defaults and global plugins.
 - **Diagnostic mode design:** The `fire` command needs design for payload generation. Synthetic payloads, recorded payloads, or both?
-- **Plugin marketplace:** Integration with Synaptic Canvas package registry for plugin distribution? Separate concern but worth tracking.
+- **Plugin marketplace:** Integration with Synaptic Canvas package registry for plugin distribution. Separate concern but tracked.
+- **Jinja2 runtime:** The `template-source` plugin needs a Jinja2-compatible template engine. Use a Rust crate (minijinja) or shell out to Python?
