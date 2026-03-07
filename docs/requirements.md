@@ -1,6 +1,6 @@
 # sc-hooks — Requirements Document
 
-> Version 0.2.0 — March 2026 — DRAFT
+> Version 0.2.1 — March 2026 — DRAFT
 
 ## 1. Purpose
 
@@ -44,12 +44,14 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 | ID | Requirement | Priority | Acceptance Criteria |
 |----|-------------|----------|---------------------|
 | CFG-001 | The system shall read configuration from a TOML file at `.sc-hooks/config.toml` relative to the repository root. | Must | Given a repo with `.sc-hooks/config.toml`, running `sc-hooks config` prints the resolved configuration. |
-| CFG-002 | The config file shall contain exactly four sections: `[meta]`, `[context]`, `[hooks]`, and `[logging]`. | Must | A config with any other top-level section produces a parse error with a clear message. |
+| CFG-002 | The config file shall recognize exactly five sections: `[meta]`, `[context]`, `[hooks]`, `[logging]`, and `[sandbox]`. Only `[meta]` and `[hooks]` are required; the rest are optional. | Must | A config with any other top-level section produces a parse error with a clear message. A config with only `[meta]` and `[hooks]` is valid. |
 | CFG-003 | The `[hooks]` section shall map hook type names to ordered arrays of handler names. | Must | Given `PreToolUse = ["a", "b"]`, handlers a and b are invoked in order. |
 | CFG-004 | The `[context]` section shall provide static key-value pairs merged into the metadata JSON under the team subsection. | Must | Given `team = "cal"`, the metadata JSON contains `{"team": {"name": "cal"}}`. |
 | CFG-005 | The `[meta]` section shall contain a `version` field (integer) for config format versioning. | Must | Missing version field produces a parse error. Non-integer value produces a parse error. |
 | CFG-006 | The `[logging]` section shall configure the dispatch log path (`hook_log`) and level (`level`). | Must | Changing `hook_log` path in config changes where dispatch logs are written. Valid levels: debug, info, warn, error. |
 | CFG-007 | The `[logging]` section shall be optional with sensible defaults (`hook_log = ".sc-hooks/logs/hooks.jsonl"`, `level = "info"`). | Should | A config without `[logging]` uses defaults. |
+| CFG-008 | The `[sandbox]` section shall be optional. When present, it provides explicit sandbox overrides per plugin (see SEC-003). | Should | A config without `[sandbox]` means no overrides; all plugins run under default sandbox restrictions. |
+| CFG-009 | The `[context]` section key `team` shall map to `team.name` in the metadata JSON. All other keys map to top-level metadata fields. Dot-notation keys are treated as literal strings, not expanded. | Must | Given `[context] team = "cal"`, `metadata.team.name` is `"cal"`. Given `[context] project = "p3"`, `metadata.project` is `"p3"`. |
 
 ### 3.2 Handler Resolution
 
@@ -67,7 +69,7 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 | PLG-002 | The manifest shall declare required and optional metadata fields with dot-path notation (e.g., `repo.path`, `team.name`). | Must | The host can extract the field from the metadata JSON using the dot path. |
 | PLG-003 | The manifest shall support validation rules on required fields: `non_empty`, `dir_exists`, `file_exists`, `path_resolves`, `one_of:<values>`, `positive_int`. | Must | For each rule type, validation fails on invalid input and passes on valid input. |
 | PLG-004 | The host shall validate all required fields against manifest rules before invoking the plugin. | Must | A plugin with `requires repo.path: dir_exists` is never called if the path does not exist. The host returns an error result. |
-| PLG-005 | The host shall pipe a JSON object to the plugin's stdin containing only the fields declared in requires and optional. | Must | A plugin declaring `requires repo.path` and `optional team.name` receives JSON with only those fields. |
+| PLG-005 | The host shall pipe a JSON object to the plugin's stdin containing: (a) metadata fields filtered to only those declared in `requires` and `optional`, (b) the `hook` field (always included), and (c) the `payload` field as a verbatim passthrough if present. `payload` and `hook` are not subject to requires/optional filtering. | Must | A plugin declaring `requires repo.path` and `optional team.name` receives JSON with those fields plus `hook` and `payload` (if present). |
 | PLG-006 | Sync-mode plugins shall write a JSON result to stdout with an `action` field of `proceed`, `block`, or `error`. | Must | The host correctly interprets each action type. Block short-circuits the chain. |
 | PLG-007 | A plugin may be implemented in any language. The protocol is the contract, not the implementation language. | Must | A Python script and a Rust binary with identical manifests are interchangeable. |
 | PLG-008 | The manifest shall declare a `mode` field of `sync` or `async`. | Must | A plugin declaring `mode=sync` is placed in the sync chain. A plugin declaring `mode=async` is placed in the async chain. |
@@ -94,6 +96,32 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 | TMO-003 | When a plugin exceeds its timeout, the host shall send SIGTERM, wait 1s, then SIGKILL. The plugin is disabled for the session. Exit code 6. | Must | A hanging plugin is killed, disabled, and the error is logged and reported to the AI session. |
 | TMO-004 | Plugins declaring `long_running: true` shall have extended or no timeout, as declared by their `timeout_ms`. | Must | A long-running plugin with `timeout_ms: 300000` is allowed 5 minutes. A long-running plugin with no `timeout_ms` has no timeout. |
 | TMO-005 | Audit shall warn on long-running plugins. Manifest must include `description` justifying why long-running is needed. | Must | A long-running plugin without `description` fails audit. With description, audit logs a warning. |
+| TMO-006 | For async invocations, timeout shall not produce a blocking exit code. The async chain exits 0. The timed-out plugin is disabled and an `ai_notification` is included in the async result. | Must | Async timeout degrades gracefully — tool use is not blocked, but the AI is informed that context from the failed plugin is unavailable. |
+
+### 3.6a Session State & Plugin Disable Persistence
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|----|-------------|----------|---------------------|
+| SES-001 | The host shall persist plugin disable state in `.sc-hooks/state/session.json`, keyed by the AI tool's session ID. | Must | A plugin disabled in one hook invocation remains disabled in subsequent invocations within the same session. |
+| SES-002 | The session state file shall be cleaned up when a `SessionEnd` hook fires or when `sc-hooks audit --reset` is run. | Must | After session end, all plugins are re-enabled for the next session. |
+| SES-003 | If the session state file is missing or unreadable, all plugins shall be considered enabled (fail-open for state). | Must | Deleting the state file re-enables all plugins. |
+
+### 3.6b Contract Version Compatibility
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|----|-------------|----------|---------------------|
+| CTV-001 | The host shall adapt downward to a plugin's declared `contract_version`. A vN host can invoke any plugin with contract_version ≤ N. | Must | A v2 host invokes a v1 plugin by sending v1-format input and accepting v1-format output. |
+| CTV-002 | The host shall reject plugins with `contract_version` greater than its own at audit time and runtime. | Must | Audit reports incompatibility error. Runtime skips the plugin with exit code 5 if no other handlers remain. |
+| CTV-003 | For MVP, only contract version 1 exists. The compatibility machinery is designed but not exercised. | Must | All plugins and the host declare contract_version 1. |
+
+### 3.6c Event Taxonomy
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|----|-------------|----------|---------------------|
+| EVT-001 | The host shall maintain a canonical taxonomy of valid events per hook type. | Must | `sc-hooks handlers --events` lists all valid events per hook type. |
+| EVT-002 | Valid PreToolUse/PostToolUse events shall include: `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Agent`, `NotebookEdit`, `TodoWrite`, `AskFollowup`, `SendMessage`, `Task`, and `*`. | Must | Audit validates plugin matchers against this list. |
+| EVT-003 | Lifecycle hooks (`PreCompact`, `PostCompact`, `SessionStart`, `SessionEnd`, `Notification`) have no event sub-types. Plugins for these hooks shall declare `matchers: ["*"]`. | Must | Audit flags non-`*` matchers on lifecycle hooks as errors. |
+| EVT-004 | Audit shall warn (not fail) on unrecognized event names, to allow forward compatibility as Claude Code adds new events. | Should | An event name not in the taxonomy produces a warning, not an error. |
 
 ### 3.6 Error Handling & Plugin Validation
 
@@ -135,7 +163,7 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 | ID | Requirement | Priority | Acceptance Criteria |
 |----|-------------|----------|---------------------|
 | CLI-001 | `sc-hooks run <hook> [event]` shall execute the handler chain for the given hook type. `--sync` runs only sync-mode handlers, `--async` runs only async-mode handlers. Default is `--sync`. | Must | `sc-hooks run PreToolUse Write --sync` invokes only sync plugins matching `Write` for PreToolUse. |
-| CLI-002 | `sc-hooks audit` shall validate all handlers, manifests, matchers, data flow, timeout declarations, sandbox requirements, and sync/async correctness without executing any hook logic. | Must | Audit reports per-handler status, matcher coverage, sync/async chain splits, time buckets, sandbox status, and identifies violations. |
+| CLI-002 | `sc-hooks audit` shall validate all handlers, manifests, matchers, data flow, timeout declarations, sandbox requirements, and sync/async correctness using **static analysis only** (manifest inspection, config validation, filesystem checks). It shall not execute any hook logic or send input to plugins. | Must | Audit reports per-handler status, matcher coverage, sync/async chain splits, time buckets, sandbox status, and identifies violations. Runtime-only violations (e.g., async plugin returning block) are caught by the dispatch error handler at invocation time. |
 | CLI-003 | `sc-hooks fire <hook> [event]` shall trigger a hook in diagnostic mode for testing. | Should | `fire` invokes the handler chain and reports detailed results including timing. |
 | CLI-004 | `sc-hooks config` shall display the resolved configuration. | Must | Output shows the parsed TOML with resolved paths. |
 | CLI-005 | `sc-hooks handlers` shall list all available builtins and discovered plugin executables with their mode and matchers. | Must | Output distinguishes builtins from plugins, shows mode (sync/async), matchers, and timeout for each. |
@@ -188,7 +216,7 @@ The primary consumers are Claude Code hook configurations, with secondary suppor
 
 | ID | Requirement | Priority | Acceptance Criteria |
 |----|-------------|----------|---------------------|
-| OBS-001 | Every hook invocation shall produce a structured JSONL log entry with: timestamp, hook type, event, matcher, handler chain, per-handler results with timing, total duration, exit code. | Must | The log file contains one JSON object per line per invocation. |
+| OBS-001 | Every hook invocation that executes at least one handler shall produce a structured JSONL log entry with: timestamp, hook type, event, matcher, handler chain, per-handler results with timing, total duration, exit code. Zero-match invocations (no plugins match the event) produce no log entry and exit immediately per DSP-008/PRF-005. | Must | The log file contains one JSON object per line per handler-executing invocation. No entries for zero-match fast path. |
 | OBS-002 | Logging configuration shall be in the config.toml under a `[logging]` section with a `hook_log` path and level. | Must | Changing `hook_log` path in config changes where dispatch logs are written. |
 | OBS-003 | Log level shall be configurable: debug, info, warn, error. | Should | Setting `level = "debug"` produces more verbose dispatch log entries. |
 | OBS-004 | Plugin-level logging is the plugin's responsibility. The host shall not provide logging infrastructure to plugins. | Must | No host config controls plugin log output. |

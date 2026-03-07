@@ -42,7 +42,7 @@
 
 **Docs**: [`docs/architecture.md`](./docs/architecture.md) · [`docs/requirements.md`](./docs/requirements.md)
 
-**Sprint plan** (tracked via task list `schook-dev`):
+**Sprint plan** (tracked via task list `schook`):
 
 | Sprint | Focus |
 |--------|-------|
@@ -90,13 +90,13 @@ Do NOT clean up worktrees until the user has reviewed them. Cleanup only when ex
 
 ### Team Configuration
 
-- **Team**: `schook-dev`
+- **Team**: `schook`
 - **team-lead** (you, Claude Code) — manages task list, reviews work, coordinates sprints
 - **arch-schook** is a Codex agent — communicates via ATM CLI messages
 
 ### Identity
 
-`.atm.toml` at repo root sets `default_team = "schook-dev"`.
+`.atm.toml` at repo root sets `default_team = "schook"`.
 
 ### Communicating with arch-schook (Codex)
 
@@ -119,7 +119,7 @@ atm inbox
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title} #{pane_current_command}'
 
 # Send nudge
-tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team schook-dev" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
+tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team schook" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
 ```
 
 ### Communication Rules
@@ -144,8 +144,8 @@ tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --te
 
 ## Initialization Process
 
-1. Run: `atm teams resume schook-dev` (or `TeamCreate` if needed)
-2. Run: `atm teams cleanup schook-dev`
+1. Run: `atm teams resume schook` (or `TeamCreate` if needed)
+2. Run: `atm teams cleanup schook`
 3. Check task list (`TaskList`) for current sprint status
 4. Check current branches and worktrees
 5. Output concise status summary
