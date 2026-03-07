@@ -651,7 +651,18 @@ fn error_result(
 }
 
 fn ai_notification(handler_name: &str, error_type: &str, guidance: &str) -> String {
-    format!("hook {handler_name} {error_type} — disabled. {guidance}")
+    match error_type {
+        "invalid-json" => {
+            format!("hook {handler_name} returned invalid JSON — disabled. Please notify user!")
+        }
+        "non-zero-exit" => {
+            format!("hook {handler_name} exited non-zero — disabled. Please notify user!")
+        }
+        "timed-out" => format!(
+            "hook {handler_name} timed out — disabled. Run 'sc-hooks test {handler_name}' to diagnose."
+        ),
+        _ => format!("hook {handler_name} {error_type} — disabled. {guidance}"),
+    }
 }
 
 #[cfg(test)]
