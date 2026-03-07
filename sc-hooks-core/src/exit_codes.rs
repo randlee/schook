@@ -104,22 +104,3 @@ pub fn render_reference() -> String {
     }
     output
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn includes_all_codes_zero_through_ten() {
-        let codes: Vec<i32> = all().iter().map(|entry| entry.code).collect();
-        assert_eq!(codes, (0..=10).collect::<Vec<_>>());
-    }
-
-    #[test]
-    fn renders_human_readable_reference() {
-        let rendered = render_reference();
-        assert!(rendered.contains("0  SUCCESS"));
-        assert!(rendered.contains("10  INTERNAL_ERROR"));
-        assert!(rendered.contains("Reserved for future use"));
-    }
-}

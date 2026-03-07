@@ -1,6 +1,10 @@
 mod config;
+mod dispatch;
 mod errors;
-mod exit_codes;
+mod resolution;
+#[cfg(test)]
+mod test_support;
+mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 
@@ -59,8 +63,12 @@ struct RunArgs {
 }
 
 impl RunArgs {
-    fn mode(&self) -> &'static str {
-        if self.async_mode { "async" } else { "sync" }
+    fn mode(&self) -> sc_hooks_core::dispatch::DispatchMode {
+        if self.async_mode {
+            sc_hooks_core::dispatch::DispatchMode::Async
+        } else {
+            sc_hooks_core::dispatch::DispatchMode::Sync
+        }
     }
 }
 
@@ -80,9 +88,20 @@ struct TestArgs {
 }
 
 fn main() {
-    if let Err(err) = run() {
-        eprintln!("{err}");
-        std::process::exit(err.exit_code());
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("internal panic: {panic_info}");
+    }));
+
+    let outcome = std::panic::catch_unwind(run);
+    match outcome {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => {
+            eprintln!("{err}");
+            std::process::exit(err.exit_code());
+        }
+        Err(_) => {
+            std::process::exit(sc_hooks_core::exit_codes::INTERNAL_ERROR);
+        }
     }
 }
 
@@ -91,16 +110,38 @@ fn run() -> Result<(), CliError> {
 
     match cli.command {
         Commands::Run(args) => {
-            let event = args.event.as_deref().unwrap_or("<none>");
-            println!(
-                "not yet implemented: run hook={} event={} mode={}",
-                args.hook,
-                event,
-                args.mode()
-            );
+            let config = config::load_default_config()?;
+            let payload = read_optional_payload_from_stdin()?;
+            let mode = args.mode();
+
+            let handlers = resolution::resolve_chain(
+                &config,
+                &args.hook,
+                args.event.as_deref(),
+                mode,
+                payload.as_ref(),
+            )?;
+
+            if handlers.is_empty() {
+                return Ok(());
+            }
+
+            match dispatch::execute_chain(
+                &handlers,
+                &config,
+                &args.hook,
+                args.event.as_deref(),
+                mode,
+                payload.as_ref(),
+            )? {
+                dispatch::DispatchOutcome::Proceed => Ok(()),
+                dispatch::DispatchOutcome::Blocked { reason } => Err(CliError::Blocked { reason }),
+            }?;
         }
         Commands::Audit => {
-            println!("not yet implemented");
+            return Err(CliError::AuditFailure {
+                message: "not yet implemented".to_string(),
+            });
         }
         Commands::Fire(args) => {
             let event = args.event.as_deref().unwrap_or("<none>");
@@ -124,9 +165,29 @@ fn run() -> Result<(), CliError> {
             println!("not yet implemented: test plugin={}", args.plugin);
         }
         Commands::ExitCodes => {
-            print!("{}", exit_codes::render_reference());
+            print!("{}", sc_hooks_core::exit_codes::render_reference());
         }
     }
 
     Ok(())
+}
+
+fn read_optional_payload_from_stdin() -> Result<Option<serde_json::Value>, CliError> {
+    use std::io::Read;
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_to_string(&mut input)
+        .map_err(|err| CliError::internal(format!("failed reading stdin payload: {err}")))?;
+
+    if input.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let parsed =
+        serde_json::from_str::<serde_json::Value>(&input).map_err(|err| CliError::PluginError {
+            message: format!("invalid JSON payload on stdin: {err}"),
+        })?;
+
+    Ok(Some(parsed))
 }
