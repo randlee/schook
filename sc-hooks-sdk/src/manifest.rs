@@ -10,6 +10,10 @@ use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
 pub const HOST_CONTRACT_VERSION: u32 = 1;
 
+pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
+    plugin_version <= host_version
+}
+
 #[derive(Debug, Error)]
 pub enum ManifestError {
     #[error("invalid manifest JSON: {0}")]
@@ -117,7 +121,7 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), ManifestError> {
         return Err(ManifestError::EmptyMatchers);
     }
 
-    if manifest.contract_version > HOST_CONTRACT_VERSION {
+    if !is_contract_compatible(HOST_CONTRACT_VERSION, manifest.contract_version) {
         return Err(ManifestError::IncompatibleContractVersion {
             host_version: HOST_CONTRACT_VERSION,
             plugin_version: manifest.contract_version,
@@ -382,6 +386,13 @@ mod tests {
                 plugin_version: 2,
             }
         ));
+    }
+
+    #[test]
+    fn contract_compatibility_allows_downward_and_equal() {
+        assert!(is_contract_compatible(1, 1));
+        assert!(is_contract_compatible(2, 1));
+        assert!(!is_contract_compatible(1, 2));
     }
 
     #[test]

@@ -48,6 +48,7 @@ impl HookEnv {
 pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
+    pub session_id: Option<String>,
     _metadata_file: MetadataFileGuard,
 }
 
@@ -106,8 +107,13 @@ pub fn prepare_with_runtime(
     Ok(PreparedMetadata {
         metadata,
         env,
+        session_id: runtime.session_id.clone(),
         _metadata_file: metadata_file,
     })
+}
+
+pub fn current_session_id() -> Option<String> {
+    std::env::var(ENV_SESSION_ID).ok()
 }
 
 pub fn assemble_metadata(
