@@ -1,14 +1,18 @@
+mod audit;
 mod builtins;
 mod config;
 mod dispatch;
 mod errors;
 mod events;
+mod fire;
 mod install;
+mod logging;
 mod metadata;
 mod resolution;
 mod session;
 #[cfg(test)]
 mod test_support;
+mod testing;
 mod timeout;
 
 use clap::{Args, Parser, Subcommand};
@@ -88,6 +92,10 @@ struct FireArgs {
 
     /// Optional event name
     event: Option<String>,
+
+    /// Optional JSON payload for diagnostic invocation
+    #[arg(long)]
+    payload: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -162,16 +170,35 @@ fn run() -> Result<(), CliError> {
             run_result?;
         }
         Commands::Audit => {
-            return Err(CliError::AuditFailure {
-                message: "not yet implemented".to_string(),
-            });
+            let config = config::load_default_config()?;
+            let report = audit::run(&config)?;
+            let rendered = audit::render(&report);
+            println!("{rendered}");
+            if report.has_errors() {
+                return Err(CliError::AuditFailure {
+                    message: format!(
+                        "audit found {} error(s). see report output above.",
+                        report.errors.len()
+                    ),
+                });
+            }
         }
         Commands::Fire(args) => {
-            let event = args.event.as_deref().unwrap_or("<none>");
-            println!(
-                "not yet implemented: fire hook={} event={}",
-                args.hook, event
-            );
+            let payload = match args.payload.as_ref() {
+                Some(raw) => Some(serde_json::from_str::<serde_json::Value>(raw).map_err(
+                    |err| CliError::PluginError {
+                        message: format!("invalid --payload JSON: {err}"),
+                    },
+                )?),
+                None => Some(serde_json::json!({"synthetic": true, "source": "fire"})),
+            };
+            let rendered = fire::run_fire(
+                &config::load_default_config()?,
+                &args.hook,
+                args.event.as_deref(),
+                payload.as_ref(),
+            )?;
+            println!("{rendered}");
         }
         Commands::Install => {
             let config = config::load_default_config()?;
@@ -190,7 +217,13 @@ fn run() -> Result<(), CliError> {
             println!("not yet implemented");
         }
         Commands::Test(args) => {
-            println!("not yet implemented: test plugin={}", args.plugin);
+            let report = testing::run_plugin_compliance(&args.plugin)?;
+            println!("{}", report.render_text());
+            if !report.passed() {
+                return Err(CliError::AuditFailure {
+                    message: format!("plugin {} failed compliance checks", args.plugin),
+                });
+            }
         }
         Commands::ExitCodes => {
             print!("{}", sc_hooks_core::exit_codes::render_reference());
