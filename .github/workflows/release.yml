@@ -11,6 +11,9 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_ARTIFACT_MANIFEST: release/publish-artifacts.toml
+
 jobs:
   gate-and-tag:
     runs-on: ubuntu-latest
@@ -117,17 +120,23 @@ jobs:
             target
           key: ${{ matrix.target }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }} --bin sc-hooks
+      - name: Build release binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin_args="$(python3 scripts/release_artifacts.py cargo-build-bin-args --manifest "${RELEASE_ARTIFACT_MANIFEST}")"
+          cargo build --release --target ${{ matrix.target }} ${bin_args}
 
       - name: Package (unix)
         if: matrix.archive == 'tar.gz'
         shell: bash
         run: |
+          set -euo pipefail
           VERSION='${{ needs.gate-and-tag.outputs.release_version }}'
           ARCHIVE="sc-hooks_${VERSION}_${{ matrix.target }}.tar.gz"
+          mapfile -t bins < <(python3 scripts/release_artifacts.py list-release-binaries --manifest "${RELEASE_ARTIFACT_MANIFEST}")
           cd target/${{ matrix.target }}/release
-          tar czf "../../../${ARCHIVE}" sc-hooks
+          tar czf "../../../${ARCHIVE}" "${bins[@]}"
           cd ../../..
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
 
@@ -137,7 +146,14 @@ jobs:
         run: |
           $VERSION = '${{ needs.gate-and-tag.outputs.release_version }}'
           $ARCHIVE = "sc-hooks_${VERSION}_${{ matrix.target }}.zip"
-          Compress-Archive -Path "target/${{ matrix.target }}/release/sc-hooks.exe" -DestinationPath $ARCHIVE
+          $bins = python3 scripts/release_artifacts.py list-release-binaries --manifest "${env:RELEASE_ARTIFACT_MANIFEST}"
+          $paths = @()
+          foreach ($bin in $bins) {
+            if (-not [string]::IsNullOrWhiteSpace($bin)) {
+              $paths += "target/${{ matrix.target }}/release/$bin.exe"
+            }
+          }
+          Compress-Archive -Path $paths -DestinationPath $ARCHIVE
           echo "ARCHIVE=$ARCHIVE" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Upload artifact
@@ -146,8 +162,122 @@ jobs:
           name: ${{ matrix.target }}
           path: ${{ env.ARCHIVE }}
 
+  prepare-release-inventory:
+    needs: gate-and-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Generate release inventory artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          tag='${{ needs.gate-and-tag.outputs.release_tag }}'
+          commit="$(git rev-parse "$tag")"
+          generated_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          mkdir -p release
+          python3 scripts/release_artifacts.py emit-inventory \
+            --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+            --version "$version" \
+            --tag "$tag" \
+            --commit "$commit" \
+            --source-ref "refs/tags/${tag}" \
+            --generated-at "$generated_at" \
+            --output release/release-inventory.json
+
+      - name: Upload release inventory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-inventory
+          path: release/release-inventory.json
+
+  pre-publish-audit:
+    needs: [gate-and-tag, prepare-release-inventory]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download release inventory artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-inventory
+          path: release
+
+      - name: Validate inventory consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          python3 - <<'PY' "$version"
+          import json
+          import sys
+          import tomllib
+          from pathlib import Path
+          from subprocess import check_output
+
+          release_version = sys.argv[1]
+          inventory = json.loads(Path("release/release-inventory.json").read_text(encoding="utf-8"))
+          workspace = tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))
+          workspace_version = workspace.get("workspace", {}).get("package", {}).get("version")
+          if workspace_version != release_version:
+              raise SystemExit(f"workspace version mismatch: {release_version} vs {workspace_version}")
+          if inventory.get("releaseVersion") != release_version:
+              raise SystemExit(f"inventory.releaseVersion mismatch")
+
+          expected = set(check_output(
+              ["python3", "scripts/release_artifacts.py", "list-artifacts",
+               "--manifest", "release/publish-artifacts.toml"],
+              text=True,
+          ).splitlines())
+          items = inventory.get("items", [])
+          by_artifact = {item.get("artifact"): item for item in items}
+          missing = sorted(expected - set(by_artifact))
+          if missing:
+              raise SystemExit(f"inventory missing: {', '.join(missing)}")
+          unexpected = sorted(set(by_artifact) - expected)
+          if unexpected:
+              raise SystemExit(f"inventory unexpected: {', '.join(unexpected)}")
+          print("inventory consistency validated")
+          PY
+
+      - name: Cargo package audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t full_checks < <(
+            python3 scripts/release_artifacts.py list-preflight \
+              --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+              --mode full
+          )
+          for crate in "${full_checks[@]}"; do
+            [[ -n "$crate" ]] || continue
+            echo "::group::cargo package -p ${crate} --locked"
+            cargo package -p "${crate}" --locked
+            echo "::endgroup::"
+          done
+
+          mapfile -t locked_checks < <(
+            python3 scripts/release_artifacts.py list-preflight \
+              --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+              --mode locked
+          )
+          for crate in "${locked_checks[@]}"; do
+            [[ -n "$crate" ]] || continue
+            echo "::group::cargo check -p ${crate} --locked"
+            cargo check -p "${crate}" --locked
+            echo "::endgroup::"
+          done
+
   publish-crates:
-    needs: [gate-and-tag, build]
+    needs: [gate-and-tag, prepare-release-inventory, pre-publish-audit]
     runs-on: ubuntu-latest
     environment: crates-io
     steps:
@@ -158,42 +288,192 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Publish crates in dependency order
+      - name: Download release inventory artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-inventory
+          path: release
+
+      - name: Publish crates in dependency order (idempotent)
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
           version='${{ needs.gate-and-tag.outputs.release_version }}'
+          publish_plan_path="${RUNNER_TEMP:?}/publish_plan.txt"
 
           crate_exists() {
-            cargo search "$1" --limit 1 | grep -F "$1 = \"$2\"" >/dev/null
+            local crate="$1"
+            local version="$2"
+            cargo search "$crate" --limit 1 | grep -F "${crate} = \"${version}\"" >/dev/null
           }
 
           publish_if_missing() {
             local crate="$1"
-            local wait_after="${2:-no}"
+            local wait_seconds="${2:-0}"
             if crate_exists "$crate" "$version"; then
               echo "${crate} ${version} already published; skipping"
               return 0
             fi
             echo "Publishing ${crate} ${version}"
             cargo publish -p "$crate" --locked
-            if [[ "$wait_after" == "yes" ]]; then
-              echo "Waiting for crates.io index propagation"
-              sleep 60
+            if [[ "$wait_seconds" -gt 0 ]]; then
+              echo "Waiting for crates.io index propagation after ${crate}"
+              sleep "$wait_seconds"
             fi
           }
 
-          # Publish SDK first (dependency of CLI)
-          publish_if_missing sc-hooks-sdk yes
-          # Then CLI binary
-          publish_if_missing sc-hooks-cli no
-          # Test crate (optional, for consumers)
-          publish_if_missing sc-hooks-test no
+          python3 scripts/release_artifacts.py list-publish-plan \
+            --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+            --inventory release/release-inventory.json \
+            --version "$version" > "${publish_plan_path}"
+
+          # Phase 1: publish core/root dependencies
+          mapfile -t full_checks < <(
+            python3 scripts/release_artifacts.py list-preflight \
+              --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+              --mode full
+          )
+          while IFS='|' read -r crate wait_seconds; do
+            [[ -n "$crate" ]] || continue
+            for root in "${full_checks[@]}"; do
+              if [[ "$crate" == "$root" ]]; then
+                publish_if_missing "$crate" "${wait_seconds:-0}"
+                break
+              fi
+            done
+          done < "${publish_plan_path}"
+
+          # Phase 2: validate non-root crates can package
+          mapfile -t locked_checks < <(
+            python3 scripts/release_artifacts.py list-preflight \
+              --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
+              --mode locked
+          )
+          for crate in "${locked_checks[@]}"; do
+            [[ -n "$crate" ]] || continue
+            echo "::group::cargo package -p ${crate} --locked (pre-publish validation)"
+            cargo package -p "${crate}" --locked
+            echo "::endgroup::"
+          done
+
+          # Phase 3: publish non-core crates
+          while IFS='|' read -r crate wait_seconds; do
+            [[ -n "$crate" ]] || continue
+            skip=false
+            for root in "${full_checks[@]}"; do
+              if [[ "$crate" == "$root" ]]; then
+                skip=true
+                break
+              fi
+            done
+            if [[ "$skip" == "true" ]]; then
+              continue
+            fi
+            publish_if_missing "$crate" "${wait_seconds:-0}"
+          done < "${publish_plan_path}"
+
+  post-publish-verify:
+    needs: [gate-and-tag, publish-crates, prepare-release-inventory]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate-and-tag.outputs.release_tag }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download release inventory artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-inventory
+          path: release
+
+      - name: Verify published crates from generated inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          export CARGO_INSTALL_ROOT="$RUNNER_TEMP/sc-hooks-install-root"
+          rm -rf "$CARGO_INSTALL_ROOT"
+          python3 - <<'PY' "$version" "$CARGO_INSTALL_ROOT"
+          import json
+          import os
+          import subprocess
+          import sys
+          import time
+          from pathlib import Path
+
+          version = sys.argv[1]
+          install_root = sys.argv[2]
+          inventory = json.loads(Path("release/release-inventory.json").read_text(encoding="utf-8"))
+          items = inventory.get("items", [])
+          failures = []
+
+          for item in items:
+              artifact = item.get("artifact", "<unknown>")
+              required = bool(item.get("required", True))
+              publish = item.get("publish", True)
+              if not publish:
+                  print(f"skipping non-publishable: {artifact}")
+                  continue
+
+              verify_cmds = item.get("verifyCommands", [])
+              for cmd in verify_cmds:
+                  if "cargo install" in cmd:
+                      attempts = 10
+                      for attempt in range(1, attempts + 1):
+                          env = dict(os.environ)
+                          env["CARGO_INSTALL_ROOT"] = install_root
+                          proc = subprocess.run(cmd, shell=True, env=env, capture_output=True, text=True)
+                          if proc.returncode == 0:
+                              break
+                          if attempt == attempts:
+                              failures.append((artifact, cmd, proc.stdout + proc.stderr))
+                          else:
+                              time.sleep(30)
+                  elif "cargo search" in cmd:
+                      attempts = 5
+                      for attempt in range(1, attempts + 1):
+                          proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                          if proc.returncode == 0:
+                              break
+                          if attempt == attempts:
+                              failures.append((artifact, cmd, proc.stdout + proc.stderr))
+                          else:
+                              time.sleep(60)
+                  else:
+                      proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                      if proc.returncode != 0:
+                          failures.append((artifact, cmd, proc.stdout + proc.stderr))
+
+          # Verify CLI binary version
+          sc_hooks_path = Path(install_root) / "bin" / "sc-hooks"
+          if sc_hooks_path.exists():
+              proc = subprocess.run([str(sc_hooks_path), "--version"], capture_output=True, text=True)
+              out = proc.stdout.strip()
+              print(out)
+              if f"sc-hooks {version}" not in out and f"sc-hooks-cli {version}" not in out:
+                  failures.append(("sc-hooks-cli", "sc-hooks --version", f"version mismatch: {out}"))
+
+          if failures:
+              for artifact, cmd, output in failures:
+                  print(f"[FAIL] {artifact}: {cmd}\n{output}")
+              raise SystemExit("post-publish verification failed: " + ", ".join(sorted({a for a, _, _ in failures})))
+          print("all post-publish verifications passed")
+          PY
+
+      - name: Upload release verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-verification
+          path: release/
 
   release:
-    needs: [gate-and-tag, build, publish-crates]
+    needs: [gate-and-tag, build, post-publish-verify]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -226,12 +506,54 @@ jobs:
     needs: [gate-and-tag, release]
     runs-on: ubuntu-latest
     steps:
-      - name: Update Homebrew tap
-        uses: mislav/bump-homebrew-formula-action@v3
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
         with:
-          formula-name: sc-hooks
-          homebrew-tap: randlee/homebrew-tap
-          tag-name: ${{ needs.gate-and-tag.outputs.release_tag }}
-          download-url: https://github.com/randlee/schook/releases/download/${{ needs.gate-and-tag.outputs.release_tag }}/sc-hooks_${{ needs.gate-and-tag.outputs.release_version }}_x86_64-unknown-linux-gnu.tar.gz
-        env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: randlee/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Compute release tarball SHA256
+        id: sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ needs.gate-and-tag.outputs.release_tag }}'
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          tarball_path="${RUNNER_TEMP:?}/release.tar.gz"
+          tarball_url="https://github.com/randlee/schook/releases/download/${tag}/sc-hooks_${version}_aarch64-apple-darwin.tar.gz"
+          echo "tarball_url=${tarball_url}" >> "$GITHUB_OUTPUT"
+          curl -fsSL --retry 5 --retry-delay 30 --retry-all-errors -o "${tarball_path}" "${tarball_url}"
+          sha256=$(sha256sum "${tarball_path}" | awk '{print $1}')
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          sha256='${{ steps.sha.outputs.sha256 }}'
+          tarball_url='${{ steps.sha.outputs.tarball_url }}'
+
+          formula="homebrew-tap/Formula/sc-hooks.rb"
+          if [[ ! -f "$formula" ]]; then
+            echo "Formula not found: $formula" >&2
+            exit 1
+          fi
+          sed -i "s|version \"[^\"]*\"|version \"${version}\"|g" "$formula"
+          sed -i "s|url \"[^\"]*\"|url \"${tarball_url}\"|g" "$formula"
+          sed -i "s|sha256 \"[^\"]*\"|sha256 \"${sha256}\"|g" "$formula"
+          echo "Updated $formula"
+
+      - name: Commit and push to homebrew-tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.gate-and-tag.outputs.release_version }}'
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/sc-hooks.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: bump sc-hooks to v${version}"
+          git push
