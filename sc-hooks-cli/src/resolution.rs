@@ -252,7 +252,7 @@ mod tests {
     fn builtin_is_preferred_over_same_named_plugin() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -298,7 +298,7 @@ PreToolUse = ["log"]
     fn resolves_external_plugin_for_matching_event() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -350,7 +350,7 @@ PreToolUse = ["guard-paths"]
     fn async_bucket_filter_selects_matching_plugins() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -411,7 +411,7 @@ PreToolUse = ["notify"]
     fn merged_async_bucket_matches_overlapping_plugin_range() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -460,7 +460,7 @@ PreToolUse = ["context-a"]
     fn disabled_plugins_are_skipped() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -510,7 +510,7 @@ PreToolUse = ["guard-paths"]
     fn caches_manifest_loads_per_invocation() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("current_dir should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");

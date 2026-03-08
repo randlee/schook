@@ -177,7 +177,7 @@ mod tests {
     fn persists_and_loads_disabled_plugins() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -198,7 +198,7 @@ mod tests {
     fn missing_state_file_is_fail_open() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -213,7 +213,7 @@ mod tests {
     fn clear_session_removes_record() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -232,7 +232,7 @@ mod tests {
     fn disabled_at_is_iso8601_like_timestamp() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -251,7 +251,7 @@ mod tests {
     fn clear_all_sessions_removes_state_file() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");

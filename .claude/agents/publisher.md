@@ -34,19 +34,20 @@ Publisher does not invent alternate flows.
 - Workflow: `.github/workflows/release.yml` (triggered by `v*` tag push from team-lead)
 - CI workflow: `.github/workflows/ci.yml`
 - Homebrew tap: `randlee/homebrew-tap`
-- Formula file: `Formula/schook.rb`
+- Formula file: `Formula/sc-hooks.rb`
 - Publishing guide: `PUBLISHING.md`
 
 ## Crates Published
 
-In dependency order (schook-daemon has no dependency on schook):
+In dependency order (SDK first, then CLI, then test crate):
 
 | Order | Crate | crates.io |
 |-------|-------|-----------|
-| 1 | `schook-daemon` | https://crates.io/crates/schook-daemon |
-| 2 | `schook` | https://crates.io/crates/schook |
+| 1 | `sc-hooks-sdk` | https://crates.io/crates/sc-hooks-sdk |
+| 2 | `sc-hooks-cli` | https://crates.io/crates/sc-hooks-cli |
+| 3 | `sc-hooks-test` | https://crates.io/crates/sc-hooks-test |
 
-Both crates are available (not yet registered) — names confirmed unregistered on 2026-03-05.
+Binary name: `sc-hooks`
 
 ## Operational Constraints
 
@@ -105,15 +106,15 @@ print(f'Workspace version: {ws_version}')
 "
 ```
 
-**Step B — Both crates use workspace version:**
+**Step B — All crates use workspace version:**
 ```bash
-grep -E "^version" crates/schook/Cargo.toml crates/schook-daemon/Cargo.toml
-# Both should show: version.workspace = true
+grep -E "^version" sc-hooks-cli/Cargo.toml sc-hooks-sdk/Cargo.toml sc-hooks-test/Cargo.toml
+# All should show: version.workspace = true (or match workspace version)
 ```
 
 **Step C — Confirm crate names not yet taken at this version:**
 ```bash
-for crate in schook schook-daemon; do
+for crate in sc-hooks-sdk sc-hooks-cli sc-hooks-test; do
   cargo search "$crate" --limit 1 2>/dev/null | grep -q "^$crate " && echo "$crate: EXISTS on crates.io" || echo "$crate: available"
 done
 ```
@@ -135,15 +136,17 @@ Any failure in Steps A–E is a release blocker. Report to `team-lead` immediate
 - [ ] `cargo build --release --workspace` clean
 - [ ] All tests pass
 - [ ] GitHub Release `vX.Y.Z` exists with:
-  - `schook-x86_64-unknown-linux-gnu.tar.gz`
-  - `schook-x86_64-apple-darwin.tar.gz`
-  - `schook-aarch64-apple-darwin.tar.gz`
+  - `sc-hooks_X.Y.Z_x86_64-unknown-linux-gnu.tar.gz`
+  - `sc-hooks_X.Y.Z_x86_64-apple-darwin.tar.gz`
+  - `sc-hooks_X.Y.Z_aarch64-apple-darwin.tar.gz`
+  - `sc-hooks_X.Y.Z_x86_64-pc-windows-msvc.zip`
   - `checksums.txt`
 - [ ] crates.io has `X.Y.Z` for:
-  - `schook-daemon`
-  - `schook`
-- [ ] Homebrew formula `Formula/schook.rb` in `randlee/homebrew-tap` updated with correct version + SHA256s
-- [ ] `brew install randlee/tap/schook` installs successfully
+  - `sc-hooks-sdk`
+  - `sc-hooks-cli`
+  - `sc-hooks-test`
+- [ ] Homebrew formula `Formula/sc-hooks.rb` in `randlee/homebrew-tap` updated with correct version + SHA256s
+- [ ] `brew install randlee/tap/sc-hooks` installs successfully
 
 ## Recovering from a Failed Release Workflow
 
@@ -167,8 +170,8 @@ If the release workflow fails **after** the tag has been created but **before** 
 - version
 - tag commit SHA
 - GitHub release URL
-- crates.io: `schook-daemon` version, `schook` version
-- Homebrew commit SHA
+- crates.io: `sc-hooks-sdk`, `sc-hooks-cli`, `sc-hooks-test` versions
+- Homebrew commit SHA (Formula/sc-hooks.rb)
 - pre-publish audit summary
 - post-publish verification summary
 - residual risks/issues

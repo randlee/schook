@@ -5,7 +5,7 @@ description: Orchestrate multi-sprint phases where arch-ctm (Codex) is the sole 
 
 # Codex Orchestration
 
-This skill defines how the team-lead (ARCH-SCHOOK) orchestrates phases where **arch-ctm (Codex)** is the sole developer, executing sprints sequentially while QA runs in parallel via a dedicated **quality-mgr** teammate.
+This skill defines how the team-lead (ARCH-ATM) orchestrates phases where **arch-ctm (Codex)** is the sole developer, executing sprints sequentially while QA runs in parallel via a dedicated **quality-mgr** teammate.
 
 **Audience**: Team-lead only.
 
@@ -16,17 +16,17 @@ This skill defines how the team-lead (ARCH-SCHOOK) orchestrates phases where **a
 Before starting a phase:
 1. Phase plan document exists with sprint specs and dependencies
 2. Integration branch `integrate/phase-{P}` created off `develop`
-3. ATM team (`schook`) is active with team-lead and arch-ctm as members
+3. ATM team (`atm-dev`) is active with team-lead and arch-ctm as members
 4. arch-ctm is running and reachable via ATM CLI (`atm send arch-ctm "ping"`)
 
 ## Architecture
 
 ```
-team-lead (ARCH-SCHOOK)
+team-lead (ARCH-ATM)
   ├── arch-ctm (Codex) ──── sole developer, sequential sprints
   │     communicates via ATM CLI only
   └── quality-mgr (Claude Code) ──── QA coordinator teammate
-        spawns rust-qa-agent + schook-qa-agent as background agents
+        spawns rust-qa-agent + atm-qa-agent as background agents
 ```
 
 Key principle: **arch-ctm does NOT wait for QA**. He proceeds to the next sprint as soon as he completes one, unless there are outstanding fix requests from earlier sprints.
@@ -58,9 +58,9 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 {
   "subagent_type": "general-purpose",
   "name": "quality-mgr",
-  "team_name": "schook",
+  "team_name": "atm-dev",
   "model": "sonnet",
-  "prompt": "You are quality-mgr for Phase {P}. You will receive QA assignments from team-lead for each sprint as they complete. Stand by for first assignment. Integration branch: integrate/phase-{P}. Phase docs: docs/project-plan.md, docs/requirements.md, docs/architecture.md."
+  "prompt": "You are quality-mgr for Phase {P}. You will receive QA assignments from team-lead for each sprint as they complete. Stand by for first assignment. Integration branch: integrate/phase-{P}. Phase docs: docs/project-plan.md, docs/atm-agent-mcp/requirements.md."
 }
 ```
 
@@ -68,9 +68,9 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 
 ```bash
 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 /Users/randlee/.local/share/claude/versions/<VERSION> \
-  --agent-id quality-mgr@schook \
+  --agent-id quality-mgr@atm-dev \
   --agent-name quality-mgr \
-  --team-name schook
+  --team-name atm-dev
 ```
 
 All three flags (`--agent-id`, `--agent-name`, `--team-name`) are required together — omitting any one causes an error.
@@ -87,7 +87,7 @@ PR target: integrate/phase-{P}
 Deliverables:
 - {list deliverables}
 
-Requirements: docs/requirements.md ({relevant FRs})
+Requirements: docs/atm-agent-mcp/requirements.md ({relevant FRs})
 Sprint plan: docs/project-plan.md (Phase {P} section)
 
 When complete: commit, push, create PR targeting integrate/phase-{P}, then notify me via atm send."
@@ -192,6 +192,48 @@ OPEN → assigned to arch-ctm → FIXED (arch-ctm pushes) → re-QA → VERIFIED
 - **Team-lead merges** (not arch-ctm)
 - After all sprints merge: one final PR `integrate/phase-{P} → develop`
 
+### Pre-PR Merge Check (REQUIRED before opening any PR)
+
+Before opening a PR, verify the branch includes all prior sprint merges:
+
+```bash
+git log origin/integrate/phase-{P}..origin/{branch} --oneline   # commits unique to branch (expected)
+git log origin/{branch}..origin/integrate/phase-{P} --oneline   # commits missing from branch (must be empty)
+```
+
+If the second command shows commits, have arch-ctm merge forward before opening the PR:
+
+```bash
+git fetch origin && git merge origin/integrate/phase-{P}
+```
+
+Missing merges cause pre-existing test failures that block CI and cause QA agents to file false root-cause reports.
+
+## Task Templates
+
+Two Jinja2 templates live alongside this skill:
+
+- **`dev-template.xml.j2`** — task assignment to arch-ctm
+- **`qa-template.xml.j2`** — QA assignment to quality-mgr
+
+Every task message to arch-ctm MUST embed the 5-step workflow from `dev-template.xml.j2`. Do not rely on arch-ctm remembering instructions from prior messages — include them every time.
+
+Every QA assignment to quality-mgr MUST embed the 5-step workflow from `qa-template.xml.j2`. This ensures quality-mgr always spawns `rust-qa-agent` and `atm-qa-agent` as background agents instead of running checks himself.
+
+## Task List Tracking
+
+Use TaskList to track each sprint's sub-tasks. Each sprint assignment creates 4 tasks:
+
+| Task | Description | Completes when |
+|------|-------------|----------------|
+| `{sprint}: arch-ctm ack` | arch-ctm acknowledges task | arch-ctm sends ack message |
+| `{sprint}: dev + push` | dev complete, commit pushed | arch-ctm reports commit hash |
+| `{sprint}: cargo test` | tests pass, QA handoff | arch-ctm reports PASS |
+| `{sprint}: QA pass` | QA agents report PASS | quality-mgr sends PASS verdict |
+| `{sprint}: merge` | PR merged to integration branch | GitHub confirms merge |
+
+On QA FAIL: create new `a/b/c` tasks for the fix pass. Do not reuse completed tasks.
+
 ## ATM Communication Protocol
 
 All arch-ctm communication is via ATM CLI. Follow the dogfooding protocol (ACK → work → complete → ACK).
@@ -201,23 +243,34 @@ All arch-ctm communication is via ATM CLI. Follow the dogfooding protocol (ACK �
 atm send arch-ctm "message"
 ```
 
+Use the `dev-template.xml.j2` structure. Render the template fields inline in the message body.
+
+### Sending QA assignments
+```bash
+atm send quality-mgr "message"
+```
+
+Use the `qa-template.xml.j2` structure. Always name both agents explicitly with `run_in_background=true`.
+
 ### Checking for replies
 ```bash
 atm read
 ```
 
-### Nudging (if no reply in 2+ minutes)
+### Nudging (if no ack within 2 minutes)
 ```bash
 # Find arch-ctm's pane
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title} #{pane_current_command}'
 # Send nudge
-tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team schook" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
+tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team atm-dev" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
 ```
+
+**Do NOT assume arch-ctm received a task without an ack.** If no ack within ~2 minutes, nudge immediately.
 
 ### Advise arch-ctm to poll with timeout
 When arch-ctm is waiting for assignments, tell him:
 ```
-"Standing by? Use: atm read --team schook --timeout 60"
+"Standing by? Use: atm read --team atm-dev --timeout 60"
 ```
 This keeps him responsive without busy-polling.
 
@@ -241,3 +294,9 @@ After all sprints pass QA and merge to integration branch:
 - Do NOT communicate with arch-ctm via SendMessage — use ATM CLI only
 - Do NOT reuse quality-mgr across phases — spawn fresh per phase
 - Do NOT clean up worktrees without user approval
+- Do NOT assume arch-ctm received a task — wait for ack, nudge if none within 2 minutes
+- Do NOT have arch-ctm open PRs — team-lead opens all PRs after arch-ctm reports commit hash
+- Do NOT have quality-mgr run tests himself — he must always spawn rust-qa-agent + atm-qa-agent
+- Do NOT omit the workflow steps from task messages — embed them every time, arch-ctm does not remember prior instructions
+- Do NOT pre-load next task before current ack is received — confirm handoff before queuing next
+- Do NOT let arch-ctm push a PR without first merging `origin/integrate/phase-{P}` into his branch — ensures all prior sprint fixes are included

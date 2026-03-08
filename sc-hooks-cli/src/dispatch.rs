@@ -714,7 +714,7 @@ mod tests {
     fn dispatch_executes_plugin_and_returns_proceed() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -777,7 +777,7 @@ PreToolUse = ["guard-paths"]
     fn integration_dispatch_writes_structured_log_entry() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -858,7 +858,7 @@ level = "info"
     fn builtin_only_chain_completes_under_ten_ms_median() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");

@@ -220,7 +220,7 @@ mod tests {
     fn discovers_builtin_and_plugin_handlers() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");

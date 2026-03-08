@@ -307,7 +307,7 @@ mod tests {
     fn prepares_env_and_cleans_metadata_file_after_drop() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let config = config::parse_config_str(
             r#"
@@ -365,7 +365,7 @@ PreToolUse = ["log"]
     fn omits_sc_hook_event_when_event_is_absent() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let config = config::parse_config_str(
             r#"

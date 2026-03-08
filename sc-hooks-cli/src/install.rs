@@ -315,7 +315,7 @@ mod tests {
     fn build_settings_splits_sync_async_and_buckets() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -420,7 +420,7 @@ PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
     fn wildcard_entry_only_includes_wildcard_only_handlers() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
@@ -465,7 +465,7 @@ PreToolUse = ["mixed"]
     fn overlaps_are_merged_into_single_async_bucket() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");

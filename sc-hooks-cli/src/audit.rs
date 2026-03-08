@@ -379,7 +379,7 @@ mod tests {
     fn audit_reports_missing_handler() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -407,7 +407,7 @@ PreToolUse = ["missing-plugin"]
     fn audit_accepts_valid_plugin_manifest() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -439,7 +439,7 @@ PreToolUse = ["guard-paths"]
     fn strict_mode_turns_unacknowledged_sandbox_needs_into_errors() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
@@ -472,7 +472,7 @@ PostToolUse = ["notify"]
     fn audit_rejects_async_handlers_declaring_blocking_behavior() {
         let _guard = test_support::cwd_lock()
             .lock()
-            .expect("cwd lock should acquire");
+            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
