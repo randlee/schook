@@ -3,7 +3,7 @@
 `schook` is a Rust workspace for `sc-hooks`, a compiled hook dispatcher for AI-assisted development workflows.
 
 The project provides:
-- a host CLI that parses hook config, resolves handlers, assembles metadata, dispatches builtins and plugins, enforces timeouts, writes JSONL logs, and audits configuration
+- a host CLI that parses hook config, resolves plugin handlers, assembles metadata, dispatches plugins, enforces timeouts, emits `sc-observability` JSONL events, and audits configuration
 - a shared core crate for protocol/data types
 - an SDK crate for manifest helpers and Rust plugin ergonomics
 - a reusable compliance-test crate for plugin authors
@@ -38,6 +38,7 @@ Current source plugin inventory in `plugins/`:
 Important current realities:
 - The runtime expects config at `.sc-hooks/config.toml`.
 - The runtime resolves plugin executables from `.sc-hooks/plugins/`.
+- The runtime emits service-scoped observability events at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`.
 - This repo does not currently check in an example `.sc-hooks/` runtime layout.
 - The source crates under `plugins/` are reference implementations and scaffolds; they are not production-ready bundled handlers.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
@@ -72,7 +73,7 @@ sc-hooks exit-codes
 | `docs/requirements.md` | Normative release-facing behavior and status |
 | `docs/architecture.md` | Current crate boundaries, execution model, and deferred areas |
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
-| `docs/logging-contract.md` | JSONL logging contract, including mixed record shapes |
+| `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
 | `docs/implementation-gaps.md` | Current reality vs required release work |
 | `docs/traceability.md` | Requirement-to-code/test/gap mapping |
 | `docs/doc-governance.md` | Rules for keeping docs and code aligned |

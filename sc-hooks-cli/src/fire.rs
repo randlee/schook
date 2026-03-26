@@ -69,7 +69,7 @@ mod tests {
 version = 1
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#,
             "in-memory",
         )
@@ -95,11 +95,7 @@ PreToolUse = ["log"]
 version = 1
 
 [hooks]
-PostToolUse = ["log"]
-
-[logging]
-hook_log = ".sc-hooks/logs/hooks.jsonl"
-level = "info"
+PostToolUse = ["guard-paths"]
 "#,
             "in-memory",
         )
@@ -115,8 +111,8 @@ level = "info"
             "zero-match fire elapsed {elapsed:?} exceeded 2ms target"
         );
         assert!(
-            !Path::new(".sc-hooks/logs/hooks.jsonl").exists(),
-            "zero-match path should not write dispatch logs"
+            !Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl").exists(),
+            "zero-match path should not write observability logs"
         );
 
         std::env::set_current_dir(original).expect("cwd should restore");

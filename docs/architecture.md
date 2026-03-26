@@ -6,7 +6,7 @@ This document describes the current architecture only.
 
 - normative product behavior lives in `docs/requirements.md`
 - host/plugin wire shapes live in `docs/protocol-contract.md`
-- logging shapes live in `docs/logging-contract.md`
+- observability event shapes live in `docs/observability-contract.md`
 - missing or overstated behavior lives in `docs/implementation-gaps.md`
 
 If a behavior is not present in code, this document shall not describe it as current architecture.
@@ -20,10 +20,9 @@ The host:
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
-- executes builtins in process
 - executes plugins as child processes over stdin/stdout
 - enforces timeout and session-disable policy
-- writes JSONL log records
+- emits service-scoped `sc-observability` JSONL events
 
 The host does not:
 - load plugins as shared libraries
@@ -35,7 +34,7 @@ The host does not:
 
 | Crate | Ownership |
 | --- | --- |
-| `sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, logging, exit behavior |
+| `sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, `sc-observability` integration, exit behavior |
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, result helpers, and lightweight traits |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
@@ -72,10 +71,9 @@ The host uses those internal Rust types to implement the contract, but plugin au
 
 1. `sc-hooks-cli` loads `.sc-hooks/config.toml`.
 2. The requested hook and optional event are matched against the configured handler chain.
-3. Builtins are resolved first.
-4. Non-builtin handlers are resolved to `.sc-hooks/plugins/<name>`.
-5. Plugin manifests are loaded and cached within the current invocation.
-6. Matchers and payload conditions determine whether each plugin is eligible.
+3. Handlers are resolved to `.sc-hooks/plugins/<name>`.
+4. Plugin manifests are loaded and cached within the current invocation.
+5. Matchers and payload conditions determine whether each plugin is eligible.
 
 ### 4.2 Metadata And Environment
 
@@ -113,7 +111,7 @@ Failure handling:
 - spawn failure disables the plugin for the session and fails the chain
 - invalid JSON disables the plugin for the session and fails the chain
 - non-zero exit disables the plugin for the session and fails the chain
-- timeout disables the plugin for the session; sync dispatch fails, async dispatch logs and continues
+- timeout disables the plugin for the session; sync dispatch fails, async dispatch records the failure and continues
 - async `action=block` is treated as a protocol violation and disables the plugin
 
 ## 4.6 Error Hierarchy And Exit Mapping
@@ -160,27 +158,17 @@ Current behavior:
 - `SessionEnd` clears state for the current session
 - `sc-hooks audit --reset` clears all stored session state
 
-## 5. Logging Architecture
+## 5. Observability Architecture
 
-There are currently two log record shapes written to the configured hook log path:
+Current observability ownership follows the intended boundary directly:
 
-1. builtin log records from `builtins::log::write_entry()`
-2. dispatch records from `logging::append_dispatch_log()`
+- `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
+- the implementation uses the sibling `../sc-observability` workspace via the logging-only `sc-observability` crate
+- `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
+- the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
 
-This mixed-schema reality is intentional current behavior and is documented exactly in `docs/logging-contract.md`.
-
-## 5.1 Planned sc-observability Boundary
-
-Before the next logging implementation expansion, `schook` should adopt the same boundary pattern used in `scterm`:
-
-- use the sibling `sc-observability` workspace at `../sc-observability` for logging integration
-- use the logging-focused `sc-observability` crate only in the initial adoption
-- do not adopt higher-layer crates from the sibling `sc-observability` workspace in the first pass
-- keep logger lifecycle, sink configuration, and initialization in `sc-hooks-cli` or the final binary wiring
-- keep `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` logging-implementation-agnostic
-- keep lower crates focused on typed data, typed errors, and return values rather than logger ownership
-
-This is not current implementation. It is the required ownership boundary for the next logging integration pass before broader observability work starts.
+This boundary is current architecture, not deferred intent.
 
 ## 6. Current Extension Points
 
@@ -208,7 +196,7 @@ The current architecture does not aim to provide:
 - plugin hot reloading
 - plugin marketplace/distribution
 - merged editing of existing `.claude/settings.json` content
-- a single normalized log schema with a discriminant field
+- spans, metrics, or OTLP export in the current `schook` host
 
 ## 8. Enforcement Notes
 

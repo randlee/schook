@@ -8,26 +8,10 @@ use crate::errors::ResolutionError;
 use crate::events;
 
 #[derive(Debug)]
-pub enum HandlerTarget {
-    Builtin(BuiltinHandler),
-    Plugin(Box<PluginHandler>),
-}
-
-#[derive(Debug)]
-pub enum BuiltinHandler {
-    Log,
-}
-
-#[derive(Debug)]
-pub struct PluginHandler {
-    pub executable_path: PathBuf,
-    pub manifest: sc_hooks_core::manifest::Manifest,
-}
-
-#[derive(Debug)]
 pub struct ResolvedHandler {
     pub name: String,
-    pub target: HandlerTarget,
+    pub executable_path: PathBuf,
+    pub manifest: sc_hooks_core::manifest::Manifest,
 }
 
 pub fn resolve_chain(
@@ -48,14 +32,6 @@ pub fn resolve_chain(
 
     for handler_name in chain {
         if disabled_plugins.contains(handler_name) {
-            continue;
-        }
-
-        if let Some(builtin) = resolve_builtin(handler_name, mode) {
-            resolved.push(ResolvedHandler {
-                name: handler_name.clone(),
-                target: HandlerTarget::Builtin(builtin),
-            });
             continue;
         }
 
@@ -120,10 +96,8 @@ pub fn resolve_chain(
 
         resolved.push(ResolvedHandler {
             name: handler_name.clone(),
-            target: HandlerTarget::Plugin(Box::new(PluginHandler {
-                executable_path: executable,
-                manifest,
-            })),
+            executable_path: executable,
+            manifest,
         });
     }
 
@@ -155,16 +129,6 @@ fn parse_bucket_range(bucket: &str) -> Option<(u64, u64)> {
     let min = min.parse::<u64>().ok()?;
     let max = max.parse::<u64>().ok()?;
     Some((min, max))
-}
-
-fn resolve_builtin(
-    handler_name: &str,
-    mode: sc_hooks_core::dispatch::DispatchMode,
-) -> Option<BuiltinHandler> {
-    match (handler_name, mode) {
-        ("log", sc_hooks_core::dispatch::DispatchMode::Sync) => Some(BuiltinHandler::Log),
-        _ => None,
-    }
 }
 
 fn plugin_path(handler_name: &str) -> PathBuf {
@@ -249,52 +213,6 @@ mod tests {
     }
 
     #[test]
-    fn builtin_is_preferred_over_same_named_plugin() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
-
-        make_plugin(
-            Path::new(".sc-hooks/plugins/log"),
-            r#"{"contract_version":1,"name":"log","mode":"sync","hooks":["PreToolUse"],"matchers":["*"],"requires":{}}"#,
-        );
-
-        let cfg = config::parse_config_str(
-            r#"
-[meta]
-version = 1
-
-[hooks]
-PreToolUse = ["log"]
-"#,
-            "in-memory",
-        )
-        .expect("config should parse");
-
-        let handlers = resolve_chain(
-            &cfg,
-            "PreToolUse",
-            Some("Write"),
-            sc_hooks_core::dispatch::DispatchMode::Sync,
-            None,
-            None,
-            &BTreeSet::new(),
-        )
-        .expect("resolution should succeed");
-
-        assert_eq!(handlers.len(), 1);
-        assert!(matches!(
-            handlers[0].target,
-            HandlerTarget::Builtin(BuiltinHandler::Log)
-        ));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
-    }
-
-    #[test]
     fn resolves_external_plugin_for_matching_event() {
         let _guard = test_support::cwd_lock()
             .lock()
@@ -341,7 +259,7 @@ PreToolUse = ["guard-paths"]
         .expect("resolution should succeed");
 
         assert_eq!(handlers.len(), 1);
-        assert!(matches!(handlers[0].target, HandlerTarget::Plugin(_)));
+        assert_eq!(handlers[0].name, "guard-paths");
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

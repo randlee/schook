@@ -10,9 +10,12 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end `long_running` contract proven across manifest validation, runtime behavior, docs, and tests | retire or replace `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` unless they become real release-contract surfaces |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
-| GAP-005 | important | `sc-hooks-cli` logging path and consumers | Log-shape union is either discriminated or directly tested as stable | replace ad-hoc mixed log records with an explicit stable union or discriminator |
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
-| GAP-007 | important | `sc-hooks-cli`, sibling `../sc-observability` workspace | Dependency boundary is enforced in manifests/review and logger wiring stays at the CLI/application edge | replace in-workspace logger wiring only after the `sc-observability` boundary is adopted cleanly |
+
+## Resolved In This Pass
+
+- `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
+- `GAP-007` resolved by adopting the sibling `../sc-observability` workspace in `sc-hooks-cli` and making that boundary current architecture.
 
 ## GAP-001: Compliance Harness Overclaims Coverage
 
@@ -86,24 +89,6 @@ This document tracks gaps between the current codebase and the release-standard 
 - Recommended fix path:
   - Add a minimal example `.sc-hooks/` tree or a clearly linked setup guide before release.
 
-## GAP-005: One Log File, Two Record Shapes, No Discriminator
-
-- Severity: `important`
-- Source: `OBS-001`, `OBS-002`
-- Owner area:
-  - `sc-hooks-cli` logging path and consumers
-- Current behavior:
-  - The builtin `log` handler and the dispatcher append different JSON shapes to the same JSONL file.
-- Expected behavior:
-  - Downstream log consumers should either have an explicit discriminator field or a guaranteed stable union contract.
-- Verification method:
-  - log-shape union is either discriminated or directly tested as stable
-- Recommended fix path:
-  - Either add a `record_type` field to both shapes or keep the union stable and test it explicitly.
-- Early retire / replace candidates:
-  - ad-hoc mixed log record parsing assumptions in downstream consumers
-  - the current undocumented union if the project standardizes on one record envelope later
-
 ## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
 
 - Severity: `deferred`
@@ -118,21 +103,3 @@ This document tracks gaps between the current codebase and the release-standard 
   - exit-code tests and docs agree on any future split
 - Recommended fix path:
   - keep the current behavior documented honestly unless and until the codebase introduces a new exit-code split
-
-## GAP-007: sc-observability Logging Boundary Is Specified But Not Yet Adopted
-
-- Severity: `important`
-- Source: `OBS-006`, `OBS-007`, `OBS-008`
-- Owner area:
-  - `sc-hooks-cli`, sibling `../sc-observability` workspace
-- Current behavior:
-  - `schook` currently uses in-workspace logging code under `sc-hooks-cli` and does not yet depend on the sibling `../sc-observability` workspace
-- Expected behavior:
-  - the next logging integration pass should adopt the logging-only `sc-observability` crate, with ownership limited to `sc-hooks-cli` and final binary wiring
-  - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` should remain logging-implementation-agnostic
-- Verification method:
-  - dependency boundary is enforced in manifests/review and logger wiring stays at the CLI/application edge
-- Recommended fix path:
-  - add the dependency only at the CLI/application boundary and document or enforce the boundary in workspace manifests and review policy
-- Early retire / replace candidates:
-  - in-workspace logger initialization and sink ownership once the `sc-observability` boundary is adopted cleanly

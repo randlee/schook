@@ -16,12 +16,12 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 
 Current release scope is the host dispatcher foundation:
 - config parsing from `.sc-hooks/config.toml`
-- hook routing to builtins and external plugins
+- hook routing to external plugins
 - manifest loading and metadata filtering
 - sync/async dispatch with timeouts and per-session disable state
 - Claude settings generation from matchers
 - audit, diagnostic fire, compliance-test entry points, and exit-code reporting
-- JSONL dispatch logging
+- `sc-observability` JSONL dispatch events
 
 Current release scope does not include:
 - production-ready bundled plugin behavior from the `plugins/` directory
@@ -35,17 +35,16 @@ Current release scope does not include:
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | CFG-001 | Implemented | Must | The host shall load its default config from `.sc-hooks/config.toml` relative to the current repository. | `sc-hooks config` reads the default path through `load_default_config()`. |
-| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, `[logging]`, and `[sandbox]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing. |
+| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, and `[sandbox]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing. |
 | CFG-003 | Implemented | Must | `[hooks]` shall map hook names to ordered handler arrays. | Resolution and dispatch preserve config order. |
 | CFG-004 | Implemented | Must | `[context] team = "<name>"` shall map to `metadata.team.name`; other context keys remain top-level metadata fields. | `map_context_to_metadata()` applies the special-case mapping only for `team`. |
-| CFG-006 | Implemented | Must | `[logging]` shall configure the hook log path and the recorded log level label. | `LoggingConfig` supports `hook_log` and `level`; dispatch records carry the chosen level. |
 | CFG-008 | Implemented | Should | `[sandbox]` shall allow per-plugin network and path overrides for audit validation. | `SandboxConfig` exposes `allow_network` and `allow_paths`. |
 
 ### 4.2 Resolution And Matching
 
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
-| RES-001 | Implemented | Must | Handler resolution shall prefer builtins over external plugins. | `log` resolves as a builtin even if a same-named plugin executable exists. |
+| RES-001 | Implemented | Must | Handler resolution shall treat configured handler names as external plugin executables under `.sc-hooks/plugins/`; there are no reserved builtin handler names in the current runtime. | A plugin named `log` resolves like any other plugin executable. |
 | RES-002 | Implemented | Must | Runtime plugin executables shall be resolved from `.sc-hooks/plugins/`. | Resolution and handler discovery compute plugin paths under `.sc-hooks/plugins/`. |
 | RES-003 | Implemented | Must | Unresolvable handlers shall fail both runtime and audit. | Missing plugin paths produce audit errors and runtime resolution failures. |
 | MTR-001 | Implemented | Must | `sc-hooks install` shall generate matcher entries from plugin-declared matchers instead of blanket wildcard routing. | Install output is matcher-specific and omits empty matcher/mode combinations. |
@@ -77,7 +76,7 @@ Current release scope does not include:
 | DSP-004 | Implemented | Must | If all sync handlers proceed, the host shall exit successfully. | `DispatchOutcome::Proceed` maps to success. |
 | DSP-006 | Implemented | Must | `--sync` shall run only sync handlers and `--async` shall run only async handlers. | `RunArgs::mode()` drives resolution and dispatch mode filtering. |
 | DSP-007 | Implemented | Must | Async `additionalContext` values shall be concatenated with `\\n---\\n`, and async `systemMessage` values shall be concatenated with `\\n`. | Async dispatch writes the aggregated JSON object to stdout. |
-| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without writing a dispatch log entry. | Runtime returns early on empty handler chains; the zero-match fast path is tested. |
+| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting an observability event. | Runtime returns early on empty handler chains; the zero-match fast path is tested. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers. | `resolve_timeout_ms()` returns those defaults. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout. | `resolve_timeout_ms()` prefers the manifest override. |
 | TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
@@ -111,12 +110,12 @@ Current release scope does not include:
 | --- | --- | --- | --- | --- |
 | AUD-001 | Implemented | Must | Audit shall check handler resolvability, manifest validity, hook declarations, matcher validity, required metadata satisfiability, filesystem validation for `dir_exists` and `file_exists`, sandbox declarations, and install-plan generation. | `audit::run()` emits errors and warnings for those classes. |
 | AUD-002 | Implemented | Must | Sandbox warnings shall become errors under `--strict`. | Audit promotes sandbox overruns when strict mode is enabled. |
-| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured dispatch record to the configured hook log path. | `emit_dispatch_log()` appends `DispatchLogEntry` JSONL records. |
-| OBS-002 | Implemented | Must | The builtin `log` handler shall append its own simpler JSONL records to the same configured hook log path. | `builtins::log::write_entry()` writes minimal records. |
-| OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `error_result()` and dispatch logging preserve those fields. |
-| OBS-006 | Required Before Release | Must | The next structured-logging integration shall use the logging-only `sc-observability` crate from the sibling workspace at `../sc-observability`. | The workspace adopts `sc-observability` for logger wiring without introducing higher-layer observability crates. |
-| OBS-007 | Required Before Release | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` and final binary wiring only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain logging-implementation-agnostic. | Logging setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
-| OBS-008 | Required Before Release | Must | The initial `sc-observability` adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate. | Dependency policy and crate boundaries continue to treat broader observability layering as deferred. |
+| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records. |
+| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`. |
+| OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `HandlerResultRecord` is serialized into observability event fields for all error outcomes. |
+| OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the sibling workspace at `../sc-observability`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
+| OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
+| OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
 | BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
 | BND-002 | Required Before Release | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. | The docs, plugin code, and tests all support the same claim. |

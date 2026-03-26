@@ -12,7 +12,9 @@ It covers:
 
 It does not define:
 - CLI-level human-readable output
-- JSONL logging records
+- observability log events
+
+Current observability output is documented separately in `docs/observability-contract.md`.
 
 ## 2. Manifest Contract
 

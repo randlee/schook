@@ -96,11 +96,6 @@ fn collect_specs_for_hook(
     let mut manifest_cache: BTreeMap<PathBuf, sc_hooks_core::manifest::Manifest> = BTreeMap::new();
 
     for handler_name in chain {
-        if let Some(spec) = builtin_spec(handler_name) {
-            specs.push(spec);
-            continue;
-        }
-
         let path = plugin_path(handler_name);
         let manifest = if let Some(cached) = manifest_cache.get(&path) {
             cached.clone()
@@ -268,17 +263,6 @@ fn is_wildcard_only_spec(spec: &HandlerInstallSpec) -> bool {
     spec.matchers.len() == 1 && spec.matchers[0] == "*"
 }
 
-fn builtin_spec(handler_name: &str) -> Option<HandlerInstallSpec> {
-    match handler_name {
-        "log" => Some(HandlerInstallSpec {
-            mode: sc_hooks_core::dispatch::DispatchMode::Sync,
-            matchers: vec!["*".to_string()],
-            async_range: (0, 30_000),
-        }),
-        _ => None,
-    }
-}
-
 fn plugin_path(handler_name: &str) -> PathBuf {
     Path::new(".sc-hooks").join("plugins").join(handler_name)
 }
@@ -362,7 +346,7 @@ mod tests {
 version = 1
 
 [hooks]
-PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
+PreToolUse = ["guard-paths", "collect-context", "notify"]
 "#,
             "in-memory",
         )
@@ -405,13 +389,6 @@ PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
                 .iter()
                 .any(|hook| hook.command.contains("--async-bucket 1000-5000"))
         );
-
-        let wildcard = entries
-            .iter()
-            .find(|entry| entry.matcher == "*")
-            .expect("wildcard entry should exist for log builtin");
-        assert_eq!(wildcard.hooks.len(), 1);
-        assert!(wildcard.hooks[0].command.contains("--sync"));
 
         std::env::set_current_dir(original).expect("cwd should restore");
     }

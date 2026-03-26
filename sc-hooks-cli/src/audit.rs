@@ -36,10 +36,6 @@ pub fn run(
 
     for (hook_name, chain) in &config.hooks {
         for handler_name in chain {
-            if handler_name == "log" {
-                continue;
-            }
-
             let plugin_path = plugin_path(handler_name);
             if !plugin_path.exists() {
                 report

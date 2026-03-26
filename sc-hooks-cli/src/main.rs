@@ -1,5 +1,4 @@
 mod audit;
-mod builtins;
 mod config;
 mod dispatch;
 mod errors;
@@ -7,8 +6,8 @@ mod events;
 mod fire;
 mod handlers;
 mod install;
-mod logging;
 mod metadata;
+mod observability;
 mod resolution;
 mod session;
 #[cfg(test)]
@@ -45,7 +44,7 @@ enum Commands {
     /// Show resolved configuration
     Config,
 
-    /// List available builtins and discovered plugins
+    /// List discovered plugins
     Handlers(HandlersArgs),
 
     /// Run compliance tests against a plugin

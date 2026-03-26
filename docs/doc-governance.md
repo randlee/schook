@@ -16,7 +16,7 @@
 - `docs/requirements.md`: release-facing behavior
 - `docs/architecture.md`: current boundaries and execution model
 - `docs/protocol-contract.md`: host/plugin JSON contract
-- `docs/logging-contract.md`: JSONL record shapes and logging guarantees
+- `docs/observability-contract.md`: current `sc-observability` event path and JSONL contract
 - `docs/implementation-gaps.md`: missing, overstated, or not-yet-release-ready behavior
 - `docs/traceability.md`: requirement-to-code/test/gap mapping
 - `README.md`: contributor orientation only; it must not be treated as the primary owner of release-contract details

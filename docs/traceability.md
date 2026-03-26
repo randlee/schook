@@ -38,14 +38,14 @@ This table maps the most important documented requirements to current implementa
 | CLI-004 | implemented | `sc-hooks-cli/src/install.rs` | install tests | GAP-004 |
 | CLI-007 | gap | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test/src/compliance.rs` | minimal compliance tests only | GAP-001 |
 | AUD-001 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
-| OBS-001 | implemented | `sc-hooks-cli/src/logging.rs`, `sc-hooks-cli/src/dispatch.rs` | logging tests, dispatch tests | |
-| OBS-002 | implemented | `sc-hooks-cli/src/builtins/log.rs` | builtin log tests | GAP-005 |
+| OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
+| OBS-002 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests, dispatch tests | |
 | BND-001 | implemented | `plugins/*/src/main.rs` | source inspection only | GAP-003 |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | gap | `plugins/*` | no direct behavior tests | GAP-003 |
-| OBS-006 | gap | planned for `sc-hooks-cli` / final binary only | not yet implemented | GAP-007 |
-| OBS-007 | gap | planned crate-boundary rule in architecture/requirements | not yet implemented | GAP-007 |
-| OBS-008 | gap | planned dependency policy around sibling `sc-observability` workspace | not yet implemented | GAP-007 |
+| OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
+| OBS-007 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests plus code inspection of crate boundaries | |
+| OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-002 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-003 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

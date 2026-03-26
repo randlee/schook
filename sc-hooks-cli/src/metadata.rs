@@ -318,7 +318,7 @@ version = 1
 team = "calibration"
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#,
             "in-memory",
         )
@@ -373,7 +373,7 @@ PreToolUse = ["log"]
 version = 1
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#,
             "in-memory",
         )
