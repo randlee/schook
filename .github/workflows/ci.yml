@@ -13,11 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout sc-observability (path dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: randlee/sc-observability
-          path: ../sc-observability
+      - name: Clone sc-observability (path dependency)
+        run: git clone --depth 1 https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -33,11 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout sc-observability (path dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: randlee/sc-observability
-          path: ../sc-observability
+      - name: Clone sc-observability (path dependency)
+        run: git clone --depth 1 https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -74,11 +68,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout sc-observability (path dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: randlee/sc-observability
-          path: ../sc-observability
+      - name: Clone sc-observability (path dependency)
+        run: git clone --depth 1 https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
