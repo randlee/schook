@@ -14,7 +14,7 @@ pub fn resolve_timeout_ms(
     timeout_override: Option<u64>,
     long_running: bool,
 ) -> Option<u64> {
-    if long_running {
+    if long_running && mode == sc_hooks_core::dispatch::DispatchMode::Sync {
         return timeout_override;
     }
 
@@ -103,6 +103,22 @@ mod tests {
         assert_eq!(
             resolve_timeout_ms(sc_hooks_core::dispatch::DispatchMode::Sync, None, true),
             None
+        );
+    }
+
+    #[test]
+    fn async_long_running_keeps_async_default_timeout() {
+        assert_eq!(
+            resolve_timeout_ms(sc_hooks_core::dispatch::DispatchMode::Async, None, true),
+            Some(30_000)
+        );
+        assert_eq!(
+            resolve_timeout_ms(
+                sc_hooks_core::dispatch::DispatchMode::Async,
+                Some(1234),
+                true
+            ),
+            Some(1234)
         );
     }
 
