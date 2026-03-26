@@ -169,6 +169,19 @@ There are currently two log record shapes written to the configured hook log pat
 
 This mixed-schema reality is intentional current behavior and is documented exactly in `docs/logging-contract.md`.
 
+## 5.1 Planned sc-observability Boundary
+
+Before the next logging implementation expansion, `schook` should adopt the same boundary pattern used in `scterm`:
+
+- use the sibling `sc-observability` workspace at `../sc-observability` for logging integration
+- use the logging-focused `sc-observability` crate only in the initial adoption
+- do not adopt higher-layer crates from the sibling `sc-observability` workspace in the first pass
+- keep logger lifecycle, sink configuration, and initialization in `sc-hooks-cli` or the final binary wiring
+- keep `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` logging-implementation-agnostic
+- keep lower crates focused on typed data, typed errors, and return values rather than logger ownership
+
+This is not current implementation. It is the required ownership boundary for the next logging integration pass before broader observability work starts.
+
 ## 6. Current Extension Points
 
 ### 6.1 Supported Today

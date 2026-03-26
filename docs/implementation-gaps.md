@@ -70,3 +70,15 @@ This document tracks gaps between the current codebase and the release-standard 
   - if the project wants finer-grained operational diagnosis, manifest incompatibility may eventually deserve a dedicated exit code
 - Recommended fix path:
   - keep the current behavior documented honestly unless and until the codebase introduces a new exit-code split
+
+## GAP-007: sc-observability Logging Boundary Is Specified But Not Yet Adopted
+
+- Severity: `important`
+- Source: `OBS-006`, `OBS-007`, `OBS-008`
+- Current behavior:
+  - `schook` currently uses in-workspace logging code under `sc-hooks-cli` and does not yet depend on the sibling `../sc-observability` workspace
+- Expected behavior:
+  - the next logging integration pass should adopt the logging-only `sc-observability` crate, with ownership limited to `sc-hooks-cli` and final binary wiring
+  - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` should remain logging-implementation-agnostic
+- Recommended fix path:
+  - add the dependency only at the CLI/application boundary and document or enforce the boundary in workspace manifests and review policy

@@ -43,6 +43,9 @@ This table maps the most important documented requirements to current implementa
 | BND-001 | implemented | `plugins/*/src/main.rs` | source inspection only | GAP-003 |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | gap | `plugins/*` | no direct behavior tests | GAP-003 |
+| OBS-006 | gap | planned for `sc-hooks-cli` / final binary only | not yet implemented | GAP-007 |
+| OBS-007 | gap | planned crate-boundary rule in architecture/requirements | not yet implemented | GAP-007 |
+| OBS-008 | gap | planned dependency policy around sibling `sc-observability` workspace | not yet implemented | GAP-007 |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-002 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-003 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
