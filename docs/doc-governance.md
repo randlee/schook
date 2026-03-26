@@ -19,6 +19,7 @@
 - `docs/logging-contract.md`: JSONL record shapes and logging guarantees
 - `docs/implementation-gaps.md`: missing, overstated, or not-yet-release-ready behavior
 - `docs/traceability.md`: requirement-to-code/test/gap mapping
+- `README.md`: contributor orientation only; it must not be treated as the primary owner of release-contract details
 
 ## 3. Review Checklist
 
@@ -30,7 +31,19 @@ Before merging a docs or behavior change, verify:
 - any mismatch between docs and code is either fixed or logged as a gap
 - any deferred item is clearly labeled as deferred in the requirements doc
 
-## 4. Anti-Drift Rules
+## 4. Closeout Rules
+
+An architecture or design-doc repair pass is not complete until:
+
+- the affected source-of-truth documents have been updated together
+- `docs/implementation-gaps.md` records every remaining release-relevant mismatch
+- each open gap names an owner area, a verification method, and any early retire-or-replace candidates
+- the handoff records the branch, commit, and validation commands used for the pass
+- reviewer signoff and QA follow-up are recorded before the pass is treated as closed
+
+If code review finds duplicated or stale implementation surfaces, flag them for early removal in the gap tracker before adding more behavior on top of them.
+
+## 5. Anti-Drift Rules
 
 - Do not mix future intent and current behavior in the same paragraph.
 - Do not describe scaffold code as production functionality.
