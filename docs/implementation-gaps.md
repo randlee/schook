@@ -6,7 +6,6 @@ This document tracks gaps between the current codebase and the release-standard 
 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
-| GAP-001 | blocker | `sc-hooks-test`, `sc-hooks-cli` | Direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior | keep `sc-hooks-test` as the one compliance engine; Sprint 1 already retired the duplicate absent-payload pseudo-check, but real absent-payload proof remains Sprint 2 work |
 | GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests | retire or replace public-looking SDK traits and document runner-helper limits unless they become real release-contract surfaces |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
@@ -20,29 +19,29 @@ This document tracks gaps between the current codebase and the release-standard 
 
 ## Resolved In This Pass
 
+- `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 
-## GAP-001: Compliance Harness Overclaims Coverage
+## GAP-001: Compliance Harness Overclaims Coverage (Resolved In Sprint 2)
 
 - Severity: `blocker`
 - Source: `CLI-007`, `TST-007`
 - Owner area:
   - `sc-hooks-test`, `sc-hooks-cli`
 - Current behavior:
-  - `sc-hooks-cli test` now delegates to the shared `sc-hooks-test` compliance engine instead of maintaining a second implementation.
-  - Sprint 1 retired the duplicate absent-payload pseudo-check from the old split baseline, but the surviving engine still only verifies manifest loading, basic contract compatibility, simple matcher checks, positive timeout shape, and minimal JSON output.
+  - `sc-hooks-cli test` continues to delegate to the shared `sc-hooks-test` compliance engine instead of maintaining a second implementation.
+  - `sc-hooks-test::compliance::run_contract_behavior_suite` now asserts timeout, invalid stdout, multi-object stdout warnings, async block misuse, matcher filtering, and absent-payload handling through the real `sc-hooks-cli` dispatch path.
 - Expected behavior:
-  - The reusable compliance harness should directly verify the behaviors the release docs promise, including async misuse, timeout behavior, invalid JSON, multi-object stdout handling, and real absent-payload behavior.
+  - The reusable compliance harness directly verifies the behaviors the release docs promise, including async misuse, timeout behavior, invalid JSON, multi-object stdout handling, matcher filtering, and real absent-payload behavior.
 - Verification method:
-  - direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior
+  - direct compliance assertions for timeout, invalid output, async misuse, matcher validity, absent-payload behavior, and multi-object stdout warnings
 - Recommended fix path:
-  - Expand `sc-hooks-test` first, then align `docs/traceability.md` with direct assertions.
-  - Keep `sc-hooks-cli test` as a thin presentation layer over the shared compliance engine.
+  - Keep `sc-hooks-cli test` as a thin presentation layer over the shared compliance engine while the host-path contract suite remains in `sc-hooks-test`.
 - Early retire / replace candidates:
-  - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` is retired in this sprint
-  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` is retired in this sprint, but direct absent-payload proof remains open for Sprint 2
+  - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` remains retired after Sprint 1
+  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` stays removed; host-path absent-payload proof now replaces it
 
 ## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
 

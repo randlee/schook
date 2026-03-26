@@ -50,7 +50,7 @@ Important planning rule:
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
 | Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | Planned | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 2 | In review | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | Planned | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | Planned | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
@@ -198,10 +198,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 2 and Sprint 3 are unblocked because Sprint 1 removed the false duplicate compliance/source-of-truth surfaces; real contract-proof expansion and end-to-end `long_running` alignment still belong to those later sprints.
 
-### Sprint 2: Compliance Harness Hardening
+### Sprint 2: Compliance Harness Hardening (In Review)
 
 Status:
-- planned
+- in review
 
 Focus:
 - make the compliance harness prove the release contract directly
@@ -236,6 +236,18 @@ Definition of done:
 - stale duplicated compliance code is removed or reduced to glue only
 - docs and traceability align to the surviving path
 - validation and regression tests pass on the final sprint branch
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 2 closes `GAP-001` and moves `CLI-007` and `TST-007` from gap to implemented. `TMO-004` remains open for Sprint 3.
+- What code was removed early rather than left in parallel?
+  No duplicate compliance engine was reintroduced; Sprint 2 kept `sc-hooks-cli/src/testing.rs` as presentation-only glue and added the host-path contract suite to the shared `sc-hooks-test` surface instead of splitting behavior back into the CLI.
+- Which files/crates were the owned write scope for the sprint?
+  `sc-hooks-test/src/compliance.rs`, `sc-hooks-test/src/fixtures.rs`, `sc-hooks-cli/tests/compliance_host.rs`, and the Sprint 2 traceability/gap-plan docs.
+- What validation commands and direct tests proved the new contract?
+  `cargo test -p sc-hooks-test`, `cargo test -p sc-hooks-cli --test compliance_host`, and the final workspace validation prove direct host-path assertions for timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 4 is now unblocked on a real surviving compliance/runtime path, while Sprint 3 remains the next contract-alignment step for `long_running`.
 
 ### Sprint 3: `long_running` And SDK Posture Alignment
 
