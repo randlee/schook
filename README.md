@@ -14,22 +14,25 @@ The project provides:
 | --- | --- |
 | `sc-hooks-cli/` | Host binary: `run`, `audit`, `fire`, `install`, `config`, `handlers`, `test`, `exit-codes` |
 | `sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
-| `sc-hooks-sdk/` | Rust convenience layer for manifest generation, runner helpers, result helpers, and lightweight traits; not the release-defining public contract |
+| `sc-hooks-sdk/` | Rust convenience layer for manifest generation, runner helpers, and result helpers; not the release-defining public contract |
 | `sc-hooks-test/` | Reusable plugin compliance harness |
 | `plugins/` | Reference/scaffold plugin source crates, not the runtime plugin install directory |
 | `docs/` | Requirements, architecture, contracts, execution plan, gap ledger, traceability, and governance |
 | `shims/` | Thin adapters for Codex and Gemini |
 
 Current source plugin inventory in `plugins/`:
-- `audit-logger`
-- `conditional-source`
-- `event-relay`
-- `guard-paths`
-- `identity-state`
-- `notify`
-- `policy-enforcer`
-- `save-context`
-- `template-source`
+
+| Crate | Release posture |
+| --- | --- |
+| `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
+| `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
+| `event-relay` | scaffold/reference only; not a shipped runtime plugin |
+| `guard-paths` | scaffold/reference only; not a shipped runtime plugin |
+| `identity-state` | scaffold/reference only; not a shipped runtime plugin |
+| `notify` | scaffold/reference only; not a shipped runtime plugin |
+| `policy-enforcer` | scaffold/reference only; not a shipped runtime plugin |
+| `save-context` | scaffold/reference only; not a shipped runtime plugin |
+| `template-source` | scaffold/reference only; not a shipped runtime plugin |
 
 ## Current Shape
 
@@ -39,11 +42,11 @@ Important current realities:
 - The runtime expects config at `.sc-hooks/config.toml`.
 - The runtime resolves plugin executables from `.sc-hooks/plugins/`.
 - The runtime emits service-scoped observability events at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`.
-- This repo does not currently check in an example `.sc-hooks/` runtime layout.
-- The source crates under `plugins/` are reference implementations and scaffolds; they are not production-ready bundled handlers.
+- A checked example runtime layout lives at `examples/runtime-layout/.sc-hooks/`.
+- The source crates under `plugins/` are reference implementations and scaffolds; none is currently described as shipped runtime functionality.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
 - Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.
-- SDK runner and trait helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.
+- SDK runner helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.
 
 ## Core Commands
 

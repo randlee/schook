@@ -22,6 +22,30 @@ impl ComplianceReport {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContractScenario {
+    AbsentPayload,
+    InvalidOutput,
+    MultipleJsonObjects,
+    AsyncBlockMisuse,
+    MatcherFiltering,
+    Timeout,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContractScenarioResult {
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub last_log_line: Option<String>,
+    pub session_state: Option<String>,
+    pub marker_exists: bool,
+}
+
+pub trait HostDispatchProbe {
+    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
+}
+
 pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {
     let mut checks = Vec::new();
     let plugin_path_str = plugin_path.display().to_string();
@@ -98,20 +122,21 @@ pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {
     );
     checks.push(protocol_result);
 
-    let absent_payload_result = invoke_plugin(
-        plugin_path,
-        serde_json::json!({"hook": {"type": "PreToolUse"}}),
-    );
-    checks.push(ComplianceCheck {
-        name: "absent payload handling".to_string(),
-        passed: absent_payload_result.passed,
-        detail: absent_payload_result.detail,
-    });
-
     ComplianceReport {
         plugin_path: plugin_path_str,
         checks,
     }
+}
+
+pub fn run_contract_behavior_suite(probe: &impl HostDispatchProbe) -> Vec<ComplianceCheck> {
+    vec![
+        check_absent_payload(probe),
+        check_invalid_output(probe),
+        check_multiple_json_objects(probe),
+        check_async_block_misuse(probe),
+        check_matcher_filtering(probe),
+        check_timeout(probe),
+    ]
 }
 
 fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceCheck {
@@ -160,6 +185,190 @@ fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceChec
             detail: Some(err.to_string()),
         },
     }
+}
+
+fn check_absent_payload(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::AbsentPayload) {
+        Ok(result) => ComplianceCheck {
+            name: "host dispatch handles absent payload".to_string(),
+            passed: result.exit_code == sc_hooks_core::exit_codes::SUCCESS,
+            detail: Some(format!(
+                "exit={}, stderr={}",
+                result.exit_code,
+                result.stderr.trim()
+            )),
+        },
+        Err(err) => ComplianceCheck {
+            name: "host dispatch handles absent payload".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn check_invalid_output(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::InvalidOutput) {
+        Ok(result) => ComplianceCheck {
+            name: "host dispatch rejects invalid stdout".to_string(),
+            passed: result.exit_code == sc_hooks_core::exit_codes::PLUGIN_ERROR
+                && result.stderr.contains("invalid JSON"),
+            detail: Some(format!(
+                "exit={}, stderr={}",
+                result.exit_code,
+                result.stderr.trim()
+            )),
+        },
+        Err(err) => ComplianceCheck {
+            name: "host dispatch rejects invalid stdout".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn check_multiple_json_objects(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::MultipleJsonObjects) {
+        Ok(result) => {
+            let warning_seen = result
+                .last_log_line
+                .as_deref()
+                .and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+                .and_then(|line| line["fields"]["results"].as_array().cloned())
+                .is_some_and(|results| {
+                    results.iter().any(|entry| {
+                        entry["warning"]
+                            .as_str()
+                            .is_some_and(|warning| warning.contains("multiple JSON objects"))
+                    })
+                });
+
+            ComplianceCheck {
+                name: "host dispatch warns on multiple JSON objects".to_string(),
+                passed: result.exit_code == sc_hooks_core::exit_codes::SUCCESS && warning_seen,
+                detail: Some(format!(
+                    "exit={}, log_warning_seen={warning_seen}",
+                    result.exit_code
+                )),
+            }
+        }
+        Err(err) => ComplianceCheck {
+            name: "host dispatch warns on multiple JSON objects".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn check_async_block_misuse(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::AsyncBlockMisuse) {
+        Ok(result) => {
+            let disabled = session_disables_plugin_for_reason(
+                result.session_state.as_deref(),
+                "probe-plugin",
+                "runtime-error",
+            );
+            let system_message_seen = stdout_field_present(&result.stdout, "systemMessage");
+            ComplianceCheck {
+                name: "host dispatch rejects async block misuse".to_string(),
+                passed: result.exit_code == sc_hooks_core::exit_codes::SUCCESS
+                    && disabled
+                    && system_message_seen,
+                detail: Some(format!(
+                    "exit={}, stdout={}, session_state_present={}",
+                    result.exit_code,
+                    result.stdout.trim(),
+                    result.session_state.is_some()
+                )),
+            }
+        }
+        Err(err) => ComplianceCheck {
+            name: "host dispatch rejects async block misuse".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn check_matcher_filtering(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::MatcherFiltering) {
+        Ok(result) => ComplianceCheck {
+            name: "host dispatch enforces matcher filtering".to_string(),
+            passed: result.exit_code == sc_hooks_core::exit_codes::SUCCESS && !result.marker_exists,
+            detail: Some(format!(
+                "exit={}, marker_exists={}",
+                result.exit_code, result.marker_exists
+            )),
+        },
+        Err(err) => ComplianceCheck {
+            name: "host dispatch enforces matcher filtering".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn check_timeout(probe: &impl HostDispatchProbe) -> ComplianceCheck {
+    match probe.run_scenario(ContractScenario::Timeout) {
+        Ok(result) => {
+            let disabled = session_disables_plugin_for_reason(
+                result.session_state.as_deref(),
+                "probe-plugin",
+                "runtime-error",
+            );
+            let timeout_logged =
+                last_log_reports_error_type(result.last_log_line.as_deref(), "timeout");
+            ComplianceCheck {
+                name: "host dispatch enforces timeout".to_string(),
+                passed: result.exit_code == sc_hooks_core::exit_codes::TIMEOUT
+                    && timeout_logged
+                    && disabled,
+                detail: Some(format!(
+                    "exit={}, timeout_logged={}, stderr={}",
+                    result.exit_code,
+                    timeout_logged,
+                    result.stderr.trim()
+                )),
+            }
+        }
+        Err(err) => ComplianceCheck {
+            name: "host dispatch enforces timeout".to_string(),
+            passed: false,
+            detail: Some(err),
+        },
+    }
+}
+
+fn stdout_field_present(stdout: &str, field: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(stdout)
+        .ok()
+        .and_then(|value| value.get(field).cloned())
+        .is_some_and(|value| !value.is_null())
+}
+
+fn last_log_reports_error_type(last_log_line: Option<&str>, error_type: &str) -> bool {
+    last_log_line
+        .and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .and_then(|line| line["fields"]["results"].as_array().cloned())
+        .is_some_and(|results| {
+            results
+                .iter()
+                .any(|entry| entry["error_type"].as_str() == Some(error_type))
+        })
+}
+
+fn session_disables_plugin_for_reason(
+    session_state: Option<&str>,
+    plugin: &str,
+    reason: &str,
+) -> bool {
+    session_state
+        .and_then(|state| serde_json::from_str::<serde_json::Value>(state).ok())
+        .and_then(|state| state["sessions"].as_object().cloned())
+        .is_some_and(|sessions| {
+            sessions.values().any(|session| {
+                session["disabled_plugins"][plugin]["reason"].as_str() == Some(reason)
+            })
+        })
 }
 
 #[cfg(test)]

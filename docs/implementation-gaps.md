@@ -6,10 +6,6 @@ This document tracks gaps between the current codebase and the release-standard 
 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
-| GAP-001 | blocker | `sc-hooks-test`, `sc-hooks-cli` | Direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior | retire duplicated compliance logic in `sc-hooks-cli/src/testing.rs`; remove the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` |
-| GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests | retire or replace public-looking SDK traits and document runner-helper limits unless they become real release-contract surfaces |
-| GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
-| GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
 | DEF-001 | deferred | docs, plugin source crates, release packaging | deferred table, README, architecture, and gaps all keep scaffold plugins out of the shipped baseline | none until a plugin is promoted with runtime proof |
 | DEF-002 | deferred | `sc-hooks-cli`, docs | `fire` docs and implementation continue to describe summary-string output only | none until a structured fire report is intentionally designed |
 | DEF-003 | deferred | `sc-hooks-sdk`, docs | SDK docs, requirements, and gaps keep richer `LongRunning` ergonomics deferred beyond the current manifest-driven host contract | see `GAP-002` |
@@ -20,53 +16,61 @@ This document tracks gaps between the current codebase and the release-standard 
 
 ## Resolved In This Pass
 
+- `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
+- `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
+- `GAP-003` resolved by freezing every current `plugins/` source crate as scaffold/reference only in release-facing docs and plugin Cargo metadata.
+- `GAP-004` resolved by checking in `examples/runtime-layout/.sc-hooks/`, documenting it as the canonical contributor setup path, and proving it with `sc-hooks-cli/tests/runtime_layout_example.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
+- Task `#370` was a Sprint 6 merge-review tracker, not a release-facing requirement or gap ID. It was retired by freeze commit `cdce7b1` when `docs/project-plan.md` replaced the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` with `none; release-facing blocker and important gaps are closed for the chosen scope`, and replaced the Sprint 6 driver text `task #370, final QA/PR review` with `final reviewer/QA handoff`.
 
-## GAP-001: Compliance Harness Overclaims Coverage
+## Resolved Gaps
+
+### GAP-001: Compliance Harness Overclaims Coverage (Resolved In Sprint 2)
 
 - Severity: `blocker`
 - Source: `CLI-007`, `TST-007`
 - Owner area:
   - `sc-hooks-test`, `sc-hooks-cli`
 - Current behavior:
-  - `sc-hooks-test` and `sc-hooks-cli test` verify manifest loading, basic contract compatibility, simple matcher checks, positive timeout shape, minimal JSON output, and a duplicate minimal-input invocation labeled as absent-payload handling.
+  - `sc-hooks-cli test` continues to delegate to the shared `sc-hooks-test` compliance engine instead of maintaining a second implementation.
+  - `sc-hooks-test::compliance::run_contract_behavior_suite` now asserts timeout, invalid stdout, multi-object stdout warnings, async block misuse, matcher filtering, and absent-payload handling through the real `sc-hooks-cli` dispatch path.
 - Expected behavior:
-  - The reusable compliance harness should directly verify the behaviors the release docs promise, including async misuse, timeout behavior, invalid JSON, multi-object stdout handling, and real absent-payload behavior.
+  - The reusable compliance harness directly verifies the behaviors the release docs promise, including async misuse, timeout behavior, invalid JSON, multi-object stdout handling, matcher filtering, and real absent-payload behavior.
 - Verification method:
-  - direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior
+  - direct compliance assertions for timeout, invalid output, async misuse, matcher validity, absent-payload behavior, and multi-object stdout warnings
 - Recommended fix path:
-  - Expand `sc-hooks-test` first, then align `sc-hooks-cli test` output and `docs/traceability.md`.
-  - Consolidate the duplicated compliance code so the CLI delegates to one shared compliance engine instead of maintaining a second implementation.
+  - Keep `sc-hooks-cli test` as a thin presentation layer over the shared compliance engine while the host-path contract suite remains in `sc-hooks-test`.
 - Early retire / replace candidates:
-  - `sc-hooks-cli/src/testing.rs`
-  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs`
+  - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` remains retired after Sprint 1
+  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` stays removed; host-path absent-payload proof now replaces it
 
-## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
+### GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly (Resolved In Sprint 3)
 
 - Severity: `important`
 - Source: `TMO-004`
 - Owner area:
   - `sc-hooks-sdk`, `sc-hooks-cli`, docs
 - Current behavior:
-  - The host honors manifest fields `long_running`, `timeout_ms`, and `description`.
-  - Audit rejects `long_running=true` for async handlers and requires a non-empty description.
-  - `sc-hooks-sdk::traits::LongRunning` only exposes `description(&self) -> &str` and is not the real end-to-end public contract described in older docs.
+  - The host treats `long_running` as a sync-only manifest contract.
+  - Sync `long_running=true` removes the default sync timeout when no explicit `timeout_ms` override is set.
+  - Async manifests using `long_running=true` are rejected during manifest validation, resolution, and audit.
+  - the stale `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` surfaces are retired so the SDK no longer implies a richer contract than the host actually guarantees today.
   - `sc-hooks-sdk::runner::PluginRunner` also includes convenience behavior such as treating empty stdin as `{}`, which is useful for authoring but is not itself the release-defining host contract.
+  - the SDK remains a thin authoring surface: manifest helpers can express the valid sync-only contract, but runner fallback defaults are still convenience behavior rather than host guarantees.
 - Expected behavior:
-  - The docs, SDK convenience surface, and tests should agree on one release-grade SDK posture: either thin authoring conveniences with clearly documented limits, or a fuller public contract that is actually proven end to end.
+  - The docs, SDK convenience surface, and tests agree on one release-grade posture: the host contract is manifest-driven and sync-only for `long_running`, while runner conveniences stay out of the normative release contract.
 - Verification method:
   - one end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests
 - Recommended fix path:
-  - Treat `long_running` as a host manifest feature for now, and either tighten the SDK to match or explicitly defer richer SDK ergonomics.
-  - Document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
+  - Keep the SDK posture narrow and document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
 - Early retire / replace candidates:
-  - `sc-hooks-sdk::traits::LongRunning`
-  - `sc-hooks-sdk::traits::AsyncContextSource`
+  - `sc-hooks-sdk::traits::LongRunning` remains retired after Sprint 1
+  - `sc-hooks-sdk::traits::AsyncContextSource` remains retired after Sprint 1
   - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
-## GAP-003: Bundled Plugin Readiness Was Previously Overstated
+## GAP-003: Bundled Plugin Readiness Was Previously Overstated (Resolved In Sprint 5)
 
 - Severity: `important`
 - Source: `BND-001`, `BND-002`
@@ -75,29 +79,31 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - Source crates under `plugins/` respond to `--manifest`, read stdin, and return `{\"action\":\"proceed\"}`.
   - Runtime plugin discovery does not read from `plugins/`; it reads from `.sc-hooks/plugins/`.
+  - README, architecture, requirements, and plugin `Cargo.toml` metadata now mark every current source crate as scaffold/reference only and explicitly not shipped runtime functionality.
 - Expected behavior:
   - The docs must describe these crates as scaffolds or reference implementations until they ship real behavior, installation guidance, and direct tests.
 - Verification method:
   - supported-plugin claims match runtime installation, behavior, and tests
 - Recommended fix path:
-  - Keep the docs honest now; later either promote specific plugins to supported runtime artifacts or move them to an examples-only posture.
+  - Keep the docs and Cargo metadata honest now; later either promote specific plugins to supported runtime artifacts with install/runtime proof and direct behavior tests, or keep them reference-only.
 - Early retire / replace candidates:
   - old "bundled plugin" language in contributor-facing docs and release notes
 
-## GAP-004: No Checked-In Example Runtime Layout
+## GAP-004: No Checked-In Example Runtime Layout (Resolved In Sprint 4)
 
 - Severity: `important`
 - Source: `CFG-001`, `RES-002`, `CLI-004`
 - Owner area:
   - docs, examples/setup, `sc-hooks-cli`
 - Current behavior:
-  - The host expects `.sc-hooks/config.toml` and `.sc-hooks/plugins/`, but the repository does not currently include a checked-in example runtime layout.
+  - The host expects `.sc-hooks/config.toml` and `.sc-hooks/plugins/`.
+  - The repository now includes a checked contributor/runtime example at `examples/runtime-layout/.sc-hooks/` with a validating `guard-paths` plugin and a host-level test that audits and runs it successfully.
 - Expected behavior:
-  - Contributors should have a minimal documented example config and runtime plugin layout.
+  - Contributors have a minimal documented example config and runtime plugin layout that can be copied or inspected without reading source code.
 - Verification method:
   - a checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout
 - Recommended fix path:
-  - Add a minimal example `.sc-hooks/` tree or a clearly linked setup guide before release.
+  - Keep the checked example and runtime-layout test updated whenever install/runtime assumptions change.
 
 ## Deferred Item Acknowledgments
 

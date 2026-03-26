@@ -37,6 +37,9 @@ pub enum ManifestError {
     #[error("manifest long_running=true requires a non-empty description")]
     MissingLongRunningDescription,
 
+    #[error("manifest long_running=true is only supported for sync handlers")]
+    AsyncLongRunningUnsupported,
+
     #[error(
         "manifest contract_version {plugin_version} is incompatible with host version {host_version}"
     )]
@@ -146,6 +149,10 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), ManifestError> {
             .unwrap_or(true)
     {
         return Err(ManifestError::MissingLongRunningDescription);
+    }
+
+    if manifest.long_running && manifest.mode == sc_hooks_core::dispatch::DispatchMode::Async {
+        return Err(ManifestError::AsyncLongRunningUnsupported);
     }
 
     validate_field_specs(&manifest.requires)?;
@@ -494,8 +501,10 @@ mod tests {
     #[test]
     fn builds_filtered_input_plus_hook_and_payload_passthrough() {
         let manifest = parse_manifest_str(manifest_json()).expect("manifest should parse");
+        let repo_path = std::env::temp_dir().join("repo");
+        let repo_path = repo_path.to_string_lossy().to_string();
         let metadata = serde_json::json!({
-            "repo": {"path": "/tmp/repo", "branch": "main"},
+            "repo": {"path": repo_path, "branch": "main"},
             "team": {"name": "cal"},
             "ignored": true
         });
@@ -513,7 +522,7 @@ mod tests {
         assert_eq!(
             input,
             serde_json::json!({
-                "repo": {"path": "/tmp/repo"},
+                "repo": {"path": repo_path},
                 "team": {"name": "cal"},
                 "hook": {"type": "PreToolUse", "event": "Bash"},
                 "payload": {"tool_input": {"command": "atm send"}}
@@ -533,5 +542,15 @@ mod tests {
         assert_eq!(manifest.name, "notify");
         assert_eq!(manifest.mode, sc_hooks_core::dispatch::DispatchMode::Async);
         assert_eq!(manifest.hooks, vec!["PostToolUse".to_string()]);
+    }
+
+    #[test]
+    fn rejects_async_long_running_manifest() {
+        let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
+            .hooks(["PostToolUse"])
+            .long_running("wait for remote ack")
+            .build()
+            .expect_err("async long_running should be rejected");
+        assert!(matches!(err, ManifestError::AsyncLongRunningUnsupported));
     }
 }

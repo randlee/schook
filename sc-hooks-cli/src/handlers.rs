@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::errors::CliError;
 use crate::events;
+use crate::timeout::resolve_timeout_ms;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginHandlerInfo {
@@ -96,7 +97,9 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
         let name = entry.file_name().to_string_lossy().to_string();
         match sc_hooks_sdk::manifest::load_manifest_from_executable(&path) {
             Ok(manifest) => {
-                let timeout = if manifest.long_running && manifest.timeout_ms.is_none() {
+                let resolved_timeout =
+                    resolve_timeout_ms(manifest.mode, manifest.timeout_ms, manifest.long_running);
+                let timeout = if resolved_timeout.is_none() {
                     "none(long-running)".to_string()
                 } else if let Some(timeout_ms) = manifest.timeout_ms {
                     format!("{timeout_ms}ms")
@@ -198,6 +201,26 @@ mod tests {
         assert!(rendered.contains("plugins:"));
         assert!(rendered.contains("guard-paths"));
         assert!(rendered.contains("matchers=Write"));
+    }
+
+    #[test]
+    fn async_long_running_manifest_surfaces_as_manifest_error() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/notify"),
+            r#"{"contract_version":1,"name":"notify","mode":"async","hooks":["PostToolUse"],"matchers":["*"],"long_running":true,"description":"wait for remote ack","requires":{}}"#,
+        );
+
+        let report = discover().expect("handler discovery should succeed");
+        let notify = report
+            .plugins
+            .iter()
+            .find(|plugin| plugin.name == "notify")
+            .expect("notify plugin should be present");
+        assert!(notify.manifest_error.is_some());
+        assert_eq!(notify.timeout, "unknown");
     }
 
     #[test]
