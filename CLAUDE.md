@@ -59,16 +59,14 @@ Rules:
 Current repo coordination happens on the default ATM team in this environment.
 
 Known roles for this repo:
-- `arch-hook` is the repo lead
-- `arch-ctm` is the active documentation coordination lead
+- `arch-schook` is the repo architecture lead
 
 Use direct ATM messages. Do not assume broadcast.
 
 Common commands:
 
 ```bash
-atm send arch-hook "status update"
-atm send arch-ctm "question or handoff"
+atm send arch-schook "status update or question"
 atm read --timeout 120 --limit 20
 ```
 
