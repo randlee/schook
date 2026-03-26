@@ -24,10 +24,10 @@ pub fn scoped_current_dir(path: &Path) -> CurrentDirGuard {
 
 impl Drop for CurrentDirGuard {
     fn drop(&mut self) {
-        if let Err(err) = std::env::set_current_dir(&self.original) {
-            if !std::thread::panicking() {
-                panic!("cwd should restore: {err}");
-            }
+        if let Err(err) = std::env::set_current_dir(&self.original)
+            && !std::thread::panicking()
+        {
+            panic!("cwd should restore: {err}");
         }
     }
 }
