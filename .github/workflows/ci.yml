@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main, "integrate/*"]
+    branches: [develop, main, "integrate/*", "integration/*"]
   push:
-    branches: [develop, main]
+    branches: [develop, main, "integration/*"]
 
 jobs:
   fmt:
