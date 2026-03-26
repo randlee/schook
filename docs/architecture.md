@@ -44,8 +44,10 @@ The host does not:
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
+- the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
 - current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
 
 ## 3.1 Public Contract Vs Internal Typed Model
 
@@ -196,6 +198,7 @@ This boundary is current architecture, not deferred intent.
 
 - SDK-level `LongRunning` ergonomics beyond the host's manifest handling
 - release-grade bundled plugins
+- promotion of any `plugins/` source crate to shipped runtime behavior without install guidance and direct behavior tests
 - a more granular exit-code split for manifest compatibility vs other resolution failures
 
 These items are not part of the current mainline architecture contract and must remain documented as gaps or deferred work.
