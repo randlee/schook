@@ -49,7 +49,7 @@ Important planning rule:
 | Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | Planned | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003`, `SCHOOK-QA-NEW-001` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 1 | Planned | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
 | Sprint 2 | Planned | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | Planned | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
@@ -142,7 +142,7 @@ Early retire or replace:
 Deliverables:
 - decide the single owning compliance path and retire or reduce the duplicate path before expanding coverage
 - decide whether `sc-hooks-sdk` traits are thin SDK conveniences to keep or stale public-looking surfaces to remove
-- verify current observability claims that are still advisory-only, including the `logging-contract.md` section 6.6 level claim
+- verify or explicitly gap any remaining release-facing observability claims that are still advisory-only
 - freeze `plugins/` as scaffold/reference only unless and until a later sprint promotes a plugin with real runtime proof
 
 Verification:
@@ -154,7 +154,7 @@ Verification:
 Acceptance criteria:
 - no duplicated source-of-truth surface remains for compliance behavior
 - SDK trait posture is explicit instead of implied
-- the `logging-contract.md` section 6.6 claim is either verified or downgraded to a documented gap
+- any remaining advisory-only observability claims are either verified or downgraded to documented gaps
 - docs and gaps describe one honest baseline for later sprint work
 
 Definition of done:
@@ -365,10 +365,6 @@ Before release cut or final QA handoff, complete these checks explicitly:
 - removal audit: no stale duplicate implementation path remains for any release-facing behavior
 - advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
 - release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
-
-Current known preflight item:
-
-- verify `docs/logging-contract.md` section 6.6 against the actual level-selection path, or convert the claim into an explicit gap before release
 
 ## 12. Risk Containment
 

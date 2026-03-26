@@ -206,8 +206,13 @@ If a plugin prints multiple valid JSON objects:
 - the host uses only the first object
 - the relevant result record includes a `warning`
 - the top-level record still carries `exit = 0`
-- the top-level `level` becomes `Error` because any warning currently raises
-  the dispatch level above `Info`
+- the top-level `level` becomes `Error`
+
+Current implementation note:
+- `sc-hooks-cli/src/observability.rs` computes `Info` only when every result
+  has no `error_type`, no `warning`, and `disabled != true`
+- a warning therefore prevents `Info`, and a non-blocking dispatch with no
+  other special case falls through to `Error`
 
 ### 6.7 Invalid Trailing Garbage After First JSON Object
 
