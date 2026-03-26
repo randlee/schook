@@ -373,12 +373,8 @@ mod tests {
 
     #[test]
     fn audit_reports_missing_handler() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         let cfg = config::parse_config_str(
             r#"
@@ -395,18 +391,12 @@ PreToolUse = ["missing-plugin"]
         let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
         assert!(report.has_errors());
         assert!(report.errors.iter().any(|entry| entry.contains("AUD-001")));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn audit_accepts_valid_plugin_manifest() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -427,18 +417,12 @@ PreToolUse = ["guard-paths"]
 
         let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
         assert!(!report.has_errors());
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn strict_mode_turns_unacknowledged_sandbox_needs_into_errors() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         fs::create_dir_all(".sc-hooks/needs").expect("path should be creatable");
         make_plugin(
@@ -460,18 +444,12 @@ PostToolUse = ["notify"]
 
         let report = run(&cfg, AuditOptions { strict: true }).expect("audit should execute");
         assert!(report.errors.iter().any(|entry| entry.contains("SEC-004")));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn audit_rejects_async_handlers_declaring_blocking_behavior() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/notify"),
@@ -497,7 +475,5 @@ PostToolUse = ["notify"]
                 .iter()
                 .any(|entry| { entry.contains("AUD-006") && entry.contains("blocking behavior") })
         );
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

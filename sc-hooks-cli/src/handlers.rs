@@ -185,12 +185,8 @@ mod tests {
 
     #[test]
     fn discovers_plugins() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -202,8 +198,6 @@ mod tests {
         assert!(rendered.contains("plugins:"));
         assert!(rendered.contains("guard-paths"));
         assert!(rendered.contains("matchers=Write"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]

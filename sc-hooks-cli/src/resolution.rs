@@ -214,12 +214,8 @@ mod tests {
 
     #[test]
     fn resolves_external_plugin_for_matching_event() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -260,18 +256,12 @@ PreToolUse = ["guard-paths"]
 
         assert_eq!(handlers.len(), 1);
         assert_eq!(handlers[0].name, "guard-paths");
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn async_bucket_filter_selects_matching_plugins() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/notify"),
@@ -321,18 +311,12 @@ PreToolUse = ["notify"]
         )
         .expect("resolution should succeed");
         assert_eq!(matched.len(), 1);
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn merged_async_bucket_matches_overlapping_plugin_range() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/context-a"),
@@ -370,18 +354,12 @@ PreToolUse = ["context-a"]
         )
         .expect("resolution should succeed");
         assert_eq!(handlers.len(), 1);
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn disabled_plugins_are_skipped() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -420,18 +398,12 @@ PreToolUse = ["guard-paths"]
         )
         .expect("resolution should succeed");
         assert!(handlers.is_empty());
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn caches_manifest_loads_per_invocation() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("current_dir should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         let counter = Path::new(".sc-hooks/state/manifest-count.txt");
         make_counting_manifest_plugin(
@@ -467,7 +439,5 @@ PreToolUse = ["cached", "cached"]
         let counter_value =
             fs::read_to_string(counter).expect("manifest counter file should be created");
         assert_eq!(counter_value.trim(), "1");
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

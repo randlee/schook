@@ -297,12 +297,8 @@ mod tests {
 
     #[test]
     fn build_settings_splits_sync_async_and_buckets() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -389,18 +385,12 @@ PreToolUse = ["guard-paths", "collect-context", "notify"]
                 .iter()
                 .any(|hook| hook.command.contains("--async-bucket 1000-5000"))
         );
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn wildcard_entry_only_includes_wildcard_only_handlers() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/mixed"),
@@ -434,18 +424,12 @@ PreToolUse = ["mixed"]
             .expect("PreToolUse should exist");
         assert!(entries.iter().any(|entry| entry.matcher == "Write"));
         assert!(!entries.iter().any(|entry| entry.matcher == "*"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn overlaps_are_merged_into_single_async_bucket() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/a"),
@@ -501,7 +485,5 @@ PreToolUse = ["a", "b"]
             .collect();
         assert_eq!(async_commands.len(), 1);
         assert!(async_commands[0].command.contains("--async-bucket 10-200"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

@@ -82,12 +82,8 @@ PreToolUse = ["guard-paths"]
 
     #[test]
     fn zero_match_fast_path_is_under_two_ms_and_writes_no_log() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         let cfg = config::parse_config_str(
             r#"
@@ -114,7 +110,5 @@ PostToolUse = ["guard-paths"]
             !Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl").exists(),
             "zero-match path should not write observability logs"
         );
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

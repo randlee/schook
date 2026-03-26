@@ -608,12 +608,8 @@ mod tests {
 
     #[test]
     fn dispatch_executes_plugin_and_returns_proceed() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -655,7 +651,6 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
 
         assert!(matches!(outcome, DispatchOutcome::Proceed));
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
@@ -681,12 +676,8 @@ PreToolUse = ["guard-paths"]
 
     #[test]
     fn integration_dispatch_writes_structured_log_entry() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -740,8 +731,6 @@ PreToolUse = ["guard-paths"]
         assert_eq!(parsed["fields"]["matcher"], "Write");
         assert_ne!(parsed["timestamp"], serde_json::Value::Null);
         assert_eq!(parsed["fields"]["exit"], 0);
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
@@ -757,12 +746,8 @@ PreToolUse = ["guard-paths"]
 
     #[test]
     fn plugin_only_chain_completes_under_50ms_median() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -816,7 +801,5 @@ PreToolUse = ["guard-paths"]
             median < Duration::from_millis(50),
             "median plugin chain runtime {median:?} exceeded 50ms target"
         );
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }

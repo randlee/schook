@@ -175,12 +175,8 @@ mod tests {
 
     #[test]
     fn persists_and_loads_disabled_plugins() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
@@ -190,33 +186,21 @@ mod tests {
         let loaded = load_disabled_plugins(Some("session-a"));
         assert!(loaded.contains("guard-paths"));
         assert!(loaded.contains("notify"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn missing_state_file_is_fail_open() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         let loaded = load_disabled_plugins(Some("session-a"));
         assert!(loaded.is_empty());
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn clear_session_removes_record() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
@@ -224,18 +208,12 @@ mod tests {
 
         let loaded = load_disabled_plugins(Some("session-a"));
         assert!(loaded.is_empty());
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn disabled_at_is_iso8601_like_timestamp() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
@@ -243,18 +221,12 @@ mod tests {
             fs::read_to_string(".sc-hooks/state/session.json").expect("state file should exist");
         assert!(content.contains('T'));
         assert!(content.contains('Z'));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn clear_all_sessions_removes_state_file() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
@@ -262,7 +234,5 @@ mod tests {
 
         clear_all_sessions().expect("clear_all_sessions should succeed");
         assert!(!Path::new(".sc-hooks/state/session.json").exists());
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }
