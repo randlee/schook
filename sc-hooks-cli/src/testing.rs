@@ -7,6 +7,8 @@ use crate::errors::CliError;
 
 pub type ComplianceCheck = compliance::ComplianceCheck;
 
+// This wrapper exists only for CLI presentation. The shared compliance engine
+// and all compliance behavior live in `sc_hooks_test::compliance`.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceReport {
     pub plugin: String,

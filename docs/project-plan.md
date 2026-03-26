@@ -49,7 +49,7 @@ Important planning rule:
 | Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | Planned | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
 | Sprint 2 | Planned | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | Planned | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
@@ -136,10 +136,10 @@ Acceptance criteria:
 - `GAP-005` and `GAP-007` are closed
 - `cargo fmt --check --all` and `cargo test --workspace` pass
 
-### Sprint 1: Baseline Alignment And Code Retirement
+### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
 Status:
-- planned
+- in review
 
 Focus:
 - remove false or confusing public-looking surfaces before feature work starts
@@ -185,6 +185,18 @@ Definition of done:
 - later sprints can build on one intended implementation path per behavior
 - code scheduled for retirement is removed early or explicitly deferred
 - no public-looking surface remains ambiguous about whether it is real contract or convenience only
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 1 materially reduced `GAP-001`, `GAP-002`, and `GAP-003`, but none closed; `CLI-007`, `TST-007`, and `TMO-004` remain open and are carried forward with more precise post-Sprint-1 wording.
+- What code was removed early rather than left in parallel?
+  The duplicate compliance behavior in `sc-hooks-cli/src/testing.rs` was reduced to a presentation wrapper over `sc-hooks-test`, the duplicate absent-payload pseudo-check was retired from `sc-hooks-test/src/compliance.rs`, and the stale `LongRunning`/`AsyncContextSource` SDK traits were removed.
+- Which files/crates were the owned write scope for the sprint?
+  `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs`, `sc-hooks-sdk/src/traits.rs`, `README.md`, `CLAUDE.md`, plugin `Cargo.toml` metadata, and the Sprint 1 traceability/gap-plan docs.
+- What validation commands and direct tests proved the new contract?
+  `cargo test --workspace`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo fmt --check --all` passed on the Sprint 1 branch; the direct proof added in this sprint is limited to the surviving shared compliance engine and its CLI delegation path.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 2 and Sprint 3 are unblocked because Sprint 1 removed the false duplicate compliance/source-of-truth surfaces; real contract-proof expansion and end-to-end `long_running` alignment still belong to those later sprints.
 
 ### Sprint 2: Compliance Harness Hardening
 
