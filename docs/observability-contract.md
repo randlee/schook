@@ -2,8 +2,9 @@
 
 ## 1. Scope
 
-`sc-hooks` currently emits structured observability events through the sibling
-`../sc-observability` workspace.
+`sc-hooks` currently emits structured observability events through the external
+`sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
+`../../../sc-observability/...`.
 
 This document defines the current JSONL file output owned by `sc-hooks-cli`.
 
@@ -42,6 +43,7 @@ Current dispatch emission uses:
 The `fields` object currently carries:
 - `hook`
 - `event` when present
+- `matcher`
 - `mode`
 - `handlers`
 - `results`
@@ -61,6 +63,10 @@ The `fields` object currently carries:
 - `disabled` when present
 
 This is the required place where dispatch-level error detail now lives.
+
+Current `matcher` rule:
+- when an event exists, `matcher` is the event string
+- when no event exists, `matcher` is `"*"`
 
 ## 6. Emission Rules
 

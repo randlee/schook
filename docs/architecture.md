@@ -28,6 +28,8 @@ The host does not:
 - load plugins as shared libraries
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
+- resolve builtin handlers inside the dispatcher; any future builtin path is deferred
+- expose config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml`
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership
@@ -163,10 +165,11 @@ Current behavior:
 Current observability ownership follows the intended boundary directly:
 
 - `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
-- the implementation uses the sibling `../sc-observability` workspace via the logging-only `sc-observability` crate
+- the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
 - the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
+- there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
 
 This boundary is current architecture, not deferred intent.
 

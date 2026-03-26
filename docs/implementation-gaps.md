@@ -11,11 +11,13 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
+| GAP-008 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release | none until the product intentionally restores builtins |
+| GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
 
 ## Resolved In This Pass
 
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
-- `GAP-007` resolved by adopting the sibling `../sc-observability` workspace in `sc-hooks-cli` and making that boundary current architecture.
+- `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 
 ## GAP-001: Compliance Harness Overclaims Coverage
 
@@ -103,3 +105,35 @@ This document tracks gaps between the current codebase and the release-standard 
   - exit-code tests and docs agree on any future split
 - Recommended fix path:
   - keep the current behavior documented honestly unless and until the codebase introduces a new exit-code split
+
+## GAP-008: Builtin Handler Resolution Is Intentionally Out Of Scope
+
+- Severity: `deferred`
+- Source: `RES-001`, `DEF-005`
+- Owner area:
+  - docs, `sc-hooks-cli`
+- Current behavior:
+  - the runtime resolves configured handler names only through `.sc-hooks/plugins/`
+  - there is no builtin resolution path in the dispatcher
+- Expected behavior:
+  - the docs should state explicitly that builtin handler resolution was removed from the current release baseline and is deferred unless the product intentionally restores it
+- Verification method:
+  - requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release
+- Recommended fix path:
+  - keep the plugin-only runtime explicit unless the product intentionally reintroduces builtins with a documented precedence and lifecycle model
+
+## GAP-009: `[logging]` Config Was Intentionally Removed During Observability Migration
+
+- Severity: `deferred`
+- Source: `OBS-002`, `DEF-006`
+- Owner area:
+  - docs, `sc-hooks-cli`
+- Current behavior:
+  - the CLI no longer supports a `[logging]` section in `.sc-hooks/config.toml`
+  - observability output is routed through the fixed `sc-observability` CLI boundary instead of config-driven sink wiring
+- Expected behavior:
+  - the docs should state explicitly that `[logging]` config was intentionally removed from the current release baseline during the `sc-observability` migration
+- Verification method:
+  - requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration
+- Recommended fix path:
+  - keep sink routing fixed at the CLI boundary unless the product intentionally restores supported configuration keys and their contract

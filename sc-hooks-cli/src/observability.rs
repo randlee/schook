@@ -27,16 +27,19 @@ pub struct HandlerResultRecord {
     pub disabled: Option<bool>,
 }
 
-pub fn emit_dispatch_event(
-    hook: &str,
-    event: Option<&str>,
-    mode: sc_hooks_core::dispatch::DispatchMode,
-    handler_chain: &[String],
-    results: &[HandlerResultRecord],
-    total_ms: u128,
-    exit: i32,
-    ai_notification: Option<&str>,
-) -> Result<(), CliError> {
+pub struct DispatchEventArgs<'a> {
+    pub hook: &'a str,
+    pub event: Option<&'a str>,
+    pub matcher: &'a str,
+    pub mode: sc_hooks_core::dispatch::DispatchMode,
+    pub handler_chain: &'a [String],
+    pub results: &'a [HandlerResultRecord],
+    pub total_ms: u128,
+    pub exit: i32,
+    pub ai_notification: Option<&'a str>,
+}
+
+pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|err| CliError::internal(format!("invalid service name: {err}")))?;
     let target = TargetCategory::new("hook")
@@ -48,24 +51,31 @@ pub fn emit_dispatch_event(
         .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
 
     let mut fields = Map::new();
-    fields.insert("hook".to_string(), Value::String(hook.to_string()));
-    if let Some(event) = event {
+    fields.insert("hook".to_string(), Value::String(args.hook.to_string()));
+    if let Some(event) = args.event {
         fields.insert("event".to_string(), Value::String(event.to_string()));
     }
-    fields.insert("mode".to_string(), Value::String(mode.as_str().to_string()));
+    fields.insert(
+        "matcher".to_string(),
+        Value::String(args.matcher.to_string()),
+    );
+    fields.insert(
+        "mode".to_string(),
+        Value::String(args.mode.as_str().to_string()),
+    );
     fields.insert(
         "handlers".to_string(),
-        serde_json::to_value(handler_chain)
+        serde_json::to_value(args.handler_chain)
             .map_err(|err| CliError::internal(format!("failed to serialize handlers: {err}")))?,
     );
     fields.insert(
         "results".to_string(),
-        serde_json::to_value(results)
+        serde_json::to_value(args.results)
             .map_err(|err| CliError::internal(format!("failed to serialize results: {err}")))?,
     );
-    fields.insert("total_ms".to_string(), Value::from(total_ms as u64));
-    fields.insert("exit".to_string(), Value::from(exit));
-    if let Some(ai_notification) = ai_notification {
+    fields.insert("total_ms".to_string(), Value::from(args.total_ms as u64));
+    fields.insert("exit".to_string(), Value::from(args.exit));
+    if let Some(ai_notification) = args.ai_notification {
         fields.insert(
             "ai_notification".to_string(),
             Value::String(ai_notification.to_string()),
@@ -75,16 +85,16 @@ pub fn emit_dispatch_event(
     let event = LogEvent {
         version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
         timestamp: sc_observability_types::Timestamp::now_utc(),
-        level: dispatch_level(exit, results, ai_notification),
+        level: dispatch_level(args.exit, args.results, args.ai_notification),
         service,
         target,
         action,
         message: Some(dispatch_message(
-            hook,
-            event,
-            mode,
-            handler_chain.len(),
-            exit,
+            args.hook,
+            args.event,
+            args.mode,
+            args.handler_chain.len(),
+            args.exit,
         )),
         identity: ProcessIdentity {
             hostname: None,
@@ -93,7 +103,7 @@ pub fn emit_dispatch_event(
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some(dispatch_outcome(exit).to_string()),
+        outcome: Some(dispatch_outcome(args.exit).to_string()),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -173,12 +183,13 @@ mod tests {
         let original = std::env::current_dir().expect("cwd should resolve");
         std::env::set_current_dir(temp.path()).expect("cwd should switch");
 
-        emit_dispatch_event(
-            "PreToolUse",
-            Some("Write"),
-            sc_hooks_core::dispatch::DispatchMode::Sync,
-            &["guard-paths".to_string()],
-            &[HandlerResultRecord {
+        emit_dispatch_event(DispatchEventArgs {
+            hook: "PreToolUse",
+            event: Some("Write"),
+            matcher: "Write",
+            mode: sc_hooks_core::dispatch::DispatchMode::Sync,
+            handler_chain: &["guard-paths".to_string()],
+            results: &[HandlerResultRecord {
                 handler: "guard-paths".to_string(),
                 action: "proceed".to_string(),
                 ms: 2,
@@ -187,10 +198,10 @@ mod tests {
                 warning: None,
                 disabled: None,
             }],
-            2,
-            sc_hooks_core::exit_codes::SUCCESS,
-            None,
-        )
+            total_ms: 2,
+            exit: sc_hooks_core::exit_codes::SUCCESS,
+            ai_notification: None,
+        })
         .expect("observability event should emit");
 
         let path = temp
@@ -205,6 +216,7 @@ mod tests {
         assert_eq!(parsed["action"], "dispatch.complete");
         assert_eq!(parsed["outcome"], "proceed");
         assert_eq!(parsed["fields"]["hook"], "PreToolUse");
+        assert_eq!(parsed["fields"]["matcher"], "Write");
         assert_eq!(parsed["fields"]["results"][0]["handler"], "guard-paths");
 
         std::env::set_current_dir(original).expect("cwd should restore");

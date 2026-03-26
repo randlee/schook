@@ -15,6 +15,14 @@ pub enum DispatchOutcome {
     Blocked { reason: String },
 }
 
+struct DispatchLogBase<'a> {
+    hook: &'a str,
+    event: Option<&'a str>,
+    matcher: &'a str,
+    mode: sc_hooks_core::dispatch::DispatchMode,
+    handler_chain: &'a [String],
+}
+
 pub fn execute_chain(
     handlers: &[ResolvedHandler],
     config: &ScHooksConfig,
@@ -29,6 +37,13 @@ pub fn execute_chain(
         .iter()
         .map(|handler| handler.name.clone())
         .collect();
+    let log_base = DispatchLogBase {
+        hook,
+        event,
+        matcher: event.unwrap_or("*"),
+        mode,
+        handler_chain: &handler_chain,
+    };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
     let mut async_system_message = Vec::new();
@@ -93,10 +108,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -128,10 +140,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -167,10 +176,7 @@ pub fn execute_chain(
                 ));
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
                     let _ = emit_dispatch_log(
-                        hook,
-                        event,
-                        mode,
-                        &handler_chain,
+                        &log_base,
                         &log_results,
                         started.elapsed().as_millis(),
                         sc_hooks_core::exit_codes::SUCCESS,
@@ -180,10 +186,7 @@ pub fn execute_chain(
                     continue;
                 }
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::TIMEOUT,
@@ -208,10 +211,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -241,10 +241,7 @@ pub fn execute_chain(
                 Some(true),
             ));
             let _ = emit_dispatch_log(
-                hook,
-                event,
-                mode,
-                &handler_chain,
+                &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -273,10 +270,7 @@ pub fn execute_chain(
                 Some(true),
             ));
             let _ = emit_dispatch_log(
-                hook,
-                event,
-                mode,
-                &handler_chain,
+                &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -305,10 +299,7 @@ pub fn execute_chain(
                 Some(true),
             ));
             let _ = emit_dispatch_log(
-                hook,
-                event,
-                mode,
-                &handler_chain,
+                &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -336,10 +327,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -396,10 +384,7 @@ pub fn execute_chain(
                         Some(true),
                     ));
                     let _ = emit_dispatch_log(
-                        hook,
-                        event,
-                        mode,
-                        &handler_chain,
+                        &log_base,
                         &log_results,
                         started.elapsed().as_millis(),
                         sc_hooks_core::exit_codes::SUCCESS,
@@ -426,10 +411,7 @@ pub fn execute_chain(
                     disabled: None,
                 });
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::BLOCKED,
@@ -456,10 +438,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 let _ = emit_dispatch_log(
-                    hook,
-                    event,
-                    mode,
-                    &handler_chain,
+                    &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
@@ -491,10 +470,7 @@ pub fn execute_chain(
     }
 
     emit_dispatch_log(
-        hook,
-        event,
-        mode,
-        &handler_chain,
+        &log_base,
         &log_results,
         started.elapsed().as_millis(),
         sc_hooks_core::exit_codes::SUCCESS,
@@ -508,27 +484,24 @@ fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
     let _ = session::mark_plugin_disabled(session_id, handler_name, "runtime-error");
 }
 
-#[allow(clippy::too_many_arguments)]
 fn emit_dispatch_log(
-    hook: &str,
-    event: Option<&str>,
-    mode: sc_hooks_core::dispatch::DispatchMode,
-    handler_chain: &[String],
+    base: &DispatchLogBase<'_>,
     results: &[HandlerResultRecord],
     total_ms: u128,
     exit: i32,
     ai_notification: Option<&str>,
 ) -> Result<(), CliError> {
-    observability::emit_dispatch_event(
-        hook,
-        event,
-        mode,
-        handler_chain,
+    observability::emit_dispatch_event(observability::DispatchEventArgs {
+        hook: base.hook,
+        event: base.event,
+        matcher: base.matcher,
+        mode: base.mode,
+        handler_chain: base.handler_chain,
         results,
         total_ms,
         exit,
         ai_notification,
-    )
+    })
 }
 
 fn parse_first_hook_result(
@@ -764,6 +737,7 @@ PreToolUse = ["guard-paths"]
         assert_eq!(parsed["action"], "dispatch.complete");
         assert_eq!(parsed["fields"]["hook"], "PreToolUse");
         assert_eq!(parsed["fields"]["event"], "Write");
+        assert_eq!(parsed["fields"]["matcher"], "Write");
         assert_ne!(parsed["timestamp"], serde_json::Value::Null);
         assert_eq!(parsed["fields"]["exit"], 0);
 

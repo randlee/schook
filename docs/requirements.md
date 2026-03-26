@@ -27,6 +27,8 @@ Current release scope does not include:
 - production-ready bundled plugin behavior from the `plugins/` directory
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - a compliance harness that proves every behavior described in older drafts
+- builtin handler resolution inside the dispatcher
+- config-driven observability sink routing or a `[logging]` config section
 
 ## 4. Functional Requirements
 
@@ -110,10 +112,10 @@ Current release scope does not include:
 | --- | --- | --- | --- | --- |
 | AUD-001 | Implemented | Must | Audit shall check handler resolvability, manifest validity, hook declarations, matcher validity, required metadata satisfiability, filesystem validation for `dir_exists` and `file_exists`, sandbox declarations, and install-plan generation. | `audit::run()` emits errors and warnings for those classes. |
 | AUD-002 | Implemented | Must | Sandbox warnings shall become errors under `--strict`. | Audit promotes sandbox overruns when strict mode is enabled. |
-| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records. |
+| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records with `matcher = event` or `\"*\"` when no event exists. |
 | OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`. |
 | OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `HandlerResultRecord` is serialized into observability event fields for all error outcomes. |
-| OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the sibling workspace at `../sc-observability`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
+| OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the external workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
 | OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
 | OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
@@ -151,6 +153,8 @@ Current release scope does not include:
 | DEF-002 | Should | A richer diagnostic `fire` report format beyond the current summary string | A stable structured diagnostic output is implemented and tested |
 | DEF-003 | Should | Any SDK-level `LongRunning` abstraction beyond the host's current manifest-driven behavior | The SDK, docs, and tests agree on a stable public contract |
 | DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
+| DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
+| DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 
 ## 7. Release Rule
 
