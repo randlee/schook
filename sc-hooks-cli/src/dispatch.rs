@@ -626,10 +626,16 @@ fn parse_first_hook_result(
     let parsed = serde_json::from_value::<sc_hooks_core::results::HookResult>(first)
         .map_err(|err| err.to_string())?;
 
-    let warning = if stream.next().is_some() {
-        Some("plugin produced multiple JSON objects; only first object was used".to_string())
-    } else {
-        None
+    let warning = match stream.next() {
+        Some(Ok(_)) => {
+            Some("plugin produced multiple JSON objects; only first object was used".to_string())
+        }
+        Some(Err(err)) => {
+            return Err(format!(
+                "plugin produced invalid trailing stdout after first JSON object: {err}"
+            ));
+        }
+        None => None,
     };
 
     Ok((parsed, warning))
@@ -760,6 +766,16 @@ PreToolUse = ["guard-paths"]
 
         assert!(matches!(outcome, DispatchOutcome::Proceed));
         std::env::set_current_dir(original).expect("cwd should restore");
+    }
+
+    #[test]
+    fn rejects_trailing_non_json_garbage_after_first_object() {
+        let err = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
+            .expect_err("trailing garbage should be rejected");
+        assert!(
+            err.contains("invalid trailing stdout"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
