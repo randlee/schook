@@ -7,10 +7,9 @@ use thiserror::Error;
 use toml::Value;
 
 pub const DEFAULT_CONFIG_PATH: &str = ".sc-hooks/config.toml";
-pub const DEFAULT_HOOK_LOG_PATH: &str = ".sc-hooks/logs/hooks.jsonl";
 
 const REQUIRED_SECTIONS: [&str; 2] = ["meta", "hooks"];
-const ALLOWED_SECTIONS: [&str; 5] = ["meta", "context", "hooks", "logging", "sandbox"];
+const ALLOWED_SECTIONS: [&str; 4] = ["meta", "context", "hooks", "sandbox"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScHooksConfig {
@@ -18,8 +17,6 @@ pub struct ScHooksConfig {
     #[serde(default)]
     pub context: BTreeMap<String, Value>,
     pub hooks: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
-    pub logging: LoggingConfig,
     #[serde(default)]
     pub sandbox: SandboxConfig,
 }
@@ -41,12 +38,6 @@ pub struct MetaConfig {
     pub version: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct LoggingConfig {
-    pub hook_log: String,
-    pub level: LogLevel,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SandboxConfig {
     #[serde(default)]
@@ -55,32 +46,12 @@ pub struct SandboxConfig {
     pub allow_paths: BTreeMap<String, Vec<String>>,
 }
 
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            hook_log: DEFAULT_HOOK_LOG_PATH.to_string(),
-            level: LogLevel::Info,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum LogLevel {
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-
 #[derive(Debug, Deserialize)]
 struct RawConfig {
     meta: MetaConfig,
     #[serde(default)]
     context: BTreeMap<String, Value>,
     hooks: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
-    logging: LoggingConfig,
     #[serde(default)]
     sandbox: SandboxConfig,
 }
@@ -162,7 +133,6 @@ pub fn parse_config_str(
         meta: raw.meta,
         context: raw.context,
         hooks: raw.hooks,
-        logging: raw.logging,
         sandbox: raw.sandbox,
     })
 }
@@ -249,7 +219,7 @@ team = "calibration"
 project = "p3"
 
 [hooks]
-PreToolUse = ["guard-paths", "log"]
+PreToolUse = ["guard-paths"]
 "#
     }
 
@@ -259,28 +229,23 @@ PreToolUse = ["guard-paths", "log"]
 version = 1
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#
     }
 
     #[test]
-    fn parses_from_in_memory_toml_with_logging_defaults() {
+    fn parses_from_in_memory_toml_with_sandbox_defaults() {
         let config =
             parse_config_str(valid_base_config(), "in-memory").expect("config should parse");
 
         assert_eq!(config.meta.version, 1);
-        assert_eq!(
-            config.logging.hook_log, DEFAULT_HOOK_LOG_PATH,
-            "logging.hook_log should default when [logging] is omitted"
-        );
-        assert_eq!(config.logging.level, LogLevel::Info);
         assert_eq!(config.sandbox, SandboxConfig::default());
         assert_eq!(
             config
                 .hooks
                 .get("PreToolUse")
                 .expect("PreToolUse hook should be present"),
-            &vec!["guard-paths".to_string(), "log".to_string()]
+            &vec!["guard-paths".to_string()]
         );
     }
 
@@ -290,8 +255,6 @@ PreToolUse = ["log"]
             .expect("minimal config should parse");
 
         assert!(config.context.is_empty());
-        assert_eq!(config.logging.hook_log, DEFAULT_HOOK_LOG_PATH);
-        assert_eq!(config.logging.level, LogLevel::Info);
         assert_eq!(config.sandbox, SandboxConfig::default());
     }
 
@@ -302,7 +265,7 @@ PreToolUse = ["log"]
 version = 1
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 
 [sandbox]
 allow_network = ["notify"]
@@ -365,7 +328,7 @@ allow_paths = { "guard-paths" = [".sc-hooks/guard-paths.toml"] }
 team = "calibration"
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#;
 
         let err = parse_config_str(config, "in-memory").expect_err("missing version must fail");
@@ -405,7 +368,7 @@ version = "one"
 team = "calibration"
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#;
 
         let err = parse_config_str(config, "in-memory").expect_err("non-integer version must fail");
@@ -422,7 +385,7 @@ PreToolUse = ["log"]
 version = -1
 
 [hooks]
-PreToolUse = ["log"]
+PreToolUse = ["guard-paths"]
 "#;
 
         let err = parse_config_str(config, "in-memory").expect_err("negative version must fail");
@@ -442,7 +405,7 @@ PreToolUse = ["log"]
 
         assert!(rendered.contains("[meta]"));
         assert!(rendered.contains("[hooks]"));
-        assert!(rendered.contains("[logging]"));
+        assert!(rendered.contains("[sandbox]"));
     }
 
     #[test]

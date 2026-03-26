@@ -96,11 +96,6 @@ fn collect_specs_for_hook(
     let mut manifest_cache: BTreeMap<PathBuf, sc_hooks_core::manifest::Manifest> = BTreeMap::new();
 
     for handler_name in chain {
-        if let Some(spec) = builtin_spec(handler_name) {
-            specs.push(spec);
-            continue;
-        }
-
         let path = plugin_path(handler_name);
         let manifest = if let Some(cached) = manifest_cache.get(&path) {
             cached.clone()
@@ -268,17 +263,6 @@ fn is_wildcard_only_spec(spec: &HandlerInstallSpec) -> bool {
     spec.matchers.len() == 1 && spec.matchers[0] == "*"
 }
 
-fn builtin_spec(handler_name: &str) -> Option<HandlerInstallSpec> {
-    match handler_name {
-        "log" => Some(HandlerInstallSpec {
-            mode: sc_hooks_core::dispatch::DispatchMode::Sync,
-            matchers: vec!["*".to_string()],
-            async_range: (0, 30_000),
-        }),
-        _ => None,
-    }
-}
-
 fn plugin_path(handler_name: &str) -> PathBuf {
     Path::new(".sc-hooks").join("plugins").join(handler_name)
 }
@@ -313,12 +297,8 @@ mod tests {
 
     #[test]
     fn build_settings_splits_sync_async_and_buckets() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -362,7 +342,7 @@ mod tests {
 version = 1
 
 [hooks]
-PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
+PreToolUse = ["guard-paths", "collect-context", "notify"]
 "#,
             "in-memory",
         )
@@ -405,25 +385,12 @@ PreToolUse = ["guard-paths", "collect-context", "notify", "log"]
                 .iter()
                 .any(|hook| hook.command.contains("--async-bucket 1000-5000"))
         );
-
-        let wildcard = entries
-            .iter()
-            .find(|entry| entry.matcher == "*")
-            .expect("wildcard entry should exist for log builtin");
-        assert_eq!(wildcard.hooks.len(), 1);
-        assert!(wildcard.hooks[0].command.contains("--sync"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn wildcard_entry_only_includes_wildcard_only_handlers() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/mixed"),
@@ -457,18 +424,12 @@ PreToolUse = ["mixed"]
             .expect("PreToolUse should exist");
         assert!(entries.iter().any(|entry| entry.matcher == "Write"));
         assert!(!entries.iter().any(|entry| entry.matcher == "*"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]
     fn overlaps_are_merged_into_single_async_bucket() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/a"),
@@ -524,7 +485,5 @@ PreToolUse = ["a", "b"]
             .collect();
         assert_eq!(async_commands.len(), 1);
         assert!(async_commands[0].command.contains("--async-bucket 10-200"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }
