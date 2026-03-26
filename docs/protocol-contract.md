@@ -52,6 +52,11 @@ Each `requires` or `optional` entry uses:
 
 The `validate` field is optional.
 
+Wire-contract note:
+- `type` and `validate` are serialized string values in the public contract
+- the host parses those strings into internal Rust enums such as `FieldType` and `ValidationRule`
+- those enum names are not themselves part of the public plugin protocol
+
 ### 2.4 Payload Condition Shape
 
 Each payload condition uses:
@@ -194,3 +199,18 @@ The host also exports these environment variables for external plugin processes:
 | `SC_HOOK_METADATA` | Filesystem path to assembled metadata JSON |
 
 These variables are convenience context, not a replacement for stdin JSON.
+
+`SC_HOOK_METADATA` lifecycle rules:
+- the host creates the metadata file before plugin invocation
+- the host owns cleanup of the file after dispatch scope exits
+- plugins should treat the path as read-only and ephemeral
+- callers should not treat `SC_HOOK_METADATA` as a durable state file contract
+
+## 8. Failure Classification Notes
+
+For the current host:
+- handler resolution failures and manifest-load failures are CLI resolution failures
+- missing or invalid required metadata fields are CLI validation failures
+- runtime protocol violations are plugin errors
+
+Those categories affect exit-code mapping, but the wire contract itself remains JSON-based.

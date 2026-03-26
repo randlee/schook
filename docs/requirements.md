@@ -64,6 +64,8 @@ Current release scope does not include:
 | PLG-009 | Implemented | Must | Async-mode plugins shall not block the chain. A runtime `action=block` from an async plugin is a protocol error that disables the plugin. | Async block returns trigger `async_block` handling in dispatch. |
 | PLG-011 | Implemented | Must | The host shall reject plugins whose `contract_version` is greater than the host contract version. | Manifest compatibility is enforced during manifest validation. |
 | PLG-012 | Implemented | Must | If no hook payload exists, the plugin input shall omit `payload` rather than sending `null` or `{}`. | `build_plugin_input()` only inserts `payload` when present. |
+| PLG-013 | Implemented | Must | The public plugin contract shall be defined in serialized JSON terms, not Rust enum names. Internal enums such as `FieldType`, `ValidationRule`, `DispatchMode`, and `HookAction` are host implementation details. | The contract docs describe string and JSON values, while Rust enums remain internal code structure. |
+| PLG-014 | Implemented | Must | Manifest validation rules shall remain string-encoded wire values such as `non_empty` and `one_of:a,b,c`; the internal `ValidationRule` enum is not itself part of the wire contract. | `parse_validation_rule()` consumes raw rule strings rather than deserializing a public enum shape. |
 | ERR-004 | Implemented | Should | If a plugin writes multiple JSON objects to stdout, the host shall use the first one and record a warning. | `parse_first_hook_result()` returns a warning when more than one object is present. |
 
 ### 4.4 Dispatch, Timeouts, And Session State
@@ -90,6 +92,7 @@ Current release scope does not include:
 | MTA-001 | Implemented | Must | The host shall discover agent PID, working directory, Git repo root, and current Git branch when available. | `RuntimeMetadata::discover()` populates those fields. |
 | MTA-002 | Implemented | Must | The host shall read agent type and session ID from `SC_HOOK_AGENT_TYPE` and `SC_HOOK_SESSION_ID` when present. | `RuntimeMetadata::discover()` copies those env vars into metadata. |
 | MTA-004 | Implemented | Must | Before external plugin invocation, the host shall write assembled metadata to a temp file and export `SC_HOOK_TYPE`, `SC_HOOK_EVENT` when present, and `SC_HOOK_METADATA`. | `prepare_for_dispatch()` writes a temp file and `inject_env_vars()` exports those variables. |
+| MTA-005 | Implemented | Must | The host shall own the lifecycle of the `SC_HOOK_METADATA` temp file. External plugins may read it as a convenience input, but they do not own or persist it. | `PreparedMetadata` retains a drop guard that deletes the temp file after dispatch scope exits. |
 
 ### 4.6 CLI Surface
 
@@ -112,7 +115,21 @@ Current release scope does not include:
 | OBS-002 | Implemented | Must | The builtin `log` handler shall append its own simpler JSONL records to the same configured hook log path. | `builtins::log::write_entry()` writes minimal records. |
 | OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `error_result()` and dispatch logging preserve those fields. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
+| BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
 | BND-002 | Required Before Release | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. | The docs, plugin code, and tests all support the same claim. |
+
+### 4.8 Exit Code Taxonomy
+
+| ID | Status | Priority | Requirement | Acceptance Scenario |
+| --- | --- | --- | --- | --- |
+| EXC-001 | Implemented | Must | Exit code `1` (`BLOCKED`) shall be reserved for sync `action=block` outcomes. | `CliError::Blocked` maps to exit code `1`. |
+| EXC-002 | Implemented | Must | Exit code `2` (`PLUGIN_ERROR`) shall cover runtime plugin failures and protocol violations such as invalid JSON, non-zero exit, spawn/write/read failures, and invalid `--payload` JSON parsing. | `CliError::PluginError` maps to exit code `2`. |
+| EXC-003 | Implemented | Must | Exit code `3` (`CONFIG_ERROR`) shall cover config read/parse/shape failures. | `CliError::Config` maps to exit code `3`. |
+| EXC-004 | Implemented | Must | Exit code `4` (`RESOLUTION_ERROR`) shall cover unresolved handlers and manifest-load or manifest-compatibility failures discovered during handler resolution. | `ResolutionError::UnresolvedHandler` and `ResolutionError::ManifestLoad` both map through `CliError::Resolution` to exit code `4`. |
+| EXC-005 | Implemented | Must | Exit code `5` (`VALIDATION_ERROR`) shall be reserved for handler metadata requirement failures after resolution and before plugin execution. | `CliError::Validation` is constructed only from missing or invalid required metadata fields. |
+| EXC-006 | Implemented | Must | Exit code `6` (`TIMEOUT`) shall be reserved for synchronous timeout failures that abort the host invocation. | `CliError::Timeout` maps to exit code `6`. |
+| EXC-007 | Implemented | Must | Exit code `7` (`AUDIT_FAILURE`) shall cover failed audit results and failed compliance-test runs surfaced as audit-style failures. | `CliError::AuditFailure` maps to exit code `7`. |
+| EXC-008 | Implemented | Must | Exit code `10` (`INTERNAL_ERROR`) shall cover panic or host-internal failures not represented by more specific CLI error variants. | Panic handling and `CliError::Internal` both terminate with `10`. |
 
 ## 5. Non-Functional Requirements
 
@@ -131,6 +148,7 @@ Current release scope does not include:
 | DEF-001 | Should | Production-ready bundled plugin behavior beyond scaffold/reference implementations | Real runtime behavior, tests, and installation story exist |
 | DEF-002 | Should | A richer diagnostic `fire` report format beyond the current summary string | A stable structured diagnostic output is implemented and tested |
 | DEF-003 | Should | Any SDK-level `LongRunning` abstraction beyond the host's current manifest-driven behavior | The SDK, docs, and tests agree on a stable public contract |
+| DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
 
 ## 7. Release Rule
 

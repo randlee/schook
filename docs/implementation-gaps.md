@@ -59,3 +59,14 @@ This document tracks gaps between the current codebase and the release-standard 
   - Downstream log consumers should either have an explicit discriminator field or a guaranteed stable union contract.
 - Recommended fix path:
   - Either add a `record_type` field to both shapes or keep the union stable and test it explicitly.
+
+## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
+
+- Severity: `deferred`
+- Source: `EXC-004`, `DEF-004`
+- Current behavior:
+  - unresolved handlers and manifest-load or manifest-compatibility failures all map to the same resolution exit code (`4`)
+- Expected behavior:
+  - if the project wants finer-grained operational diagnosis, manifest incompatibility may eventually deserve a dedicated exit code
+- Recommended fix path:
+  - keep the current behavior documented honestly unless and until the codebase introduces a new exit-code split

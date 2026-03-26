@@ -20,6 +20,17 @@ The project provides:
 | `docs/` | Requirements, architecture, contracts, gap ledger, traceability, and governance |
 | `shims/` | Thin adapters for Codex and Gemini |
 
+Current source plugin inventory in `plugins/`:
+- `audit-logger`
+- `conditional-source`
+- `event-relay`
+- `guard-paths`
+- `identity-state`
+- `notify`
+- `policy-enforcer`
+- `save-context`
+- `template-source`
+
 ## Current Shape
 
 `sc-hooks` is a solid host/dispatcher foundation, but this repo is still a documentation and product-hardening project as much as a code project.
@@ -30,6 +41,7 @@ Important current realities:
 - This repo does not currently check in an example `.sc-hooks/` runtime layout.
 - The source crates under `plugins/` are reference implementations and scaffolds; they are not production-ready bundled handlers.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
+- Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.
 
 ## Core Commands
 

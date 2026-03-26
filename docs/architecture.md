@@ -43,6 +43,28 @@ The host does not:
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
+- current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+
+## 3.1 Public Contract Vs Internal Typed Model
+
+The public contract is not the Rust type graph.
+
+Public contract:
+- manifest JSON
+- runtime stdin/stdout JSON
+- environment variables for external plugin processes
+- documented exit codes
+
+Internal implementation detail:
+- `FieldType`
+- `ValidationRule`
+- `DispatchMode`
+- `HookAction`
+- `ResolutionError`
+- `ValidationError`
+- `CliError`
+
+The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
 
 ## 4. Execution Model
 
@@ -70,7 +92,7 @@ The host then:
 - exports `SC_HOOK_EVENT` when an event exists
 - exports `SC_HOOK_METADATA` pointing at the temp file
 
-The temp metadata file is removed automatically when dispatch scope exits.
+The temp metadata file is created and owned by the host, not by the plugin. The plugin may read it as an ephemeral convenience artifact only. The file is removed automatically when dispatch scope exits.
 
 ### 4.3 Plugin Invocation
 
@@ -93,6 +115,27 @@ Failure handling:
 - non-zero exit disables the plugin for the session and fails the chain
 - timeout disables the plugin for the session; sync dispatch fails, async dispatch logs and continues
 - async `action=block` is treated as a protocol violation and disables the plugin
+
+## 4.6 Error Hierarchy And Exit Mapping
+
+Current CLI error layering is:
+
+- `ResolutionError`
+  - unresolved handler
+  - manifest load / manifest compatibility failure during resolution
+- `ValidationError`
+  - missing required metadata field
+  - invalid required metadata field
+- `CliError`
+  - wraps config, resolution, and validation errors
+  - carries blocked, plugin, timeout, audit, and internal host failures
+
+Exit-code mapping is intentionally coarse:
+- resolution and manifest-load failures share exit code `4`
+- metadata requirement failures alone use exit code `5`
+- runtime plugin/protocol failures use exit code `2`
+
+That coarser taxonomy is current architecture, not an accident in the docs.
 
 ### 4.4 Sync And Async Behavior
 
@@ -141,6 +184,7 @@ This mixed-schema reality is intentional current behavior and is documented exac
 - SDK-level `LongRunning` ergonomics beyond the host's manifest handling
 - release-grade bundled plugins
 - stronger compliance-harness coverage that proves the entire documented release contract
+- a more granular exit-code split for manifest compatibility vs other resolution failures
 
 These items are not part of the current mainline architecture contract and must remain documented as gaps or deferred work.
 
