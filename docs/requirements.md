@@ -24,7 +24,7 @@ Current release scope is the host dispatcher foundation:
 - `sc-observability` JSONL dispatch events
 
 Current release scope does not include:
-- production-ready bundled plugin behavior from the `plugins/` directory
+- shipped runtime plugin behavior from the source crates under `plugins/`; every current crate there remains scaffold/reference only
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
 - config-driven observability sink routing or a `[logging]` config section
@@ -125,7 +125,7 @@ Retired observability IDs:
 | OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
 | BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
-| BND-002 | Required Before Release | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. | The docs, plugin code, and tests all support the same claim. |
+| BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. The current release baseline describes no `plugins/` source crate as shipped functionality. | README, architecture, and plugin Cargo metadata all mark the current source crates as scaffold/reference only, so no shipped-plugin claim exists without matching install guidance and direct tests. |
 
 ### 4.8 Exit Code Taxonomy
 

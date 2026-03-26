@@ -1,0 +1,8 @@
+[meta]
+version = 1
+
+[context]
+team = "schook"
+
+[hooks]
+PreToolUse = ["guard-paths"]
