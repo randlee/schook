@@ -62,14 +62,6 @@ pub fn run(
                     "AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"
                 ));
             }
-            if manifest.mode == sc_hooks_core::dispatch::DispatchMode::Async
-                && manifest.long_running
-            {
-                report.errors.push(format!(
-                    "AUD-006 handler `{handler_name}` declares blocking behavior (long_running=true) while mode=async"
-                ));
-            }
-
             if manifest.long_running
                 && manifest
                     .description
@@ -447,7 +439,7 @@ PostToolUse = ["notify"]
     }
 
     #[test]
-    fn audit_rejects_async_handlers_declaring_blocking_behavior() {
+    fn audit_rejects_async_long_running_manifest() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
 
@@ -473,7 +465,7 @@ PostToolUse = ["notify"]
             report
                 .errors
                 .iter()
-                .any(|entry| { entry.contains("AUD-006") && entry.contains("blocking behavior") })
+                .any(|entry| entry.contains("AUD-002") && entry.contains("long_running=true"))
         );
     }
 }

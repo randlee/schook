@@ -26,7 +26,6 @@ Current release scope is the host dispatcher foundation:
 Current release scope does not include:
 - production-ready bundled plugin behavior from the `plugins/` directory
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
-- a compliance harness that proves every behavior described in older drafts
 - builtin handler resolution inside the dispatcher
 - config-driven observability sink routing or a `[logging]` config section
 
@@ -79,12 +78,12 @@ Current release scope does not include:
 | DSP-006 | Implemented | Must | `--sync` shall run only sync handlers and `--async` shall run only async handlers. | `RunArgs::mode()` drives resolution and dispatch mode filtering. |
 | DSP-007 | Implemented | Must | Async `additionalContext` values shall be concatenated with `\\n---\\n`, and async `systemMessage` values shall be concatenated with `\\n`. | Async dispatch writes the aggregated JSON object to stdout. |
 | DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting an observability event. | Runtime returns early on empty handler chains; the zero-match fast path is tested. |
-| TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers. | `resolve_timeout_ms()` returns those defaults. |
-| TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout. | `resolve_timeout_ms()` prefers the manifest override. |
+| TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
+| TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
 | TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
 | SES-001 | Implemented | Must | Disabled plugin state shall persist in `.sc-hooks/state/session.json`, keyed by session ID. | Session storage tracks disabled plugins per session. |
 | SES-002 | Implemented | Must | `SessionEnd` and `sc-hooks audit --reset` shall clear persisted disable state. | Main command handling calls `clear_session()` or `clear_all_sessions()`. |
-| TMO-004 | Required Before Release | Must | The release contract for `long_running` behavior shall be documented and tested end to end across host, SDK, and audit behavior. | The SDK surface, architecture doc, and tests all agree on the same contract. |
+| TMO-004 | Implemented | Must | The release contract for `long_running` behavior is sync-only: sync handlers with `long_running=true` and no `timeout_ms` run without the default sync timeout; async manifests using `long_running=true` are invalid; SDK runner conveniences remain non-normative authoring helpers. | Manifest validation, audit behavior, timeout resolution, handler discovery, and `long_running_contract` tests all agree on the same contract. |
 
 ### 4.5 Metadata And Environment
 

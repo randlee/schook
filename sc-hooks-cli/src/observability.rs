@@ -8,8 +8,6 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::errors::CliError;
-
-const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";
 const SERVICE_NAME: &str = "sc-hooks";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -122,7 +120,8 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
 }
 
 fn default_logger_config(service: ServiceName) -> LoggerConfig {
-    let mut config = LoggerConfig::default_for(service, PathBuf::from(OBSERVABILITY_ROOT));
+    let mut config =
+        LoggerConfig::default_for(service, PathBuf::from(sc_hooks_core::OBSERVABILITY_ROOT));
     config.level = LevelFilter::Info;
     config.enable_console_sink = false;
     config.enable_file_sink = true;

@@ -262,11 +262,12 @@ fn check_multiple_json_objects(probe: &impl HostDispatchProbe) -> ComplianceChec
 fn check_async_block_misuse(probe: &impl HostDispatchProbe) -> ComplianceCheck {
     match probe.run_scenario(ContractScenario::AsyncBlockMisuse) {
         Ok(result) => {
-            let disabled = result
-                .session_state
-                .as_deref()
-                .is_some_and(|state| state.contains("async-block"));
-            let system_message_seen = result.stdout.contains("systemMessage");
+            let disabled = session_disables_plugin_for_reason(
+                result.session_state.as_deref(),
+                "probe-plugin",
+                "runtime-error",
+            );
+            let system_message_seen = stdout_field_present(&result.stdout, "systemMessage");
             ComplianceCheck {
                 name: "host dispatch rejects async block misuse".to_string(),
                 passed: result.exit_code == sc_hooks_core::exit_codes::SUCCESS
@@ -309,18 +310,21 @@ fn check_matcher_filtering(probe: &impl HostDispatchProbe) -> ComplianceCheck {
 fn check_timeout(probe: &impl HostDispatchProbe) -> ComplianceCheck {
     match probe.run_scenario(ContractScenario::Timeout) {
         Ok(result) => {
-            let disabled = result
-                .session_state
-                .as_deref()
-                .is_some_and(|state| state.contains("runtime-error"));
+            let disabled = session_disables_plugin_for_reason(
+                result.session_state.as_deref(),
+                "probe-plugin",
+                "runtime-error",
+            );
+            let timeout_logged = last_log_reports_error_type(result.last_log_line.as_deref(), "timeout");
             ComplianceCheck {
                 name: "host dispatch enforces timeout".to_string(),
                 passed: result.exit_code == sc_hooks_core::exit_codes::TIMEOUT
-                    && result.stderr.contains("timed out after")
+                    && timeout_logged
                     && disabled,
                 detail: Some(format!(
-                    "exit={}, stderr={}",
+                    "exit={}, timeout_logged={}, stderr={}",
                     result.exit_code,
+                    timeout_logged,
                     result.stderr.trim()
                 )),
             }
@@ -331,6 +335,39 @@ fn check_timeout(probe: &impl HostDispatchProbe) -> ComplianceCheck {
             detail: Some(err),
         },
     }
+}
+
+fn stdout_field_present(stdout: &str, field: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(stdout)
+        .ok()
+        .and_then(|value| value.get(field).cloned())
+        .is_some_and(|value| !value.is_null())
+}
+
+fn last_log_reports_error_type(last_log_line: Option<&str>, error_type: &str) -> bool {
+    last_log_line
+        .and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .and_then(|line| line["fields"]["results"].as_array().cloned())
+        .is_some_and(|results| {
+            results
+                .iter()
+                .any(|entry| entry["error_type"].as_str() == Some(error_type))
+        })
+}
+
+fn session_disables_plugin_for_reason(
+    session_state: Option<&str>,
+    plugin: &str,
+    reason: &str,
+) -> bool {
+    session_state
+        .and_then(|state| serde_json::from_str::<serde_json::Value>(state).ok())
+        .and_then(|state| state["sessions"].as_object().cloned())
+        .is_some_and(|sessions| {
+            sessions.values().any(|session| {
+                session["disabled_plugins"][plugin]["reason"].as_str() == Some(reason)
+            })
+        })
 }
 
 #[cfg(test)]

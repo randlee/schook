@@ -6,6 +6,9 @@ pub mod manifest;
 pub mod results;
 pub mod validation;
 
+pub const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";
+pub const OBSERVABILITY_LOG_PATH: &str = ".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl";
+
 #[cfg(test)]
 mod tests {
     use super::exit_codes;
