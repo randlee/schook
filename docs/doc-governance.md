@@ -15,6 +15,7 @@
 
 - `docs/requirements.md`: release-facing behavior
 - `docs/architecture.md`: current boundaries and execution model
+- `docs/project-plan.md`: derived sprint execution plan; it must not override requirements or gaps
 - `docs/protocol-contract.md`: host/plugin JSON contract
 - `docs/observability-contract.md`: current `sc-observability` event path and JSONL contract
 - `docs/implementation-gaps.md`: missing, overstated, or not-yet-release-ready behavior

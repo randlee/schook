@@ -17,7 +17,7 @@ The project provides:
 | `sc-hooks-sdk/` | Rust convenience layer for manifest generation, runner helpers, and result helpers |
 | `sc-hooks-test/` | Reusable plugin compliance harness |
 | `plugins/` | Reference/scaffold plugin source crates, not the runtime plugin install directory |
-| `docs/` | Requirements, architecture, contracts, gap ledger, traceability, and governance |
+| `docs/` | Requirements, architecture, contracts, execution plan, gap ledger, traceability, and governance |
 | `shims/` | Thin adapters for Codex and Gemini |
 
 Current source plugin inventory in `plugins/`:
@@ -72,6 +72,7 @@ sc-hooks exit-codes
 | --- | --- |
 | `docs/requirements.md` | Normative release-facing behavior and status |
 | `docs/architecture.md` | Current crate boundaries, execution model, and deferred areas |
+| `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps |
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
 | `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
 | `docs/implementation-gaps.md` | Current reality vs required release work |
