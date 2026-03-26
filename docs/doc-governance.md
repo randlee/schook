@@ -32,3 +32,23 @@ Before any PR touching docs or behavior merges to `develop`, verify:
 - any intentional removal or unproven behavior is recorded in `docs/implementation-gaps.md` or deferred in `docs/requirements.md`
 - contract docs and consumer docs reference the requirement IDs or gap IDs they implement; inline backtick IDs are sufficient unless a stronger local anchor exists
 - the PR records the validation commands used for the change
+
+## 4. Sprint Kickoff Gate
+
+Before implementation starts for a sprint, record:
+
+- exact requirement IDs and gap IDs in scope
+- the single owning implementation path for the affected behavior
+- code or docs that must be removed before new behavior lands
+- direct tests expected to fail before the sprint and pass after it
+- every doc that must change in the same PR
+- the file or crate write scope so parallel work does not overlap
+
+## 5. Release Preflight Gate
+
+Before release or final QA signoff, verify:
+
+- every strong release-facing claim is backed by code, tests, or an explicit gap/deferred ID
+- no duplicate implementation path remains for the same release-facing behavior unless a compatibility exception is documented
+- every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
+- requirements, architecture, traceability, project plan, and contract docs describe the same final scope

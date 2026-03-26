@@ -72,7 +72,18 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 must not start until Sprint 3 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 5 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
 
-## 7. Remove/Replace Matrix
+## 7. Pre-Sprint Kickoff Checklist
+
+Before any sprint starts, record these items in the sprint handoff or working notes:
+
+- exact requirement IDs and gap IDs in scope
+- code or docs to delete before new behavior is added
+- the single owning implementation path for the sprinted behavior
+- the tests expected to fail before the sprint and pass after it
+- the docs that must change in the same PR as the code
+- the files or crates that define the sprint write scope
+
+## 8. Remove/Replace Matrix
 
 | Area | Current ambiguity or stale path | Planned action | Sprint | Verification |
 | --- | --- | --- | --- | --- |
@@ -82,7 +93,7 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 | Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | either promote with tests/install docs or explicitly keep as scaffold/reference code | Sprint 4 | `GAP-003` and `BND-002` are resolved without mixed claims |
 | Merge review residue | task `#370` and any stale review notes can linger after implementation finishes | retire or resolve all remaining merge-only review items before final QA | Sprint 5 | final branch head has no stale review-only requirement notes |
 
-## 8. Sprint Details
+## 9. Sprint Details
 
 ### Sprint 0: Architecture And Observability Alignment
 
@@ -290,7 +301,7 @@ Definition of done:
 - there are no stale review placeholders left in the plan or release docs
 - release docs, code, and traceability describe the same final scope
 
-## 9. Sprint QA Checklist
+## 10. Sprint QA Checklist
 
 Each sprint closeout must answer these questions explicitly:
 
@@ -300,13 +311,26 @@ Each sprint closeout must answer these questions explicitly:
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
 
-## 10. Risk Containment
+## 11. Release Preflight
+
+Before release cut or final QA handoff, complete these checks explicitly:
+
+- claim audit: every strong release-facing statement in requirements and contract docs points to code, tests, or a gap/deferred ID
+- removal audit: no stale duplicate implementation path remains for any release-facing behavior
+- advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
+- release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
+
+Current known preflight item:
+
+- verify `docs/logging-contract.md` section 6.6 against the actual level-selection path, or convert the claim into an explicit gap before release
+
+## 12. Risk Containment
 
 - Dispatch/protocol changes must land with direct regression tests in the same sprint; no speculative parser or contract changes without tests.
 - Any replacement of runtime or observability behavior must delete the superseded path in the same sprint unless a compatibility exception is recorded.
 - If a sprint cannot complete removal safely, the retained path must be named in the sprint handoff with an explicit follow-up owner.
 
-## 11. Decision Register
+## 13. Decision Register
 
 Closed decisions that should not be reopened during implementation:
 
@@ -315,7 +339,7 @@ Closed decisions that should not be reopened during implementation:
 - the runtime is plugin-only; builtin handler resolution is not part of the current release baseline
 - stdout protocol handling is strict for invalid trailing output and warning-only only for additional valid JSON objects after the first result
 
-## 12. Out Of Scope For This Plan
+## 14. Out Of Scope For This Plan
 
 These items stay deferred unless product direction changes:
 - richer `fire` output beyond the current summary string
@@ -323,7 +347,7 @@ These items stay deferred unless product direction changes:
 - SDK ergonomics beyond the current host-enforced contract
 - production-ready bundled plugin behavior beyond whatever Sprint 4 explicitly promotes
 
-## 13. Release Gate
+## 15. Release Gate
 
 The release plan is complete only when:
 - all non-deferred blocker or important gaps are either closed or explicitly removed from release scope
