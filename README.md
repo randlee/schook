@@ -75,6 +75,7 @@ sc-hooks exit-codes
 | `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps |
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
 | `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
+| `docs/logging-contract.md` | Current JSONL dispatch-log schema for downstream consumers |
 | `docs/implementation-gaps.md` | Current reality vs required release work |
 | `docs/traceability.md` | Requirement-to-code/test/gap mapping |
 | `docs/doc-governance.md` | Rules for keeping docs and code aligned |
