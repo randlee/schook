@@ -62,6 +62,9 @@ pub enum ManifestError {
 
     #[error("payload conditions invalid: {0}")]
     PayloadConditions(String),
+
+    #[error("manifest field path `{path}` collides with a non-object value")]
+    PathCollision { path: String },
 }
 
 #[derive(Debug, Error)]
@@ -195,13 +198,13 @@ pub fn build_plugin_input(
         })?;
 
         validate_field_value(field, value, spec)?;
-        set_value_by_path(&mut root, field, value.clone());
+        set_value_by_path(&mut root, field, value.clone())?;
     }
 
     for (field, spec) in &manifest.optional {
         if let Some(value) = get_value_by_path(metadata, field) {
             validate_field_value(field, value, spec)?;
-            set_value_by_path(&mut root, field, value.clone());
+            set_value_by_path(&mut root, field, value.clone())?;
         }
     }
 
@@ -330,14 +333,18 @@ fn get_value_by_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
     Some(current)
 }
 
-fn set_value_by_path(root: &mut Map<String, Value>, path: &str, value: Value) {
+fn set_value_by_path(
+    root: &mut Map<String, Value>,
+    path: &str,
+    value: Value,
+) -> Result<(), ManifestError> {
     let mut segments = path.split('.').peekable();
     let mut current = root;
 
     while let Some(segment) = segments.next() {
         if segments.peek().is_none() {
             current.insert(segment.to_string(), value);
-            return;
+            return Ok(());
         }
 
         if !current.contains_key(segment) {
@@ -347,9 +354,13 @@ fn set_value_by_path(root: &mut Map<String, Value>, path: &str, value: Value) {
         let next = current
             .get_mut(segment)
             .and_then(Value::as_object_mut)
-            .expect("manifest path collision with non-object value");
+            .ok_or_else(|| ManifestError::PathCollision {
+                path: path.to_string(),
+            })?;
         current = next;
     }
+
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -552,5 +563,20 @@ mod tests {
             .build()
             .expect_err("async long_running should be rejected");
         assert!(matches!(err, ManifestError::AsyncLongRunningUnsupported));
+    }
+
+    #[test]
+    fn set_value_by_path_rejects_non_object_path_collision() {
+        let mut root = Map::new();
+        root.insert("team".to_string(), Value::String("ops".to_string()));
+
+        let err = set_value_by_path(
+            &mut root,
+            "team.name",
+            Value::String("calibration".to_string()),
+        )
+        .expect_err("non-object path collisions should not panic");
+
+        assert!(matches!(err, ManifestError::PathCollision { path } if path == "team.name"));
     }
 }

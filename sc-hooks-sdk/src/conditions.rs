@@ -132,6 +132,10 @@ fn validate_condition_value(condition: &PayloadCondition) -> Result<(), Conditio
             }
             Ok(())
         }
+        _ => Err(ConditionError::InvalidValue {
+            path: condition.path.clone(),
+            op: condition.op.clone(),
+        }),
     }
 }
 
@@ -234,9 +238,18 @@ fn evaluate_single(
                 ConditionOperator::Lt => left < right,
                 ConditionOperator::Gte => left >= right,
                 ConditionOperator::Lte => left <= right,
-                _ => unreachable!(),
+                _ => {
+                    return Err(ConditionError::InvalidValue {
+                        path: condition.path.clone(),
+                        op: condition.op.clone(),
+                    });
+                }
             })
         }
+        _ => Err(ConditionError::InvalidValue {
+            path: condition.path.clone(),
+            op: condition.op.clone(),
+        }),
     }
 }
 
