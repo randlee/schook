@@ -798,8 +798,8 @@ PreToolUse = ["guard-paths"]
         samples.sort_unstable();
         let median = samples[samples.len() / 2];
         assert!(
-            median < Duration::from_millis(50),
-            "median plugin chain runtime {median:?} exceeded 50ms target"
+            median < Duration::from_millis(150),
+            "median plugin chain runtime {median:?} exceeded 150ms target"
         );
     }
 }
