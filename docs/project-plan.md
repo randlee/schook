@@ -20,8 +20,7 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- `GAP-003`: source plugins are still scaffold/reference crates, not shipped runtime plugins
-- `BND-002`: bundled plugin claims still need release-honesty proof
+- merge-time review residue tracked under task `#370`
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -50,7 +49,7 @@ Important planning rule:
 | Sprint 2 | In review | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
-| Sprint 5 | Planned | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | Planned | merge closeout and release gate | task `#370`, final QA/PR review | Sprints 2-5 | release docs, PR/review records, final cleanup |
 
 ## 5. Execution Controls
@@ -236,7 +235,7 @@ Definition of done:
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 2 closes `GAP-001` and moves `CLI-007` and `TST-007` from gap to implemented. `TMO-004` remains open for Sprint 3.
+  Sprint 2 closes `GAP-001` and moves `CLI-007` and `TST-007` to implemented. `TMO-004` remains open for Sprint 3.
 - What code was removed early rather than left in parallel?
   No duplicate compliance engine was reintroduced; Sprint 2 kept `sc-hooks-cli/src/testing.rs` as presentation-only glue and added the host-path contract suite to the shared `sc-hooks-test` surface instead of splitting behavior back into the CLI.
 - Which files/crates were the owned write scope for the sprint?
@@ -347,7 +346,7 @@ QA checklist answers:
 ### Sprint 5: Plugin Packaging And Release Honesty
 
 Status:
-- planned
+- in review
 
 Focus:
 - keep plugin claims honest unless runtime installation, behavior, and tests exist
@@ -379,6 +378,18 @@ Definition of done:
 - plugin release posture is binary for every crate: shipped or scaffold/reference
 - no ambiguous maturity claims remain in docs
 - packaging and runtime behavior are verified for anything promoted
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing every current `plugins/` crate as scaffold/reference only.
+- What code was removed early rather than left in parallel?
+  No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
+- Which files/crates were the owned write scope for the sprint?
+  `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
+- What validation commands and direct tests proved the new contract?
+  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 6 is unblocked because plugin maturity claims are now binary and consistent across docs and metadata; any future plugin promotion will require a new scoped sprint with install guidance and direct behavior tests.
 
 ### Sprint 6: Merge Closeout And Release Gate
 

@@ -6,7 +6,6 @@ This document tracks gaps between the current codebase and the release-standard 
 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
-| GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | DEF-001 | deferred | docs, plugin source crates, release packaging | deferred table, README, architecture, and gaps all keep scaffold plugins out of the shipped baseline | none until a plugin is promoted with runtime proof |
 | DEF-002 | deferred | `sc-hooks-cli`, docs | `fire` docs and implementation continue to describe summary-string output only | none until a structured fire report is intentionally designed |
 | DEF-003 | deferred | `sc-hooks-sdk`, docs | SDK docs, requirements, and gaps keep richer `LongRunning` ergonomics deferred beyond the current manifest-driven host contract | see `GAP-002` |
@@ -19,6 +18,7 @@ This document tracks gaps between the current codebase and the release-standard 
 
 - `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
 - `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
+- `GAP-003` resolved by freezing every current `plugins/` source crate as scaffold/reference only in release-facing docs and plugin Cargo metadata.
 - `GAP-004` resolved by checking in `examples/runtime-layout/.sc-hooks/`, documenting it as the canonical contributor setup path, and proving it with `sc-hooks-cli/tests/runtime_layout_example.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
@@ -67,7 +67,7 @@ This document tracks gaps between the current codebase and the release-standard 
   - `sc-hooks-sdk::traits::AsyncContextSource` remains retired after Sprint 1
   - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
-## GAP-003: Bundled Plugin Readiness Was Previously Overstated
+## GAP-003: Bundled Plugin Readiness Was Previously Overstated (Resolved In Sprint 5)
 
 - Severity: `important`
 - Source: `BND-001`, `BND-002`
@@ -76,12 +76,13 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - Source crates under `plugins/` respond to `--manifest`, read stdin, and return `{\"action\":\"proceed\"}`.
   - Runtime plugin discovery does not read from `plugins/`; it reads from `.sc-hooks/plugins/`.
+  - README, architecture, requirements, and plugin `Cargo.toml` metadata now mark every current source crate as scaffold/reference only and explicitly not shipped runtime functionality.
 - Expected behavior:
   - The docs must describe these crates as scaffolds or reference implementations until they ship real behavior, installation guidance, and direct tests.
 - Verification method:
   - supported-plugin claims match runtime installation, behavior, and tests
 - Recommended fix path:
-  - Keep the docs honest now; later either promote specific plugins to supported runtime artifacts or move them to an examples-only posture.
+  - Keep the docs and Cargo metadata honest now; later either promote specific plugins to supported runtime artifacts with install/runtime proof and direct behavior tests, or keep them reference-only.
 - Early retire / replace candidates:
   - old "bundled plugin" language in contributor-facing docs and release notes
 
