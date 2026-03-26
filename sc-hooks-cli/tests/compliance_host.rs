@@ -177,8 +177,7 @@ printf '%s\n' '{"action":"proceed"}'
             command.output().map_err(|err| err.to_string())?
         };
 
-        let log_line =
-            read_last_line(&root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl"));
+        let log_line = read_last_line(&root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH));
         let session_state = fs::read_to_string(root.join(".sc-hooks/state/session.json")).ok();
 
         Ok(ContractScenarioResult {
