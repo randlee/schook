@@ -163,7 +163,6 @@ Deliverables:
 - resolve task `#370` items:
 - `RV-001`: requirements section 2.1 plugin-count prose fix
 - `RV-002`: retire `EXC-009` and `CLI-008` "0-10" claim at merge
-- `RV-003`: `OBS-006` behavioral requirement ID resolution
 - final doc/code consistency check
 - final reviewer and QA handoff
 

@@ -2,6 +2,14 @@
 
 ## 1. Scope
 
+Owning requirement IDs:
+- `OBS-001`
+- `OBS-002`
+- `OBS-005`
+- `OBS-006`
+- `OBS-007`
+- `OBS-008`
+
 This document defines the current JSONL dispatch-log contract for downstream
 consumers.
 
@@ -25,6 +33,10 @@ Important current reality:
 
 ## 2. File And Line Model
 
+Implements:
+- `OBS-001`
+- `OBS-002`
+
 Current default file path:
 
 ```text
@@ -37,6 +49,10 @@ Current write model:
 - if no handlers execute, no line is written
 
 ## 3. Top-Level Record Envelope
+
+Implements:
+- `OBS-001`
+- `OBS-002`
 
 Each line is one serialized `sc_observability_types::LogEvent`.
 
@@ -69,6 +85,10 @@ dispatch hook=<hook> event=<event-or-*> mode=<sync-or-async> handlers=<count> ou
 
 ## 4. Dispatch Fields Payload
 
+Implements:
+- `OBS-001`
+- `OBS-002`
+
 The `fields` object currently carries:
 
 | Field | Type | Required | Rule |
@@ -88,6 +108,9 @@ Important consumer note:
 - `results` contains only handlers that actually reached a logged result path
 
 ## 5. Handler Result Record
+
+Implements:
+- `OBS-005`
 
 `fields.results` is an array of these records:
 
@@ -114,6 +137,10 @@ Current `error_type` values emitted by code:
 - `action_error`
 
 ## 6. Logging Behavior By Outcome
+
+Implements:
+- `OBS-001`
+- `OBS-005`
 
 ### 6.1 Sync Proceed
 
@@ -192,6 +219,10 @@ output:
 
 ## 7. AI-Notification Rules
 
+Implements:
+- `OBS-001`
+- `OBS-005`
+
 `fields.ai_notification` is present only when the host generated a user-facing
 or AI-facing remediation message.
 
@@ -214,6 +245,11 @@ Current non-emission cases include:
 
 ## 8. Consumer Guidance
 
+Related owning IDs:
+- `OBS-001`
+- `OBS-002`
+- `OBS-005`
+
 Downstream consumers should:
 - parse each line as a `LogEvent`
 - branch on `service = "sc-hooks"` and `action = "dispatch.complete"`
@@ -222,6 +258,11 @@ Downstream consumers should:
 - not rely on `outcome` or `exit` alone for async failure detection
 
 ## 9. Cross-References
+
+Boundary owner IDs:
+- `OBS-006`
+- `OBS-007`
+- `OBS-008`
 
 - ownership boundary and file-path rationale: `docs/observability-contract.md`
 - plugin wire contract: `docs/protocol-contract.md`
