@@ -5,15 +5,6 @@ use crate::errors::CliError;
 use crate::events;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BuiltinHandlerInfo {
-    pub name: String,
-    pub mode: String,
-    pub hooks: Vec<String>,
-    pub matchers: Vec<String>,
-    pub timeout: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginHandlerInfo {
     pub name: String,
     pub path: PathBuf,
@@ -25,13 +16,11 @@ pub struct PluginHandlerInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct HandlersReport {
-    pub builtins: Vec<BuiltinHandlerInfo>,
     pub plugins: Vec<PluginHandlerInfo>,
 }
 
 pub fn discover() -> Result<HandlersReport, CliError> {
     let mut report = HandlersReport {
-        builtins: builtin_handlers(),
         plugins: discover_plugins()?,
     };
     report.plugins.sort_by(|a, b| a.name.cmp(&b.name));
@@ -41,18 +30,6 @@ pub fn discover() -> Result<HandlersReport, CliError> {
 pub fn render(report: &HandlersReport) -> String {
     let mut lines = Vec::new();
     lines.push("Handlers".to_string());
-    lines.push("builtins:".to_string());
-    for builtin in &report.builtins {
-        lines.push(format!(
-            "- {name} mode={mode} hooks={hooks} matchers={matchers} timeout={timeout}",
-            name = builtin.name,
-            mode = builtin.mode,
-            hooks = builtin.hooks.join(","),
-            matchers = builtin.matchers.join(","),
-            timeout = builtin.timeout,
-        ));
-    }
-
     lines.push("plugins:".to_string());
     if report.plugins.is_empty() {
         lines.push("- none discovered".to_string());
@@ -88,16 +65,6 @@ pub fn render_events() -> String {
         lines.push(format!("- {hook}: {}", events.join(",")));
     }
     lines.join("\n")
-}
-
-fn builtin_handlers() -> Vec<BuiltinHandlerInfo> {
-    vec![BuiltinHandlerInfo {
-        name: "log".to_string(),
-        mode: "sync".to_string(),
-        hooks: vec!["*".to_string()],
-        matchers: vec!["*".to_string()],
-        timeout: "n/a".to_string(),
-    }]
 }
 
 fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
@@ -217,13 +184,9 @@ mod tests {
     }
 
     #[test]
-    fn discovers_builtin_and_plugin_handlers() {
-        let _guard = test_support::cwd_lock()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+    fn discovers_plugins() {
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch to temp");
+        let _cwd = test_support::scoped_current_dir(temp.path());
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -232,13 +195,9 @@ mod tests {
 
         let report = discover().expect("handler discovery should succeed");
         let rendered = render(&report);
-        assert!(rendered.contains("builtins:"));
-        assert!(rendered.contains("- log mode=sync"));
         assert!(rendered.contains("plugins:"));
         assert!(rendered.contains("guard-paths"));
         assert!(rendered.contains("matchers=Write"));
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 
     #[test]

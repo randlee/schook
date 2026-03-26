@@ -35,7 +35,7 @@ pub const EXIT_CODE_TABLE: [ExitCodeInfo; 11] = [
         code: PLUGIN_ERROR,
         name: "PLUGIN_ERROR",
         meaning: "A handler returned action=error or violated protocol.",
-        remediation: "Inspect dispatch logs and run `sc-hooks test <plugin>`.",
+        remediation: "Inspect observability output and run `sc-hooks test <plugin>`.",
     },
     ExitCodeInfo {
         code: CONFIG_ERROR,
@@ -47,7 +47,7 @@ pub const EXIT_CODE_TABLE: [ExitCodeInfo; 11] = [
         code: RESOLUTION_ERROR,
         name: "RESOLUTION_ERROR",
         meaning: "One or more handlers could not be resolved.",
-        remediation: "Check hook chains and ensure builtins/plugins exist and are executable.",
+        remediation: "Check hook chains and ensure referenced plugins exist and are executable.",
     },
     ExitCodeInfo {
         code: VALIDATION_ERROR,
@@ -83,7 +83,7 @@ pub const EXIT_CODE_TABLE: [ExitCodeInfo; 11] = [
         code: INTERNAL_ERROR,
         name: "INTERNAL_ERROR",
         meaning: "Unexpected host error (panic or I/O failure).",
-        remediation: "Collect logs, rerun with debug logging, and report a bug if reproducible.",
+        remediation: "Inspect observability output and report a bug if reproducible.",
     },
 ];
 
