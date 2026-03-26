@@ -432,13 +432,20 @@ QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
   Sprint 6 does not change release-facing behavior IDs. It retires stale merge-residue framing in the plan and freezes the final release handoff on a scope with no remaining blocker or important gaps.
 - What code was removed early rather than left in parallel?
-  No code path changed in Sprint 6. The retirement here is review/process residue: stale merge-only placeholders are removed instead of being carried into release QA.
+  No code path changed in Sprint 6. The retirement here is review/process residue: the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` and the Sprint 6 driver `task #370, final QA/PR review` were removed instead of being carried into release QA.
 - Which files/crates were the owned write scope for the sprint?
   `docs/project-plan.md` and any release-facing handoff notes required to record the frozen validation state.
 - What validation commands and direct tests proved the new contract?
-  `cargo test --workspace` is the frozen validation command recorded for the final release-gate branch head.
+  Frozen branch head `cdce7b1` recorded `cargo test --workspace`; this fix pass keeps that exact frozen validation record explicit in the release handoff and preflight sections.
 - What follow-on work is blocked or unblocked by this sprint?
   Final QA/reviewer handoff is unblocked because the release docs now describe one closed scope with no remaining blocker or important gaps outside deferred items.
+
+Sprint 6 signoff record:
+- frozen branch head under review: `cdce7b1`
+- reviewer handoff owner: `arch-hook`
+- validation commands recorded on frozen head: `cargo test --workspace`
+- QA result on frozen head: `SC-QA-S6-1` found blockers/important findings, opened `SC-DEV-S6-FIX-1`, and did not clear the branch for final handoff until those doc fixes landed
+- task `#370` disposition: retired as merge-review residue only; it is not a standing requirement or gap ID after the `cdce7b1` freeze
 
 ## 11. Sprint QA Checklist
 
@@ -459,6 +466,20 @@ Before release cut or final QA handoff, complete these checks explicitly:
 - advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
 - misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
+- branch freeze: branch head is frozen before QA/reviewer handoff
+- validation record: exact validation commands are recorded on the frozen branch state
+
+Release preflight evidence:
+
+| Check | Status | Evidence |
+| --- | --- | --- |
+| claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
+| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
+| advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
+| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
+| release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
+| branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
+| validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |
 
 ## 13. Risk Containment
 
@@ -491,4 +512,6 @@ The release plan is complete only when:
 - traceability rows for release claims point to real code and tests, not inference alone
 - no uncovered high-risk misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - merge-time review items are closed
+- branch head is frozen before QA/reviewer handoff
+- exact validation commands are recorded on that frozen branch state
 - reviewer and QA signoff are recorded on the final branch state
