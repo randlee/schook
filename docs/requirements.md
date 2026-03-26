@@ -67,7 +67,7 @@ Current release scope does not include:
 | PLG-012 | Implemented | Must | If no hook payload exists, the plugin input shall omit `payload` rather than sending `null` or `{}`. | `build_plugin_input()` only inserts `payload` when present. |
 | PLG-013 | Implemented | Must | The public plugin contract shall be defined in serialized JSON terms, not Rust enum names. Internal enums such as `FieldType`, `ValidationRule`, `DispatchMode`, and `HookAction` are host implementation details. | The contract docs describe string and JSON values, while Rust enums remain internal code structure. |
 | PLG-014 | Implemented | Must | Manifest validation rules shall remain string-encoded wire values such as `non_empty` and `one_of:a,b,c`; the internal `ValidationRule` enum is not itself part of the wire contract. | `parse_validation_rule()` consumes raw rule strings rather than deserializing a public enum shape. |
-| ERR-004 | Implemented | Should | If a plugin writes multiple JSON objects to stdout, the host shall use the first one and record a warning. | `parse_first_hook_result()` returns a warning when more than one object is present. |
+| ERR-004 | Implemented | Should | If plugin stdout contains more than one JSON object, the host shall use the first valid object and record a warning only when the trailing output is another valid JSON object. If trailing output after the first valid object is not valid JSON, the host shall treat it as a protocol error, disable the plugin, and fail the invocation with exit code `2`. | `parse_first_hook_result()` warns on additional valid objects and rejects invalid trailing stdout; dispatch maps that protocol error to plugin disablement and exit code `2`. |
 
 ### 4.4 Dispatch, Timeouts, And Session State
 

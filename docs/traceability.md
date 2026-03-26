@@ -20,7 +20,7 @@ This table maps the most important documented requirements to current implementa
 | PLG-011 | implemented | `sc-hooks-sdk/src/manifest.rs` | manifest tests | |
 | PLG-013 | implemented | `sc-hooks-core/src/validation.rs`, `sc-hooks-core/src/dispatch.rs`, `sc-hooks-core/src/results.rs` | protocol contract is documented from current serialized values | |
 | PLG-014 | implemented | `sc-hooks-core/src/validation.rs` | validation parsing tests by manifest/condition coverage | |
-| ERR-004 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |
+| ERR-004 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests covering additional-valid-object warning and invalid-trailing-stdout failure | |
 | DSP-001 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |
 | DSP-002 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |
 | DSP-007 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |

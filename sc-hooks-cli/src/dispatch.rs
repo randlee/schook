@@ -662,8 +662,7 @@ PreToolUse = ["guard-paths"]
     fn rejects_trailing_non_json_garbage_after_first_object() {
         let err = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
             .expect_err("trailing garbage should be rejected");
-        assert_eq!(
-            true,
+        assert!(
             err.contains("invalid trailing stdout"),
             "unexpected error: {err}"
         );
