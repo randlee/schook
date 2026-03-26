@@ -7,7 +7,6 @@ This document tracks gaps between the current codebase and the release-standard 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
-| GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
 | DEF-001 | deferred | docs, plugin source crates, release packaging | deferred table, README, architecture, and gaps all keep scaffold plugins out of the shipped baseline | none until a plugin is promoted with runtime proof |
 | DEF-002 | deferred | `sc-hooks-cli`, docs | `fire` docs and implementation continue to describe summary-string output only | none until a structured fire report is intentionally designed |
 | DEF-003 | deferred | `sc-hooks-sdk`, docs | SDK docs, requirements, and gaps keep richer `LongRunning` ergonomics deferred beyond the current manifest-driven host contract | see `GAP-002` |
@@ -20,6 +19,7 @@ This document tracks gaps between the current codebase and the release-standard 
 
 - `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
 - `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
+- `GAP-004` resolved by checking in `examples/runtime-layout/.sc-hooks/`, documenting it as the canonical contributor setup path, and proving it with `sc-hooks-cli/tests/runtime_layout_example.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
@@ -85,20 +85,21 @@ This document tracks gaps between the current codebase and the release-standard 
 - Early retire / replace candidates:
   - old "bundled plugin" language in contributor-facing docs and release notes
 
-## GAP-004: No Checked-In Example Runtime Layout
+## GAP-004: No Checked-In Example Runtime Layout (Resolved In Sprint 4)
 
 - Severity: `important`
 - Source: `CFG-001`, `RES-002`, `CLI-004`
 - Owner area:
   - docs, examples/setup, `sc-hooks-cli`
 - Current behavior:
-  - The host expects `.sc-hooks/config.toml` and `.sc-hooks/plugins/`, but the repository does not currently include a checked-in example runtime layout.
+  - The host expects `.sc-hooks/config.toml` and `.sc-hooks/plugins/`.
+  - The repository now includes a checked contributor/runtime example at `examples/runtime-layout/.sc-hooks/` with a validating `guard-paths` plugin and a host-level test that audits and runs it successfully.
 - Expected behavior:
-  - Contributors should have a minimal documented example config and runtime plugin layout.
+  - Contributors have a minimal documented example config and runtime plugin layout that can be copied or inspected without reading source code.
 - Verification method:
   - a checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout
 - Recommended fix path:
-  - Add a minimal example `.sc-hooks/` tree or a clearly linked setup guide before release.
+  - Keep the checked example and runtime-layout test updated whenever install/runtime assumptions change.
 
 ## Deferred Item Acknowledgments
 

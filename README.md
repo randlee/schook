@@ -39,7 +39,7 @@ Important current realities:
 - The runtime expects config at `.sc-hooks/config.toml`.
 - The runtime resolves plugin executables from `.sc-hooks/plugins/`.
 - The runtime emits service-scoped observability events at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`.
-- This repo does not currently check in an example `.sc-hooks/` runtime layout.
+- A checked example runtime layout lives at `examples/runtime-layout/.sc-hooks/`.
 - The source crates under `plugins/` are reference implementations and scaffolds; they are not production-ready bundled handlers.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
 - Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.

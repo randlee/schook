@@ -20,11 +20,8 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- `GAP-001`: compliance harness coverage is below the release contract
-- `GAP-002`: `long_running` contract is not aligned across host, SDK, docs, and tests
 - `GAP-003`: source plugins are still scaffold/reference crates, not shipped runtime plugins
-- `GAP-004`: no checked-in example `.sc-hooks/` runtime layout or setup guide
-- `CLI-007`, `TMO-004`, `BND-002`, and `TST-007`: required-before-release items still open
+- `BND-002`: bundled plugin claims still need release-honesty proof
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -52,7 +49,7 @@ Important planning rule:
 | Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
 | Sprint 2 | In review | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
-| Sprint 4 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | Planned | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | Planned | merge closeout and release gate | task `#370`, final QA/PR review | Sprints 2-5 | release docs, PR/review records, final cleanup |
 
@@ -299,10 +296,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 4 and later release cleanup now inherit one explicit `long_running` contract instead of a split host/audit/SDK interpretation. Richer SDK ergonomics remain deferred and do not block the remaining sprints.
 
-### Sprint 4: Runtime Layout And Setup Proof
+### Sprint 4: Runtime Layout And Setup Proof (In Review)
 
 Status:
-- planned
+- in review
 
 Focus:
 - prove the expected `.sc-hooks/` runtime layout from a clean contributor starting point
@@ -334,6 +331,18 @@ Definition of done:
 - one canonical setup path exists
 - stale or contradictory setup instructions are removed
 - docs, examples, and runtime layout all agree
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 4 closes `GAP-004` and removes the practical setup-gap dependency from `RES-002` and `CLI-004`.
+- What code was removed early rather than left in parallel?
+  No runtime code path was duplicated for setup proof; Sprint 4 replaced inference-only setup guidance with one checked example tree and one host-level validation path.
+- Which files/crates were the owned write scope for the sprint?
+  `examples/runtime-layout/.sc-hooks/`, `examples/runtime-layout/README.md`, `sc-hooks-cli/tests/runtime_layout_example.rs`, and the runtime-layout docs/traceability/gap-plan files.
+- What validation commands and direct tests proved the new contract?
+  `cargo test -p sc-hooks-cli --test runtime_layout_example` proves that the checked example audits and runs successfully using the real CLI from the example directory; the final workspace validation keeps that example in the normal release gate.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 5 is unblocked with one canonical runtime layout frozen in-repo, so plugin packaging and maturity claims can now be evaluated against a concrete install/runtime path instead of inferred setup.
 
 ### Sprint 5: Plugin Packaging And Release Honesty
 

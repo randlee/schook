@@ -44,6 +44,7 @@ The host does not:
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
+- the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
 - current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
 
