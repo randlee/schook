@@ -182,13 +182,19 @@ If a plugin prints multiple valid JSON objects:
 - the top-level `level` becomes `Error` because any warning currently raises
   the dispatch level above `Info`
 
-### 6.7 Invalid Trailing Garbage After First JSON Object
+### 6.7 Trailing Garbage After First JSON Object
 
 If a plugin prints a valid first JSON object followed by invalid trailing
 output:
-- the host treats the dispatch as `invalid_json`
-- the handler is disabled
-- the invocation fails like any other runtime protocol violation
+- the host still uses the first JSON object
+- the relevant result record includes a `warning`
+- the invocation does not fail solely because of the trailing output
+- the top-level `level` becomes `Error` because any warning currently raises
+  the dispatch level above `Info`
+
+Important current limitation:
+- strict stdout rejection after the first JSON object is not current behavior
+- that stricter behavior remains deferred as `GAP-010`
 
 ## 7. AI-Notification Rules
 

@@ -516,17 +516,13 @@ fn parse_first_hook_result(
     let parsed = serde_json::from_value::<sc_hooks_core::results::HookResult>(first)
         .map_err(|err| err.to_string())?;
 
-    let warning = match stream.next() {
-        Some(Ok(_)) => {
-            Some("plugin produced multiple JSON objects; only first object was used".to_string())
+    let warning = stream.next().map(|next| match next {
+        Ok(_) => "plugin produced multiple JSON objects; only first object was used".to_string(),
+        Err(_) => {
+            "plugin produced trailing stdout after first JSON object; only first object was used"
+                .to_string()
         }
-        Some(Err(err)) => {
-            return Err(format!(
-                "plugin produced invalid trailing stdout after first JSON object: {err}"
-            ));
-        }
-        None => None,
-    };
+    });
 
     Ok((parsed, warning))
 }
@@ -659,12 +655,18 @@ PreToolUse = ["guard-paths"]
     }
 
     #[test]
-    fn rejects_trailing_non_json_garbage_after_first_object() {
-        let err = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
-            .expect_err("trailing garbage should be rejected");
-        assert!(
-            err.contains("invalid trailing stdout"),
-            "unexpected error: {err}"
+    fn parses_first_json_object_and_warns_on_trailing_non_json_garbage() {
+        let (parsed, warning) = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
+            .expect("trailing garbage should not hard-fail");
+        assert!(matches!(
+            parsed.action,
+            sc_hooks_core::results::HookAction::Proceed
+        ));
+        assert_eq!(
+            warning.as_deref(),
+            Some(
+                "plugin produced trailing stdout after first JSON object; only first object was used"
+            )
         );
     }
 
