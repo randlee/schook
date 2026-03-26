@@ -2,6 +2,7 @@
 name = "event-relay"
 version = "0.1.0"
 edition = "2024"
+description = "Reference/scaffold sc-hooks plugin example"
 
 [dependencies]
 serde_json = "1.0"

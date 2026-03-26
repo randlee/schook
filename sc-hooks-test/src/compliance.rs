@@ -98,16 +98,6 @@ pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {
     );
     checks.push(protocol_result);
 
-    let absent_payload_result = invoke_plugin(
-        plugin_path,
-        serde_json::json!({"hook": {"type": "PreToolUse"}}),
-    );
-    checks.push(ComplianceCheck {
-        name: "absent payload handling".to_string(),
-        passed: absent_payload_result.passed,
-        detail: absent_payload_result.detail,
-    });
-
     ComplianceReport {
         plugin_path: plugin_path_str,
         checks,

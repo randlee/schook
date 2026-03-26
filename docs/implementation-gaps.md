@@ -31,17 +31,18 @@ This document tracks gaps between the current codebase and the release-standard 
 - Owner area:
   - `sc-hooks-test`, `sc-hooks-cli`
 - Current behavior:
-  - `sc-hooks-test` and `sc-hooks-cli test` verify manifest loading, basic contract compatibility, simple matcher checks, positive timeout shape, minimal JSON output, and a duplicate minimal-input invocation labeled as absent-payload handling.
+  - `sc-hooks-cli test` now delegates to the shared `sc-hooks-test` compliance engine instead of maintaining a second implementation.
+  - the surviving compliance engine verifies manifest loading, basic contract compatibility, simple matcher checks, positive timeout shape, and minimal JSON output.
 - Expected behavior:
   - The reusable compliance harness should directly verify the behaviors the release docs promise, including async misuse, timeout behavior, invalid JSON, multi-object stdout handling, and real absent-payload behavior.
 - Verification method:
   - direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior
 - Recommended fix path:
-  - Expand `sc-hooks-test` first, then align `sc-hooks-cli test` output and `docs/traceability.md`.
-  - Consolidate the duplicated compliance code so the CLI delegates to one shared compliance engine instead of maintaining a second implementation.
+  - Expand `sc-hooks-test` first, then align `docs/traceability.md` with direct assertions.
+  - Keep `sc-hooks-cli test` as a thin presentation layer over the shared compliance engine.
 - Early retire / replace candidates:
-  - `sc-hooks-cli/src/testing.rs`
-  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs`
+  - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` is retired in this sprint
+  - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` is retired in this sprint
 
 ## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
 
@@ -52,18 +53,18 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - The host honors manifest fields `long_running`, `timeout_ms`, and `description`.
   - Audit rejects `long_running=true` for async handlers and requires a non-empty description.
-  - `sc-hooks-sdk::traits::LongRunning` only exposes `description(&self) -> &str` and is not the real end-to-end public contract described in older docs.
+  - the stale `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` surfaces are retired so the SDK no longer implies a richer contract than the host actually guarantees today.
   - `sc-hooks-sdk::runner::PluginRunner` also includes convenience behavior such as treating empty stdin as `{}`, which is useful for authoring but is not itself the release-defining host contract.
 - Expected behavior:
   - The docs, SDK convenience surface, and tests should agree on one release-grade SDK posture: either thin authoring conveniences with clearly documented limits, or a fuller public contract that is actually proven end to end.
 - Verification method:
   - one end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests
 - Recommended fix path:
-  - Treat `long_running` as a host manifest feature for now, and either tighten the SDK to match or explicitly defer richer SDK ergonomics.
+  - Treat `long_running` as a host manifest feature for now and keep the SDK posture narrow until Sprint 3 aligns the end-to-end contract.
   - Document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
 - Early retire / replace candidates:
-  - `sc-hooks-sdk::traits::LongRunning`
-  - `sc-hooks-sdk::traits::AsyncContextSource`
+  - `sc-hooks-sdk::traits::LongRunning` is retired in this sprint
+  - `sc-hooks-sdk::traits::AsyncContextSource` is retired in this sprint
   - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
 ## GAP-003: Bundled Plugin Readiness Was Previously Overstated
