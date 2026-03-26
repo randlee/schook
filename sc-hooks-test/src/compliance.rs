@@ -315,7 +315,8 @@ fn check_timeout(probe: &impl HostDispatchProbe) -> ComplianceCheck {
                 "probe-plugin",
                 "runtime-error",
             );
-            let timeout_logged = last_log_reports_error_type(result.last_log_line.as_deref(), "timeout");
+            let timeout_logged =
+                last_log_reports_error_type(result.last_log_line.as_deref(), "timeout");
             ComplianceCheck {
                 name: "host dispatch enforces timeout".to_string(),
                 passed: result.exit_code == sc_hooks_core::exit_codes::TIMEOUT
