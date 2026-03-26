@@ -51,4 +51,5 @@ Before release or final QA signoff, verify:
 - every strong release-facing claim is backed by code, tests, or an explicit gap/deferred ID
 - no duplicate implementation path remains for the same release-facing behavior unless a compatibility exception is documented
 - every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
+- no high-risk doc/code/API misalignment class remains outside `docs/project-plan.md` or `docs/implementation-gaps.md`
 - requirements, architecture, traceability, project plan, and contract docs describe the same final scope

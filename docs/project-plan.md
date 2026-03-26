@@ -96,7 +96,24 @@ Before any sprint starts, record these items in the sprint handoff or working no
 | Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | first freeze scaffold/reference posture, then promote only with tests/install docs if desired | Sprint 1 then Sprint 5 | `GAP-003` and `BND-002` are resolved without mixed claims |
 | Merge review residue | task `#370` and any stale review notes can linger after implementation finishes | retire or resolve all remaining merge-only review items before final QA | Sprint 6 | final branch head has no stale review-only requirement notes |
 
-## 9. Sprint Details
+## 9. Misalignment Coverage Signal
+
+This planning pass is considered complete only when every high-risk
+misalignment class is either already resolved or mapped into an explicit
+sprint/gap path.
+
+Current high-risk classes covered here:
+- duplicate compliance source-of-truth logic
+- SDK public-looking surface that can overstate the host contract
+- derived instruction docs that can drift from source-of-truth docs
+- scaffold plugin claims that can be mistaken for shipped runtime behavior
+- runtime layout/setup assumptions that are not yet proven by an example or guide
+- remaining merge-only review residue that can survive after the underlying issue is already resolved
+
+Merge signal for this docs/planning pass:
+- no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/implementation-gaps.md`
+
+## 10. Sprint Details
 
 ### Sprint 0: Architecture And Observability Alignment
 
@@ -356,7 +373,7 @@ Definition of done:
 - there are no stale review placeholders left in the plan or release docs
 - release docs, code, and traceability describe the same final scope
 
-## 10. Sprint QA Checklist
+## 11. Sprint QA Checklist
 
 Each sprint closeout must answer these questions explicitly:
 
@@ -366,22 +383,23 @@ Each sprint closeout must answer these questions explicitly:
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
 
-## 11. Release Preflight
+## 12. Release Preflight
 
 Before release cut or final QA handoff, complete these checks explicitly:
 
 - claim audit: every strong release-facing statement in requirements and contract docs points to code, tests, or a gap/deferred ID
 - removal audit: no stale duplicate implementation path remains for any release-facing behavior
 - advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
+- misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
 
-## 12. Risk Containment
+## 13. Risk Containment
 
 - Dispatch/protocol changes must land with direct regression tests in the same sprint; no speculative parser or contract changes without tests.
 - Any replacement of runtime or observability behavior must delete the superseded path in the same sprint unless a compatibility exception is recorded.
 - If a sprint cannot complete removal safely, the retained path must be named in the sprint handoff with an explicit follow-up owner.
 
-## 13. Decision Register
+## 14. Decision Register
 
 Closed decisions that should not be reopened during implementation:
 
@@ -390,7 +408,7 @@ Closed decisions that should not be reopened during implementation:
 - the runtime is plugin-only; builtin handler resolution is not part of the current release baseline
 - stdout protocol handling is strict for invalid trailing output and warning-only only for additional valid JSON objects after the first result
 
-## 14. Out Of Scope For This Plan
+## 15. Out Of Scope For This Plan
 
 These items stay deferred unless product direction changes:
 - richer `fire` output beyond the current summary string
@@ -398,11 +416,12 @@ These items stay deferred unless product direction changes:
 - SDK ergonomics beyond the current host-enforced contract
 - production-ready bundled plugin behavior beyond whatever Sprint 4 explicitly promotes
 
-## 15. Release Gate
+## 16. Release Gate
 
 The release plan is complete only when:
 - all non-deferred blocker or important gaps are either closed or explicitly removed from release scope
 - every required-before-release item is either implemented or intentionally cut from the release contract
 - traceability rows for release claims point to real code and tests, not inference alone
+- no uncovered high-risk misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - merge-time review items are closed
 - reviewer and QA signoff are recorded on the final branch state
