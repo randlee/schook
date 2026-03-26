@@ -46,16 +46,43 @@ Important planning rule:
 
 ## 4. Sprint Sequence
 
-| Sprint | Status | Focus | Primary drivers | Depends on |
-| --- | --- | --- | --- | --- |
-| Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none |
-| Sprint 1 | Planned | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 0 |
-| Sprint 2 | Planned | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 |
-| Sprint 3 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 1 |
-| Sprint 4 | Planned | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 3 |
-| Sprint 5 | Planned | merge closeout and release gate | task `#370`, final QA/PR review | Sprints 1-4 |
+| Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
+| --- | --- | --- | --- | --- | --- |
+| Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
+| Sprint 1 | Planned | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 0 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 2 | Planned | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
+| Sprint 3 | Planned | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 1 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 4 | Planned | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 3 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 5 | Planned | merge closeout and release gate | task `#370`, final QA/PR review | Sprints 1-4 | release docs, PR/review records, final cleanup |
 
-## 5. Sprint Details
+## 5. Execution Controls
+
+These rules exist to keep sprint work from drifting back into mixed designs:
+
+1. Start each sprint by deleting or isolating obsolete code paths before adding new behavior on top.
+2. Do not run parallel work in the same write scope. Parallel work is allowed only when file ownership is disjoint.
+3. No sprint closes if the implementation still leaves two competing paths for the same release behavior.
+4. Any code intentionally kept for compatibility must be named in the sprint deliverables and release gate, not left implicit.
+5. Each sprint must update `docs/traceability.md` for any requirement or gap whose status changes.
+
+## 6. Dependency And Parallelism Rules
+
+- Sprint 1 is the first execution sprint because later refactors need one trusted compliance engine and one trusted contract test surface.
+- Sprint 2 and Sprint 3 can overlap only after Sprint 1 closes, because both depend on the same contract-test baseline.
+- Sprint 4 must not start until Sprint 3 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
+- Sprint 5 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
+
+## 7. Remove/Replace Matrix
+
+| Area | Current ambiguity or stale path | Planned action | Sprint | Verification |
+| --- | --- | --- | --- | --- |
+| Compliance flow | `sc-hooks-test/src/compliance.rs` and `sc-hooks-cli/src/testing.rs` both encode overlapping compliance logic | keep one shared compliance engine and reduce the other path to a thin wrapper or remove duplicated assertions | Sprint 1 | `CLI-007` and `TST-007` point to the same underlying checks |
+| SDK async traits | `sc-hooks-sdk/src/traits.rs` exposes `LongRunning` and `AsyncContextSource` without a settled release role | either promote as real contract surface with docs/tests or retire them | Sprint 2 | `GAP-002` and `TMO-004` close with one documented contract |
+| Runtime setup guidance | source layout exists but contributor/runtime setup proof is incomplete | replace inference-only setup with a checked example or one canonical guide | Sprint 3 | `GAP-004` closes and a clean setup succeeds without source reading |
+| Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | either promote with tests/install docs or explicitly keep as scaffold/reference code | Sprint 4 | `GAP-003` and `BND-002` are resolved without mixed claims |
+| Merge review residue | task `#370` and any stale review notes can linger after implementation finishes | retire or resolve all remaining merge-only review items before final QA | Sprint 5 | final branch head has no stale review-only requirement notes |
+
+## 8. Sprint Details
 
 ### Sprint 0: Architecture And Observability Alignment
 
@@ -87,15 +114,35 @@ Focus:
 - make the compliance harness prove the release contract directly
 - remove duplicated compliance logic before more behavior is layered on top
 
+Write scope:
+- `sc-hooks-test/src/compliance.rs`
+- `sc-hooks-cli/src/testing.rs`
+- dispatch/runtime contract tests and related traceability rows
+
+Early retire or replace:
+- duplicated compliance assertions split across CLI and test harness
+- any indirect checks that only imply contract behavior instead of asserting it directly
+
 Deliverables:
 - expand `sc-hooks-test` to assert timeout behavior, invalid JSON, multiple JSON objects, async misuse, matcher validity, and absent-payload behavior
 - refactor `sc-hooks-cli test` to delegate to one shared compliance engine
 - update `docs/traceability.md` so `CLI-007` and `TST-007` point to direct assertions instead of partial checks
 
+Verification:
+- direct compliance fixtures cover the release-facing protocol branches
+- `sc-hooks-cli test` and `sc-hooks-test` exercise the same underlying checks
+- no duplicated behavior logic remains without an explicit wrapper-only justification
+
 Acceptance criteria:
 - `GAP-001` is closed
 - `CLI-007` and `TST-007` move from gap to implemented
 - duplicated compliance logic in `sc-hooks-cli/src/testing.rs` is retired or reduced to a thin wrapper
+
+Definition of done:
+- one compliance engine owns the contract checks
+- stale duplicated compliance code is removed or reduced to glue only
+- docs and traceability align to the surviving path
+- validation and regression tests pass on the final sprint branch
 
 ### Sprint 2: `long_running` Contract Alignment
 
@@ -105,15 +152,33 @@ Status:
 Focus:
 - define one release-grade `long_running` contract across host, SDK, docs, and tests
 
+Write scope:
+- `sc-hooks-sdk/src/traits.rs`
+- timeout/dispatch logic
+- manifest validation, audit rules, and release docs
+
+Early retire or replace:
+- stale SDK traits that look public but are not part of the real host contract
+- split timeout behavior that differs between docs, host behavior, and SDK assumptions
+
 Deliverables:
 - decide whether `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` are real release surfaces or stale helpers to retire
 - align manifest validation, timeout behavior, audit checks, and docs around one contract
 - add end-to-end tests that prove the chosen behavior
 
+Verification:
+- timeout behavior matches the chosen `long_running` contract in host, docs, and tests
+- no public-looking SDK trait remains undocumented or behaviorally unproven
+
 Acceptance criteria:
 - `GAP-002` is closed
 - `TMO-004` moves from required-before-release to implemented
 - requirements, architecture, traceability, and SDK surface all describe the same `long_running` behavior
+
+Definition of done:
+- one release-grade `long_running` contract exists
+- retired SDK surfaces are removed early, not left as dead public-looking code
+- contract behavior is proven by end-to-end tests and reflected in docs
 
 ### Sprint 3: Runtime Layout And Setup Proof
 
@@ -123,15 +188,33 @@ Status:
 Focus:
 - prove the expected `.sc-hooks/` runtime layout from a clean contributor starting point
 
+Write scope:
+- runtime layout docs
+- setup guidance
+- any checked example `.sc-hooks/` tree or install-proof fixture
+
+Early retire or replace:
+- ambiguous setup instructions that require reading source to succeed
+- duplicate or partial installation guidance across README and docs
+
 Deliverables:
 - add either a checked-in example `.sc-hooks/` tree or a setup guide that proves the same layout
 - document how `.sc-hooks/config.toml`, `.sc-hooks/plugins/`, and install output fit together
 - verify that contributor docs match the actual CLI behavior
 
+Verification:
+- a clean setup path succeeds by following the documented steps only
+- the example tree or setup guide matches actual CLI/runtime expectations
+
 Acceptance criteria:
 - `GAP-004` is closed
 - `CFG-001`, `RES-002`, and `CLI-004` no longer depend on a gap note for practical setup clarity
 - a contributor can follow the checked-in example or guide without reading source code
+
+Definition of done:
+- one canonical setup path exists
+- stale or contradictory setup instructions are removed
+- docs, examples, and runtime layout all agree
 
 ### Sprint 4: Plugin Packaging And Release Honesty
 
@@ -141,15 +224,33 @@ Status:
 Focus:
 - keep plugin claims honest unless runtime installation, behavior, and tests exist
 
+Write scope:
+- `plugins/`
+- release/docs inventory for plugin maturity
+- packaging or install-proof checks tied to promoted plugins
+
+Early retire or replace:
+- release-facing language that implies a plugin ships when it is still scaffold/reference code
+- plugin inventory claims that are not backed by install/runtime proof
+
 Deliverables:
 - choose the release posture for each source crate under `plugins/`
 - if a plugin is promoted as shipped behavior, add runtime installation guidance and direct behavior tests
 - otherwise keep the crate clearly documented as scaffold/reference code
 
+Verification:
+- each plugin named as shipped behavior has install/runtime proof
+- non-shipping plugins are explicitly scoped as scaffold/reference code in docs
+
 Acceptance criteria:
 - `GAP-003` is closed
 - `BND-002` is either satisfied for promoted plugins or avoided by keeping release claims scoped to scaffold/reference status only
 - README and docs agree on the exact plugin inventory and maturity level
+
+Definition of done:
+- plugin release posture is binary for every crate: shipped or scaffold/reference
+- no ambiguous maturity claims remain in docs
+- packaging and runtime behavior are verified for anything promoted
 
 ### Sprint 5: Merge Closeout And Release Gate
 
@@ -159,6 +260,15 @@ Status:
 Focus:
 - close known merge-time review items and freeze the release-doc set
 
+Write scope:
+- release docs
+- PR/review notes
+- final branch cleanup only
+
+Early retire or replace:
+- stale review-only notes that no longer describe open work
+- merge-time TODOs carried forward after the underlying requirement is already resolved
+
 Deliverables:
 - resolve task `#370` items:
 - `RV-001`: requirements section 2.1 plugin-count prose fix
@@ -166,12 +276,46 @@ Deliverables:
 - final doc/code consistency check
 - final reviewer and QA handoff
 
+Verification:
+- every remaining review note maps to an actually open item or is removed
+- final QA targets one frozen branch head with recorded validation commands
+
 Acceptance criteria:
 - merge-time review items are closed
 - no open blocker gaps remain for the chosen release scope
 - branch handoff records exact validation commands and reviewer status
 
-## 6. Out Of Scope For This Plan
+Definition of done:
+- branch head is frozen for QA/review
+- there are no stale review placeholders left in the plan or release docs
+- release docs, code, and traceability describe the same final scope
+
+## 9. Sprint QA Checklist
+
+Each sprint closeout must answer these questions explicitly:
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?
+
+## 10. Risk Containment
+
+- Dispatch/protocol changes must land with direct regression tests in the same sprint; no speculative parser or contract changes without tests.
+- Any replacement of runtime or observability behavior must delete the superseded path in the same sprint unless a compatibility exception is recorded.
+- If a sprint cannot complete removal safely, the retained path must be named in the sprint handoff with an explicit follow-up owner.
+
+## 11. Decision Register
+
+Closed decisions that should not be reopened during implementation:
+
+- observability is a current requirement and is implemented through `sc-observability` at the `sc-hooks-cli` boundary
+- the old ad hoc logging path and builtin `log` handler are removed, not retained for compatibility
+- the runtime is plugin-only; builtin handler resolution is not part of the current release baseline
+- stdout protocol handling is strict for invalid trailing output and warning-only only for additional valid JSON objects after the first result
+
+## 12. Out Of Scope For This Plan
 
 These items stay deferred unless product direction changes:
 - richer `fire` output beyond the current summary string
@@ -179,7 +323,7 @@ These items stay deferred unless product direction changes:
 - SDK ergonomics beyond the current host-enforced contract
 - production-ready bundled plugin behavior beyond whatever Sprint 4 explicitly promotes
 
-## 7. Release Gate
+## 13. Release Gate
 
 The release plan is complete only when:
 - all non-deferred blocker or important gaps are either closed or explicitly removed from release scope
