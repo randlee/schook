@@ -13,7 +13,6 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
 | GAP-008 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release | none until the product intentionally restores builtins |
 | GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
-| GAP-010 | deferred | `sc-hooks-cli`, docs | Contract docs and tests state that trailing stdout after the first valid JSON object is warning-only today, while a future strict rejection behavior stays explicitly deferred | none until the product intentionally hardens stdout parsing |
 
 ## Resolved In This Pass
 
@@ -138,20 +137,3 @@ This document tracks gaps between the current codebase and the release-standard 
   - requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration
 - Recommended fix path:
   - keep sink routing fixed at the CLI boundary unless the product intentionally restores supported configuration keys and their contract
-
-## GAP-010: Strict Stdout Rejection After First JSON Object Is Deferred
-
-- Severity: `deferred`
-- Source: protocol contract review
-- Owner area:
-  - `sc-hooks-cli`, docs
-- Current behavior:
-  - the host accepts the first valid JSON object on plugin stdout
-  - any additional stdout after that first object, including non-JSON trailing content, is treated as a warning rather than a hard error
-- Expected behavior:
-  - if the product later wants stricter protocol enforcement, trailing content after the first JSON object could become a runtime error
-- Verification method:
-  - contract docs and tests state that trailing stdout after the first valid JSON object is warning-only today, while a future strict rejection behavior stays explicitly deferred
-- Recommended fix path:
-  - keep the current tolerant parser behavior in this doc-fix pass
-  - revisit strict rejection only in a planned sprint with explicit compatibility review

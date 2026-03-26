@@ -375,8 +375,10 @@ This is host output, not plugin output.
 Current runtime stdout parsing rules:
 - stdout must contain at least one valid JSON object
 - the host parses only the first JSON object
-- if additional output follows the first JSON object, the host keeps the first
-  object and records a warning
+- if another valid JSON object follows, the host keeps the first object and
+  records a warning
+- if trailing bytes after the first object are not valid JSON, runtime parsing
+  fails
 - empty stdout is a failure
 - invalid JSON is a failure
 
@@ -426,8 +428,6 @@ Known release-relevant gaps around this contract:
   `GAP-001`
 - the `long_running` contract is not yet aligned end to end across host, SDK,
   docs, and tests; see `GAP-002`
-- strict stdout rejection after the first JSON object is not current behavior;
-  see `GAP-010`
 
 This document describes current behavior exactly where code is clear. It does
 not elevate every code path into a release guarantee unless
