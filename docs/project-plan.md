@@ -90,7 +90,7 @@ Before any sprint starts, record these items in the sprint handoff or working no
 | Area | Current ambiguity or stale path | Planned action | Sprint | Verification |
 | --- | --- | --- | --- | --- |
 | Compliance flow | `sc-hooks-test/src/compliance.rs` and `sc-hooks-cli/src/testing.rs` both encode overlapping compliance logic | first freeze one owning path and delete pseudo-checks that do not prove real contract behavior; then expand the surviving engine | Sprint 1 then Sprint 2 | `CLI-007` and `TST-007` point to the same underlying checks |
-| SDK async traits | `sc-hooks-sdk/src/traits.rs` exposes `LongRunning` and `AsyncContextSource` without a settled release role | first decide keep-vs-retire posture, then align the surviving contract with docs/tests | Sprint 1 then Sprint 3 | `GAP-002` and `TMO-004` close with one documented contract |
+| SDK public-looking surface | `sc-hooks-sdk/src/traits.rs` and `sc-hooks-sdk/src/runner.rs` can imply a richer or broader contract than the host actually guarantees | first decide keep-vs-retire posture, then align surviving SDK helpers and their documented limits with docs/tests | Sprint 1 then Sprint 3 | `GAP-002` and `TMO-004` close with one documented SDK posture |
 | Instruction docs drift | derived onboarding/agent docs can repeat superseded rules such as builtin handler precedence | correct derived instructions immediately and treat source-of-truth docs as authoritative for runtime behavior | Sprint 1 | README, `CLAUDE.md`, and source-of-truth docs make the same runtime claims |
 | Runtime setup guidance | source layout exists but contributor/runtime setup proof is incomplete | replace inference-only setup with a checked example or one canonical guide | Sprint 4 | `GAP-004` closes and a clean setup succeeds without source reading |
 | Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | first freeze scaffold/reference posture, then promote only with tests/install docs if desired | Sprint 1 then Sprint 5 | `GAP-003` and `BND-002` are resolved without mixed claims |
@@ -138,26 +138,28 @@ Early retire or replace:
 - duplicate compliance paths that suggest two sources of truth
 - pseudo-checks that do not prove the documented contract
 - public-looking SDK traits that are not part of the real runtime contract
+- SDK helper defaults that can be mistaken for host guarantees
 - stale onboarding or agent instructions that repeat superseded runtime rules
 - ambiguous plugin language that overstates scaffold crates as shipped behavior
 
 Deliverables:
 - decide the single owning compliance path and retire or reduce the duplicate path before expanding coverage
-- decide whether `sc-hooks-sdk` traits are thin SDK conveniences to keep or stale public-looking surfaces to remove
+- decide whether `sc-hooks-sdk` traits and runner helpers are thin SDK conveniences to keep or stale public-looking surfaces to remove or narrow
 - verify or explicitly gap any remaining release-facing observability claims that are still advisory-only
 - align derived instruction docs such as `README.md` and `CLAUDE.md` to the current plugin-only runtime and JSON-defined public contract
+- document SDK helper limits anywhere the repo presents `sc-hooks-sdk` as an authoring path
 - freeze `plugins/` as scaffold/reference only unless and until a later sprint promotes a plugin with real runtime proof
 
 Verification:
 - surviving compliance path is named explicitly in code and docs
-- removed or retained SDK traits match the documented contract posture
+- removed or retained SDK helpers match the documented contract posture
 - advisory observability claims are either code-cited or moved into explicit gaps
 - derived instruction docs no longer contradict requirements or architecture
 - release docs stop implying shipped plugin behavior where only scaffold code exists
 
 Acceptance criteria:
 - no duplicated source-of-truth surface remains for compliance behavior
-- SDK trait posture is explicit instead of implied
+- SDK posture is explicit instead of implied
 - any remaining advisory-only observability claims are either verified or downgraded to documented gaps
 - onboarding and agent instructions do not contradict the release docs
 - docs and gaps describe one honest baseline for later sprint work
@@ -206,36 +208,38 @@ Definition of done:
 - docs and traceability align to the surviving path
 - validation and regression tests pass on the final sprint branch
 
-### Sprint 3: `long_running` Contract Alignment
+### Sprint 3: `long_running` And SDK Posture Alignment
 
 Status:
 - planned
 
 Focus:
-- define one release-grade `long_running` contract across host, SDK, docs, and tests
+- define one release-grade `long_running` and SDK posture across host, docs, and tests
 
 Write scope:
 - `sc-hooks-sdk/src/traits.rs`
+- `sc-hooks-sdk/src/runner.rs`
 - timeout/dispatch logic
 - manifest validation, audit rules, and release docs
 
 Early retire or replace:
 - stale SDK traits that look public but are not part of the real host contract
+- SDK runner behavior that could be mistaken for host-guaranteed runtime semantics
 - split timeout behavior that differs between docs, host behavior, and SDK assumptions
 
 Deliverables:
 - decide whether `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` are real release surfaces or stale helpers to retire
-- align manifest validation, timeout behavior, audit checks, and docs around one contract
+- align manifest validation, timeout behavior, audit checks, SDK helper limits, and docs around one contract
 - add end-to-end tests that prove the chosen behavior
 
 Verification:
 - timeout behavior matches the chosen `long_running` contract in host, docs, and tests
-- no public-looking SDK trait remains undocumented or behaviorally unproven
+- no public-looking SDK helper remains undocumented or behaviorally unproven
 
 Acceptance criteria:
 - `GAP-002` is closed
 - `TMO-004` moves from required-before-release to implemented
-- requirements, architecture, traceability, and SDK surface all describe the same `long_running` behavior
+- requirements, architecture, traceability, and SDK surface all describe the same `long_running` and SDK posture
 
 Definition of done:
 - one release-grade `long_running` contract exists

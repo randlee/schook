@@ -7,7 +7,7 @@ This document tracks gaps between the current codebase and the release-standard 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
 | GAP-001 | blocker | `sc-hooks-test`, `sc-hooks-cli` | Direct compliance assertions for timeout, invalid output, async misuse, matcher validity, and absent-payload behavior | retire duplicated compliance logic in `sc-hooks-cli/src/testing.rs`; remove the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` |
-| GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end `long_running` contract proven across manifest validation, runtime behavior, docs, and tests | retire or replace `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` unless they become real release-contract surfaces |
+| GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests | retire or replace public-looking SDK traits and document runner-helper limits unless they become real release-contract surfaces |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
@@ -38,7 +38,7 @@ This document tracks gaps between the current codebase and the release-standard 
   - `sc-hooks-cli/src/testing.rs`
   - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs`
 
-## GAP-002: `LongRunning` SDK Contract Does Not Match Host Reality
+## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
 
 - Severity: `important`
 - Source: `TMO-004`
@@ -48,15 +48,18 @@ This document tracks gaps between the current codebase and the release-standard 
   - The host honors manifest fields `long_running`, `timeout_ms`, and `description`.
   - Audit rejects `long_running=true` for async handlers and requires a non-empty description.
   - `sc-hooks-sdk::traits::LongRunning` only exposes `description(&self) -> &str` and is not the real end-to-end public contract described in older docs.
+  - `sc-hooks-sdk::runner::PluginRunner` also includes convenience behavior such as treating empty stdin as `{}`, which is useful for authoring but is not itself the release-defining host contract.
 - Expected behavior:
-  - The docs, SDK convenience surface, and tests should agree on one release-grade `long_running` contract.
+  - The docs, SDK convenience surface, and tests should agree on one release-grade SDK posture: either thin authoring conveniences with clearly documented limits, or a fuller public contract that is actually proven end to end.
 - Verification method:
-  - one end-to-end `long_running` contract proven across manifest validation, runtime behavior, docs, and tests
+  - one end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests
 - Recommended fix path:
   - Treat `long_running` as a host manifest feature for now, and either tighten the SDK to match or explicitly defer richer SDK ergonomics.
+  - Document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
 - Early retire / replace candidates:
   - `sc-hooks-sdk::traits::LongRunning`
   - `sc-hooks-sdk::traits::AsyncContextSource`
+  - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
 ## GAP-003: Bundled Plugin Readiness Was Previously Overstated
 
