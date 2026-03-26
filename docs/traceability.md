@@ -4,7 +4,7 @@ This table maps the most important documented requirements to current implementa
 
 | Requirement ID | Status | Primary implementation | Primary tests | Gap |
 | --- | --- | --- | --- | --- |
-| CFG-001 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
+| CFG-001 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests plus `sc-hooks-cli/tests/runtime_layout_example.rs` proving the checked default `.sc-hooks/config.toml` layout | |
 | CFG-002 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
 | CFG-003 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/dispatch.rs` | dispatch tests, config tests | |
 | CFG-004 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |

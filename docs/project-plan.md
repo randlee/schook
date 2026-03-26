@@ -46,7 +46,7 @@ Important planning rule:
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
 | Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | In review | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 2 | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
 | Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
@@ -244,6 +244,8 @@ QA checklist answers:
   `cargo test -p sc-hooks-test`, `cargo test -p sc-hooks-cli --test compliance_host`, and the final workspace validation prove direct host-path assertions for timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior.
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 4 is now unblocked on a real surviving compliance/runtime path, while Sprint 3 remains the next contract-alignment step for `long_running`.
+Compatibility note:
+- Sprint 2 and Sprint 4 both touch `sc-hooks-cli/tests/`, so later sprint work in that directory must merge-forward the latest Sprint 2 QA fixes before push to avoid regressing the shared host-path tests.
 
 ### Sprint 3: `long_running` And SDK Posture Alignment (In Review)
 
@@ -337,7 +339,7 @@ QA checklist answers:
 - What code was removed early rather than left in parallel?
   No runtime code path was duplicated for setup proof; Sprint 4 replaced inference-only setup guidance with one checked example tree and one host-level validation path.
 - Which files/crates were the owned write scope for the sprint?
-  `examples/runtime-layout/.sc-hooks/`, `examples/runtime-layout/README.md`, `sc-hooks-cli/tests/runtime_layout_example.rs`, and the runtime-layout docs/traceability/gap-plan files.
+  `examples/runtime-layout/.sc-hooks/`, `examples/runtime-layout/README.md`, `sc-hooks-cli/tests/runtime_layout_example.rs`, `sc-hooks-cli/tests/`, and the runtime-layout docs/traceability/gap-plan files including `docs/traceability.md`.
 - What validation commands and direct tests proved the new contract?
   `cargo test -p sc-hooks-cli --test runtime_layout_example` proves that the checked example audits and runs successfully using the real CLI from the example directory; the final workspace validation keeps that example in the normal release gate.
 - What follow-on work is blocked or unblocked by this sprint?

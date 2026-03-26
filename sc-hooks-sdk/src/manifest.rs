@@ -501,8 +501,10 @@ mod tests {
     #[test]
     fn builds_filtered_input_plus_hook_and_payload_passthrough() {
         let manifest = parse_manifest_str(manifest_json()).expect("manifest should parse");
+        let repo_path = std::env::temp_dir().join("repo");
+        let repo_path = repo_path.to_string_lossy().to_string();
         let metadata = serde_json::json!({
-            "repo": {"path": "/tmp/repo", "branch": "main"},
+            "repo": {"path": repo_path, "branch": "main"},
             "team": {"name": "cal"},
             "ignored": true
         });
@@ -520,7 +522,7 @@ mod tests {
         assert_eq!(
             input,
             serde_json::json!({
-                "repo": {"path": "/tmp/repo"},
+                "repo": {"path": repo_path},
                 "team": {"name": "cal"},
                 "hook": {"type": "PreToolUse", "event": "Bash"},
                 "payload": {"tool_input": {"command": "atm send"}}
