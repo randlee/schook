@@ -1,0 +1,12 @@
+#!/bin/sh
+if [ "$1" = "--manifest" ]; then
+  cat <<'JSON'
+{"contract_version":1,"name":"guard-paths","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}
+JSON
+  exit 0
+fi
+
+cat >/dev/null
+cat <<'JSON'
+{"action":"proceed"}
+JSON
