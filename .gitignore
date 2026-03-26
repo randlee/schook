@@ -21,3 +21,4 @@ target
 #.idea/
 
 .sc-hooks/observability/
+examples/runtime-layout/.sc-hooks/

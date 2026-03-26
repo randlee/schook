@@ -431,11 +431,10 @@ Failure classification notes:
 
 ## 9. Current Gaps And Stability Notes
 
-Known release-relevant gaps around this contract:
-- compliance coverage is still incomplete for some runtime behaviors; see
-  `GAP-001`
-- the `long_running` contract is not yet aligned end to end across host, SDK,
-  docs, and tests; see `GAP-002`
+This contract no longer carries the earlier release-blocking gaps for
+compliance coverage (`GAP-001`) or `long_running` alignment (`GAP-002`);
+those were resolved in Sprint 2 and Sprint 3 respectively and are closed in
+`docs/implementation-gaps.md`.
 
 This document describes current behavior exactly where code is clear. It does
 not elevate every code path into a release guarantee unless
