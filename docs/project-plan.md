@@ -20,7 +20,7 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- merge-time review residue tracked under task `#370`
+- none; release-facing blocker and important gaps are closed for the chosen scope
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -50,7 +50,7 @@ Important planning rule:
 | Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
-| Sprint 6 | Planned | merge closeout and release gate | task `#370`, final QA/PR review | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 
 ## 5. Execution Controls
 
@@ -90,7 +90,7 @@ Before any sprint starts, record these items in the sprint handoff or working no
 | Instruction docs drift | derived onboarding/agent docs can repeat superseded rules such as builtin handler precedence | correct derived instructions immediately and treat source-of-truth docs as authoritative for runtime behavior | Sprint 1 | README, `CLAUDE.md`, and source-of-truth docs make the same runtime claims |
 | Runtime setup guidance | source layout exists but contributor/runtime setup proof is incomplete | replace inference-only setup with a checked example or one canonical guide | Sprint 4 | `GAP-004` closes and a clean setup succeeds without source reading |
 | Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | first freeze scaffold/reference posture, then promote only with tests/install docs if desired | Sprint 1 then Sprint 5 | `GAP-003` and `BND-002` are resolved without mixed claims |
-| Merge review residue | task `#370` and any stale review notes can linger after implementation finishes | retire or resolve all remaining merge-only review items before final QA | Sprint 6 | final branch head has no stale review-only requirement notes |
+| Release handoff freeze | stale review-only notes can linger after implementation finishes even when the underlying work is done | remove stale review placeholders, confirm no open blocker gaps remain, and freeze one validation record for QA/review | Sprint 6 | final branch head has no stale review-only requirement notes |
 
 ## 9. Misalignment Coverage Signal
 
@@ -394,10 +394,10 @@ QA checklist answers:
 ### Sprint 6: Merge Closeout And Release Gate
 
 Status:
-- planned
+- in review
 
 Focus:
-- close known merge-time review items and freeze the release-doc set
+- freeze the release-doc set and record the final reviewer/QA handoff against the chosen scope
 
 Write scope:
 - release docs
@@ -409,7 +409,7 @@ Early retire or replace:
 - merge-time TODOs carried forward after the underlying requirement is already resolved
 
 Deliverables:
-- retire or resolve any remaining merge-time review notes that still map to real open work
+- confirm no remaining merge-time review note maps to real open work
 - remove stale review placeholders that no longer correspond to current requirement or gap IDs
 - final doc/code consistency check
 - final reviewer and QA handoff
@@ -427,6 +427,18 @@ Definition of done:
 - branch head is frozen for QA/review
 - there are no stale review placeholders left in the plan or release docs
 - release docs, code, and traceability describe the same final scope
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 6 does not change release-facing behavior IDs. It retires stale merge-residue framing in the plan and freezes the final release handoff on a scope with no remaining blocker or important gaps.
+- What code was removed early rather than left in parallel?
+  No code path changed in Sprint 6. The retirement here is review/process residue: stale merge-only placeholders are removed instead of being carried into release QA.
+- Which files/crates were the owned write scope for the sprint?
+  `docs/project-plan.md` and any release-facing handoff notes required to record the frozen validation state.
+- What validation commands and direct tests proved the new contract?
+  `cargo test --workspace` is the frozen validation command recorded for the final release-gate branch head.
+- What follow-on work is blocked or unblocked by this sprint?
+  Final QA/reviewer handoff is unblocked because the release docs now describe one closed scope with no remaining blocker or important gaps outside deferred items.
 
 ## 11. Sprint QA Checklist
 
@@ -469,7 +481,7 @@ These items stay deferred unless product direction changes:
 - richer `fire` output beyond the current summary string
 - finer-grained resolution-time exit codes
 - SDK ergonomics beyond the current host-enforced contract
-- production-ready bundled plugin behavior beyond whatever Sprint 4 explicitly promotes
+- production-ready bundled plugin behavior beyond the scaffold/reference posture frozen in Sprint 5
 
 ## 16. Release Gate
 
