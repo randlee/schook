@@ -91,6 +91,7 @@ Before any sprint starts, record these items in the sprint handoff or working no
 | --- | --- | --- | --- | --- |
 | Compliance flow | `sc-hooks-test/src/compliance.rs` and `sc-hooks-cli/src/testing.rs` both encode overlapping compliance logic | first freeze one owning path and delete pseudo-checks that do not prove real contract behavior; then expand the surviving engine | Sprint 1 then Sprint 2 | `CLI-007` and `TST-007` point to the same underlying checks |
 | SDK async traits | `sc-hooks-sdk/src/traits.rs` exposes `LongRunning` and `AsyncContextSource` without a settled release role | first decide keep-vs-retire posture, then align the surviving contract with docs/tests | Sprint 1 then Sprint 3 | `GAP-002` and `TMO-004` close with one documented contract |
+| Instruction docs drift | derived onboarding/agent docs can repeat superseded rules such as builtin handler precedence | correct derived instructions immediately and treat source-of-truth docs as authoritative for runtime behavior | Sprint 1 | README, `CLAUDE.md`, and source-of-truth docs make the same runtime claims |
 | Runtime setup guidance | source layout exists but contributor/runtime setup proof is incomplete | replace inference-only setup with a checked example or one canonical guide | Sprint 4 | `GAP-004` closes and a clean setup succeeds without source reading |
 | Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | first freeze scaffold/reference posture, then promote only with tests/install docs if desired | Sprint 1 then Sprint 5 | `GAP-003` and `BND-002` are resolved without mixed claims |
 | Merge review residue | task `#370` and any stale review notes can linger after implementation finishes | retire or resolve all remaining merge-only review items before final QA | Sprint 6 | final branch head has no stale review-only requirement notes |
@@ -137,24 +138,28 @@ Early retire or replace:
 - duplicate compliance paths that suggest two sources of truth
 - pseudo-checks that do not prove the documented contract
 - public-looking SDK traits that are not part of the real runtime contract
+- stale onboarding or agent instructions that repeat superseded runtime rules
 - ambiguous plugin language that overstates scaffold crates as shipped behavior
 
 Deliverables:
 - decide the single owning compliance path and retire or reduce the duplicate path before expanding coverage
 - decide whether `sc-hooks-sdk` traits are thin SDK conveniences to keep or stale public-looking surfaces to remove
 - verify or explicitly gap any remaining release-facing observability claims that are still advisory-only
+- align derived instruction docs such as `README.md` and `CLAUDE.md` to the current plugin-only runtime and JSON-defined public contract
 - freeze `plugins/` as scaffold/reference only unless and until a later sprint promotes a plugin with real runtime proof
 
 Verification:
 - surviving compliance path is named explicitly in code and docs
 - removed or retained SDK traits match the documented contract posture
 - advisory observability claims are either code-cited or moved into explicit gaps
+- derived instruction docs no longer contradict requirements or architecture
 - release docs stop implying shipped plugin behavior where only scaffold code exists
 
 Acceptance criteria:
 - no duplicated source-of-truth surface remains for compliance behavior
 - SDK trait posture is explicit instead of implied
 - any remaining advisory-only observability claims are either verified or downgraded to documented gaps
+- onboarding and agent instructions do not contradict the release docs
 - docs and gaps describe one honest baseline for later sprint work
 
 Definition of done:

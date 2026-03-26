@@ -80,8 +80,9 @@ Working rules:
 
 ## Design Rules
 
-- Builtins win name resolution over plugins.
+- Handler names resolve only through `.sc-hooks/plugins/`; there are no builtin handlers in the current runtime.
 - Plugins are standalone executables, not linked libraries.
 - JSON is the host/plugin contract.
+- Rust SDK helpers are convenience surfaces, not the release-defining public contract.
 - Config contains routing and shared context, not handler-specific config.
 - If behavior is not implemented, mark it deferred or track it as a gap.
