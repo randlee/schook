@@ -11,6 +11,7 @@ This table maps the most important documented requirements to current implementa
 | CFG-008 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/audit.rs` | config tests, audit tests | |
 | RES-001 | implemented | `sc-hooks-cli/src/resolution.rs` | resolution tests | |
 | RES-002 | implemented | `sc-hooks-cli/src/resolution.rs`, `sc-hooks-cli/src/handlers.rs` | resolution tests plus `sc-hooks-cli/tests/runtime_layout_example.rs` using `examples/runtime-layout/.sc-hooks/` | |
+| RES-003 | implemented | `sc-hooks-cli/src/resolution.rs`, `sc-hooks-cli/src/audit.rs` | resolution tests plus audit tests covering unresolved handler failures in runtime and audit | |
 | MTR-001 | implemented | `sc-hooks-cli/src/install.rs` | install tests | |
 | PLC-001 | implemented | `sc-hooks-sdk/src/conditions.rs`, `sc-hooks-cli/src/resolution.rs` | condition tests, resolution tests | |
 | PLC-002 | implemented | `sc-hooks-sdk/src/conditions.rs` | condition tests | DEF-007 |
@@ -51,6 +52,7 @@ This table maps the most important documented requirements to current implementa
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
 | OBS-002 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests, dispatch tests | |
+| OBS-005 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests plus dispatch error-path tests covering `HandlerResultRecord` fields `handler_name`, `error_type`, elapsed time, and `disabled=true` | |
 | BND-001 | implemented | `plugins/*/src/main.rs` | source inspection only | |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | implemented | `plugins/*/Cargo.toml`, README, architecture docs | release-facing docs and plugin metadata agree that no current `plugins/` source crate is shipped runtime functionality, so no unsupported shipped-plugin claim remains | |
