@@ -34,7 +34,7 @@ This table maps the most important documented requirements to current implementa
 | TMO-001 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
 | TMO-002 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/dispatch.rs` | timeout tests | |
 | TMO-003 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
-| TMO-004 | gap | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/traits.rs` | timeout tests only prove host side | GAP-002 |
+| TMO-004 | gap | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | timeout tests only prove host side; Sprint 1 retired stale `LongRunning`/`AsyncContextSource` traits but did not yet close the end-to-end contract | GAP-002 |
 | SES-001 | implemented | `sc-hooks-cli/src/session.rs` | session tests | |
 | SES-002 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/session.rs` | session tests | |
 | MTA-001 | implemented | `sc-hooks-cli/src/metadata.rs` | metadata tests | |
@@ -46,7 +46,7 @@ This table maps the most important documented requirements to current implementa
 | CLI-003 | implemented | `sc-hooks-cli/src/fire.rs` | fire tests | |
 | CLI-004 | implemented | `sc-hooks-cli/src/install.rs` | install tests | GAP-004 |
 | CLI-005 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-core/src/exit_codes.rs` | config tests, handlers tests, exit-code table tests | |
-| CLI-007 | gap | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test/src/compliance.rs` | minimal compliance tests only | GAP-001 |
+| CLI-007 | gap | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/src/main.rs` | `sc-hooks-test` owns the compliance engine; `sc-hooks-cli/src/testing.rs` is now a thin presentation wrapper over the shared checks | GAP-001 |
 | AUD-001 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
@@ -66,7 +66,7 @@ This table maps the most important documented requirements to current implementa
 | EXC-007 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-008 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | TST-001 | implemented | workspace modules | distributed unit/integration tests | |
-| TST-007 | gap | `sc-hooks-test/src/compliance.rs` | current harness tests | GAP-001 |
+| TST-007 | gap | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs` | shared harness currently proves manifest, contract, matcher, timeout-shape, and minimal JSON behavior; direct absent-payload and other protocol branches remain Sprint 2 work | GAP-001 |
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
 
 ## Resolved Gap Acknowledgments

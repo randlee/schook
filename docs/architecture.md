@@ -39,7 +39,7 @@ The host does not:
 | --- | --- |
 | `sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, `sc-observability` integration, exit behavior |
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
-| `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, result helpers, and lightweight traits; this crate is an authoring aid, not the release-defining public contract |
+| `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
 
 Important boundary:

@@ -389,6 +389,7 @@ dependencies = [
  "nix",
  "sc-hooks-core",
  "sc-hooks-sdk",
+ "sc-hooks-test",
  "sc-observability",
  "sc-observability-types",
  "serde",

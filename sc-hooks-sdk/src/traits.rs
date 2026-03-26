@@ -1,4 +1,4 @@
-use sc_hooks_core::manifest::{Manifest, ResponseTimeRange};
+use sc_hooks_core::manifest::Manifest;
 
 use crate::result::{AsyncResult, HookResult};
 
@@ -12,14 +12,6 @@ pub trait SyncHandler: ManifestProvider {
 
 pub trait AsyncHandler: ManifestProvider {
     fn handle_async(&self, input: serde_json::Value) -> Result<AsyncResult, String>;
-}
-
-pub trait LongRunning {
-    fn description(&self) -> &str;
-}
-
-pub trait AsyncContextSource {
-    fn response_time(&self) -> ResponseTimeRange;
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ The project provides:
 | --- | --- |
 | `sc-hooks-cli/` | Host binary: `run`, `audit`, `fire`, `install`, `config`, `handlers`, `test`, `exit-codes` |
 | `sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
-| `sc-hooks-sdk/` | Rust convenience layer for manifest generation, runner helpers, result helpers, and lightweight traits; not the release-defining public contract |
+| `sc-hooks-sdk/` | Rust convenience layer for manifest generation, runner helpers, and result helpers; not the release-defining public contract |
 | `sc-hooks-test/` | Reusable plugin compliance harness |
 | `plugins/` | Reference/scaffold plugin source crates, not the runtime plugin install directory |
 | `docs/` | Requirements, architecture, contracts, execution plan, gap ledger, traceability, and governance |
@@ -43,7 +43,7 @@ Important current realities:
 - The source crates under `plugins/` are reference implementations and scaffolds; they are not production-ready bundled handlers.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
 - Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.
-- SDK runner and trait helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.
+- SDK runner helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.
 
 ## Core Commands
 
