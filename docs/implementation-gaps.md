@@ -6,7 +6,6 @@ This document tracks gaps between the current codebase and the release-standard 
 
 | Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
 | --- | --- | --- | --- | --- |
-| GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests | retire or replace public-looking SDK traits and document runner-helper limits unless they become real release-contract surfaces |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
 | DEF-001 | deferred | docs, plugin source crates, release packaging | deferred table, README, architecture, and gaps all keep scaffold plugins out of the shipped baseline | none until a plugin is promoted with runtime proof |
@@ -20,6 +19,7 @@ This document tracks gaps between the current codebase and the release-standard 
 ## Resolved In This Pass
 
 - `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
+- `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
@@ -43,28 +43,28 @@ This document tracks gaps between the current codebase and the release-standard 
   - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` remains retired after Sprint 1
   - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` stays removed; host-path absent-payload proof now replaces it
 
-## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
+## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly (Resolved In Sprint 3)
 
 - Severity: `important`
 - Source: `TMO-004`
 - Owner area:
   - `sc-hooks-sdk`, `sc-hooks-cli`, docs
 - Current behavior:
-  - The host honors manifest fields `long_running`, `timeout_ms`, and `description`.
-  - Audit rejects `long_running=true` for async handlers and requires a non-empty description.
+  - The host treats `long_running` as a sync-only manifest contract.
+  - Sync `long_running=true` removes the default sync timeout when no explicit `timeout_ms` override is set.
+  - Async manifests using `long_running=true` are rejected during manifest validation, resolution, and audit.
   - the stale `sc-hooks-sdk::traits::LongRunning` and `AsyncContextSource` surfaces are retired so the SDK no longer implies a richer contract than the host actually guarantees today.
   - `sc-hooks-sdk::runner::PluginRunner` also includes convenience behavior such as treating empty stdin as `{}`, which is useful for authoring but is not itself the release-defining host contract.
-  - Sprint 1 partially addressed this gap by retiring the stale traits, but the full host/SDK/doc/test `long_running` posture remains Sprint 3 work.
+  - the SDK remains a thin authoring surface: manifest helpers can express the valid sync-only contract, but runner fallback defaults are still convenience behavior rather than host guarantees.
 - Expected behavior:
-  - The docs, SDK convenience surface, and tests should agree on one release-grade SDK posture: either thin authoring conveniences with clearly documented limits, or a fuller public contract that is actually proven end to end.
+  - The docs, SDK convenience surface, and tests agree on one release-grade posture: the host contract is manifest-driven and sync-only for `long_running`, while runner conveniences stay out of the normative release contract.
 - Verification method:
   - one end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests
 - Recommended fix path:
-  - Treat `long_running` as a host manifest feature for now and keep the SDK posture narrow until Sprint 3 aligns the end-to-end contract.
-  - Document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
+  - Keep the SDK posture narrow and document runner-helper limits anywhere the SDK is presented as an authoring path so convenience defaults are not mistaken for host guarantees.
 - Early retire / replace candidates:
-  - `sc-hooks-sdk::traits::LongRunning` is retired in this sprint
-  - `sc-hooks-sdk::traits::AsyncContextSource` is retired in this sprint
+  - `sc-hooks-sdk::traits::LongRunning` remains retired after Sprint 1
+  - `sc-hooks-sdk::traits::AsyncContextSource` remains retired after Sprint 1
   - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
 ## GAP-003: Bundled Plugin Readiness Was Previously Overstated

@@ -34,7 +34,7 @@ This table maps the most important documented requirements to current implementa
 | TMO-001 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
 | TMO-002 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/dispatch.rs` | timeout tests | |
 | TMO-003 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
-| TMO-004 | gap | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | timeout tests only prove host side; Sprint 1 retired stale `LongRunning`/`AsyncContextSource` traits but did not yet close the end-to-end contract | GAP-002 |
+| TMO-004 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/audit.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-sdk/src/manifest.rs` | timeout tests, audit tests, manifest validation tests, and `sc-hooks-cli/tests/long_running_contract.rs` agree on the sync-only `long_running` contract | |
 | SES-001 | implemented | `sc-hooks-cli/src/session.rs` | session tests | |
 | SES-002 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/session.rs` | session tests | |
 | MTA-001 | implemented | `sc-hooks-cli/src/metadata.rs` | metadata tests | |
@@ -74,5 +74,6 @@ This table maps the most important documented requirements to current implementa
 | Gap | Status | Primary implementation | Primary tests or checks |
 | --- | --- | --- | --- |
 | GAP-001 | resolved | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared host-dispatch contract suite plus CLI delegation through `sc-hooks-cli/src/testing.rs` |
+| GAP-002 | resolved | `sc-hooks-sdk/src/manifest.rs`, `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-cli/src/audit.rs` | manifest validation tests, timeout tests, audit tests, handler discovery tests, and `sc-hooks-cli/tests/long_running_contract.rs` |
 | GAP-005 | resolved | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests, logging/observability contract docs |
 | GAP-007 | resolved | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | dependency inspection, observability tests, architecture/requirements alignment |

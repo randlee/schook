@@ -121,6 +121,7 @@ Failure handling:
 - non-zero exit disables the plugin for the session and fails the chain
 - timeout disables the plugin for the session; sync dispatch fails, async dispatch records the failure and continues
 - async `action=block` is treated as a protocol violation and disables the plugin
+- async manifests using `long_running=true` are rejected during manifest validation and resolution
 
 ## 4.6 Error Hierarchy And Exit Mapping
 
@@ -149,6 +150,7 @@ Sync mode:
 - handlers run in order
 - `block` short-circuits the chain
 - `error` short-circuits the chain
+- `long_running=true` removes the default sync timeout when no explicit `timeout_ms` override is set
 
 Async mode:
 - only async handlers run
@@ -156,6 +158,7 @@ Async mode:
 - `systemMessage` values are concatenated with `\n`
 - async block attempts are treated as protocol errors
 - timeout does not turn the async host invocation into a blocking failure
+- `long_running=true` is not part of the valid async manifest contract
 
 ### 4.5 Session Disable State
 
@@ -193,7 +196,6 @@ This boundary is current architecture, not deferred intent.
 
 - SDK-level `LongRunning` ergonomics beyond the host's manifest handling
 - release-grade bundled plugins
-- stronger compliance-harness coverage that proves the entire documented release contract
 - a more granular exit-code split for manifest compatibility vs other resolution failures
 
 These items are not part of the current mainline architecture contract and must remain documented as gaps or deferred work.
