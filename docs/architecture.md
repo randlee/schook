@@ -200,7 +200,7 @@ The current architecture does not aim to provide:
 
 ## 8. Enforcement Notes
 
-- Builtins win name resolution because resolution checks them before plugin paths.
+- Handler names resolve only through `.sc-hooks/plugins/`; the runtime has no builtin resolution path.
 - Plugins remain processes because dispatch always shells out to executables.
 - JSON remains the only host/plugin contract because manifests and runtime results are serialized through serde-backed JSON.
 - Crate boundaries remain narrow because `sc-hooks-core` carries shared data only, `sc-hooks-sdk` is convenience code, and `sc-hooks-cli` owns orchestration.
