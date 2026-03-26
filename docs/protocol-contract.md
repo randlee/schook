@@ -138,20 +138,28 @@ Fields:
 | `value` | any JSON value | depends on operator | omitted for `exists` and `not_exists` |
 
 Current operators accepted by code:
+- release-contract operators (`PLC-002`):
 - `exists`
 - `not_exists`
 - `equals`
 - `not_equals`
 - `contains`
-- `not_contains`
 - `starts_with`
 - `matches`
 - `one_of`
 - `regex`
+
+Current code also accepts additional operators that are not part of the current
+release contract:
+- `not_contains`
 - `gt`
 - `lt`
 - `gte`
 - `lte`
+
+Deferred contract note:
+- those extended operators are current implementation convenience behavior only
+- they are deferred from the release-facing contract under `DEF-007`
 
 Current validation rules:
 - `path` must not be empty and must not contain empty segments

@@ -108,6 +108,12 @@ Current release scope does not include:
 
 ### 4.7 Audit, Logging, And Release Honesty
 
+Retired observability IDs:
+- `OBS-003` and `OBS-004` were retired during the move from older ad hoc
+  logging drafts to the current `sc-observability` contract; see
+  `docs/implementation-gaps.md` for the retirement note tied to `GAP-005` and
+  `GAP-007`
+
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | AUD-001 | Implemented | Must | Audit shall check handler resolvability, manifest validity, hook declarations, matcher validity, required metadata satisfiability, filesystem validation for `dir_exists` and `file_exists`, sandbox declarations, and install-plan generation. | `audit::run()` emits errors and warnings for those classes. |
@@ -155,6 +161,7 @@ Current release scope does not include:
 | DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
 | DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
 | DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
+| DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
 
 ## 7. Release Rule
 

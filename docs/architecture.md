@@ -7,6 +7,7 @@ This document describes the current architecture only.
 - normative product behavior lives in `docs/requirements.md`
 - host/plugin wire shapes live in `docs/protocol-contract.md`
 - observability event shapes live in `docs/observability-contract.md`
+- current JSONL dispatch-log consumer contract lives in `docs/logging-contract.md`
 - missing or overstated behavior lives in `docs/implementation-gaps.md`
 
 If a behavior is not present in code, this document shall not describe it as current architecture.

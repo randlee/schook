@@ -353,9 +353,8 @@ Early retire or replace:
 - merge-time TODOs carried forward after the underlying requirement is already resolved
 
 Deliverables:
-- resolve task `#370` items:
-- `RV-001`: requirements section 2.1 plugin-count prose fix
-- `RV-002`: retire `EXC-009` and `CLI-008` "0-10" claim at merge
+- retire or resolve any remaining merge-time review notes that still map to real open work
+- remove stale review placeholders that no longer correspond to current requirement or gap IDs
 - final doc/code consistency check
 - final reviewer and QA handoff
 

@@ -10,14 +10,19 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-002 | important | `sc-hooks-sdk`, `sc-hooks-cli`, docs | One end-to-end SDK posture proven across manifest validation, runtime behavior, docs, and tests | retire or replace public-looking SDK traits and document runner-helper limits unless they become real release-contract surfaces |
 | GAP-003 | important | docs, plugin source crates, release packaging | Supported-plugin claims match runtime installation, behavior, and tests | retire old "bundled plugin" language before promoting any source crate to shipped behavior |
 | GAP-004 | important | docs, examples/setup, `sc-hooks-cli` | A checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout | none yet |
+| DEF-001 | deferred | docs, plugin source crates, release packaging | deferred table, README, architecture, and gaps all keep scaffold plugins out of the shipped baseline | none until a plugin is promoted with runtime proof |
+| DEF-002 | deferred | `sc-hooks-cli`, docs | `fire` docs and implementation continue to describe summary-string output only | none until a structured fire report is intentionally designed |
+| DEF-003 | deferred | `sc-hooks-sdk`, docs | SDK docs, requirements, and gaps keep richer `LongRunning` ergonomics deferred beyond the current manifest-driven host contract | see `GAP-002` |
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
 | GAP-008 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release | none until the product intentionally restores builtins |
 | GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
+| DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
 
 ## Resolved In This Pass
 
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
+- `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 
 ## GAP-001: Compliance Harness Overclaims Coverage
 
@@ -93,6 +98,36 @@ This document tracks gaps between the current codebase and the release-standard 
   - a checked-in example or setup guide proves the expected `.sc-hooks/` runtime layout
 - Recommended fix path:
   - Add a minimal example `.sc-hooks/` tree or a clearly linked setup guide before release.
+
+## Deferred Item Acknowledgments
+
+### DEF-001: Production-Ready Bundled Plugins Stay Deferred
+
+- Current behavior:
+  - source crates under `plugins/` remain scaffold/reference implementations
+- Exit condition:
+  - real runtime behavior, installation guidance, and direct tests exist for any plugin promoted as shipped behavior
+
+### DEF-002: Richer `fire` Diagnostics Stay Deferred
+
+- Current behavior:
+  - `sc-hooks fire` returns a short summary string rather than a structured diagnostics report
+- Exit condition:
+  - a stable structured `fire` output format is implemented and tested
+
+### DEF-003: Richer SDK `LongRunning` Ergonomics Stay Deferred
+
+- Current behavior:
+  - richer SDK-level `LongRunning` ergonomics remain subordinate to the current manifest-driven host contract
+- Exit condition:
+  - the SDK, docs, and tests agree on a stable public contract beyond the current host behavior
+
+### DEF-007: Extended Payload-Condition Operators Stay Deferred
+
+- Current behavior:
+  - code may accept operators beyond the `PLC-002` set, but those extra operators are not part of the release-facing contract
+- Exit condition:
+  - requirements, protocol docs, and tests are updated together for the expanded operator set
 
 ## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
 

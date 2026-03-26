@@ -73,7 +73,7 @@ sc-hooks exit-codes
 | --- | --- |
 | `docs/requirements.md` | Normative release-facing behavior and status |
 | `docs/architecture.md` | Current crate boundaries, execution model, and deferred areas |
-| `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps |
+| `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps; not a normative source-of-truth doc |
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
 | `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
 | `docs/logging-contract.md` | Current JSONL dispatch-log schema for downstream consumers |

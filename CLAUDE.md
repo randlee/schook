@@ -43,6 +43,7 @@ Read these first for product behavior:
 - `docs/requirements.md`
 - `docs/architecture.md`
 - `docs/protocol-contract.md`
+- `docs/observability-contract.md`
 - `docs/logging-contract.md`
 - `docs/implementation-gaps.md`
 - `docs/traceability.md`

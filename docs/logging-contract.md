@@ -168,12 +168,17 @@ Current behavior:
 Current behavior for sync runtime failures such as timeout, invalid JSON,
 non-zero exit, `action = "error"`, and process I/O failures:
 - `level = "Error"`
-- `outcome = "error"` for non-timeout failures
+- `outcome = "error"` and `exit = 2` for invalid JSON, non-zero exit, spawn,
+  stdin/stdout/stderr, wait, and `action = "error"` plugin-failure paths
 - `outcome = "error"` and `exit = 6` for sync timeout
 - `results[*].action = "error"`
 - `results[*].error_type` identifies the failure class
 - `results[*].disabled = true` is present when the handler was disabled
 - `ai_notification` is usually present
+
+Exit-taxonomy owner:
+- `EXC-002`
+- `EXC-006`
 
 ### 6.4 Async Proceed
 
