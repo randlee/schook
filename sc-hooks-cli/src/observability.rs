@@ -180,8 +180,7 @@ mod tests {
     #[test]
     fn emits_service_scoped_sc_observability_log_event() {
         let temp = tempfile::tempdir().expect("tempdir should create");
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(temp.path()).expect("cwd should switch");
+        let _cwd = crate::test_support::scoped_current_dir(temp.path());
 
         emit_dispatch_event(DispatchEventArgs {
             hook: "PreToolUse",
@@ -218,7 +217,5 @@ mod tests {
         assert_eq!(parsed["fields"]["hook"], "PreToolUse");
         assert_eq!(parsed["fields"]["matcher"], "Write");
         assert_eq!(parsed["fields"]["results"][0]["handler"], "guard-paths");
-
-        std::env::set_current_dir(original).expect("cwd should restore");
     }
 }
