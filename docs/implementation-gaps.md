@@ -24,7 +24,9 @@ This document tracks gaps between the current codebase and the release-standard 
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 
-## GAP-001: Compliance Harness Overclaims Coverage (Resolved In Sprint 2)
+## Resolved Gaps
+
+### GAP-001: Compliance Harness Overclaims Coverage (Resolved In Sprint 2)
 
 - Severity: `blocker`
 - Source: `CLI-007`, `TST-007`
@@ -43,7 +45,7 @@ This document tracks gaps between the current codebase and the release-standard 
   - duplicate compliance logic in `sc-hooks-cli/src/testing.rs` remains retired after Sprint 1
   - the duplicate absent-payload pseudo-check in `sc-hooks-test/src/compliance.rs` stays removed; host-path absent-payload proof now replaces it
 
-## GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
+### GAP-002: SDK Surface Does Not Yet Match Host Reality Cleanly
 
 - Severity: `important`
 - Source: `TMO-004`
@@ -67,7 +69,7 @@ This document tracks gaps between the current codebase and the release-standard 
   - `sc-hooks-sdk::traits::AsyncContextSource` is retired in this sprint
   - any SDK helper behavior that reads like contract-defining runtime semantics without corresponding host guarantees
 
-## GAP-003: Bundled Plugin Readiness Was Previously Overstated
+### GAP-003: Bundled Plugin Readiness Was Previously Overstated
 
 - Severity: `important`
 - Source: `BND-001`, `BND-002`
@@ -85,7 +87,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - Early retire / replace candidates:
   - old "bundled plugin" language in contributor-facing docs and release notes
 
-## GAP-004: No Checked-In Example Runtime Layout
+### GAP-004: No Checked-In Example Runtime Layout
 
 - Severity: `important`
 - Source: `CFG-001`, `RES-002`, `CLI-004`

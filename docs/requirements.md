@@ -104,7 +104,7 @@ Current release scope does not include:
 | CLI-003 | Implemented | Should | `sc-hooks fire <hook> [event]` shall run a diagnostic sync dispatch and return a short summary string. | `run_fire()` returns summary text rather than a structured report. |
 | CLI-004 | Implemented | Must | `sc-hooks install` shall write `.claude/settings.json` from the current config and plugin manifests. | `write_default_settings()` writes the default settings path. |
 | CLI-005 | Implemented | Must | `sc-hooks config`, `handlers`, and `exit-codes` shall expose resolved config, discovered handlers or event taxonomy, and exit-code guidance. | The CLI includes those subcommands. |
-| CLI-007 | Required Before Release | Must | `sc-hooks test <plugin>` and `sc-hooks-test` shall prove the release contract that the docs claim, not only minimal manifest/protocol checks. | The compliance suite covers timeout, invalid output, async misuse, matcher validity, and absent-payload behavior with direct assertions. |
+| CLI-007 | Implemented | Must | `sc-hooks test <plugin>` and `sc-hooks-test` shall prove the release contract that the docs claim, not only minimal manifest/protocol checks. | `sc-hooks-cli/tests/compliance_host.rs` drives the shared `sc-hooks-test::compliance::run_contract_behavior_suite` through the real CLI binary and directly asserts timeout, invalid output, async misuse, matcher filtering, multi-object stdout warnings, and absent-payload behavior. |
 
 ### 4.7 Audit, Logging, And Release Honesty
 
@@ -148,7 +148,7 @@ Retired observability IDs:
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | TST-001 | Implemented | Must | Config parsing, resolution, dispatch, metadata, timeout handling, and audit shall be unit or integration testable from Rust. | The workspace includes tests for those components. |
-| TST-007 | Required Before Release | Must | The reusable compliance harness shall cover the same protocol and behavioral guarantees that the release docs promise. | `docs/traceability.md` can point every test-claim row to a real harness assertion or to an explicit gap. |
+| TST-007 | Implemented | Must | The reusable compliance harness shall cover the same protocol and behavioral guarantees that the release docs promise. | `sc-hooks-test/src/compliance.rs::run_contract_behavior_suite` is exercised directly and through `sc-hooks-cli/tests/compliance_host.rs`, so each release-facing compliance claim points to a real shared harness assertion. |
 | PRT-001 | Implemented | Must | The workspace shall build and test on Linux and macOS in CI. | `.github/workflows/ci.yml` runs build/test on Ubuntu and macOS. |
 
 ## 6. Deferred Items

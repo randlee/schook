@@ -20,11 +20,10 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- `GAP-001`: compliance harness coverage is below the release contract
 - `GAP-002`: `long_running` contract is not aligned across host, SDK, docs, and tests
 - `GAP-003`: source plugins are still scaffold/reference crates, not shipped runtime plugins
 - `GAP-004`: no checked-in example `.sc-hooks/` runtime layout or setup guide
-- `CLI-007`, `TMO-004`, `BND-002`, and `TST-007`: required-before-release items still open
+- `TMO-004` and `BND-002`: required-before-release items still open
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -239,7 +238,7 @@ Definition of done:
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 2 closes `GAP-001` and moves `CLI-007` and `TST-007` from gap to implemented. `TMO-004` remains open for Sprint 3.
+  Sprint 2 closes `GAP-001` and moves `CLI-007` and `TST-007` to implemented. `TMO-004` remains open for Sprint 3.
 - What code was removed early rather than left in parallel?
   No duplicate compliance engine was reintroduced; Sprint 2 kept `sc-hooks-cli/src/testing.rs` as presentation-only glue and added the host-path contract suite to the shared `sc-hooks-test` surface instead of splitting behavior back into the CLI.
 - Which files/crates were the owned write scope for the sprint?

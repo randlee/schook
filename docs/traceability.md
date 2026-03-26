@@ -46,7 +46,7 @@ This table maps the most important documented requirements to current implementa
 | CLI-003 | implemented | `sc-hooks-cli/src/fire.rs` | fire tests | |
 | CLI-004 | implemented | `sc-hooks-cli/src/install.rs` | install tests | GAP-004 |
 | CLI-005 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-core/src/exit_codes.rs` | config tests, handlers tests, exit-code table tests | |
-| CLI-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/src/main.rs` | `sc-hooks-cli/tests/compliance_host.rs` proves the shared host-dispatch contract suite through the real CLI binary, while `testing.rs` remains the thin presentation wrapper | |
+| CLI-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/src/main.rs` | `sc-hooks-cli/tests/compliance_host.rs` proves `sc-hooks-test::compliance::run_contract_behavior_suite` through the real CLI binary, while `testing.rs` remains the thin presentation wrapper | |
 | AUD-001 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
@@ -66,7 +66,7 @@ This table maps the most important documented requirements to current implementa
 | EXC-007 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-008 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | TST-001 | implemented | workspace modules | distributed unit/integration tests | |
-| TST-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared host-dispatch contract suite covers timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior | |
+| TST-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared `run_contract_behavior_suite` covers timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior | |
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
 
 ## Resolved Gap Acknowledgments
