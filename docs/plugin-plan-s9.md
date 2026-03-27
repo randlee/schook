@@ -14,6 +14,7 @@ Durable platform references for this plan live in:
 
 - `docs/hook-api/claude-hook-api.md`
 - `docs/hook-api/codex-hook-api.md`
+- `docs/hook-api/cursor-agent-hook-api.md`
 - `docs/hook-api/atm-hook-extension.md`
 
 Sprint 9 focuses on the verified Claude hook set. Codex is documented as a
@@ -97,7 +98,10 @@ Minimum first-pass capture matrix:
   `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, `Notification(idle_prompt)`
 - Codex: document and capture the currently available hook/notify surfaces
 - Gemini: document and capture the currently available hook surfaces
-- Cursor Agent: document and capture the currently available lifecycle hooks
+- Cursor Agent:
+  - controllable: `beforeShellExecution`, `beforeMCPExecution`,
+    `beforeReadFile`
+  - informational: `afterFileEdit`, `stop`
 
 Acceptance for this first step:
 
@@ -212,6 +216,54 @@ Why they fit:
   re-infer identity from cwd
 - Codex parity is not part of this sprint baseline because Codex does not yet
   have the same verified session-start capture path in this repo
+
+## Cursor-Agent Follow-On Scope
+
+Cursor Agent is in scope for the same planning branch/PR, but it is not part of
+the verified Claude implementation baseline.
+
+Current verified planning baseline for Cursor comes from:
+
+- `cursor-agent --help`
+- `https://cursor.com/docs/hooks`
+- local Cursor CLI state under `/Users/randlee/.cursor/`
+
+Current locally verified facts:
+
+- `cursor-agent` is installed on this machine
+- current CLI supports `--print`, `--output-format`, `--mode`, `--resume`,
+  `--continue`, `--workspace`, and `--worktree`
+- there is no current `/Users/randlee/.cursor/hooks.json` on this machine
+
+Current publicly documented hook names relevant to this plan:
+
+- controllable:
+  - `beforeShellExecution`
+  - `beforeMCPExecution`
+  - `beforeReadFile`
+- informational:
+  - `afterFileEdit`
+  - `stop`
+
+Planning rule:
+
+- use these hook names for sequencing and crate layout only
+- do not promote any Cursor stdin fields into implementation scope until the
+  harness captures real payloads for the installed `cursor-agent` runtime
+
+Recommended crate split after schema capture:
+
+- `plugins/cursor-agent-gates`
+  - `beforeShellExecution`
+  - `beforeMCPExecution`
+  - `beforeReadFile`
+- `plugins/cursor-agent-relay`
+  - `afterFileEdit`
+  - `stop`
+
+These are planning targets only. Like the Claude/ATM crate targets above, they
+remain scaffold/reference-only proposals until implementation lands with tests
+and the same-PR architecture inventory update.
 
 ## Recommended Crate Layout
 
@@ -328,12 +380,20 @@ Deliver:
 
 - Codex session-identity follow-up plan if the runner gains a verified
   SessionStart-equivalent surface
+- Cursor Agent schema-backed follow-on plan revision once the harness captures
+  `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`,
+  `afterFileEdit`, and `stop`
+- `plugins/cursor-agent-gates` only after controllable hook request/response
+  schemas are captured
+- `plugins/cursor-agent-relay` only after informational hook payloads are
+  captured
 - any future `TeammateIdle`, `PreCompact`, or `PostCompact` hooks only after
   their payloads and persistence boundaries are verified
 
 Dependencies:
 
 - Claude baseline implemented and validated first
+- Cursor hook schemas captured and the plan revised from that evidence first
 
 ## Per-Hook Notes
 

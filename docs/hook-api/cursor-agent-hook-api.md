@@ -1,0 +1,127 @@
+# Cursor Agent Hook API
+
+## Purpose
+
+This document records the currently verified Cursor-facing hook surfaces that
+matter to `schook` planning. It is intentionally separate from the Claude and
+Codex documents because the current evidence comes from a different
+combination of local CLI behavior and public Cursor hook documentation.
+
+## Current Source Of Truth
+
+- local CLI help from `cursor-agent --help`
+- local Cursor CLI state under `/Users/randlee/.cursor/`
+- public Cursor docs page `https://cursor.com/docs/hooks`
+
+This document only promotes facts that are directly visible from those sources.
+
+## Current Local Runtime Baseline
+
+Current locally verified CLI behavior:
+
+- `cursor-agent` is installed and runnable
+- headless/CLI usage supports:
+  - `--print`
+  - `--output-format text | json | stream-json`
+  - `--mode plan | ask`
+  - `--resume`
+  - `--continue`
+  - `--workspace`
+  - `--worktree`
+
+Current locally verified config state:
+
+- `/Users/randlee/.cursor/cli-config.json` exists
+- `/Users/randlee/.cursor/hooks.json` does not currently exist on this machine
+
+That means `schook` can treat Cursor Agent as an installed provider with a
+current CLI/runtime surface, but not as a provider whose local hook config and
+stdin payloads have already been captured in this repo.
+
+## Current Public Hook Baseline
+
+Current publicly documented hook/event names visible on the Cursor hooks page
+include:
+
+- `beforeShellExecution`
+- `beforeMCPExecution`
+- `beforeReadFile`
+- `afterFileEdit`
+- `stop`
+- `sessionStart`
+- `sessionEnd`
+- `preCompact`
+- `subagentStart`
+- `subagentStop`
+- `beforeSubmitPrompt`
+- `afterAgentResponse`
+- `afterAgentThought`
+
+For the current S9 follow-on planning scope, the relevant Cursor hook set is:
+
+- controllable hooks:
+  - `beforeShellExecution`
+  - `beforeMCPExecution`
+  - `beforeReadFile`
+- informational hooks:
+  - `afterFileEdit`
+  - `stop`
+
+## Verified Public Schema Fragments
+
+The current Cursor hooks page also shows these currently documented field or
+config names:
+
+- common configuration keys:
+  - `failClosed`
+  - `matcher`
+- example request/response fields:
+  - `command`
+  - `permission`
+- documented hook payload fields in the current page content:
+  - `transcript_path`
+  - `user_email`
+  - `is_parallel_worker`
+  - `git_branch`
+  - `duration_ms`
+  - `message_count`
+  - `tool_call_count`
+  - `loop_count`
+  - `modified_files`
+  - `agent_transcript_path`
+  - `is_first_compaction`
+
+These are verified as names currently present in Cursor's public hook docs.
+They are not yet promoted here as guaranteed `cursor-agent` CLI stdin fields
+for the specific S9 hook set until the live harness captures them.
+
+## Planning Rules For `schook`
+
+- do not assume the full Cursor IDE hook schema is identical to the
+  `cursor-agent` CLI runtime without live capture evidence
+- do not write `schook` code against Cursor field names that have only been
+  seen in public docs and not yet captured by the harness
+- use the current public hook names as planning inputs only
+- require live fixture capture before any Cursor-targeting hook crate is
+  implemented
+
+## Current Platform Gaps
+
+- no captured `cursor-agent` hook payload fixtures exist in this repo yet
+- no current local `hooks.json` is configured on this machine
+- no `schook`-owned Cursor validation models exist yet
+- no verified provider-specific stdin schema has been captured yet for:
+  - `beforeShellExecution`
+  - `beforeMCPExecution`
+  - `beforeReadFile`
+  - `afterFileEdit`
+  - `stop`
+
+## Design Implications For `schook`
+
+- treat Cursor hook support as a documented follow-on provider target, not as
+  part of the Claude implementation baseline
+- use the schema-capture harness to prove the actual `cursor-agent` hook
+  payloads before any hook crate depends on them
+- separate controllable hooks from informational hooks during planning because
+  they have different risk profiles and likely different response contracts
