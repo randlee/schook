@@ -4,6 +4,10 @@
 
 This directory is the source of truth for the hook schema harness.
 
+`docs/plugin-plan-s9.md` is the umbrella execution plan.
+
+This directory is the harness sub-specification referenced by that plan.
+
 It owns:
 
 - harness documentation
@@ -257,6 +261,12 @@ This harness documentation is ready for review when:
 
 Main architecture and planning docs should reference this directory as the
 harness source of truth.
+
+Review rule:
+
+- `docs/plugin-plan-s9.md` owns the execution sequence
+- this README owns the harness operating rules
+- provider hook API docs own platform-specific verified facts
 
 Those docs should not duplicate the full harness contract here unless the
 high-level release or architecture story requires it.
