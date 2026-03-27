@@ -241,13 +241,6 @@ No hook implementation code starts until all of the following are true:
 If any one of those conditions is missing, the work remains in planning or
 schema-capture mode rather than implementation mode.
 
-Pre-gate prototype rule:
-
-- if a branch temporarily carries hook implementation code before Hook Phases 1
-  and 2 are complete, that branch must be labeled a pre-gate prototype and
-  blocked from merge until the harness capture and post-capture plan-revision
-  gates are accepted
-
 ## Review Gate
 
 This document is ready for review when:
@@ -525,11 +518,6 @@ Deliver:
 Dependencies:
 
 - revised plan and verified field set from Phase 2
-
-Current branch posture:
-
-- `feature/s9-p3-session-foundation` is a pre-gate prototype branch only
-- it remains blocked from merge until Hook Phase 1 and Hook Phase 2 complete
 
 ### Hook Phase 4: Command And Spawn Gates
 

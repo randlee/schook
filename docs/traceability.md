@@ -61,9 +61,6 @@ This table maps the most important documented requirements to current implementa
 | OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
 | OBS-007 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests plus code inspection of crate boundaries | |
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
-| HKR-002 | required before release | `docs/plugin-plan-s9.md`, `docs/project-plan.md` | hook phase gate documentation and review records | pre-gate prototype branches remain blocked from merge until harness capture is complete |
-| HKR-003 | required before release | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md` | post-capture plan/API revision records | pre-gate prototype branches remain blocked from merge until captured evidence updates the docs |
-| HKR-004 | partially implemented | `plugins/atm-session-lifecycle`, `docs/project-plan.md`, `docs/requirements.md` | session lifecycle integration tests plus branch-level phase status records | HKR-002, HKR-003 |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-002 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-003 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

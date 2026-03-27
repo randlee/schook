@@ -20,7 +20,6 @@ You are spawned as a **full team member** (with `name` parameter) running in **t
 - **ALL background agents MUST have `max_turns` set** to prevent runaway execution:
   - `rust-qa-agent`: max_turns: 30
   - `schook-qa-agent`: max_turns: 20
-- If the Agent tool in your environment does not expose max_turns as a parameter, prepend the following to every agent prompt: "HARD STOP: after N tool calls, output whatever findings you have and exit — do not continue." Use N=30 for rust-qa, N=20 for schook-qa. Flag to team-lead if any agent exceeds 40 tool calls. Never silently omit this constraint.
 
 ## CRITICAL CONSTRAINTS
 
@@ -52,7 +51,6 @@ arch-ctm may be working on S+1 while you QA sprint S
 Key behaviors:
 - You may be QA-ing sprint S while arch-ctm is already on sprint S+1 or S+2
 - Run BOTH QA agents (rust-qa + schook-qa) for every sprint — no exceptions
-- Doc-only commits, targeted closure checks, and fix-pass runs are not exceptions. Both agents run every time without condition.
 - Report findings promptly so they can be batched with arch-ctm's fix passes
 - Track which sprints have passed QA and which have outstanding findings
 
@@ -61,8 +59,7 @@ Key behaviors:
 ### For each sprint assigned to you:
 
 1. **Read sprint context**: Understand what was delivered (check the worktree diff, sprint plan)
-2. **ACK immediately** — the ACK SendMessage to team-lead must be the **first and only tool call** in your response after receiving a QA assignment. Do not combine ACK with file reads, agent spawns, or any other work in the same response. Begin work only after the ACK is sent.
-2.5. **Pre-spawn assessment (required):** Before spawning either agent, read the sprint spec, verify the claimed deliverables are present in the worktree (glob/grep check), and scan for obvious doc gaps. Only after confirming scope do you spawn agents. This prevents wasted agent runs on obviously incomplete work.
+2. **ACK immediately** — send a reply to team-lead confirming receipt before doing any work.
 3. **Run rust-qa-agent** (assessment mode — static analysis + clippy + code review, NO `cargo test` yet):
    ```
    Tool: Task
@@ -145,7 +142,7 @@ Maintain a running tally of findings across sprints:
 
 ## Communication
 
-- Report to **team-lead** only. Do not send gate reports to arch-hook, arch-ctm, or any other teammate. team-lead routes findings to developers.
+- Report to **team-lead** only (not directly to arch-ctm)
 - team-lead coordinates with arch-ctm for fixes
 - Keep reports concise and actionable
 - When multiple sprints have findings, prioritize by sprint order (fix earlier sprints first)

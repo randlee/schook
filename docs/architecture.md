@@ -46,9 +46,8 @@ Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
-- current source plugin inventory in `plugins/` is: `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
-- `plugins/atm-session-lifecycle` is a Claude lifecycle prototype crate for `SessionStart` / `SessionEnd`; on this branch it remains scaffold/reference only and is blocked from merge until the Hook Phase 1 and 2 gates complete
-- the older reference crates under `plugins/` remain scaffold/reference only; source presence alone does not make any plugin a runtime discovery entry or a shipped release plugin
+- current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
 
 ## 3.1 Public Contract Vs Internal Typed Model
 
@@ -259,8 +258,11 @@ Documented but deferred from the first harness pass:
 ### 9.3 Planned Hook Crate Targets
 
 These are planned hook-extension targets only. They are not current source
-inventory and are not current runtime crates on this branch:
+inventory and are not current runtime crates:
 
+- `plugins/atm-session-lifecycle`
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
 - `plugins/atm-state-relay`
 
 Planning rules for these targets:
@@ -282,8 +284,8 @@ current architecture does not yet include:
 
 Planning targets only for a later approved Cursor pass:
 
-- later Cursor-targeting gate and relay crates to be named after dedicated
-  Cursor schema capture and follow-on planning are complete
+- `plugins/cursor-agent-gates`
+- `plugins/cursor-agent-relay`
 
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.
