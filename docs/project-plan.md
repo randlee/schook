@@ -55,8 +55,8 @@ Important planning rule:
 | Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | In review - pre-gate prototype | Claude session and lifecycle implementation | `HKR-004` | Hook Phase 2 | `plugins/atm-session-lifecycle`, same-PR architecture inventory update |
-| Hook Phase 4 | In review - pre-gate prototype | Claude command and spawn gates | `HKR-004` | Hook Phase 3 | `plugins/atm-bash-identity`, `plugins/gate-agent-spawns`, direct behavior tests |
+| Hook Phase 3 | Planned | Claude session and lifecycle implementation | `HKR-004` | Hook Phase 2 | `plugins/atm-session-lifecycle`, same-PR architecture inventory update |
+| Hook Phase 4 | Planned | Claude command and spawn gates | `HKR-004` | Hook Phase 3 | `plugins/atm-bash-identity`, `plugins/gate-agent-spawns`, direct behavior tests |
 | Hook Phase 5 | Planned | Claude relay hooks | `HKR-004` | Hook Phase 3 | `plugins/atm-state-relay`, relay tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 
@@ -654,10 +654,6 @@ Acceptance criteria:
 Focus:
 - implement the Claude lifecycle pair first
 
-Current branch posture:
-- this branch is a pre-gate prototype because Hook Phases 1 and 2 are not yet complete
-- it is blocked from merge until the Claude harness capture and post-capture plan-revision gates are accepted
-
 Deliverables:
 - `plugins/atm-session-lifecycle`
 - tests proving `SessionStart` / `SessionEnd` behavior against the captured
@@ -667,22 +663,10 @@ Acceptance criteria:
 - lifecycle hooks use only verified inputs
 - ATM-specific routing/persistence stays bounded by the ATM extension doc
 
-QA checklist answers:
-- Which gate conditions remain open for this phase?
-  Hook Phase 1 schema capture and Hook Phase 2 post-capture plan revision remain open, so this branch is prototype-only and blocked from merge.
-- What branch-local implementation exists today?
-  `plugins/atm-session-lifecycle` implements `SessionStart` / `SessionEnd` persistence and same-session correlation tests using currently verified inputs only.
-- What validation commands prove the branch-local prototype behavior?
-  `cargo test --workspace`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo fmt --check --all`.
-
 ### Hook Phase 4: Claude Command And Spawn Gates
 
 Focus:
 - implement the Bash identity pair and the Task spawn gate
-
-Current branch posture:
-- this branch is a pre-gate prototype because Hook Phases 1 and 2 are not yet complete
-- it is blocked from merge until the Claude harness capture and post-capture plan-revision gates are accepted
 
 Deliverables:
 - `plugins/atm-bash-identity`
@@ -693,14 +677,6 @@ Acceptance criteria:
 - no field is relied on unless it was verified in Phase 1 or added in a later
   approved schema capture
 - command-sensitive behavior is tested directly
-
-QA checklist answers:
-- Which gate conditions remain open for this phase?
-  Hook Phase 1 schema capture and Hook Phase 2 post-capture plan revision remain open, so this branch is prototype-only and blocked from merge.
-- What branch-local implementation exists today?
-  `plugins/atm-bash-identity` implements the Bash identity write/cleanup pair, and `plugins/gate-agent-spawns` implements the current Claude Task spawn gate against the verified eight-hook baseline.
-- What validation commands prove the branch-local prototype behavior?
-  `cargo test --workspace`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo fmt --check --all`.
 
 ### Hook Phase 5: Claude Relay Hooks
 
