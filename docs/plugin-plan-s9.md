@@ -14,10 +14,17 @@ Durable platform references for this plan live in:
 
 - `docs/hook-api/claude-hook-api.md`
 - `docs/hook-api/codex-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
 
 Sprint 9 focuses on the verified Claude hook set. Codex is documented as a
 separate platform reference, but it is not the implementation baseline for
 this sprint.
+
+Current ATM-specific source of truth comes from `agent-team-mail` docs, hook
+scripts, tests, and Rust fallback code. The repo does not currently appear to
+use Pydantic models as the hook source of truth, so this plan treats the
+schema-validation harness as new required work rather than something already
+available upstream.
 
 ## Core Recommendation
 
@@ -76,6 +83,14 @@ Recommended technology split:
 - Python validation models for capture-time and CI-time schema checking
 - live capture scenarios that exercise real hooks with cheap/fast tasks
 
+Current evidence rule:
+
+- no field may be promoted into implementation-facing docs unless it is backed
+  by existing source-of-truth docs/scripts/tests or by captured harness
+  fixtures
+- no hook code is written until the relevant provider payload schema has been
+  captured and validated
+
 Minimum first-pass capture matrix:
 
 - Claude: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PreToolUse(Task)`,
@@ -93,6 +108,32 @@ Acceptance for this first step:
 - the S9 implementation plan only promotes fields that are backed by captured
   payload evidence or existing source-of-truth docs
 
+## Step 2: Plan Revision After Full Schema Capture
+
+This is a required step before any hook implementation code.
+
+Purpose:
+
+- revise the remaining hook plan from verified payload evidence
+- remove any placeholder assumptions left from pre-capture planning
+- freeze the exact fields each provider/hook implementation is allowed to rely
+  on
+
+Required outputs:
+
+- update `docs/plugin-plan-s9.md`
+- update provider hook API documents under `docs/hook-api/`
+- mark each planned field or behavior as:
+  - verified by existing source-of-truth implementation/docs, or
+  - verified by captured harness fixtures
+
+Acceptance for this second step:
+
+- every planned hook input field is traceable to a source document, live script,
+  test, Rust reader, or captured fixture
+- every still-unknown field remains explicitly marked unknown/deferred
+- no code-writing task starts before this revision step is complete
+
 ## Session And Agent Correlation Model
 
 The session/agent key must survive directory changes and compact/resume.
@@ -103,7 +144,7 @@ Identity anchor:
 2. hook subprocess parent PID (`PPID`) as a same-process cross-check
 3. `ATM_TEAM` + `ATM_IDENTITY` as routing labels only
 
-Required behavior:
+Current verified ATM-backed behavior:
 
 - persist a per-session record keyed by `session_id`
 - store `pid`, `team`, `identity`, and timestamps
@@ -111,9 +152,17 @@ Required behavior:
   current working directory changes
 - never use cwd as the identity key
 
-This matches the guidance supplied by `team-lead`: SessionStart-captured
-`session_id` is the primary key, PPID is the cross-check, and routing labels
-are not unique-instance identifiers.
+Current verified Claude payload facts:
+
+- `SessionStart` currently uses raw payload field `source`
+- verified observed `source` values are `init` and `compact`
+- `resume` is not currently a verified literal payload value
+
+Implementation-planning rule:
+
+- any internal fresh/resume/compact classification must be derived from
+  verified evidence and persisted state, not documented as a Claude wire enum
+  unless the harness proves it
 
 ## Hook Inventory
 
@@ -178,6 +227,11 @@ Keep policy-heavy and stateful hooks separated from generic relays.
 - `plugins/atm-state-relay`
   - owns Notification, PermissionRequest, and Stop event relay behaviors
 
+Recommended supporting test infrastructure:
+
+- `test-harness/hooks/` for provider adapters, capture fixtures, models, and
+  schema-drift tests
+
 Why this split:
 
 - session lifecycle is stateful and foundational
@@ -200,7 +254,19 @@ Dependencies:
 
 - none; this is the first gate
 
-### Phase 2: Session Foundation
+### Phase 2: Plan Revision From Captured Schema
+
+Deliver:
+
+- revised hook API docs with only verified fields
+- revised S9 plan for remaining implementation work
+- explicit deferral markers for anything still not captured or source-backed
+
+Dependencies:
+
+- Phase 1 completed with captured fixtures and model validation
+
+### Phase 3: Session Foundation
 
 Deliver:
 
@@ -210,9 +276,9 @@ Deliver:
 
 Dependencies:
 
-- hook payload evidence from Phase 1
+- revised plan and verified field set from Phase 2
 
-### Phase 3: Command And Spawn Gates
+### Phase 4: Command And Spawn Gates
 
 Deliver:
 
@@ -223,7 +289,7 @@ Dependencies:
 
 - session record is available for same-agent correlation
 
-### Phase 4: Relay Hooks
+### Phase 5: Relay Hooks
 
 Deliver:
 
@@ -234,7 +300,7 @@ Dependencies:
 
 - session foundation for agent/session lookup
 
-### Phase 5: Cross-Platform Follow-On
+### Phase 6: Cross-Platform Follow-On
 
 Deliver:
 
@@ -299,6 +365,7 @@ The relay hooks are lower design risk than the policy hooks. They mostly need:
 This plan is sufficient when:
 
 - the live schema-capture harness is the first implementation gate
+- the post-capture plan revision gate is explicit and mandatory
 - the Claude hook set is documented per-platform rather than mixed with Codex
   assumptions
 - the session correlation model is explicit and cwd-independent

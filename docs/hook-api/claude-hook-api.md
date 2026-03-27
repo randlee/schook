@@ -12,6 +12,8 @@ The source-of-truth inputs for this document are:
   `/Users/randlee/Documents/github/synaptic-canvas/docs/agent-tool-use-best-practices.md`
 - Claude-specific notes in
   `/Users/randlee/Documents/github/synaptic-canvas/docs/agent-teams-best-practices.md`
+- current ATM hook docs, scripts, tests, and session fallback code in
+  `/Users/randlee/Documents/github/agent-team-mail`
 
 ## Platform Rules
 
@@ -32,11 +34,32 @@ The source-of-truth inputs for this document are:
 - relative hook paths are not reliable because Claude may change the current
   directory during a session
 
+## Current Schema Baseline
+
+What is actually verified today for `SessionStart` from the live hook behavior:
+
+- payload field names used by the live hook:
+  - `session_id`
+  - `source`
+- verified observed `source` values:
+  - `init`
+  - `compact`
+- current script behavior:
+  - `source == "compact"` -> compact-return message
+  - any other value -> fresh-or-unknown start message
+
+What is not verified today:
+
+- a full upstream Claude JSON schema for all hook payloads
+- a confirmed literal `source = "resume"` value
+- cwd/root/agent metadata as guaranteed `SessionStart` payload fields
+- parent/subagent/session lineage fields in Claude hook payloads
+
 ## Session Correlation Model
 
 Claude hook calls should treat identity and context as separate concerns.
 
-Identity key:
+Current verified anchor:
 
 1. SessionStart-captured `session_id`
 2. hook subprocess parent PID (`PPID`) as a same-process cross-check
@@ -51,11 +74,15 @@ Rules:
 - later hooks should read persisted session state rather than trying to infer
   identity from current working directory
 
-Recommended persistent record:
+Current verified ATM-backed persistent record fields:
 
 - key by `session_id`
-- store `pid`, `team`, `identity`, `created_at`, `updated_at`
-- update the same record on compact/resume rather than creating a new identity
+- store `session_id`, `team`, `identity`, `pid`, `created_at`, `updated_at`
+- preserve `created_at` on re-fire for the same `session_id`
+- refresh `updated_at` when the session file is touched again
+
+This is a statement of the current ATM implementation, not a claim that the
+future `schook` base record must stay identical.
 
 ## Verified Claude Hook Behaviors
 
@@ -80,6 +107,9 @@ Adjacent but not part of the current eight-hook baseline:
 
 - `SessionStart` is the authoritative place to capture `session_id` for later
   hook calls
+- the `source` field should be stored as raw payload evidence; any
+  fresh/resume/compact classification must be documented as internal logic, not
+  as a claimed Claude wire enum
 - the runtime should preserve session records across directory changes
 - Bash-specific hooks need command-sensitive behavior, not just hook-type
   matching
@@ -87,12 +117,18 @@ Adjacent but not part of the current eight-hook baseline:
   relays
 - lifecycle and relay hooks are fail-open today; if `schook` changes that
   posture, the change must be explicit in requirements and protocol docs
+- no `schook` code should be written against inferred Claude payload fields that
+  are not backed by source-of-truth docs, scripts, tests, or captured harness
+  fixtures
 
 ## Current Platform Gaps
 
 - Claude hook payloads are only partially documented by the vendor, so some
   field names are verified from live scripts rather than a formal upstream
   schema
+- `agent-team-mail` does not currently appear to use Pydantic models as the
+  Claude hook source of truth; the current baseline is docs + scripts + tests +
+  Rust fallback code
 - `CLAUDE_SESSION_ID` is stable in the parent Claude process but is not
   directly available to bash subprocesses; `SessionStart` capture is required
 - hook env var availability differs sharply between hook execution and ordinary
