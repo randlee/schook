@@ -51,7 +51,13 @@ Important planning rule:
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 acceptance | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
+| Hook Phase 3 | Planned | Claude session and lifecycle implementation | `HKR-004` | Hook Phase 2 | `plugins/atm-session-lifecycle`, same-PR architecture inventory update |
+| Hook Phase 4 | Planned | Claude command and spawn gates | `HKR-004` | Hook Phase 3 | `plugins/atm-bash-identity`, `plugins/gate-agent-spawns`, direct behavior tests |
+| Hook Phase 5 | Planned | Claude relay hooks | `HKR-004` | Hook Phase 3 | `plugins/atm-state-relay`, relay tests |
+| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
 
@@ -542,7 +548,6 @@ Deliverables:
 - `docs/hook-api/atm-hook-extension.md`
 - `docs/hook-api/codex-hook-api.md`
 - `docs/hook-api/cursor-agent-hook-api.md`
-- `docs/plugin-plan-s9.md`
 - core-doc additions in `docs/requirements.md` and `docs/architecture.md`
 
 Acceptance criteria:
@@ -552,6 +557,7 @@ Acceptance criteria:
 - ATM-specific behavior is isolated in its own document
 - Cursor remains documented but deferred from the first implementation pass
 - no implementation-facing field is promoted without a verified source
+- Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
 
 ### Hook Phase 1: Claude Schema Harness
 

@@ -78,7 +78,11 @@ That order keeps the hook contract honest before implementation starts. The
 first requirement is to validate real provider payloads against explicit models
 so upstream schema drift is detected immediately after provider upgrades.
 
-## Step 1: Hook Schema Validation Harness
+## Supplementary Background For Hook Phase 1: Hook Schema Validation Harness
+
+Authoritative sequencing for implementation belongs to the `### Hook Phase N`
+sections later in this document. This background section exists to explain the
+first gate in detail, not to define a parallel authoritative sequence.
 
 This is now the first step of the plan.
 
@@ -194,7 +198,11 @@ Model and schema promotion rules for this step:
 - schema artifacts should be generated from models whenever possible
 - captured payloads and reports must be created automatically by harness scripts
 
-## Step 2: Plan Revision After Full Schema Capture
+## Supplementary Background For Hook Phase 2: Plan Revision After Full Schema Capture
+
+Authoritative sequencing for implementation belongs to the `### Hook Phase N`
+sections later in this document. This background section explains the required
+post-capture revision gate in detail.
 
 This is a required step before any hook implementation code.
 
@@ -470,7 +478,7 @@ Deliver:
 
 Dependencies:
 
-- none; this is the review gate before harness build work starts
+- Sprint 6 formally accepted; this is the review gate before harness build work starts
 
 ### Hook Phase 1: Live Schema Capture And Drift Validation
 
@@ -483,7 +491,7 @@ Deliver:
 
 Dependencies:
 
-- none; this is the first gate
+- Phase 0 review and acceptance complete (umbrella plan accepted; `test-harness/hooks/README.md` accepted as harness contract)
 
 ### Hook Phase 2: Plan Revision From Captured Schema
 
