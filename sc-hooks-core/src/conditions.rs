@@ -3,6 +3,7 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ConditionOperator {
     Exists,
     NotExists,

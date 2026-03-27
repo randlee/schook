@@ -3,6 +3,8 @@ use std::process::{Child, ExitStatus};
 use std::thread;
 use std::time::{Duration, Instant};
 
+const WAIT_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
 #[derive(Debug)]
 pub enum TimeoutOutcome {
     Completed(ExitStatus),
@@ -40,12 +42,13 @@ pub fn wait_with_timeout(child: &mut Child, timeout_ms: Option<u64>) -> io::Resu
             return Ok(TimeoutOutcome::Completed(status));
         }
 
-        if start.elapsed() >= timeout {
+        let remaining = timeout.saturating_sub(start.elapsed());
+        if remaining.is_zero() {
             terminate_then_kill(child)?;
             return Ok(TimeoutOutcome::TimedOut);
         }
 
-        thread::sleep(Duration::from_millis(25));
+        thread::sleep(remaining.min(WAIT_POLL_INTERVAL));
     }
 }
 
@@ -72,13 +75,14 @@ fn terminate_then_kill(child: &mut Child) -> io::Result<()> {
             return Ok(());
         }
 
-        if grace_start.elapsed() >= grace {
+        let remaining = grace.saturating_sub(grace_start.elapsed());
+        if remaining.is_zero() {
             let _ = child.kill();
             let _ = child.wait();
             return Ok(());
         }
 
-        thread::sleep(Duration::from_millis(25));
+        thread::sleep(remaining.min(WAIT_POLL_INTERVAL));
     }
 }
 

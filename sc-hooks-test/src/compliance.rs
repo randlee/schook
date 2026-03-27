@@ -208,16 +208,25 @@ fn check_absent_payload(probe: &impl HostDispatchProbe) -> ComplianceCheck {
 
 fn check_invalid_output(probe: &impl HostDispatchProbe) -> ComplianceCheck {
     match probe.run_scenario(ContractScenario::InvalidOutput) {
-        Ok(result) => ComplianceCheck {
-            name: "host dispatch rejects invalid stdout".to_string(),
-            passed: result.exit_code == sc_hooks_core::exit_codes::PLUGIN_ERROR
-                && result.stderr.contains("invalid JSON"),
-            detail: Some(format!(
-                "exit={}, stderr={}",
-                result.exit_code,
-                result.stderr.trim()
-            )),
-        },
+        Ok(result) => {
+            let disabled = session_disables_plugin_for_reason(
+                result.session_state.as_deref(),
+                "probe-plugin",
+                "runtime-error",
+            );
+            ComplianceCheck {
+                name: "host dispatch rejects invalid stdout".to_string(),
+                passed: result.exit_code == sc_hooks_core::exit_codes::PLUGIN_ERROR
+                    && result.stderr.contains("invalid JSON")
+                    && disabled,
+                detail: Some(format!(
+                    "exit={}, stderr={}, session_state_present={}",
+                    result.exit_code,
+                    result.stderr.trim(),
+                    result.session_state.is_some()
+                )),
+            }
+        }
         Err(err) => ComplianceCheck {
             name: "host dispatch rejects invalid stdout".to_string(),
             passed: false,

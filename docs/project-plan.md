@@ -51,6 +51,7 @@ Important planning rule:
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
 | Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 acceptance | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs |
 
 ## 5. Execution Controls
@@ -449,6 +450,59 @@ Sprint 6 signoff record:
 - validation commands recorded on frozen head: `cargo test --workspace`
 - QA result on frozen head: `SC-QA-S6-1` found blockers/important findings, opened `SC-DEV-S6-FIX-1`, and did not clear the branch for final handoff until those doc fixes landed
 - task `#370` disposition: retired as merge-review residue only; it is not a standing requirement or gap ID after the `cdce7b1` freeze
+
+### Sprint 8: Rust Best-Practices Closeout
+
+Status:
+- in review
+
+Focus:
+- close the remaining post-release Rust best-practices findings without reopening the release contract
+
+Write scope:
+- `sc-hooks-sdk/src/conditions.rs`
+- `sc-hooks-sdk/src/manifest.rs`
+- `sc-hooks-cli/src/audit.rs`
+- `docs/requirements.md`
+- `docs/traceability.md`
+- `docs/observability-contract.md`
+- `docs/project-plan.md`
+- `docs/implementation-gaps.md`
+
+Deliverables:
+- delete the dead `unreachable!()` branch in `sc-hooks-sdk/src/conditions.rs`
+- document `AUD-005` and `AUD-009` as implemented audit requirements with matching traceability rows
+- document the dispatch stderr fallback when observability emission fails
+- record Sprint 8 closeout in the release plan and implementation-gap notes
+- add direct tests for the `long_running` audit rejection paths that Sprint 8 promotes into the release docs
+
+Verification:
+- `cargo fmt --check --all`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- `SCHOOK-QA-001` stays closed with the dead condition-validation branch removed
+- `AUD-005` and `AUD-009` are present in both `docs/requirements.md` and `docs/traceability.md`
+- `docs/observability-contract.md` documents the current stderr fallback behavior instead of leaving it implicit in code
+- the Sprint 8 plan section reflects the actual write scope, verification, and closure records
+
+Definition of done:
+- the remaining Rust best-practices follow-up is represented as a closed, documented sprint rather than an orphaned table row
+- code and docs agree on the `long_running` audit failures and observability fallback behavior
+- the Sprint 8 branch is ready for the final QA pass on documented closure state
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 8 promotes `AUD-005` and `AUD-009` into the implemented requirement and traceability set; no deferred gap is newly opened.
+- What code was removed early rather than left in parallel?
+  The dead `if let ConditionOperator::OneOf = condition.op { unreachable!(); }` branch in `sc-hooks-sdk/src/conditions.rs` was removed instead of being left as unreachable residue.
+- Which files/crates were the owned write scope for the sprint?
+  `sc-hooks-sdk/src/conditions.rs`, `sc-hooks-sdk/src/manifest.rs`, `sc-hooks-cli/src/audit.rs`, and the Sprint 8 release-doc set listed above.
+- What validation commands and direct tests proved the new contract?
+  `cargo fmt --check --all`, `cargo test --workspace`, and `cargo clippy --all-targets --all-features -- -D warnings` passed; direct tests include `audit_rejects_async_long_running_manifest`, `audit_rejects_long_running_without_description`, `rejects_async_long_running_manifest`, and `rejects_long_running_manifest_without_description`.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 8 does not introduce new follow-on implementation work; it closes remaining best-practices review residue so the branch can clear final QA.
 
 ## 11. Sprint QA Checklist
 
