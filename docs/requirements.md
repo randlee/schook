@@ -127,7 +127,7 @@ Retired observability IDs:
 | OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
 | OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
-| BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
+| BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `atm-bash-identity`, `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `gate-agent-spawns`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
 | BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. The current release baseline describes no `plugins/` source crate as shipped functionality. | README, architecture, and plugin Cargo metadata all mark the current source crates as scaffold/reference only, so no shipped-plugin claim exists without matching install guidance and direct tests. |
 
 ### 4.8 Exit Code Taxonomy
@@ -180,6 +180,23 @@ work is complete.
 | HKR-005 | Deferred | Must | The Claude schema harness shall fail CI on required-field removal or type drift and shall preserve raw captured fixtures as evidence. | Hook-schema CI fails on breaking Claude payload drift and retains captured fixture artifacts for review. |
 | HKR-006 | Deferred | Must | Provider-specific docs for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block the first Claude implementation path. | The first hook-development sequence proceeds on Claude-only capture and implementation even while other provider docs remain present. |
 | HKR-007 | Deferred | Must | Cursor Agent shall remain documented as a provider reference during the first development pass, but Cursor harness capture and Cursor-targeting runtime implementation are deferred until a later explicitly approved follow-on sprint. | `docs/hook-api/cursor-agent-hook-api.md` exists, while the first harness and implementation work stays Claude-only. |
+
+### 7.1 HKR-004 Prototype Coverage Tracking
+
+Current branch-local prototype coverage for the verified eight-hook Claude ATM
+baseline is:
+
+- `SessionStart`: partially implemented in `plugins/atm-session-lifecycle`
+- `SessionEnd`: partially implemented in `plugins/atm-session-lifecycle`
+- `PreToolUse(Bash)`: partially implemented in `plugins/atm-bash-identity`
+- `PostToolUse(Bash)`: partially implemented in `plugins/atm-bash-identity`
+- `PreToolUse(Task)`: partially implemented in `plugins/gate-agent-spawns`
+- `Notification(idle_prompt)`: planned for Hook Phase 5
+- `PermissionRequest`: planned for Hook Phase 5
+- `Stop`: planned for Hook Phase 5
+
+These prototype branches remain blocked from merge until `HKR-002` and
+`HKR-003` close.
 
 ## 8. Release Rule
 
