@@ -4,6 +4,7 @@ members = [
   "sc-hooks-core",
   "sc-hooks-sdk",
   "sc-hooks-test",
+  "plugins/atm-session-lifecycle",
 ]
 resolver = "2"
 
