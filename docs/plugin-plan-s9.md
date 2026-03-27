@@ -16,14 +16,43 @@ The intended execution sequence after review is:
 4. implement the Claude ATM hook crates
 5. defer other providers until the Claude baseline is stable
 
+## Umbrella Plan Status
+
+This is the umbrella execution plan for Sprint 9.
+
+QA should be able to read this document and understand the complete sequence
+from:
+
+1. harness build
+2. live schema capture
+3. model and schema validation
+4. formal report generation
+5. plan revision from captured evidence
+6. hook implementation sequencing
+
+Supporting documents remain necessary, but they are source-of-truth references
+for facts and subcontracts rather than parallel execution plans.
+
 ## Planning Baseline
 
-Durable platform references for this plan live in:
+Supporting documents and their roles:
 
 - `docs/hook-api/claude-hook-api.md`
+  - verified Claude hook baseline and current known payload facts
 - `docs/hook-api/codex-hook-api.md`
+  - documented provider reference only; not part of the first implementation path
 - `docs/hook-api/cursor-agent-hook-api.md`
+  - documented provider reference only; not part of the first implementation path
 - `docs/hook-api/atm-hook-extension.md`
+  - ATM-specific behavior that must remain separate from the generic hook contract
+- `test-harness/hooks/README.md`
+  - harness directory contract, `pytest` split, fixture policy, and report lifecycle
+- `docs/project-plan.md`
+  - high-level project sequencing, including the Hook Phase 0-6 track
+- `docs/requirements.md`
+  - requirements that gate hook implementation start and scope
+- `docs/architecture.md`
+  - architecture boundaries and planned hook crate ownership
 
 Sprint 9 focuses on the verified Claude hook set. Codex is documented as a
 separate platform reference, but it is not the implementation baseline for
@@ -99,6 +128,35 @@ Harness source-of-truth rule:
 - the detailed harness contract, directory ownership, `pytest` split, fixture
   policy, and report lifecycle live under `test-harness/hooks/README.md`
 
+Harness execution contract summary for this plan:
+
+- `pytest` is the required harness runner
+- default `pytest` runs fixture/model/schema validation only
+- `pytest -m live_capture` runs provider launches and live payload capture
+- canned prompts are required for repeatable provider runs
+- local Python hook scripts are the required capture mechanism
+- every live run writes raw captures, normalized artifacts, and formal reports
+- no manual copying or hand-moving of run artifacts is part of the workflow
+
+Harness output contract:
+
+- raw captured payloads are evidence
+- approved fixtures are long-lived contract snapshots
+- generated reports are the formal review artifact for each live run
+
+Expected output tree per live run:
+
+```text
+<provider>/captures/<run-id>/
+  raw/
+  normalized/
+
+<provider>/reports/<run-id>/
+  validation-summary.json
+  drift-report.json
+  run-report.md
+```
+
 Current evidence rule:
 
 - no field may be promoted into implementation-facing docs unless it is backed
@@ -127,6 +185,15 @@ Acceptance for this first step:
 - the S9 implementation plan only promotes Claude implementation fields that
   are backed by captured payload evidence or existing source-of-truth docs
 
+Model and schema promotion rules for this step:
+
+- provider-native models stay separate; no cross-provider shared schema is assumed
+- known required fields are strict
+- newly observed extra fields are reported for review rather than silently relied on
+- implementation may depend only on fields promoted from evidence into the validated model
+- schema artifacts should be generated from models whenever possible
+- captured payloads and reports must be created automatically by harness scripts
+
 ## Step 2: Plan Revision After Full Schema Capture
 
 This is a required step before any hook implementation code.
@@ -153,6 +220,19 @@ Acceptance for this second step:
 - every still-unknown field remains explicitly marked unknown/deferred
 - no code-writing task starts before this revision step is complete
 
+## Implementation Start Gate
+
+No hook implementation code starts until all of the following are true:
+
+- this umbrella plan is reviewed and accepted
+- `test-harness/hooks/README.md` is reviewed and accepted as the harness contract
+- Claude hook payloads for the required first-pass matrix are captured
+- provider models validate the captured Claude payloads
+- this plan is revised from that captured evidence
+
+If any one of those conditions is missing, the work remains in planning or
+schema-capture mode rather than implementation mode.
+
 ## Review Gate
 
 This document is ready for review when:
@@ -163,6 +243,27 @@ This document is ready for review when:
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - Codex, Gemini, and Cursor remain documented without being turned into
   immediate development blockers
+- the harness execution contract is summarized here rather than hidden only in
+  the harness README
+- the implementation start gate is explicit and binary
+
+## Full QA Review Package
+
+QA should review this document as the umbrella plan together with:
+
+- `test-harness/hooks/README.md`
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/project-plan.md`
+- `docs/requirements.md`
+- `docs/architecture.md`
+
+Review intent:
+
+- this document owns the execution sequence
+- the referenced documents own platform facts, ATM-specific details, harness
+  contract specifics, and project/architecture boundaries
+- no essential execution step should be present only in a supporting document
 
 ## Immediate Development Scope
 
@@ -360,6 +461,7 @@ Why this split:
 
 Deliver:
 
+- freeze this document as the umbrella Sprint 9 execution plan
 - review and freeze the provider API docs
 - review and freeze `test-harness/hooks/README.md` as the harness source of
   truth

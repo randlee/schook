@@ -537,6 +537,7 @@ Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
 
 Deliverables:
+- freeze `docs/plugin-plan-s9.md` as the umbrella Sprint 9 execution plan
 - `docs/hook-api/claude-hook-api.md`
 - `docs/hook-api/atm-hook-extension.md`
 - `docs/hook-api/codex-hook-api.md`
@@ -545,6 +546,8 @@ Deliverables:
 - core-doc additions in `docs/requirements.md` and `docs/architecture.md`
 
 Acceptance criteria:
+- QA can review the Sprint 9 sequence from one umbrella document instead of
+  reconstructing it from multiple planning fragments
 - the Claude implementation baseline is explicit
 - ATM-specific behavior is isolated in its own document
 - Cursor remains documented but deferred from the first implementation pass
