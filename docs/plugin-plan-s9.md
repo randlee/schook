@@ -69,14 +69,13 @@ Installed runtimes currently available on this machine:
 
 Recommended repo layout:
 
-- `test-harness/hooks/providers/claude/`
-- `test-harness/hooks/providers/codex/`
-- `test-harness/hooks/providers/gemini/`
-- `test-harness/hooks/providers/cursor-agent/`
-- `test-harness/hooks/models/`
-- `test-harness/hooks/fixtures/`
-- `test-harness/hooks/reports/`
-- `test-harness/hooks/scripts/`
+- `test-harness/hooks/README.md`
+- `test-harness/hooks/pytest.ini`
+- `test-harness/hooks/common/`
+- `test-harness/hooks/claude/`
+- `test-harness/hooks/codex/`
+- `test-harness/hooks/gemini/`
+- `test-harness/hooks/cursor-agent/`
 
 Recommended validation design:
 
@@ -91,6 +90,14 @@ Recommended technology split:
 - documented JSON shape as the durable contract artifact
 - Python validation models for capture-time and CI-time schema checking
 - live capture scenarios that exercise real hooks with cheap/fast tasks
+- canned prompts for repeatable provider runs
+- local Python capture hooks
+- automatic report generation under the harness output tree
+
+Harness source-of-truth rule:
+
+- the detailed harness contract, directory ownership, `pytest` split, fixture
+  policy, and report lifecycle live under `test-harness/hooks/README.md`
 
 Current evidence rule:
 
