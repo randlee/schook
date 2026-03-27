@@ -4,29 +4,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 HOOK_DIR="${CLAUDE_DIR}/hooks"
-PROMPT_DIR="${CLAUDE_DIR}/prompts"
 CAPTURE_ROOT="${SCHOOK_HOOK_CAPTURE_ROOT:-${CLAUDE_DIR}/captures/raw}"
 MODEL="${CLAUDE_MODEL:-haiku}"
 
-surface="${1:-pretooluse-bash}"
-prompt_file="${PROMPT_DIR}/${surface}.md"
+mkdir -p "${CAPTURE_ROOT}"
 
-if [[ ! -f "${prompt_file}" ]]; then
-  echo "unknown prompt surface: ${surface}" >&2
-  exit 1
-fi
-
-permission_mode="bypassPermissions"
-if [[ "${surface}" == "permission-request" ]]; then
-  exec "${SCRIPT_DIR}/run-interactive-capture.py" permission-request --model "${MODEL}" --capture-root "${CAPTURE_ROOT}"
-fi
-
-if [[ "${surface}" == "notification" ]]; then
-  exec "${SCRIPT_DIR}/run-interactive-capture.py" notification --model "${MODEL}" --capture-root "${CAPTURE_ROOT}"
-fi
-
-temp_settings="$(mktemp)"
-trap 'rm -f "${temp_settings}"' EXIT
+tmp_dir="${TMPDIR:-/tmp}"
+temp_settings_base="$(mktemp "${tmp_dir%/}/schook-claude-settings.XXXXXX")"
+temp_settings="${temp_settings_base}.json"
+mv "${temp_settings_base}" "${temp_settings}"
 
 cat > "${temp_settings}" <<JSON
 {
@@ -87,6 +73,22 @@ cat > "${temp_settings}" <<JSON
 }
 JSON
 
-mkdir -p "${CAPTURE_ROOT}"
+cat <<EOF
+Manual Claude harness launch is ready.
 
-claude --model "${MODEL}" -p --setting-sources local --permission-mode "${permission_mode}" --settings "${temp_settings}" "$(cat "${prompt_file}")"
+Worktree root:
+  $(cd "${CLAUDE_DIR}/../../.." && pwd)
+
+Capture root:
+  ${CAPTURE_ROOT}
+
+Settings file:
+  ${temp_settings}
+
+Run Claude manually with:
+  cd $(cd "${CLAUDE_DIR}/../../.." && pwd)
+  CLAUDE_MODEL=${MODEL} claude --model ${MODEL} --setting-sources local --permission-mode default --settings ${temp_settings}
+
+When you are done, remove the settings file:
+  rm -f ${temp_settings}
+EOF

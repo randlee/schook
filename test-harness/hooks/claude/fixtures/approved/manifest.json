@@ -1,14 +1,33 @@
 {
   "provider": "claude",
-  "status": "phase1_scaffold",
+  "status": "haiku_live_capture",
   "hooks": {
-    "SessionStart": [],
-    "SessionEnd": [],
-    "PreToolUse(Bash)": [],
-    "PostToolUse(Bash)": [],
-    "PreToolUse(Agent)": [],
-    "PermissionRequest": [],
-    "Notification(idle_prompt)": [],
-    "Stop": []
+    "SessionStart": [
+      "session-start-startup.json",
+      "session-start-compact.json"
+    ],
+    "SessionEnd": [
+      "session-end.json"
+    ],
+    "PreCompact": [
+      "pre-compact-manual.json"
+    ],
+    "PreToolUse(Bash)": [
+      "pretooluse-bash.json"
+    ],
+    "PreToolUse(Agent)": [
+      "pretooluse-agent.json"
+    ],
+    "PostToolUse(Bash)": [
+      "posttooluse-bash.json"
+    ],
+    "PermissionRequest": [
+      "permission-request-write.json",
+      "permission-request-bash.json"
+    ],
+    "Notification": [],
+    "Stop": [
+      "stop.json"
+    ]
   }
 }

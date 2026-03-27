@@ -1,0 +1,13 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "session_id": "09a6cff2-c8e0-4063-8941-a881995432bb",
+  "tool_input": {
+    "command": "pwd",
+    "description": "Print current working directory"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "toolu_01BSTWs4AKRLHpP7jidYxPGu",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/09a6cff2-c8e0-4063-8941-a881995432bb.jsonl"
+}

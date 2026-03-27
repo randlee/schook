@@ -258,7 +258,78 @@ Documented but deferred from the first harness pass:
 ### 9.3 Planned Hook Crate Targets
 
 These are planned hook-extension targets only. They are not current source
-inventory and are not current runtime crates:
+inventory and are not current runtime crates.
+
+The post-capture intended split is:
+
+- generic hook utility layer
+  - session lifecycle / session-record persistence
+  - normalized agent-state tracking
+  - subagent linkage and spawn policy
+  - tool/blocking/fenced-JSON guard behavior
+- ATM extension layer
+  - ATM routing enrichment
+  - temp identity-file behavior for `atm` Bash calls
+  - teammate-idle / ATM relay emission behavior
+
+Recommended planned crate targets:
+
+- `plugins/agent-session-foundation`
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- `plugins/atm-extension`
+
+Planned responsibility split:
+
+- `plugins/agent-session-foundation`
+  - owns the canonical session-state file
+  - owns `SessionStart`, `SessionEnd`, and `PreCompact`
+  - owns normalized `agent_state` transitions
+- `plugins/agent-spawn-gates`
+  - owns named-agent vs background-agent policy
+  - owns subagent linkage/tracking
+  - owns schema-governed fenced-JSON spawn validation
+- `plugins/tool-output-gates`
+  - owns generic blocking/fenced-JSON tool-output policy
+- `plugins/atm-extension`
+  - owns ATM routing enrichment on the same session-state record
+  - owns ATM identity-file behavior for Bash `atm` calls
+  - owns ATM relay emission and teammate-idle mapping
+
+Planned shared session-state schema rules:
+
+- one canonical session-state file per `session_id`
+- required base fields:
+  - `session_id`
+  - `active_pid`
+  - `agent_state`
+  - `created_at`
+  - `updated_at`
+  - `ai_root_dir`
+  - `ai_current_dir`
+- optional ATM fields live in an extension object on the same file rather than
+  a second authoritative ATM-only file
+- `session_id`, `active_pid`, and hook event identifiers should be represented
+  as semantic newtypes in implementation code rather than bare primitives
+
+Planned trait-freeze rule before the first runtime crate lands:
+
+- `sc-hooks-core` / `sc-hooks-sdk` must freeze a hook trait that exposes:
+  - normalized context
+  - raw provider payload
+  - typed result / failure posture
+  - fail-open versus fail-closed semantics per hook class
+- the frozen hook trait in `sc-hooks-core` shall be sealed (private supertrait
+  or mod-private pattern) so that only `sc-hooks-sdk` can provide base
+  implementations. Unsealed traits permit external plugin crates to bypass
+  normalized-context and fail-open/fail-closed invariants; retrofitting a seal
+  after downstream adoption is a breaking API change.
+- runtime crates must not define their own competing hook trait surfaces
+- `agent_state` remains a runtime enum rather than typestate because hook state
+  persists across process boundaries and must round-trip through the canonical
+  session-state file
+
+Archived prototype crates remain reference-only inputs for design review:
 
 - `plugins/atm-session-lifecycle`
 - `plugins/atm-bash-identity`
@@ -270,8 +341,22 @@ Planning rules for these targets:
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
   captured Claude fixtures
+- these planned targets are not part of the current §3 source inventory
+  (`BND-001a`) and will not appear there until they land with code, tests, and
+  a same-PR architecture inventory update
 - no planned hook crate becomes current architecture until it lands with code,
   tests, and the same-PR `docs/architecture.md` crate inventory update
+- archived prototype crates do not define the final crate split; they are
+  reviewed only as reference against the post-capture design
+
+Planned fail posture by crate:
+
+| Planned crate | Default posture | Reason |
+| --- | --- | --- |
+| `plugins/agent-session-foundation` | fail-open | session persistence loss should not prevent the host from continuing a Claude run |
+| `plugins/agent-spawn-gates` | fail-closed | malformed or policy-breaking subagent launches must be blocked deterministically |
+| `plugins/tool-output-gates` | fail-closed | fenced-JSON and blocking-output violations must stop the tool result before it reaches the caller |
+| `plugins/atm-extension` | fail-open | ATM routing enrichment should not make the generic hook host unusable when ATM context is absent or degraded |
 
 ### 9.4 Cursor Follow-On Boundary
 
