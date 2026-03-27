@@ -268,7 +268,7 @@ fn atm_home() -> Option<PathBuf> {
     home_dir()
 }
 
-fn session_store_root() -> Result<PathBuf, String> {
+pub fn session_store_root() -> Result<PathBuf, String> {
     if let Some(path) = env::var_os(ENV_STORE_DIR) {
         return Ok(PathBuf::from(path));
     }
@@ -347,6 +347,14 @@ impl SessionStore {
             )),
         }
     }
+}
+
+pub fn load_session_record(session_id: &str) -> Result<Option<SessionRecord>, String> {
+    let Some(session_id) = non_empty(Some(session_id)) else {
+        return Ok(None);
+    };
+
+    SessionStore::discover()?.read(&session_id)
 }
 
 fn send_hook_event(payload: Value) {
