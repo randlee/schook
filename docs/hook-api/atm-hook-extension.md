@@ -18,6 +18,17 @@ from `agent-team-mail`.
 - `/Users/randlee/Documents/github/agent-team-mail/tests/hook-scripts/test_session_start.py`
 - `/Users/randlee/Documents/github/agent-team-mail/tests/hook-scripts/test_session_end.py`
 - `/Users/randlee/Documents/github/agent-team-mail/crates/atm/src/util/hook_identity.rs`
+- `/Users/randlee/Documents/github/agent-team-mail/crates/atm-daemon/src/daemon/session_registry.rs`
+
+There is no single schema folder and no Pydantic model layer in
+`agent-team-mail`. The current source of truth is split by layer:
+
+- Claude Code hook stdin payload:
+  `.claude/scripts/session-start.py`
+- ATM persisted session file schema:
+  `.claude/scripts/session-start.py`
+- ATM daemon session model for daemon consumers:
+  `crates/atm-daemon/src/daemon/session_registry.rs`
 
 ## Verified ATM Session File
 
@@ -97,3 +108,10 @@ evidence:
 1. the live hook schema harness captures real payloads,
 2. the resulting models are validated, and
 3. the plan is revised from captured evidence before code is written.
+
+## Daemon Model Note
+
+ATM's daemon-side session model is richer than the hook-written session file.
+The daemon `SessionRecord` is authoritative for daemon consumers, while the
+hook-written session file is the authoritative fallback for CLI identity
+resolution when shell environment lacks session metadata.
