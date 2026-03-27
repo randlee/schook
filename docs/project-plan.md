@@ -51,6 +51,7 @@ Important planning rule:
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 acceptance | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs |
 
 ## 5. Execution Controls
 

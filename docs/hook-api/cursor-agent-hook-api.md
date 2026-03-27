@@ -15,6 +15,27 @@ combination of local CLI behavior and public Cursor hook documentation.
 
 This document only promotes facts that are directly visible from those sources.
 
+## Platform Rules
+
+- `cursor-agent` is a real installed CLI on this machine
+- current planning treats Cursor Agent as a provider-specific compatibility
+  target, not as part of the initial Claude ATM implementation baseline
+- public Cursor hook names may be documented here before implementation, but
+  they do not become implementation inputs until the harness captures them
+- Cursor-targeting runtime work remains deferred until a later explicitly
+  approved follow-on pass
+
+## Path And Environment Rules
+
+- local Cursor CLI state currently lives under `/Users/randlee/.cursor/`
+- `/Users/randlee/.cursor/cli-config.json` is a verified local configuration
+  input
+- `/Users/randlee/.cursor/hooks.json` is not currently present on this machine
+- current working directory must not be treated as a stable hook identity or
+  provider-contract signal
+- provider-specific path and environment assumptions must be captured by the
+  harness before implementation relies on them
+
 ## Current Local Runtime Baseline
 
 Current locally verified CLI behavior:

@@ -356,7 +356,21 @@ Why this split:
 
 ## Sprint Sequencing
 
-### Phase 1: Live Schema Capture And Drift Validation
+### Hook Phase 0: Review Baseline
+
+Deliver:
+
+- review and freeze the provider API docs
+- review and freeze `test-harness/hooks/README.md` as the harness source of
+  truth
+- confirm the first implementation path is Claude-first and ATM-aware without
+  widening the generic hook contract
+
+Dependencies:
+
+- none; this is the review gate before harness build work starts
+
+### Hook Phase 1: Live Schema Capture And Drift Validation
 
 Deliver:
 
@@ -369,7 +383,7 @@ Dependencies:
 
 - none; this is the first gate
 
-### Phase 2: Plan Revision From Captured Schema
+### Hook Phase 2: Plan Revision From Captured Schema
 
 Deliver:
 
@@ -381,7 +395,7 @@ Dependencies:
 
 - Phase 1 completed with captured fixtures and model validation
 
-### Phase 3: Session Foundation
+### Hook Phase 3: Session Foundation
 
 Deliver:
 
@@ -395,7 +409,7 @@ Dependencies:
 
 - revised plan and verified field set from Phase 2
 
-### Phase 4: Command And Spawn Gates
+### Hook Phase 4: Command And Spawn Gates
 
 Deliver:
 
@@ -408,7 +422,7 @@ Dependencies:
 
 - session record is available for same-agent correlation
 
-### Phase 5: Relay Hooks
+### Hook Phase 5: Relay Hooks
 
 Deliver:
 
@@ -421,22 +435,25 @@ Dependencies:
 
 - session foundation for agent/session lookup
 
-### Phase 6: Cross-Platform Follow-On
+### Hook Phase 6: Cross-Platform Follow-On
 
 Deliver:
 
-- Codex session-identity follow-up plan if the runner gains a verified
-  SessionStart-equivalent surface
-- Gemini follow-on plan only after Gemini capture work is explicitly approved
-- Cursor Agent schema-backed follow-on plan revision only after a later
-  dedicated Cursor harness pass captures `beforeShellExecution`,
-  `beforeMCPExecution`, `beforeReadFile`, `afterFileEdit`, and `stop`
-- `plugins/cursor-agent-gates` only after controllable hook request/response
-  schemas are captured
-- `plugins/cursor-agent-relay` only after informational hook payloads are
-  captured
-- any future `TeammateIdle`, `PreCompact`, or `PostCompact` hooks only after
-  their payloads and persistence boundaries are verified
+- Codex session-identity follow-up plan only as a planning target if the runner
+  gains a verified `SessionStart`-equivalent surface
+- Gemini follow-on plan only as a planning target after Gemini capture work is
+  explicitly approved
+- Cursor Agent schema-backed follow-on plan revision only as a planning target
+  after a later dedicated Cursor harness pass captures
+  `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`,
+  `afterFileEdit`, and `stop`
+- `plugins/cursor-agent-gates` only as a planning target after controllable
+  hook request/response schemas are captured
+- `plugins/cursor-agent-relay` only as a planning target after informational
+  hook payloads are captured
+- any future `TeammateIdle`, `PreCompact`, or `PostCompact` hooks only as
+  planning targets after their payloads and persistence boundaries are
+  verified
 
 Dependencies:
 
