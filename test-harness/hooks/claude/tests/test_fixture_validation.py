@@ -39,6 +39,7 @@ def test_capture_scripts_write_raw_payload_files(tmp_path: Path, claude_root: Pa
     script_names = {
         "session-start": "session_start.py",
         "session-end": "session_end.py",
+        "pre-compact": "pre_compact.py",
         "pretooluse-bash": "pre_tool_use_bash.py",
         "posttooluse-bash": "post_tool_use_bash.py",
         "pretooluse-task": "pre_tool_use_task.py",

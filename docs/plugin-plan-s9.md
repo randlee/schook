@@ -171,8 +171,9 @@ Current evidence rule:
 
 Minimum first-pass capture matrix:
 
-- Claude: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PreToolUse(Task)`,
-  `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, `Notification(idle_prompt)`
+- Claude: `SessionStart`, `SessionEnd`, `PreCompact`, `PreToolUse(Bash)`,
+  logical teammate/background spawn via current `PreToolUse(tool_name="Agent")`,
+  `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, and unresolved `Notification`
 
 Documented but deferred from the first harness pass:
 
@@ -308,8 +309,16 @@ Current verified ATM-backed behavior:
 Current verified Claude payload facts:
 
 - `SessionStart` currently uses raw payload field `source`
-- verified observed `source` values are `init` and `compact`
+- verified observed `source` values are `startup` and `compact`
 - `resume` is not currently a verified literal payload value
+- logical teammate/background-agent spawn currently arrives as `PreToolUse`
+  with `tool_name = "Agent"` in Haiku capture
+- `PermissionRequest` was live-captured for both `tool_name = "Write"` and
+  `tool_name = "Bash"`
+- `PreCompact` and post-compact `SessionStart(source="compact")` are both now
+  live-captured
+- `Notification` is still unresolved after repeated long-idle runs in this
+  environment
 
 Implementation-planning rule:
 
@@ -317,18 +326,122 @@ Implementation-planning rule:
   verified evidence and persisted state, not documented as a Claude wire enum
   unless the harness proves it
 
+## Normalized Agent State Model
+
+Raw provider events and normalized runtime state are separate concerns.
+
+Required normalized field:
+
+- `agent_state`
+
+Recommended normalized enum:
+
+- `starting`
+- `busy`
+- `awaiting_permission`
+- `compacting`
+- `idle`
+- `ended`
+
+Required identity/state tuple:
+
+- `session_id`
+- `active_pid`
+- `agent_state`
+
+Transition guidance from current Claude + ATM evidence:
+
+- `SessionStart(source="startup")` -> `starting`
+- tool execution / active turn -> `busy`
+- `PermissionRequest` -> `awaiting_permission`
+- `PreCompact` -> `compacting`
+- `Stop` -> `idle`
+- `SessionEnd` -> `ended`
+
+Adjacent ATM/team signal:
+
+- `teammate_idle` is a distinct raw event used in `agent-team-mail`
+- it should also map to normalized `idle` for long-lived teammate agents that
+  may never emit `Stop`
+
+## Session State File Schema
+
+The hook track should use a single canonical session-state file per
+`session_id`. ATM enriches that same file; it does not create a second
+authoritative session file.
+
+Required base fields:
+
+- `session_id`: string
+- `active_pid`: integer
+- `agent_state`: enum
+- `created_at`: unix timestamp
+- `updated_at`: unix timestamp
+- `ai_root_dir`: string
+- `ai_current_dir`: string
+
+Recommended optional generic fields:
+
+- `agent_type`: string
+- `agent_type_source`: string
+- `parent_session_id`: string
+- `subagent_id`: string
+
+Recommended optional ATM extension object in the same file:
+
+- `extensions.atm.atm_name`: string
+- `extensions.atm.atm_team`: string
+- `extensions.atm.atm_agent_id`: string
+
+Recommended schema shape:
+
+```json
+{
+  "session_id": "<uuid>",
+  "active_pid": 12345,
+  "agent_state": "idle",
+  "created_at": 1743120000.0,
+  "updated_at": 1743120060.0,
+  "ai_root_dir": "/repo/root",
+  "ai_current_dir": "/repo/root/subdir",
+  "agent_type": "explorer",
+  "agent_type_source": "built_in",
+  "parent_session_id": null,
+  "subagent_id": null,
+  "extensions": {
+    "atm": {
+      "atm_name": "arch-hook",
+      "atm_team": "atm-dev",
+      "atm_agent_id": "arch-hook@atm-dev"
+    }
+  }
+}
+```
+
+Rules:
+
+- `session_id` identifies the logical agent session
+- `active_pid` is the single authoritative live process id for that session
+- pid rebinding happens only at deterministic startup handoff points
+- `PreCompact` does not change `session_id`
+- `SessionStart(source="compact")` preserves `session_id` and updates state
+  after compaction
+- directory changes update `ai_current_dir` only; they do not redefine identity
+- ATM fields are optional extensions on the same file, not a separate state file
+
 ## Hook Inventory
 
 | Hook behavior | Claude surface | Matcher/event | Python reference | Input fields consumed | Action logic | `schook` fit | Recommended crate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Session start | `SessionStart` | `*` | `session-start.py` | `session_id`, `source`, `.atm.toml`, `ATM_TEAM`, `ATM_IDENTITY` | announce session, emit ATM start event, persist session record | fits current lifecycle hook model | `plugins/atm-session-lifecycle` |
-| Session end | `SessionEnd` | `*` | `session-end.py` | `session_id`, `.atm.toml` core routing | emit ATM end event, delete session record | fits current lifecycle hook model | `plugins/atm-session-lifecycle` |
-| ATM identity write | `PreToolUse` | `Bash` | `atm-identity-write.py` | `tool_input.command`, `session_id`, `.atm.toml`, `ATM_*` env | if command invokes `atm`, write temp identity file | fits current tool hook model | `plugins/atm-bash-identity` |
-| ATM identity cleanup | `PostToolUse` | `Bash` | `atm-identity-cleanup.py` | routing context only | remove temp identity file from paired bash invocation | fits current tool hook model | `plugins/atm-bash-identity` |
-| Agent spawn gate | `PreToolUse` | `Task` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `tool_input.name`, `tool_input.team_name`, `session_id`, team config | enforce named-teammate and team spawn policy | fits current tool hook model | `plugins/gate-agent-spawns` |
-| Idle relay | `Notification` | `idle_prompt` | `notification-idle-relay.py` | `session_id`, team/agent routing fields | emit ATM idle heartbeat | fits current notification hook model | `plugins/atm-state-relay` |
-| Permission relay | `PermissionRequest` | `*` | `permission-request-relay.py` | `session_id`, `tool_name`, `tool_input`, team/agent routing fields | emit ATM permission-request event | fits current lifecycle-style hook model | `plugins/atm-state-relay` |
-| Stop relay | `Stop` | `*` | `stop-relay.py` | `session_id`, team/agent routing fields | emit ATM stop/idle event | fits current lifecycle-style hook model | `plugins/atm-state-relay` |
+| Session start | `SessionStart` | `*` | `session-start.py` | `session_id`, `source`, `.atm.toml`, `ATM_TEAM`, `ATM_IDENTITY` | announce session, emit ATM start event, persist session record | fits current lifecycle hook model | `plugins/agent-session-foundation` |
+| Session end | `SessionEnd` | `*` | `session-end.py` | `session_id`, `.atm.toml` core routing | emit ATM end event, delete session record | fits current lifecycle hook model | `plugins/agent-session-foundation` |
+| Pre-compact | `PreCompact` | `""` | harness capture now proves the raw surface | `session_id`, `trigger`, `custom_instructions`, transcript/cwd context | emit pre-restart compact lifecycle signal | fits lifecycle hook model | `plugins/agent-session-foundation` |
+| ATM identity write | `PreToolUse` | `Bash` | `atm-identity-write.py` | `tool_input.command`, `session_id`, `.atm.toml`, `ATM_*` env | if command invokes `atm`, write temp identity file | fits ATM extension behavior | `plugins/atm-extension` |
+| ATM identity cleanup | `PostToolUse` | `Bash` | `atm-identity-cleanup.py` | routing context only | remove temp identity file from paired bash invocation | fits ATM extension behavior | `plugins/atm-extension` |
+| Agent spawn gate | `PreToolUse` | logical teammate/spawn surface; current Haiku payload uses `tool_name = "Agent"` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `tool_input.name`, `tool_input.team_name`, `session_id`, team config | enforce named-teammate and team spawn policy | fits current tool hook model | `plugins/agent-spawn-gates` |
+| Idle relay | `Notification` | `""` | `notification-idle-relay.py` | intended to use `session_id`, team/agent routing fields | emit ATM idle heartbeat | documented surface remains in scope; live Claude payload unresolved in this harness | `plugins/atm-extension` |
+| Permission relay | `PermissionRequest` | `*` | `permission-request-relay.py` | `session_id`, `tool_name`, `tool_input`, team/agent routing fields | emit ATM permission-request event | fits ATM extension behavior | `plugins/atm-extension` |
+| Stop relay | `Stop` | `*` | `stop-relay.py` | `session_id`, team/agent routing fields | emit ATM stop/idle event | fits ATM extension behavior | `plugins/atm-extension` |
 
 ## Protocol Compatibility Analysis
 
@@ -339,10 +452,11 @@ model without requiring a new host protocol:
 
 - `SessionStart`
 - `SessionEnd`
+- `PreCompact`
 - `PreToolUse/Bash`
 - `PostToolUse/Bash`
-- `PreToolUse/Task`
-- `Notification/idle_prompt`
+- logical teammate/background spawn surface via current `PreToolUse(tool_name="Agent")`
+- unresolved `Notification`
 - `PermissionRequest`
 - `Stop`
 
@@ -427,29 +541,46 @@ Keep policy-heavy and stateful hooks separated from generic relays.
 
 Posture statement:
 
+- freeze the generic hook trait and normalized context first
+- keep generic hook utilities separate from ATM-specific extension behavior
+- treat the archived prototype crates as reference only, not as the final crate
+  split
+
+Preferred post-capture implementation split:
+
+- generic utilities:
+  - `plugins/agent-session-foundation`
+  - `plugins/agent-spawn-gates`
+  - `plugins/tool-output-gates`
+- ATM-specific extension:
+  - `plugins/atm-extension`
+
+Archived prototype branches/crates remain reference-only:
+
 - `plugins/atm-session-lifecycle`
 - `plugins/atm-bash-identity`
 - `plugins/gate-agent-spawns`
 - `plugins/atm-state-relay`
-
-These are planning targets only. Until implementation lands with tests and the
-same-PR architecture update, they must be treated as scaffold/reference-only
-proposals rather than existing source inventory.
 
 Inventory rule:
 
 - any implementation sprint that adds one of these crates must update
   `docs/architecture.md` §3 crate inventory in the same PR
 
-- `plugins/atm-session-lifecycle`
-  - owns SessionStart and SessionEnd
+- `plugins/agent-session-foundation`
+  - owns `SessionStart`, `SessionEnd`, and `PreCompact`
   - owns persistent session record read/write
-- `plugins/atm-bash-identity`
-  - owns PreToolUse/PostToolUse Bash pair for `atm` command identity files
-- `plugins/gate-agent-spawns`
-  - owns Task spawn policy enforcement
-- `plugins/atm-state-relay`
-  - owns Notification, PermissionRequest, and Stop event relay behaviors
+  - owns normalized `agent_state` transitions
+- `plugins/agent-spawn-gates`
+  - owns named-agent vs background-agent policy
+  - owns subagent linkage and spawn tracking
+- `plugins/tool-output-gates`
+  - owns tool blocking/fenced-JSON policy and related utility enforcement
+- `plugins/atm-extension`
+  - owns ATM routing enrichment
+  - owns ATM-specific Bash identity-file behavior
+  - owns ATM relay emission behavior such as `PermissionRequest`, `Stop`, and
+    teammate-idle mapping
 
 Recommended supporting test infrastructure:
 
@@ -458,10 +589,12 @@ Recommended supporting test infrastructure:
 
 Why this split:
 
-- session lifecycle is stateful and foundational
-- Bash identity hooks are paired and should share temp-file behavior
-- spawn gating is policy-heavy and should not be mixed with generic relays
-- notification and lifecycle relays are narrow event-forwarding behaviors
+- session lifecycle and normalized state are foundational and generic
+- spawn policy and subagent tracking are generic agent-control concerns
+- tool blocking/fenced-JSON handling is a separate correctness utility
+- ATM routing and relay behaviors are extensions, not the generic hook baseline
+- the archived prototypes mostly got the broad responsibility boundaries right,
+  but they pulled ATM behavior into the first-pass crate split too early
 
 ## Sprint Sequencing
 
@@ -488,6 +621,28 @@ Deliver:
 - Claude hook payload models
 - Claude fixture capture and validation tests
 - drift-report output for unknown-field additions and breaking schema changes
+- approved fixture snapshots and a first live Claude Haiku report
+
+Write scope:
+
+- `test-harness/hooks/README.md`
+- `test-harness/hooks/scripts/run-capture.sh`
+- `test-harness/hooks/claude/{prompts,hooks,models,fixtures,captures,reports,scripts,tests}/`
+- fixture manifests and harness runner helpers
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- harness structure and fixture validation tests under
+  `test-harness/hooks/claude/tests/`
+
+Success criteria:
+
+- Claude payloads for the required baseline are captured and curated as review
+  evidence
+- the harness can be rerun from the repo docs without reconstructing ad hoc
+  setup
+- CI fails on required-field removal or type drift
 
 Dependencies:
 
@@ -500,6 +655,30 @@ Deliver:
 - revised hook API docs with only verified fields
 - revised S9 plan for the remaining Claude implementation work
 - explicit deferral markers for anything still not captured or source-backed
+- frozen normalized `agent_state` model and session-record schema
+- frozen hook-plugin trait/result/context contract
+
+Write scope:
+
+- `docs/plugin-plan-s9.md`
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/project-plan.md`
+- `docs/requirements.md`
+- `docs/architecture.md`
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- `cargo test --workspace`
+
+Success criteria:
+
+- every implementation-facing Claude field is backed by captured fixtures or
+  current source-of-truth code/docs/tests
+- unknown fields remain explicitly deferred
+- later phases define exact code to write, tests required, and success
+  criteria
 
 Dependencies:
 
@@ -509,11 +688,38 @@ Dependencies:
 
 Deliver:
 
-- `plugins/atm-session-lifecycle`
+- final trait/context freeze in `sc-hooks-core` / `sc-hooks-sdk`
+- `plugins/agent-session-foundation`
 - persisted session record keyed by `session_id`
+- normalized `agent_state` transitions and `active_pid` ownership rules
 - explicit tests proving directory changes do not break later hook correlation
 - if the crate is introduced in this sprint, update `docs/architecture.md` §3
   in the same PR to add the crate inventory entry
+
+Write scope:
+
+- `sc-hooks-core/`
+- `sc-hooks-sdk/`
+- `plugins/agent-session-foundation/`
+- same-PR updates to `docs/architecture.md`, `docs/requirements.md`, and
+  `docs/project-plan.md`
+
+Required tests:
+
+- unit tests for normalized `agent_state` transitions
+- integration tests for session-state persistence keyed by `session_id`
+- integration tests proving `SessionStart` in directory A and later lifecycle
+  events in directory B still resolve the same session record
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- lifecycle code uses only verified inputs
+- the session-state schema matches the documented canonical record
+- ATM-specific routing stays out of the generic lifecycle crate
+- the trait boundary no longer relies on raw `serde_json::Value` alone as the
+  only plugin-facing abstraction
 
 Dependencies:
 
@@ -523,10 +729,38 @@ Dependencies:
 
 Deliver:
 
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- named-agent vs background-agent policy
+- subagent linkage/tracking
+- fenced/blocking JSON tool-utility behavior
 - if either crate is introduced in this sprint, update
   `docs/architecture.md` §3 in the same PR to add the crate inventory entries
+
+Write scope:
+
+- `plugins/agent-spawn-gates/`
+- `plugins/tool-output-gates/`
+- any same-PR doc updates required if the captured schema or blocking contract
+  needs clarifying
+
+Required tests:
+
+- direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for named-agent versus background-agent policy outcomes
+- tests for subagent linkage fields written into the canonical session-state file
+- tests for fenced `json` extraction and schema validation success/failure
+- tests proving invalid input returns exact retryable failure reasons
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- spawn and tool-blocking behavior is tested directly
+- no unverified field is relied on without a later approved schema capture
+- block responses explain exactly how the caller can retry successfully
+- generic blocking/fenced-JSON policy remains separate from ATM-specific relay
+  behavior
 
 Dependencies:
 
@@ -536,10 +770,33 @@ Dependencies:
 
 Deliver:
 
-- `plugins/atm-state-relay`
-- relay tests for Notification, PermissionRequest, and Stop payload handling
+- `plugins/atm-extension`
+- ATM-specific Bash identity-file handling
+- ATM relay tests for `PermissionRequest`, `Stop`, and teammate-idle handling
+- `Notification` remains explicitly deferred unless the surface is captured
 - if the crate is introduced in this sprint, update `docs/architecture.md` §3
   in the same PR to add the crate inventory entry
+
+Write scope:
+
+- `plugins/atm-extension/`
+- ATM-only docs where relay semantics or teammate-idle mapping must be frozen
+
+Required tests:
+
+- tests for ATM identity-file create/delete behavior around `atm` Bash commands
+- tests for ATM extension fields on the canonical session-state record
+- tests for relay mapping on `PermissionRequest`, `Stop`, and teammate-idle
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- ATM behavior is layered on top of generic utilities rather than defining
+  them
+- failure posture is documented and tested
+- `Notification` stays wired but does not block completion of this phase until
+  a live payload is captured and promoted
 
 Dependencies:
 
@@ -564,6 +821,23 @@ Deliver:
 - any future `TeammateIdle`, `PreCompact`, or `PostCompact` hooks only as
   planning targets after their payloads and persistence boundaries are
   verified
+
+Write scope:
+
+- provider follow-on planning docs only
+- no runtime crate work without separate approval and provider-specific capture
+
+Required tests:
+
+- docs-only validation plus any provider harness tests explicitly approved for
+  that provider follow-on
+
+Success criteria:
+
+- follow-on provider work is represented as schema-backed planning, not guessed
+  implementation
+- Claude remains the only active runtime baseline until another provider is
+  explicitly captured and approved
 
 Dependencies:
 
@@ -598,6 +872,68 @@ crate because it needs:
 - `.atm.toml` team policy lookup
 - session-to-identity resolution
 - explicit block messaging
+- named-agent vs background-agent policy
+- subagent linkage and later context-injection compatibility
+
+### Tool Output / JSON Gates
+
+The next implementation pass should not bury tool-output enforcement inside
+ATM-only code. Blocking/fenced-JSON behavior should be treated as a generic
+utility concern because it applies before ATM routing.
+
+Required policy:
+
+- subagent launches may require fenced JSON input
+- the schema may be defined either:
+  - inline in the agent prompt file, or
+  - in a separate schema file with the same base name as the agent prompt in
+    the same directory
+- if a schema is present, the spawn gate validates the caller input against it
+  before the agent starts
+- if validation fails, the hook must block the spawn and return an exact,
+  retryable explanation of what was wrong
+
+Recommended lookup order:
+
+1. agent prompt file declares an inline fenced JSON schema
+2. sibling schema file such as `<agent-name>.schema.json`
+
+Recommended enforcement behavior:
+
+- require exactly one fenced `json` block for schema-governed agent launches
+- parse the fenced block as the machine-readable request envelope
+- validate against the agent schema before spawn
+- on failure, return:
+  - missing fenced block
+  - invalid JSON parse error
+  - schema validation error with field path and expected type/rule
+
+Why it matters:
+
+- the caller must be able to retry immediately with a corrected message
+- blocking must explain the failure precisely, not just say “bad format”
+
+### Prototype Review
+
+Archived prototype branches are still useful as design input, but not as
+authoritative implementation.
+
+What they got broadly right:
+
+- session persistence belongs in its own foundational unit
+- Bash identity hooks are paired and command-sensitive
+- spawn gating is policy-heavy and deserves separation
+- relay behavior is mostly narrow and fail-open
+
+What they missed or over-assumed:
+
+- they used ATM-specific crate names as the first-pass architecture instead of
+  separating generic utilities from an ATM extension crate
+- they relied on payload assumptions later corrected by live capture
+  (`tool_name = "Agent"`, `source = "startup"`)
+- they did not freeze a normalized `agent_state` model before implementation
+- they did not include `PreCompact` in the lifecycle crate
+- they treated raw events and normalized idle-state semantics too loosely
 
 ### Relay Hooks
 
@@ -627,8 +963,9 @@ This plan is sufficient when:
 - the Claude hook set is documented per-platform rather than mixed with Codex
   assumptions
 - the session correlation model is explicit and cwd-independent
-- each of the eight current Claude ATM hook behaviors has a hook type, consumed
-  inputs, action summary, crate assignment, and sequencing position
+- each captured Claude baseline behavior plus the unresolved `Notification`
+  surface has a hook type, consumed inputs, action summary, crate assignment,
+  and sequencing position
 - platform gaps are called out honestly instead of hidden inside implementation
   tasks
 - Cursor remains documented without being turned into an immediate dev blocker

@@ -26,6 +26,7 @@ def test_canned_prompts_exist_for_each_surface(claude_root: Path) -> None:
     expected = [
         "session-start.md",
         "session-end.md",
+        "pre-compact.md",
         "pretooluse-bash.md",
         "posttooluse-bash.md",
         "pretooluse-task.md",

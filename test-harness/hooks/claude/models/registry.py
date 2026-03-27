@@ -3,10 +3,11 @@
 EXPECTED_HOOKS = {
     "SessionStart": "session-start",
     "SessionEnd": "session-end",
+    "PreCompact": "pre-compact",
     "PreToolUse(Bash)": "pretooluse-bash",
+    "PreToolUse(Agent)": "pretooluse-task",
     "PostToolUse(Bash)": "posttooluse-bash",
-    "PreToolUse(Task)": "pretooluse-task",
     "PermissionRequest": "permission-request",
-    "Notification(idle_prompt)": "notification",
+    "Notification": "notification",
     "Stop": "stop",
 }
