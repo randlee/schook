@@ -6,7 +6,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::manifest::Manifest;
-use sc_hooks_core::validation::FieldType;
 use sc_hooks_sdk::manifest::ManifestBuilder;
 use sc_hooks_sdk::result::{HookResult, proceed};
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
@@ -48,7 +47,6 @@ struct HookInput {
     kind: HookKind,
     session_id: Option<String>,
     source: Option<String>,
-    agent_pid: Option<u32>,
 }
 
 pub struct AtmSessionLifecycle;
@@ -58,7 +56,6 @@ impl ManifestProvider for AtmSessionLifecycle {
         ManifestBuilder::new("atm-session-lifecycle", DispatchMode::Sync)
             .hooks(["SessionStart", "SessionEnd"])
             .matchers(["*"])
-            .optional_field("agent.pid", FieldType::Integer, Some("positive_int"))
             .build()
             .expect("manifest should be valid")
     }
@@ -96,9 +93,7 @@ fn handle_session_start(input: &HookInput) -> Result<(), String> {
         session_id: session_id.clone(),
         team: routing.team.clone(),
         identity: routing.identity.clone(),
-        pid: input
-            .agent_pid
-            .or(existing.as_ref().and_then(|record| record.pid)),
+        pid: existing.as_ref().and_then(|record| record.pid),
         created_at: existing.map(|record| record.created_at).unwrap_or(now),
         updated_at: now,
     };
@@ -130,9 +125,7 @@ fn handle_session_end(input: &HookInput) -> Result<(), String> {
     let store = SessionStore::discover()?;
     let existing = store.read(&session_id)?;
     let routing = resolve_routing_context().merge(existing.as_ref());
-    let process_id = input
-        .agent_pid
-        .or(existing.as_ref().and_then(|record| record.pid));
+    let process_id = existing.as_ref().and_then(|record| record.pid);
 
     if let (Some(team), Some(identity), Some(process_id)) =
         (routing.team, routing.identity, process_id)
@@ -187,11 +180,6 @@ fn parse_input(input: &Value) -> HookInput {
             .get("source")
             .and_then(Value::as_str)
             .map(str::to_string),
-        agent_pid: input
-            .get("agent")
-            .and_then(|agent| agent.get("pid"))
-            .and_then(Value::as_u64)
-            .and_then(|pid| u32::try_from(pid).ok()),
     }
 }
 
@@ -464,7 +452,6 @@ mod tests {
     fn parse_input_reads_hook_and_payload_fields() {
         let input = serde_json::json!({
             "hook": {"type": "SessionEnd"},
-            "agent": {"pid": 42},
             "payload": {
                 "session_id": "session-1",
                 "source": "compact"
@@ -475,6 +462,5 @@ mod tests {
         assert_eq!(parsed.kind, HookKind::SessionEnd);
         assert_eq!(parsed.session_id.as_deref(), Some("session-1"));
         assert_eq!(parsed.source.as_deref(), Some("compact"));
-        assert_eq!(parsed.agent_pid, Some(42));
     }
 }
