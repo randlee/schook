@@ -51,6 +51,15 @@ pub fn execute_chain(
     for handler in handlers {
         let handler_started = Instant::now();
         let handler_name = &handler.name;
+        if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
+            return Err(CliError::Resolution(
+                crate::errors::ResolutionError::ManifestLoad {
+                    plugin: handler_name.clone(),
+                    reason: "manifest long_running=true is only supported for sync handlers"
+                        .to_string(),
+                },
+            ));
+        }
         let stdin_payload = sc_hooks_sdk::manifest::build_plugin_input(
             &handler.manifest,
             &prepared.metadata,
@@ -94,7 +103,7 @@ pub fn execute_chain(
         {
             Ok(child) => child,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification(
                     handler_name,
                     "spawn-error",
@@ -107,7 +116,7 @@ pub fn execute_chain(
                     Some(err.to_string()),
                     Some(true),
                 ));
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -126,7 +135,7 @@ pub fn execute_chain(
                 message: format!("failed to serialize stdin payload: {err}"),
             })?;
             if let Err(err) = stdin.write_all(&body) {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification(
                     handler_name,
                     "stdin-write-failed",
@@ -139,7 +148,7 @@ pub fn execute_chain(
                     Some(err.to_string()),
                     Some(true),
                 ));
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -160,7 +169,7 @@ pub fn execute_chain(
         let status = match wait_with_timeout(&mut child, timeout_ms) {
             Ok(TimeoutOutcome::Completed(status)) => status,
             Ok(TimeoutOutcome::TimedOut) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification_with_timeout(
                     handler_name,
                     "timed-out",
@@ -175,7 +184,7 @@ pub fn execute_chain(
                     Some(true),
                 ));
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    let _ = emit_dispatch_log(
+                    emit_dispatch_log_with_fallback(
                         &log_base,
                         &log_results,
                         started.elapsed().as_millis(),
@@ -185,7 +194,7 @@ pub fn execute_chain(
                     async_system_message.push(ai_message);
                     continue;
                 }
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -197,7 +206,7 @@ pub fn execute_chain(
                 });
             }
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification(
                     handler_name,
                     "wait-failed",
@@ -210,7 +219,7 @@ pub fn execute_chain(
                     Some(err.to_string()),
                     Some(true),
                 ));
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -227,7 +236,7 @@ pub fn execute_chain(
         if let Some(mut out) = child.stdout.take()
             && let Err(err) = out.read_to_end(&mut stdout)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
             let ai_message = ai_notification(
                 handler_name,
                 "stdout-read-failed",
@@ -240,7 +249,7 @@ pub fn execute_chain(
                 Some(err.to_string()),
                 Some(true),
             ));
-            let _ = emit_dispatch_log(
+            emit_dispatch_log_with_fallback(
                 &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
@@ -256,7 +265,7 @@ pub fn execute_chain(
         if let Some(mut err) = child.stderr.take()
             && let Err(read_err) = err.read_to_end(&mut stderr)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
             let ai_message = ai_notification(
                 handler_name,
                 "stderr-read-failed",
@@ -269,7 +278,7 @@ pub fn execute_chain(
                 Some(read_err.to_string()),
                 Some(true),
             ));
-            let _ = emit_dispatch_log(
+            emit_dispatch_log_with_fallback(
                 &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
@@ -285,7 +294,7 @@ pub fn execute_chain(
         let stderr_text = String::from_utf8_lossy(&stderr).to_string();
 
         if !status.success() {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
             let ai_message = ai_notification(
                 handler_name,
                 "non-zero-exit",
@@ -298,7 +307,7 @@ pub fn execute_chain(
                 Some(stderr_text),
                 Some(true),
             ));
-            let _ = emit_dispatch_log(
+            emit_dispatch_log_with_fallback(
                 &log_base,
                 &log_results,
                 started.elapsed().as_millis(),
@@ -313,7 +322,7 @@ pub fn execute_chain(
         let (parsed, warning) = match parse_first_hook_result(&stdout_text) {
             Ok(parsed) => parsed,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification(
                     handler_name,
                     "invalid-json",
@@ -326,7 +335,7 @@ pub fn execute_chain(
                     Some(format!("stdout={stdout_text}; stderr={stderr_text}; {err}")),
                     Some(true),
                 ));
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -366,7 +375,7 @@ pub fn execute_chain(
             }
             sc_hooks_core::results::HookAction::Block => {
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                     let ai_message = ai_notification(
                         handler_name,
                         "async-block",
@@ -383,7 +392,7 @@ pub fn execute_chain(
                         },
                         Some(true),
                     ));
-                    let _ = emit_dispatch_log(
+                    emit_dispatch_log_with_fallback(
                         &log_base,
                         &log_results,
                         started.elapsed().as_millis(),
@@ -410,7 +419,7 @@ pub fn execute_chain(
                     warning,
                     disabled: None,
                 });
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -420,7 +429,7 @@ pub fn execute_chain(
                 return Ok(DispatchOutcome::Blocked { reason });
             }
             sc_hooks_core::results::HookAction::Error => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name);
+                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
                 let ai_message = ai_notification(
                     handler_name,
                     "action-error",
@@ -437,7 +446,7 @@ pub fn execute_chain(
                     ),
                     Some(true),
                 ));
-                let _ = emit_dispatch_log(
+                emit_dispatch_log_with_fallback(
                     &log_base,
                     &log_results,
                     started.elapsed().as_millis(),
@@ -480,8 +489,15 @@ pub fn execute_chain(
     Ok(DispatchOutcome::Proceed)
 }
 
-fn disable_plugin_for_session(session_id: Option<&str>, handler_name: &str) {
-    let _ = session::mark_plugin_disabled(session_id, handler_name, "runtime-error");
+fn disable_plugin_for_session(
+    session_id: Option<&str>,
+    handler_name: &str,
+) -> Result<(), CliError> {
+    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|err| {
+        CliError::internal(format!(
+            "failed persisting disabled state for `{handler_name}`: {err}"
+        ))
+    })
 }
 
 fn emit_dispatch_log(
@@ -502,6 +518,18 @@ fn emit_dispatch_log(
         exit,
         ai_notification,
     })
+}
+
+fn emit_dispatch_log_with_fallback(
+    base: &DispatchLogBase<'_>,
+    results: &[HandlerResultRecord],
+    total_ms: u128,
+    exit: i32,
+    ai_notification: Option<&str>,
+) {
+    if let Err(err) = emit_dispatch_log(base, results, total_ms, exit, ai_notification) {
+        eprintln!("sc-hooks: failed emitting dispatch observability event: {err}");
+    }
 }
 
 fn parse_first_hook_result(
@@ -582,7 +610,7 @@ mod tests {
     use crate::test_support;
     use std::collections::BTreeSet;
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::time::{Duration, Instant};
 
     fn make_plugin(path: &Path, manifest: &str, runtime_output: &str) {
@@ -672,6 +700,60 @@ PreToolUse = ["guard-paths"]
             sc_hooks_core::results::HookAction::Proceed
         ));
         assert!(warning.is_some());
+    }
+
+    #[test]
+    fn dispatch_rejects_async_long_running_before_spawn() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PostToolUse = ["notify"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let handler = resolution::ResolvedHandler {
+            name: "notify".to_string(),
+            executable_path: PathBuf::from(".sc-hooks/plugins/notify"),
+            manifest: sc_hooks_core::manifest::Manifest {
+                contract_version: 1,
+                name: "notify".to_string(),
+                mode: sc_hooks_core::dispatch::DispatchMode::Async,
+                hooks: vec!["PostToolUse".to_string()],
+                matchers: vec!["*".to_string()],
+                payload_conditions: Vec::new(),
+                timeout_ms: None,
+                long_running: true,
+                response_time: None,
+                requires: std::collections::BTreeMap::new(),
+                optional: std::collections::BTreeMap::new(),
+                sandbox: None,
+                description: Some("wait for remote ack".to_string()),
+            },
+        };
+
+        let err = execute_chain(
+            &[handler],
+            &cfg,
+            "PostToolUse",
+            Some("Write"),
+            sc_hooks_core::dispatch::DispatchMode::Async,
+            None,
+        )
+        .expect_err("dispatch should reject async long_running manifests before spawn");
+
+        assert!(matches!(
+            err,
+            CliError::Resolution(crate::errors::ResolutionError::ManifestLoad { plugin, reason })
+                if plugin == "notify" && reason.contains("long_running=true")
+        ));
     }
 
     #[test]

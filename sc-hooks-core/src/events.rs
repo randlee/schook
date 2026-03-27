@@ -32,6 +32,7 @@ impl HookType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum EventTaxonomy {
     Bash,
     Read,

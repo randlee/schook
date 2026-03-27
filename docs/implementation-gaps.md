@@ -16,6 +16,7 @@ This document tracks gaps between the current codebase and the release-standard 
 
 ## Resolved In This Pass
 
+- Sprint 8 RBP follow-up closed the last documented best-practices review residue by deleting dead condition-validation code in `sc-hooks-sdk/src/conditions.rs`, promoting the already-implemented audit findings `AUD-005` and `AUD-009` into the requirements/traceability set, and documenting the dispatch stderr fallback when observability emission fails.
 - `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
 - `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
 - `GAP-003` resolved by freezing every current `plugins/` source crate as scaffold/reference only in release-facing docs and plugin Cargo metadata.

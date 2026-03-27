@@ -282,5 +282,10 @@ current architecture does not yet include:
 - Cursor-targeting runtime crates
 - Cursor hook payloads as an implementation dependency
 
+Planning targets only for a later approved Cursor pass:
+
+- `plugins/cursor-agent-gates`
+- `plugins/cursor-agent-relay`
+
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.
