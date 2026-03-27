@@ -226,10 +226,9 @@ Required Claude capture set:
 - `SessionEnd`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
-- `PreToolUse(Task)`
+- `PreToolUse(Agent)`
 - `PermissionRequest`
 - `Stop`
-- `Notification(idle_prompt)`
 
 The sequence is:
 
