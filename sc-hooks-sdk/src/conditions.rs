@@ -104,10 +104,6 @@ fn validate_condition_value(condition: &PayloadCondition) -> Result<(), Conditio
                 });
             }
 
-            if let ConditionOperator::OneOf = condition.op {
-                unreachable!();
-            }
-
             Ok(())
         }
         ConditionOperator::OneOf => {

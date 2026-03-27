@@ -472,4 +472,35 @@ PostToolUse = ["notify"]
                 .any(|entry| entry.contains("AUD-005") && entry.contains("long_running=true"))
         );
     }
+
+    #[test]
+    fn audit_rejects_long_running_without_description() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+
+        make_plugin(
+            Path::new(".sc-hooks/plugins/notify"),
+            r#"{"contract_version":1,"name":"notify","mode":"sync","hooks":["PostToolUse"],"matchers":["*"],"long_running":true,"description":"   ","requires":{}}"#,
+        );
+
+        let cfg = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PostToolUse = ["notify"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+
+        let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|entry| entry.contains("AUD-009") && entry.contains("non-empty description"))
+        );
+    }
 }

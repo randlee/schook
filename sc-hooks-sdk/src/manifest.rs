@@ -566,6 +566,16 @@ mod tests {
     }
 
     #[test]
+    fn rejects_long_running_manifest_without_description() {
+        let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Sync)
+            .hooks(["PostToolUse"])
+            .long_running("   ")
+            .build()
+            .expect_err("long_running manifest should require a non-empty description");
+        assert!(matches!(err, ManifestError::MissingLongRunningDescription));
+    }
+
+    #[test]
     fn set_value_by_path_rejects_non_object_path_collision() {
         let mut root = Map::new();
         root.insert("team".to_string(), Value::String("ops".to_string()));
