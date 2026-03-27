@@ -1,0 +1,21 @@
+[package]
+name = "atm-state-relay"
+version.workspace = true
+edition = "2024"
+publish = false
+description = "Claude Notification/PermissionRequest/Stop relay plugin for ATM state tracking"
+
+[[bin]]
+name = "atm-state-relay"
+path = "src/main.rs"
+
+[dependencies]
+atm-session-lifecycle = { path = "../atm-session-lifecycle" }
+libc = "0.2.177"
+sc-hooks-core = { path = "../../sc-hooks-core" }
+sc-hooks-sdk = { path = "../../sc-hooks-sdk" }
+serde_json = "1.0.145"
+toml = "0.8.20"
+
+[dev-dependencies]
+tempfile = "3.23.0"

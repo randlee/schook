@@ -6,6 +6,7 @@ members = [
   "sc-hooks-test",
   "plugins/atm-bash-identity",
   "plugins/atm-session-lifecycle",
+  "plugins/atm-state-relay",
   "plugins/gate-agent-spawns",
 ]
 resolver = "2"
