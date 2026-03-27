@@ -1,3 +1,19 @@
+---
+required_variables:
+  - task_id
+  - sprint
+  - assignee
+  - description
+  - worktree_path
+  - branch
+  - pr_target
+  - deliverables
+  - acceptance_criteria
+  - references
+defaults: {}
+metadata:
+  purpose: Dev task assignment
+---
 <atm-task id="{{ task_id }}" sprint="{{ sprint }}" assignee="{{ assignee }}">
   <description>{{ description }}</description>
 
@@ -6,21 +22,15 @@
   <pr-target>{{ pr_target }}</pr-target>
 
   <deliverables>
-    {% for item in deliverables %}
-    <item>{{ item }}</item>
-    {% endfor %}
+{{ deliverables }}
   </deliverables>
 
   <acceptance-criteria>
-    {% for criterion in acceptance_criteria %}
-    <item>{{ criterion }}</item>
-    {% endfor %}
+{{ acceptance_criteria }}
   </acceptance-criteria>
 
   <references>
-    {% for ref in references %}
-    <doc>{{ ref }}</doc>
-    {% endfor %}
+{{ references }}
   </references>
 
   <workflow>
@@ -28,6 +38,6 @@
     <step id="b">Before coding: run `git fetch origin && git merge origin/{{ pr_target }}` to include all prior sprint fixes. Then complete development work.</step>
     <step id="c">Push your commit. Send me: branch name + commit hash. Do NOT wait — I will open the PR in parallel.</step>
     <step id="d">Run cargo test. Report results (PASS or FAIL with details).</step>
-    <step id="e">Send task-complete announcement: commit hash, test summary, any notes.</step>
+    <step id="e">Send task-complete announcement: commit hash, test summary, any notes. Then immediately start the next sprint task already in your inbox — do NOT wait for QA or team-lead go-ahead.</step>
   </workflow>
 </atm-task>
