@@ -50,7 +50,7 @@ pub fn mark_plugin_disabled(
     };
 
     let path = state_path();
-    let mut store = read_store(&path).unwrap_or_default();
+    let mut store = read_store(&path)?;
     let record = store.sessions.entry(session_id.to_string()).or_default();
     record.disabled_plugins.insert(
         plugin.to_string(),
@@ -69,7 +69,7 @@ pub fn clear_session(session_id: Option<&str>) -> Result<(), CliError> {
     };
 
     let path = state_path();
-    let mut store = read_store(&path).unwrap_or_default();
+    let mut store = read_store(&path)?;
     store.sessions.remove(session_id);
     write_store(&path, &store)
 }
@@ -234,5 +234,33 @@ mod tests {
 
         clear_all_sessions().expect("clear_all_sessions should succeed");
         assert!(!Path::new(".sc-hooks/state/session.json").exists());
+    }
+
+    #[test]
+    fn mark_plugin_disabled_fails_on_corrupt_state_file() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+
+        fs::create_dir_all(".sc-hooks/state").expect("state dir should be creatable");
+        fs::write(".sc-hooks/state/session.json", "{not-json")
+            .expect("state file should be writable");
+
+        let err = mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+            .expect_err("corrupt session state should not be silently reset on write");
+        assert!(err.to_string().contains("failed parsing session state"));
+    }
+
+    #[test]
+    fn clear_session_fails_on_corrupt_state_file() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+
+        fs::create_dir_all(".sc-hooks/state").expect("state dir should be creatable");
+        fs::write(".sc-hooks/state/session.json", "{not-json")
+            .expect("state file should be writable");
+
+        let err = clear_session(Some("session-a"))
+            .expect_err("corrupt session state should not be silently reset on clear");
+        assert!(err.to_string().contains("failed parsing session state"));
     }
 }
