@@ -97,7 +97,7 @@ def build_settings(claude_dir: Path, capture_root: Path) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("surface", choices=["notification-idle-prompt", "permission-request"])
+    parser.add_argument("surface", choices=["notification", "permission-request"])
     parser.add_argument("--model", default=os.environ.get("CLAUDE_MODEL", "haiku"))
     parser.add_argument("--capture-root")
     args = parser.parse_args()
@@ -121,7 +121,7 @@ def main() -> int:
 
     try:
         time.sleep(3)
-        if args.surface == "notification-idle-prompt":
+        if args.surface == "notification":
             # No prompt: let Claude sit fully idle long enough for Notification to fire.
             time.sleep(70)
         else:

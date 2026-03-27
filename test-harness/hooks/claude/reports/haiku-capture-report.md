@@ -32,7 +32,7 @@ Representative raw captures retained under `captures/raw/`:
 - `20260327T054546.843011Z-posttooluse-bash.json`
   - `PostToolUse`
   - `tool_name = "Bash"`
-- `20260327T054744.357048Z-pretooluse-task.json`
+- `20260327T054744.357048Z-pretooluse-agent.json`
   - `PreToolUse`
   - `tool_name = "Agent"`
 - `20260327T063236.772257Z-permission-request.json`

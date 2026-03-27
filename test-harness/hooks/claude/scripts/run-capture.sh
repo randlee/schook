@@ -21,8 +21,8 @@ if [[ "${surface}" == "permission-request" ]]; then
   exec "${SCRIPT_DIR}/run-interactive-capture.py" permission-request --model "${MODEL}" --capture-root "${CAPTURE_ROOT}"
 fi
 
-if [[ "${surface}" == "notification-idle-prompt" ]]; then
-  exec "${SCRIPT_DIR}/run-interactive-capture.py" notification-idle-prompt --model "${MODEL}" --capture-root "${CAPTURE_ROOT}"
+if [[ "${surface}" == "notification" ]]; then
+  exec "${SCRIPT_DIR}/run-interactive-capture.py" notification --model "${MODEL}" --capture-root "${CAPTURE_ROOT}"
 fi
 
 temp_settings="$(mktemp)"
@@ -56,7 +56,7 @@ cat > "${temp_settings}" <<JSON
       },
       {
         "matcher": "Agent",
-        "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/pre_tool_use_task.py'" }]
+        "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/pre_tool_use_agent.py'" }]
       }
     ],
     "PostToolUse": [

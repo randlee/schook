@@ -15,6 +15,7 @@ The source-of-truth inputs for this document are:
 - current ATM hook docs, scripts, tests, and session fallback code in
   `/Users/randlee/Documents/github/agent-team-mail`
 - real Claude Haiku captures under `test-harness/hooks/claude/captures/raw/`
+  for every schema or behavior claim marked captured below
 
 ## Platform Rules
 
@@ -137,9 +138,9 @@ Observed negative case:
 
 ## Captured Hook Schemas
 
-The following schemas are copied from the real Haiku captures in
-`test-harness/hooks/claude/captures/raw/` and should be treated as current
-observed shape, not a vendor-guaranteed contract.
+Only the following surfaces were captured in the live Haiku pass. Their schema
+examples are copied from `test-harness/hooks/claude/captures/raw/` and should
+be treated as current observed shape, not a vendor-guaranteed contract.
 
 ### `SessionStart`
 

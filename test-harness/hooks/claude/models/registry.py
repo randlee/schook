@@ -5,7 +5,7 @@ EXPECTED_HOOKS = {
     "SessionEnd": "session-end",
     "PreCompact": "pre-compact",
     "PreToolUse(Bash)": "pretooluse-bash",
-    "PreToolUse(Agent)": "pretooluse-task",
+    "PreToolUse(Agent)": "pretooluse-agent",
     "PostToolUse(Bash)": "posttooluse-bash",
     "PermissionRequest": "permission-request",
     "Notification": "notification",

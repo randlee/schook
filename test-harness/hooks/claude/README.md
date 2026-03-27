@@ -126,7 +126,7 @@ For the interactive helper used during this live pass:
 cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing
 uv run --with pexpect \
   test-harness/hooks/claude/scripts/run-interactive-capture.py \
-  notification-idle-prompt
+  notification
 ```
 
 Interactive surface notes from this capture pass:
