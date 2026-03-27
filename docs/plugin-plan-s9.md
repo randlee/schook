@@ -2,633 +2,408 @@
 
 ## Goal
 
-Plan the Rust plugin implementation of the current Claude ATM hook set using
-the installed Python hooks under `/Users/randlee/.claude/scripts/` as the
-behavioral reference.
+Define the executable plan for the Claude-first hook work so implementation
+starts only after the hook payload contract has been captured and validated.
 
-This sprint is planning-only. It does not change runtime code.
+This sprint is planning-only. It does not authorize hook runtime code.
 
-The intended execution sequence after review is:
+## Scope
 
-1. build the Claude-first harness
-2. capture verified Claude payloads
-3. revise this plan from captured evidence
-4. implement the Claude ATM hook crates
-5. defer other providers until the Claude baseline is stable
+This document is the umbrella execution plan for Sprint 9.
 
-## Umbrella Plan Status
+It must be sufficient for `arch-hook` to execute the work in the correct order
+without asking what comes first.
 
-This is the umbrella execution plan for Sprint 9.
-
-QA should be able to read this document and understand the complete sequence
-from:
+This plan covers:
 
 1. harness build
-2. live schema capture
-3. model and schema validation
-4. formal report generation
-5. plan revision from captured evidence
-6. hook implementation sequencing
+2. live Claude payload capture
+3. Pydantic model and schema creation
+4. plan revision from verified schema
+5. only then hook implementation evaluation and sequencing
 
-Supporting documents remain necessary, but they are source-of-truth references
-for facts and subcontracts rather than parallel execution plans.
+Supporting documents remain source-of-truth references for platform facts,
+requirements, architecture boundaries, and harness contract details. They do
+not define a competing execution sequence.
 
-## Planning Baseline
-
-Supporting documents and their roles:
+## Source Documents
 
 - `docs/hook-api/claude-hook-api.md`
   - verified Claude hook baseline and current known payload facts
+- `docs/hook-api/atm-hook-extension.md`
+  - ATM-specific behavior that remains separate from the generic hook contract
 - `docs/hook-api/codex-hook-api.md`
   - documented provider reference only; not part of the first implementation path
 - `docs/hook-api/cursor-agent-hook-api.md`
   - documented provider reference only; not part of the first implementation path
-- `docs/hook-api/atm-hook-extension.md`
-  - ATM-specific behavior that must remain separate from the generic hook contract
 - `test-harness/hooks/README.md`
-  - harness directory contract, `pytest` split, fixture policy, and report lifecycle
-- `docs/project-plan.md`
-  - high-level project sequencing, including the Hook Phase 0-6 track
+  - harness contract, directory ownership, fixture policy, report lifecycle, and `pytest` split
 - `docs/requirements.md`
-  - requirements that gate hook implementation start and scope
+  - hook requirements, especially `HKR-001` through `HKR-007`
 - `docs/architecture.md`
-  - architecture boundaries and planned hook crate ownership
+  - crate boundaries and inventory rules
+- `docs/project-plan.md`
+  - project-level sequencing for the hook track
 
-Sprint 9 focuses on the verified Claude hook set. Codex is documented as a
-separate platform reference, but it is not the implementation baseline for
-this sprint.
+## Current Planning Baseline
 
-Current ATM-specific source of truth comes from `agent-team-mail` docs, hook
-scripts, tests, and Rust fallback code. The repo does not currently appear to
-use Pydantic models as the hook source of truth, so this plan treats the
-schema-validation harness as new required work rather than something already
-available upstream.
+- Claude is the only implementation baseline for the first pass.
+- ATM behavior remains an extension of the Claude baseline and stays documented
+  separately in `docs/hook-api/atm-hook-extension.md`.
+- Codex, Gemini, and Cursor remain documented follow-on providers, not current
+  implementation targets.
+- Current ATM source-of-truth comes from `agent-team-mail` docs, scripts,
+  tests, and Rust fallback code.
+- Current Sprint 9 prototype crates are reference-only:
+  - `plugins/atm-session-lifecycle`
+  - `plugins/atm-bash-identity`
+  - `plugins/gate-agent-spawns`
+  - `plugins/atm-state-relay`
+- Those prototype crates are not authoritative until re-evaluated against
+  captured Claude payloads and validated schema artifacts.
 
-## Core Recommendation
+## Non-Negotiable Sequence
 
-Do not plan this work as eight flat ports. Plan it in five layers:
+The work must happen in this order:
 
-1. live schema capture and drift validation
-2. session/context foundation
-3. command and spawn gates
-4. ATM lifecycle relays
-5. cross-platform follow-on gaps
+1. build the payload capture harness
+2. capture real Claude hook payloads
+3. create Pydantic models and schema artifacts from captured payloads
+4. revise the plan from verified schema
+5. re-evaluate or implement each hook plugin against validated schema
 
-That order keeps the hook contract honest before implementation starts. The
-first requirement is to validate real provider payloads against explicit models
-so upstream schema drift is detected immediately after provider upgrades.
+No later step may begin early because a prototype branch already exists.
 
-## Supplementary Background For Hook Phase 1: Hook Schema Validation Harness
+## Implementation Start Rule
 
-Authoritative sequencing for implementation belongs to the `### Hook Phase N`
-sections later in this document. This background section exists to explain the
-first gate in detail, not to define a parallel authoritative sequence.
+No hook runtime code starts until all of the following are true:
 
-This is now the first step of the plan.
+- this plan is reviewed and accepted
+- `test-harness/hooks/README.md` is reviewed and accepted as the harness contract
+- Claude payloads for the required first-pass capture set are captured
+- the captured payloads validate against provider-specific Pydantic models
+- schema artifacts are generated from those validated models
+- this plan is revised from the captured evidence
 
-Purpose:
+If any one of those conditions is missing, Sprint 9 remains in planning or
+schema-capture mode.
 
-- capture real hook payloads from installed AI runtimes
-- validate them against provider-specific models
-- detect schema drift immediately when Claude, Codex, Gemini, or Cursor Agent
-  changes hook payloads
+## Required Claude Capture Set
 
-Installed runtimes currently available on this machine:
+The first pass must capture real payloads for these Claude hook surfaces:
 
-- `claude`
-- `codex`
-- `gemini`
-- `cursor-agent`
+- `SessionStart`
+- `SessionEnd`
+- `PreToolUse(Bash)`
+- `PostToolUse(Bash)`
+- `PreToolUse(Task)`
+- `PermissionRequest`
+- `Stop`
+- `Notification(idle_prompt)`
 
-Recommended repo layout:
+The plan may not promote additional Claude fields or behaviors into
+implementation scope unless they are backed by:
 
-- `test-harness/hooks/README.md`
-- `test-harness/hooks/pytest.ini`
-- `test-harness/hooks/common/`
-- `test-harness/hooks/claude/`
-- `test-harness/hooks/codex/`
-- `test-harness/hooks/gemini/`
-- `test-harness/hooks/cursor-agent/`
+- current source-of-truth docs/scripts/tests, or
+- captured harness fixtures
 
-Recommended validation design:
+## Harness Output Contract
 
-- keep provider-native payload models separate
-- validate captured payloads against explicit models
-- fail on required-field removal or type drift
-- report unknown new fields for review rather than silently discarding them
-- preserve raw captured payload fixtures as evidence
+Each live capture run must produce:
 
-Recommended technology split:
+- raw payload captures
+- normalized comparison artifacts
+- provider-specific Pydantic model validation
+- generated schema artifacts
+- `validation-summary.json`
+- `drift-report.json`
+- `run-report.md`
 
-- documented JSON shape as the durable contract artifact
-- Python validation models for capture-time and CI-time schema checking
-- live capture scenarios that exercise real hooks with cheap/fast tasks
-- canned prompts for repeatable provider runs
-- local Python capture hooks
-- automatic report generation under the harness output tree
-
-Harness source-of-truth rule:
-
-- the detailed harness contract, directory ownership, `pytest` split, fixture
-  policy, and report lifecycle live under `test-harness/hooks/README.md`
-
-Harness execution contract summary for this plan:
-
-- `pytest` is the required harness runner
-- default `pytest` runs fixture/model/schema validation only
-- `pytest -m live_capture` runs provider launches and live payload capture
-- canned prompts are required for repeatable provider runs
-- local Python hook scripts are the required capture mechanism
-- every live run writes raw captures, normalized artifacts, and formal reports
-- no manual copying or hand-moving of run artifacts is part of the workflow
-
-Harness output contract:
-
-- raw captured payloads are evidence
-- approved fixtures are long-lived contract snapshots
-- generated reports are the formal review artifact for each live run
-
-Expected output tree per live run:
+Recommended per-run layout:
 
 ```text
-<provider>/captures/<run-id>/
+test-harness/hooks/<provider>/captures/<run-id>/
   raw/
   normalized/
 
-<provider>/reports/<run-id>/
+test-harness/hooks/<provider>/reports/<run-id>/
   validation-summary.json
   drift-report.json
   run-report.md
 ```
 
-Current evidence rule:
+Rules:
 
-- no field may be promoted into implementation-facing docs unless it is backed
-  by existing source-of-truth docs/scripts/tests or by captured harness
-  fixtures
-- no hook code is written until the relevant provider payload schema has been
-  captured and validated
+- `pytest` is the required test runner
+- default `pytest` validates fixtures/models/schema only
+- `pytest -m live_capture` performs provider launch and capture
+- canned prompts are required for repeatable runs
+- local Python capture hooks are the required capture mechanism
+- no manual copying or hand-moving of artifacts is part of the workflow
 
-Minimum first-pass capture matrix:
+## Phase Plan
 
-- Claude: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PreToolUse(Task)`,
-  `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, `Notification(idle_prompt)`
-
-Documented but deferred from the first harness pass:
-
-- Codex
-- Gemini
-- Cursor Agent
-
-Acceptance for this first step:
-
-- the harness can launch Claude in a minimal scripted run
-- raw Claude hook payloads are captured and stored by hook type
-- provider-specific models validate the captured Claude payloads
-- CI fails on breaking hook schema drift
-- the S9 implementation plan only promotes Claude implementation fields that
-  are backed by captured payload evidence or existing source-of-truth docs
-
-Model and schema promotion rules for this step:
-
-- provider-native models stay separate; no cross-provider shared schema is assumed
-- known required fields are strict
-- newly observed extra fields are reported for review rather than silently relied on
-- implementation may depend only on fields promoted from evidence into the validated model
-- schema artifacts should be generated from models whenever possible
-- captured payloads and reports must be created automatically by harness scripts
-
-## Supplementary Background For Hook Phase 2: Plan Revision After Full Schema Capture
-
-Authoritative sequencing for implementation belongs to the `### Hook Phase N`
-sections later in this document. This background section explains the required
-post-capture revision gate in detail.
-
-This is a required step before any hook implementation code.
+### Phase 0: Review Baseline
 
 Purpose:
 
-- revise the remaining hook plan from verified payload evidence
-- remove any placeholder assumptions left from pre-capture planning
-- freeze the exact fields each provider/hook implementation is allowed to rely
-  on
+- freeze the planning baseline before harness work starts
 
-Required outputs:
+Gate to start:
 
-- update `docs/plugin-plan-s9.md`
-- update provider hook API documents under `docs/hook-api/`
-- mark each planned field or behavior as:
-  - verified by existing source-of-truth implementation/docs, or
-  - verified by captured harness fixtures
+- Sprint 9 planning docs are the active work
+- no hook runtime implementation is in scope
 
-Acceptance for this second step:
+Deliverables:
 
-- every planned Claude implementation field is traceable to a source document,
-  live script, test, Rust reader, or captured fixture
-- every still-unknown field remains explicitly marked unknown/deferred
-- no code-writing task starts before this revision step is complete
+- this document accepted as the umbrella execution plan
+- `test-harness/hooks/README.md` accepted as the harness contract
+- `docs/hook-api/claude-hook-api.md` accepted as the current Claude fact baseline
+- `docs/hook-api/atm-hook-extension.md` accepted as the ATM-only extension layer
 
-## Implementation Start Gate
+Done when:
 
-No hook implementation code starts until all of the following are true:
+- reviewers can read the docs and state the same build order
+- Claude-first scope is explicit
+- prototype crates are explicitly marked reference-only
 
-- this umbrella plan is reviewed and accepted
-- `test-harness/hooks/README.md` is reviewed and accepted as the harness contract
-- Claude hook payloads for the required first-pass matrix are captured
-- provider models validate the captured Claude payloads
-- this plan is revised from that captured evidence
+### Phase 1: Build The Harness
 
-If any one of those conditions is missing, the work remains in planning or
-schema-capture mode rather than implementation mode.
+Purpose:
 
-## Review Gate
+- create the test-harness structure and execution path required for live Claude capture
 
-This document is ready for review when:
+Gate to start:
 
-- the first development step is clearly the Claude-first harness
-- the required Claude capture matrix is explicit
-- the post-capture plan revision step is mandatory
-- ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
-- Codex, Gemini, and Cursor remain documented without being turned into
-  immediate development blockers
-- the harness execution contract is summarized here rather than hidden only in
-  the harness README
-- the implementation start gate is explicit and binary
+- Phase 0 complete
 
-## Full QA Review Package
+Deliverables:
 
-QA should review this document as the umbrella plan together with:
+- `test-harness/hooks/` directory structure in place
+- Claude provider harness subdirectories in place:
+  - `prompts/`
+  - `hooks/`
+  - `models/`
+  - `schema/`
+  - `fixtures/`
+  - `captures/`
+  - `reports/`
+  - `scripts/`
+  - `tests/`
+- harness `pytest` entry points implemented
+- canned Claude prompts added for the required first-pass capture set
+- local Python capture hooks implemented for harness-only payload capture
+- automated report generation wired into the harness run
 
-- `test-harness/hooks/README.md`
-- `docs/hook-api/claude-hook-api.md`
-- `docs/hook-api/atm-hook-extension.md`
-- `docs/project-plan.md`
-- `docs/requirements.md`
-- `docs/architecture.md`
+Not part of this phase:
 
-Review intent:
+- hook runtime plugin code
+- Codex/Gemini/Cursor implementation work
+- promotion of unverified payload fields into implementation docs
 
-- this document owns the execution sequence
-- the referenced documents own platform facts, ATM-specific details, harness
-  contract specifics, and project/architecture boundaries
-- no essential execution step should be present only in a supporting document
+Done when:
 
-## Immediate Development Scope
+- `pytest` runs fixture/model/schema tests successfully
+- `pytest -m live_capture` has a defined Claude execution path
+- harness output locations are automatic and documented
 
-First development pass:
+### Phase 2: Capture Real Claude Payloads
 
-- Claude harness capture
-- Claude plan revision
-- Claude ATM hook implementation
+Purpose:
 
-Not part of the first development pass:
+- collect the actual Claude hook payloads the later implementation must obey
 
-- Codex harness or runtime work
-- Gemini harness or runtime work
-- Cursor harness or runtime work
+Gate to start:
 
-## Session And Agent Correlation Model
+- Phase 1 complete
 
-The session/agent key must survive directory changes and compact/resume.
+Deliverables:
 
-Identity anchor:
+- real Claude captures for the required first-pass hook set
+- raw payload evidence stored by hook type
+- normalized artifacts suitable for comparison
+- a formal run report for the capture session
 
-1. `session_id` captured during `SessionStart`
-2. hook subprocess parent PID (`PPID`) as a same-process cross-check
-3. `ATM_TEAM` + `ATM_IDENTITY` as routing labels only
+Not part of this phase:
 
-Current verified ATM-backed behavior:
+- hand-authored schema guesses
+- hook plugin implementation
 
-- persist a per-session record keyed by `session_id`
-- store `pid`, `team`, `identity`, and timestamps
-- allow later hooks to recover session/agent context from that record even when
-  current working directory changes
-- never use cwd as the identity key
+Done when:
 
-Current verified Claude payload facts:
+- each required Claude hook surface has at least one captured payload fixture
+- run artifacts exist under the harness output contract
+- the capture run produces a complete `run-report.md`
 
-- `SessionStart` currently uses raw payload field `source`
-- verified observed `source` values are `init` and `compact`
-- `resume` is not currently a verified literal payload value
+### Phase 3: Create Pydantic Models And Schema Artifacts
 
-Implementation-planning rule:
+Purpose:
 
-- any internal fresh/resume/compact classification must be derived from
-  verified evidence and persisted state, not documented as a Claude wire enum
-  unless the harness proves it
-
-## Hook Inventory
-
-| Hook behavior | Claude surface | Matcher/event | Python reference | Input fields consumed | Action logic | `schook` fit | Recommended crate |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Session start | `SessionStart` | `*` | `session-start.py` | `session_id`, `source`, `.atm.toml`, `ATM_TEAM`, `ATM_IDENTITY` | announce session, emit ATM start event, persist session record | fits current lifecycle hook model | `plugins/atm-session-lifecycle` |
-| Session end | `SessionEnd` | `*` | `session-end.py` | `session_id`, `.atm.toml` core routing | emit ATM end event, delete session record | fits current lifecycle hook model | `plugins/atm-session-lifecycle` |
-| ATM identity write | `PreToolUse` | `Bash` | `atm-identity-write.py` | `tool_input.command`, `session_id`, `.atm.toml`, `ATM_*` env | if command invokes `atm`, write temp identity file | fits current tool hook model | `plugins/atm-bash-identity` |
-| ATM identity cleanup | `PostToolUse` | `Bash` | `atm-identity-cleanup.py` | routing context only | remove temp identity file from paired bash invocation | fits current tool hook model | `plugins/atm-bash-identity` |
-| Agent spawn gate | `PreToolUse` | `Task` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `tool_input.name`, `tool_input.team_name`, `session_id`, team config | enforce named-teammate and team spawn policy | fits current tool hook model | `plugins/gate-agent-spawns` |
-| Idle relay | `Notification` | `idle_prompt` | `notification-idle-relay.py` | `session_id`, team/agent routing fields | emit ATM idle heartbeat | fits current notification hook model | `plugins/atm-state-relay` |
-| Permission relay | `PermissionRequest` | `*` | `permission-request-relay.py` | `session_id`, `tool_name`, `tool_input`, team/agent routing fields | emit ATM permission-request event | fits current lifecycle-style hook model | `plugins/atm-state-relay` |
-| Stop relay | `Stop` | `*` | `stop-relay.py` | `session_id`, team/agent routing fields | emit ATM stop/idle event | fits current lifecycle-style hook model | `plugins/atm-state-relay` |
+- convert captured evidence into explicit validated contracts
 
-## Protocol Compatibility Analysis
+Gate to start:
 
-### Fully Compatible With Current `schook` Contract
+- Phase 2 complete with captured Claude fixtures
 
-These behaviors fit the currently documented hook taxonomy and stdin payload
-model without requiring a new host protocol:
+Deliverables:
 
-- `SessionStart`
-- `SessionEnd`
-- `PreToolUse/Bash`
-- `PostToolUse/Bash`
-- `PreToolUse/Task`
-- `Notification/idle_prompt`
-- `PermissionRequest`
-- `Stop`
+- provider-specific Pydantic models for the captured Claude payloads
+- generated schema artifacts derived from those models
+- fixture validation tests for the captured payloads
+- drift classification logic:
+  - required field removed => fail
+  - required field type changed => fail
+  - new field added => report for review
+  - optional field removed => report for review unless implementation relies on it
 
-Why they fit:
+Rules:
 
-- the host already supports these hook names and matcher rules in
-  `docs/protocol-contract.md`
-- payload passthrough already gives plugins access to nested tool input fields
-- lifecycle hooks already allow `*` as the matcher posture for these events
+- models start minimally
+- required known fields are strict
+- unknown extra fields may be allowed early, but they must be surfaced in reports
+- no cross-provider shared schema is assumed
 
-### Design Gaps To Keep Explicit
+Done when:
 
-- Claude-specific routing context such as `.atm.toml`, `ATM_TEAM`, and
-  `ATM_IDENTITY` is external policy input, not part of the generic `schook`
-  protocol contract
-- command-sensitive Bash behavior depends on payload shape under
-  `payload.tool_input.command`; this is compatible today, but the plan should
-  treat that field as required metadata for the relevant plugins
-- session continuity depends on SessionStart persistence; later hooks should not
-  re-infer identity from cwd
-- Codex parity is not part of this sprint baseline because Codex does not yet
-  have the same verified session-start capture path in this repo
+- captured fixtures validate against the Claude Pydantic models
+- schema artifacts exist for the validated Claude models
+- drift policy is executable in tests, not just described in prose
 
-## Cursor-Agent Follow-On Scope
+### Phase 4: Revise The Plan From Verified Schema
 
-Cursor Agent is in scope for the same planning branch/PR, but it is not part of
-the verified Claude implementation baseline.
+Purpose:
 
-Current verified planning baseline for Cursor comes from:
+- remove all remaining pre-capture assumptions before any hook code is accepted
 
-- `cursor-agent --help`
-- `https://cursor.com/docs/hooks`
-- local Cursor CLI state under `/Users/randlee/.cursor/`
+Gate to start:
 
-Current locally verified facts:
+- Phase 3 complete
 
-- `cursor-agent` is installed on this machine
-- current CLI supports `--print`, `--output-format`, `--mode`, `--resume`,
-  `--continue`, `--workspace`, and `--worktree`
-- there is no current `/Users/randlee/.cursor/hooks.json` on this machine
+Deliverables:
 
-Current publicly documented hook names relevant to this plan:
+- revised `docs/plugin-plan-s9.md`
+- revised `docs/hook-api/claude-hook-api.md` where captured evidence clarifies fields
+- explicit classification for each planned implementation dependency:
+  - verified by source docs/scripts/tests
+  - verified by captured fixture
+  - deferred because still not verified
+- implementation sequence updated only from captured evidence
 
-- controllable:
-  - `beforeShellExecution`
-  - `beforeMCPExecution`
-  - `beforeReadFile`
-- informational:
-  - `afterFileEdit`
-  - `stop`
+Required review questions:
 
-Planning rule:
+- which fields are merely observed?
+- which fields are stable enough to implement against?
+- which prior prototype assumptions were wrong, incomplete, or still unverified?
 
-- use these hook names for sequencing and crate layout only
-- do not promote any Cursor stdin fields into implementation scope until a
-  later dedicated Cursor harness pass captures real payloads for the installed
-  `cursor-agent` runtime
+Done when:
 
-Current execution decision:
+- implementation-facing docs rely only on verified fields
+- unknowns are called out explicitly as gaps or deferrals
+- reviewers can point to fixture or source evidence for every required field used by the next implementation phase
 
-- keep Cursor API documentation in this planning set now
-- defer Cursor harness capture and Cursor-targeting development until after the
-  Claude ATM baseline has been captured, reviewed, revised, and implemented
+### Phase 5: Re-Evaluate And Then Implement Hook Plugins
 
-Recommended crate split after schema capture:
+Purpose:
 
-- `plugins/cursor-agent-gates`
-  - `beforeShellExecution`
-  - `beforeMCPExecution`
-  - `beforeReadFile`
-- `plugins/cursor-agent-relay`
-  - `afterFileEdit`
-  - `stop`
+- begin hook runtime work only after the contract is verified
 
-These are planning targets only. Like the Claude/ATM crate targets above, they
-remain scaffold/reference-only proposals until implementation lands with tests
-and the same-PR architecture inventory update.
+Gate to start:
 
-## Recommended Crate Layout
+- Phase 4 complete
 
-Keep policy-heavy and stateful hooks separated from generic relays.
+Deliverables for the phase-start decision:
 
-Posture statement:
+- explicit disposition for each prototype crate:
+  - keep as-is and continue
+  - refactor to match verified schema
+  - replace entirely
+- an implementation sequence for Claude ATM hooks derived from verified schema
 
-- `plugins/atm-session-lifecycle`
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
-- `plugins/atm-state-relay`
+Only after that disposition is complete may runtime implementation work begin.
 
-These are planning targets only. Until implementation lands with tests and the
-same-PR architecture update, they must be treated as scaffold/reference-only
-proposals rather than existing source inventory.
+Implementation targets to evaluate in this phase:
 
-Inventory rule:
+- session lifecycle behavior
+- Bash ATM identity behavior
+- Task spawn gating behavior
+- relay behavior for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
 
-- any implementation sprint that adds one of these crates must update
-  `docs/architecture.md` §3 crate inventory in the same PR
+Rules:
 
-- `plugins/atm-session-lifecycle`
-  - owns SessionStart and SessionEnd
-  - owns persistent session record read/write
-- `plugins/atm-bash-identity`
-  - owns PreToolUse/PostToolUse Bash pair for `atm` command identity files
-- `plugins/gate-agent-spawns`
-  - owns Task spawn policy enforcement
-- `plugins/atm-state-relay`
-  - owns Notification, PermissionRequest, and Stop event relay behaviors
+- prototype branches remain reference-only until this phase completes the re-evaluation
+- no field may be consumed in runtime code unless it is backed by the verified Phase 4 outputs
+- architecture inventory updates must happen in the same PR as any accepted runtime crate introduction
 
-Recommended supporting test infrastructure:
+Done when:
 
-- `test-harness/hooks/` for provider adapters, capture fixtures, models, and
-  schema-drift tests
+- implementation tasks are derived from verified schema rather than inferred payload shapes
+- the runtime work queue is ready to start without guessing
 
-Why this split:
+## Immediate Work Package
 
-- session lifecycle is stateful and foundational
-- Bash identity hooks are paired and should share temp-file behavior
-- spawn gating is policy-heavy and should not be mixed with generic relays
-- notification and lifecycle relays are narrow event-forwarding behaviors
+The immediate Sprint 9 work is limited to Phases 0 through 4.
 
-## Sprint Sequencing
+That means the current task is:
 
-### Hook Phase 0: Review Baseline
+- make the harness build-and-capture sequence explicit
+- make the schema/model phase explicit
+- make the post-capture plan revision gate explicit
+- remove any wording that makes plugin crates sound like the current build task
 
-Deliver:
+The current task is not:
 
-- freeze this document as the umbrella Sprint 9 execution plan
-- review and freeze the provider API docs
-- review and freeze `test-harness/hooks/README.md` as the harness source of
-  truth
-- confirm the first implementation path is Claude-first and ATM-aware without
-  widening the generic hook contract
+- building hook runtime crates
+- widening scope to Codex, Gemini, or Cursor implementation
+- treating the prototype crates as the accepted implementation baseline
 
-Dependencies:
+## Provider Scope
 
-- Sprint 6 formally accepted; this is the review gate before harness build work starts
+Current provider posture:
 
-### Hook Phase 1: Live Schema Capture And Drift Validation
+- Claude: active baseline
+- ATM: extension layer on top of the Claude baseline
+- Codex: documented only
+- Gemini: documented only
+- Cursor: documented only
 
-Deliver:
+Provider expansion beyond Claude must wait until the Claude baseline is:
 
-- Claude provider launch adapter
-- Claude hook payload models
-- Claude fixture capture and validation tests
-- drift-report output for unknown-field additions and breaking schema changes
+- captured
+- modeled
+- schematized
+- reviewed
+- revised in plan form
 
-Dependencies:
+## Review Checklist
 
-- Phase 0 review and acceptance complete (umbrella plan accepted; `test-harness/hooks/README.md` accepted as harness contract)
+This plan is ready for review when all of the following are true:
 
-### Hook Phase 2: Plan Revision From Captured Schema
-
-Deliver:
-
-- revised hook API docs with only verified fields
-- revised S9 plan for the remaining Claude implementation work
-- explicit deferral markers for anything still not captured or source-backed
-
-Dependencies:
-
-- Phase 1 completed with captured fixtures and model validation
-
-### Hook Phase 3: Session Foundation
-
-Deliver:
-
-- `plugins/atm-session-lifecycle`
-- persisted session record keyed by `session_id`
-- explicit tests proving directory changes do not break later hook correlation
-- if the crate is introduced in this sprint, update `docs/architecture.md` §3
-  in the same PR to add the crate inventory entry
-
-Dependencies:
-
-- revised plan and verified field set from Phase 2
-
-### Hook Phase 4: Command And Spawn Gates
-
-Deliver:
-
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
-- if either crate is introduced in this sprint, update
-  `docs/architecture.md` §3 in the same PR to add the crate inventory entries
-
-Dependencies:
-
-- session record is available for same-agent correlation
-
-### Hook Phase 5: Relay Hooks
-
-Deliver:
-
-- `plugins/atm-state-relay`
-- relay tests for Notification, PermissionRequest, and Stop payload handling
-- if the crate is introduced in this sprint, update `docs/architecture.md` §3
-  in the same PR to add the crate inventory entry
-
-Dependencies:
-
-- session foundation for agent/session lookup
-
-### Hook Phase 6: Cross-Platform Follow-On
-
-Deliver:
-
-- Codex session-identity follow-up plan only as a planning target if the runner
-  gains a verified `SessionStart`-equivalent surface
-- Gemini follow-on plan only as a planning target after Gemini capture work is
-  explicitly approved
-- Cursor Agent schema-backed follow-on plan revision only as a planning target
-  after a later dedicated Cursor harness pass captures
-  `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`,
-  `afterFileEdit`, and `stop`
-- `plugins/cursor-agent-gates` only as a planning target after controllable
-  hook request/response schemas are captured
-- `plugins/cursor-agent-relay` only as a planning target after informational
-  hook payloads are captured
-- any future `TeammateIdle`, `PreCompact`, or `PostCompact` hooks only as
-  planning targets after their payloads and persistence boundaries are
-  verified
-
-Dependencies:
-
-- Claude baseline implemented and validated first
-- separate approval to expand beyond the Claude-first path
-
-## Per-Hook Notes
-
-### SessionStart / SessionEnd
-
-These should be treated as the authoritative lifecycle pair. The Rust plugins
-should preserve the current fail-open posture for ATM relay failures unless the
-requirements explicitly change that behavior.
-
-### ATM Bash Identity Pair
-
-The Bash identity hooks should remain command-sensitive:
-
-- no-op for non-`atm` commands
-- write on PreToolUse
-- delete on PostToolUse
-
-The plugin must not assume hook-only env vars are available in ordinary Bash
-tool execution.
-
-### Agent Spawn Gate
-
-This hook is the highest policy-risk item in the set. It should keep its own
-crate because it needs:
-
-- frontmatter inspection for agent metadata
-- `.atm.toml` team policy lookup
-- session-to-identity resolution
-- explicit block messaging
-
-### Relay Hooks
-
-The relay hooks are lower design risk than the policy hooks. They mostly need:
-
-- stable session/agent lookup
-- event-name mapping
-- fail-open ATM emission behavior
-
-## Out Of Scope For Sprint 9
-
-- Codex session lifecycle parity
-- frontmatter guard plugins not represented by the current installed Claude hook
-  set
-- `PostCompact` reinjection until there is a verified hook payload and a clear
-  persistence boundary
-- promoting Claude-only policy behavior into the generic `schook` public
-  contract without an explicit design decision
+- the first executable step is harness build, not plugin implementation
+- the required Claude capture set is explicit
+- harness outputs are explicit
+- model/schema creation is a separate gated phase
+- post-capture plan revision is mandatory
+- prototype crates are described as reference-only
+- implementation is clearly downstream of the schema gates
+- other providers are documented but not blocking the first Claude path
 
 ## Acceptance For This Plan
 
-This plan is sufficient when:
+This plan passes review when `arch-hook` can read it and answer these questions
+without follow-up:
 
-- the live schema-capture harness is the first implementation gate
-- that first implementation gate is explicitly Claude-first
-- the post-capture plan revision gate is explicit and mandatory
-- the Claude hook set is documented per-platform rather than mixed with Codex
-  assumptions
-- the session correlation model is explicit and cwd-independent
-- each of the eight current Claude ATM hook behaviors has a hook type, consumed
-  inputs, action summary, crate assignment, and sequencing position
-- platform gaps are called out honestly instead of hidden inside implementation
-  tasks
-- Cursor remains documented without being turned into an immediate dev blocker
+1. What do I build first?
+2. Which Claude payloads must I capture?
+3. What artifacts must the harness produce?
+4. When do Pydantic models and schema artifacts get created?
+5. What must be true before any hook runtime code is accepted?
+6. Are the existing prototype crates authoritative?
+
+The required answers are:
+
+1. build the Claude harness first
+2. capture the eight Claude hook surfaces listed above
+3. raw captures, normalized artifacts, validation summary, drift report, and run report
+4. after real payload capture, before any implementation work
+5. reviewed plan + accepted harness contract + captured payloads + validated models + schema artifacts + revised plan
+6. no, they are reference-only until re-evaluated against validated schema
