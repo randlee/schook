@@ -331,6 +331,9 @@ Planning rules for these targets:
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
   captured Claude fixtures
+- these planned targets are not part of the current §3 source inventory
+  (`BND-001a`) and will not appear there until they land with code, tests, and
+  a same-PR architecture inventory update
 - no planned hook crate becomes current architecture until it lands with code,
   tests, and the same-PR `docs/architecture.md` crate inventory update
 - archived prototype crates do not define the final crate split; they are

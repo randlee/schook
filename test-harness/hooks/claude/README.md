@@ -51,8 +51,8 @@ This phase does not yet provide:
 - `PostToolUse(Bash)`
 - logical teammate/background spawn surface
 - `PermissionRequest`
+- `Notification(idle_prompt)`
 - `Stop`
-- `Notification`
 
 ## Current Live Haiku Capture Status
 
