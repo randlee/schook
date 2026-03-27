@@ -47,9 +47,9 @@ Important boundary:
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
 - current source plugin inventory in `plugins/` is: `atm-bash-identity`, `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `gate-agent-spawns`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
-- `plugins/atm-session-lifecycle` is the current Claude lifecycle implementation source crate for `SessionStart` / `SessionEnd`
-- `plugins/atm-bash-identity` is the current Claude Bash identity hook source crate for `PreToolUse(Bash)` / `PostToolUse(Bash)`
-- `plugins/gate-agent-spawns` is the current Claude Task spawn gate source crate for `PreToolUse(Task)`
+- `plugins/atm-session-lifecycle` is a Claude lifecycle prototype crate for `SessionStart` / `SessionEnd`; on this branch it remains scaffold/reference only and is blocked from merge until the Hook Phase 1 and 2 gates complete
+- `plugins/atm-bash-identity` is a Claude Bash identity prototype crate for `PreToolUse(Bash)` / `PostToolUse(Bash)`; on this branch it remains scaffold/reference only and is blocked from merge until the Hook Phase 1 and 2 gates complete
+- `plugins/gate-agent-spawns` is a Claude Task spawn gate prototype crate for `PreToolUse(Task)`; on this branch it remains scaffold/reference only and is blocked from merge until the Hook Phase 1 and 2 gates complete
 - the older reference crates under `plugins/` remain scaffold/reference only; source presence alone does not make any plugin a runtime discovery entry or a shipped release plugin
 
 ## 3.1 Public Contract Vs Internal Typed Model
@@ -261,7 +261,7 @@ Documented but deferred from the first harness pass:
 ### 9.3 Planned Hook Crate Targets
 
 These are planned hook-extension targets only. They are not current source
-inventory and are not current runtime crates:
+inventory and are not current runtime crates on this branch:
 
 - `plugins/atm-state-relay`
 
@@ -284,8 +284,8 @@ current architecture does not yet include:
 
 Planning targets only for a later approved Cursor pass:
 
-- `plugins/cursor-agent-gates`
-- `plugins/cursor-agent-relay`
+- later Cursor-targeting gate and relay crates to be named after dedicated
+  Cursor schema capture and follow-on planning are complete
 
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.

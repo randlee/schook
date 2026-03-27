@@ -5,6 +5,10 @@ edition = "2024"
 publish = false
 description = "Claude SessionStart/SessionEnd hook lifecycle plugin"
 
+[[bin]]
+name = "atm-session-lifecycle"
+path = "src/main.rs"
+
 [dependencies]
 sc-hooks-core = { path = "../../sc-hooks-core" }
 sc-hooks-sdk = { path = "../../sc-hooks-sdk" }

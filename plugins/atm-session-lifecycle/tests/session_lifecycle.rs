@@ -24,7 +24,6 @@ fn session_start_and_end_survive_directory_change() {
         Some("arch-hook"),
         serde_json::json!({
             "hook": {"type": "SessionStart"},
-            "agent": {"pid": 4242},
             "payload": {"session_id": "session-a", "source": "init"}
         }),
     );
@@ -41,7 +40,7 @@ fn session_start_and_end_survive_directory_change() {
     assert_eq!(stored["session_id"], "session-a");
     assert_eq!(stored["team"], "atm-dev");
     assert_eq!(stored["identity"], "arch-hook");
-    assert_eq!(stored["pid"], 4242);
+    assert!(stored.get("pid").is_none());
 
     run_plugin(
         &dir_b,
@@ -72,7 +71,6 @@ fn session_start_preserves_created_at_when_re_fired() {
         Some("arch-hook"),
         serde_json::json!({
             "hook": {"type": "SessionStart"},
-            "agent": {"pid": 1111},
             "payload": {"session_id": "session-b", "source": "init"}
         }),
     );
@@ -89,7 +87,6 @@ fn session_start_preserves_created_at_when_re_fired() {
         Some("arch-hook"),
         serde_json::json!({
             "hook": {"type": "SessionStart"},
-            "agent": {"pid": 2222},
             "payload": {"session_id": "session-b", "source": "compact"}
         }),
     );
@@ -100,7 +97,7 @@ fn session_start_preserves_created_at_when_re_fired() {
     .expect("second record should parse");
 
     assert_eq!(first["created_at"], second["created_at"]);
-    assert_eq!(second["pid"], 2222);
+    assert!(second.get("pid").is_none());
 }
 
 fn run_plugin(

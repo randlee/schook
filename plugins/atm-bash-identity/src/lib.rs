@@ -86,6 +86,9 @@ fn handle_pre_tool_use(input: &HookInput) -> Result<(), String> {
     };
 
     let identity = IdentityFile {
+        // `agent.pid` is not yet a verified Claude hook-schema field in
+        // `docs/hook-api/claude-hook-api.md`, so this stays best-effort only
+        // and falls back to the persisted session record PID when present.
         pid: input.agent_pid.or(record.pid),
         session_id: record.session_id,
         agent_name: record.identity,
