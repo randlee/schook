@@ -81,12 +81,20 @@ Current verified hook behavior:
 | --- | --- |
 | `SessionStart` | announces `SESSION_ID`, resolves ATM routing, emits `session_start`, writes session file |
 | `SessionEnd` | emits `session_end`, deletes current session file |
+| `PreCompact` | participates in compact lifecycle signaling; compact restart keeps the same `session_id` |
 | `PreToolUse(Bash)` | writes temp hook identity file for `atm` commands only |
 | `PostToolUse(Bash)` | removes temp hook identity file |
-| `PreToolUse(Task)` | enforces team-aware spawn policy |
-| `Notification(idle_prompt)` | relays idle heartbeat |
+| logical teammate/background spawn surface | enforces team-aware spawn policy |
+| `Notification` | relays idle heartbeat |
 | `PermissionRequest` | relays blocked-on-permission state |
 | `Stop` | relays idle/turn-stop state |
+
+Adjacent ATM/team-state note:
+
+- `teammate_idle` is a separate raw team-state event used in
+  `agent-team-mail`
+- long-lived teammate agents may transition to normalized `idle` via
+  `teammate_idle` rather than `Stop`
 
 ## What Is Not Yet Source-Of-Truth ATM Behavior
 

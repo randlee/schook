@@ -22,3 +22,7 @@ target
 
 .sc-hooks/observability/
 examples/runtime-layout/.sc-hooks/
+
+# Python harness artifacts
+__pycache__/
+*.pyc
