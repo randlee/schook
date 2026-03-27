@@ -7,5 +7,6 @@ EXPECTED_HOOKS = {
     "PostToolUse(Bash)": "posttooluse-bash",
     "PreToolUse(Agent)": "pretooluse-agent",
     "PermissionRequest": "permission-request",
+    "Notification(idle_prompt)": "notification-idle-prompt",
     "Stop": "stop",
 }

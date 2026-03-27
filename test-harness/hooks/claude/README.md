@@ -50,6 +50,7 @@ This phase does not yet provide:
 - `PostToolUse(Bash)`
 - `PreToolUse(Agent)`
 - `PermissionRequest`
+- `Notification(idle_prompt)`
 - `Stop`
 
 ## Runner Usage

@@ -30,6 +30,7 @@ def test_canned_prompts_exist_for_each_surface(claude_root: Path) -> None:
         "posttooluse-bash.md",
         "pretooluse-agent.md",
         "permission-request.md",
+        "notification-idle-prompt.md",
         "stop.md",
     ]
     for filename in expected:

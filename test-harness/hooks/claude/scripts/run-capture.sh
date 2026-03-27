@@ -55,6 +55,12 @@ cat > "${temp_settings}" <<JSON
         "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/permission_request.py'" }]
       }
     ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/notification_idle_prompt.py'" }]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",

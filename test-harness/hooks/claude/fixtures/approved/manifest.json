@@ -8,6 +8,7 @@
     "PostToolUse(Bash)": [],
     "PreToolUse(Agent)": [],
     "PermissionRequest": [],
+    "Notification(idle_prompt)": [],
     "Stop": []
   }
 }
