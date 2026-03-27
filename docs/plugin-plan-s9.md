@@ -21,15 +21,77 @@ this sprint.
 
 ## Core Recommendation
 
-Do not plan this work as eight flat ports. Plan it in four layers:
+Do not plan this work as eight flat ports. Plan it in five layers:
 
-1. session/context foundation
-2. command and spawn gates
-3. ATM lifecycle relays
-4. cross-platform follow-on gaps
+1. live schema capture and drift validation
+2. session/context foundation
+3. command and spawn gates
+4. ATM lifecycle relays
+5. cross-platform follow-on gaps
 
-That order keeps identity, persistence, and policy decisions stable before
-implementing simple event relays.
+That order keeps the hook contract honest before implementation starts. The
+first requirement is to validate real provider payloads against explicit models
+so upstream schema drift is detected immediately after provider upgrades.
+
+## Step 1: Hook Schema Validation Harness
+
+This is now the first step of the plan.
+
+Purpose:
+
+- capture real hook payloads from installed AI runtimes
+- validate them against provider-specific models
+- detect schema drift immediately when Claude, Codex, Gemini, or Cursor Agent
+  changes hook payloads
+
+Installed runtimes currently available on this machine:
+
+- `claude`
+- `codex`
+- `gemini`
+- `cursor-agent`
+
+Recommended repo layout:
+
+- `test-harness/hooks/providers/claude/`
+- `test-harness/hooks/providers/codex/`
+- `test-harness/hooks/providers/gemini/`
+- `test-harness/hooks/providers/cursor-agent/`
+- `test-harness/hooks/models/`
+- `test-harness/hooks/fixtures/`
+- `test-harness/hooks/reports/`
+- `test-harness/hooks/scripts/`
+
+Recommended validation design:
+
+- keep provider-native payload models separate
+- validate captured payloads against explicit models
+- fail on required-field removal or type drift
+- report unknown new fields for review rather than silently discarding them
+- preserve raw captured payload fixtures as evidence
+
+Recommended technology split:
+
+- documented JSON shape as the durable contract artifact
+- Python validation models for capture-time and CI-time schema checking
+- live capture scenarios that exercise real hooks with cheap/fast tasks
+
+Minimum first-pass capture matrix:
+
+- Claude: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PreToolUse(Task)`,
+  `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, `Notification(idle_prompt)`
+- Codex: document and capture the currently available hook/notify surfaces
+- Gemini: document and capture the currently available hook surfaces
+- Cursor Agent: document and capture the currently available lifecycle hooks
+
+Acceptance for this first step:
+
+- the harness can launch each installed provider in a minimal scripted run
+- raw hook payloads are captured and stored by provider/hook type
+- provider-specific models validate the captured payloads
+- CI fails on breaking hook schema drift
+- the S9 implementation plan only promotes fields that are backed by captured
+  payload evidence or existing source-of-truth docs
 
 ## Session And Agent Correlation Model
 
@@ -125,7 +187,20 @@ Why this split:
 
 ## Sprint Sequencing
 
-### Phase 1: Session Foundation
+### Phase 1: Live Schema Capture And Drift Validation
+
+Deliver:
+
+- provider launch adapters for `claude`, `codex`, `gemini`, and `cursor-agent`
+- provider-specific hook payload models
+- fixture capture and validation tests
+- drift-report output for unknown-field additions and breaking schema changes
+
+Dependencies:
+
+- none; this is the first gate
+
+### Phase 2: Session Foundation
 
 Deliver:
 
@@ -135,9 +210,9 @@ Deliver:
 
 Dependencies:
 
-- none; this is the foundation
+- hook payload evidence from Phase 1
 
-### Phase 2: Command And Spawn Gates
+### Phase 3: Command And Spawn Gates
 
 Deliver:
 
@@ -148,7 +223,7 @@ Dependencies:
 
 - session record is available for same-agent correlation
 
-### Phase 3: Relay Hooks
+### Phase 4: Relay Hooks
 
 Deliver:
 
@@ -159,7 +234,7 @@ Dependencies:
 
 - session foundation for agent/session lookup
 
-### Phase 4: Cross-Platform Follow-On
+### Phase 5: Cross-Platform Follow-On
 
 Deliver:
 
@@ -223,6 +298,7 @@ The relay hooks are lower design risk than the policy hooks. They mostly need:
 
 This plan is sufficient when:
 
+- the live schema-capture harness is the first implementation gate
 - the Claude hook set is documented per-platform rather than mixed with Codex
   assumptions
 - the session correlation model is explicit and cwd-independent
