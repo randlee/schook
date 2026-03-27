@@ -217,6 +217,22 @@ Why they fit:
 
 Keep policy-heavy and stateful hooks separated from generic relays.
 
+Posture statement:
+
+- `plugins/atm-session-lifecycle`
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
+- `plugins/atm-state-relay`
+
+These are planning targets only. Until implementation lands with tests and the
+same-PR architecture update, they must be treated as scaffold/reference-only
+proposals rather than existing source inventory.
+
+Inventory rule:
+
+- any implementation sprint that adds one of these crates must update
+  `docs/architecture.md` §3 crate inventory in the same PR
+
 - `plugins/atm-session-lifecycle`
   - owns SessionStart and SessionEnd
   - owns persistent session record read/write
@@ -273,6 +289,8 @@ Deliver:
 - `plugins/atm-session-lifecycle`
 - persisted session record keyed by `session_id`
 - explicit tests proving directory changes do not break later hook correlation
+- if the crate is introduced in this sprint, update `docs/architecture.md` §3
+  in the same PR to add the crate inventory entry
 
 Dependencies:
 
@@ -284,6 +302,8 @@ Deliver:
 
 - `plugins/atm-bash-identity`
 - `plugins/gate-agent-spawns`
+- if either crate is introduced in this sprint, update
+  `docs/architecture.md` §3 in the same PR to add the crate inventory entries
 
 Dependencies:
 
@@ -295,6 +315,8 @@ Deliver:
 
 - `plugins/atm-state-relay`
 - relay tests for Notification, PermissionRequest, and Stop payload handling
+- if the crate is introduced in this sprint, update `docs/architecture.md` §3
+  in the same PR to add the crate inventory entry
 
 Dependencies:
 

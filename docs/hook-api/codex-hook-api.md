@@ -28,12 +28,39 @@ surface and frontmatter hooks should not be relied on.
 
 ## Current Verified Codex Relay
 
-| Behavior | Current script | Invocation model | Fields consumed | Side effects |
-| --- | --- | --- | --- | --- |
-| Turn-complete ATM relay | `atm-hook-relay.py` | command receives one JSON payload argument plus optional `--agent`/`--team` | payload `type`, `thread-id`, `turn-id`, env or args for team/agent | appends event JSONL into `${ATM_HOME}/.atm/daemon/hooks/events.jsonl` |
+Current Codex relay/event evidence is split across:
 
-The current relay is not a full session lifecycle hook set. It is a narrow
-turn-complete integration point.
+- `atm-hook-relay.py` for the notify-side JSONL append behavior
+- `agent-team-mail` `hook_watcher.rs` for the Rust-side event model consumed by
+  ATM daemon components
+
+Current verified event types:
+
+| Event type | Current source | Current meaning |
+| --- | --- | --- |
+| `agent-turn-complete` | `atm-hook-relay.py` + `hook_watcher.rs` | turn-complete / idle availability signal |
+| `session-start` | `hook_watcher.rs` | lifecycle start event carrying session/process identity |
+| `session-end` | `hook_watcher.rs` | lifecycle end event carrying session/process identity |
+
+## Current Verified HookEvent Fields
+
+The current Rust-side `HookEvent` model in
+`agent-team-mail/crates/atm-daemon/src/plugins/worker_adapter/hook_watcher.rs`
+contains these fields:
+
+| Rust field | JSON key | Presence |
+| --- | --- | --- |
+| `event_type` | `type` | all event types |
+| `agent` | `agent` | all event types when routing identity is available |
+| `team` | `team` | all event types when routing identity is available |
+| `thread_id` | `thread-id` | Codex/internal relay events with thread context |
+| `turn_id` | `turn-id` | `agent-turn-complete` events |
+| `received_at` | `received-at` | relay events when the relay adds a receipt timestamp |
+| `state` | `state` | availability-signaling events such as `agent-turn-complete` |
+| `timestamp` | `timestamp` | availability-signaling events |
+| `idempotency_key` | `idempotency-key` | availability dedup events |
+| `session_id` | `sessionId` | session lifecycle events (`session-start`, `session-end`) |
+| `process_id` | `processId` | session lifecycle events that carry process identity; currently required on `session-start` and treated as part of the lifecycle event set |
 
 ## Session Correlation Model
 
@@ -58,13 +85,13 @@ Design rule:
   into the Claude hook assumptions
 - frontmatter support makes Codex a better target for agent-local guard hooks
   than Claude, but the session-identity story is currently weaker
-- the existing `atm-hook-relay.py` pattern is event-relay plumbing, not enough
-  by itself to define a general Codex session context contract
+- the current Codex evidence includes both turn-complete and session lifecycle
+  relay handling, so planning must use the verified event model rather than the
+  narrower turn-complete script alone
 
 ## Current Platform Gaps
 
-- no verified Codex SessionStart equivalent is documented in this repo yet
-- no verified Codex-specific permission or lifecycle relay set is documented
+- no standalone Codex hook stdin schema is documented in this repo yet
 - no verified upstream schema for all Codex hook payloads is captured here yet
 - any future Codex planning should cite the runner or bundle source used to
   verify payload fields before those fields are promoted into `schook` docs

@@ -26,7 +26,7 @@ There is no single schema folder and no Pydantic model layer in
 - Claude Code hook stdin payload:
   `.claude/scripts/session-start.py`
 - ATM persisted session file schema:
-  `.claude/scripts/session-start.py`
+  `.claude/scripts/session-start.py` lines 131-158
 - ATM daemon session model for daemon consumers:
   `crates/atm-daemon/src/daemon/session_registry.rs`
 
