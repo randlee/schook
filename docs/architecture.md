@@ -46,8 +46,10 @@ Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
-- current source plugin inventory in `plugins/` is: `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- current source plugin inventory in `plugins/` is: `atm-bash-identity`, `atm-session-lifecycle`, `audit-logger`, `conditional-source`, `event-relay`, `gate-agent-spawns`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
 - `plugins/atm-session-lifecycle` is the current Claude lifecycle implementation source crate for `SessionStart` / `SessionEnd`
+- `plugins/atm-bash-identity` is the current Claude Bash identity hook source crate for `PreToolUse(Bash)` / `PostToolUse(Bash)`
+- `plugins/gate-agent-spawns` is the current Claude Task spawn gate source crate for `PreToolUse(Task)`
 - the older reference crates under `plugins/` remain scaffold/reference only; source presence alone does not make any plugin a runtime discovery entry or a shipped release plugin
 
 ## 3.1 Public Contract Vs Internal Typed Model
@@ -261,8 +263,6 @@ Documented but deferred from the first harness pass:
 These are planned hook-extension targets only. They are not current source
 inventory and are not current runtime crates:
 
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
 - `plugins/atm-state-relay`
 
 Planning rules for these targets:
