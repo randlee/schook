@@ -218,3 +218,69 @@ The current architecture does not aim to provide:
 - Plugins remain processes because dispatch always shells out to executables.
 - JSON remains the only host/plugin contract because manifests and runtime results are serialized through serde-backed JSON.
 - Crate boundaries remain narrow because `sc-hooks-core` carries shared data only, `sc-hooks-sdk` is convenience code, and `sc-hooks-cli` owns orchestration.
+
+## 9. Hook Extension Planning Boundary
+
+The next hook-extension track is a planned architecture addition, not part of
+the current release implementation boundary above.
+
+### 9.1 Claude-First Development Gate
+
+The first hook-extension development path is:
+
+1. build a Claude-focused schema harness under `test-harness/hooks/`
+2. capture and validate real Claude hook payloads
+3. revise hook docs and the implementation plan from captured evidence
+4. implement the Claude ATM hook crates
+
+Until steps 1-3 are complete, hook runtime crates remain planning targets only.
+
+### 9.2 Planned Harness Subsystem
+
+The planned hook harness owns:
+
+- provider launch adapters
+- captured raw fixtures
+- provider-specific validation models
+- schema-drift CI checks
+- review artifacts for newly observed or changed payload fields
+
+Initial execution scope:
+
+- Claude only
+
+Documented but deferred from the first harness pass:
+
+- Codex
+- Gemini
+- Cursor Agent
+
+### 9.3 Planned Hook Crate Targets
+
+These are planned hook-extension targets only. They are not current source
+inventory and are not current runtime crates:
+
+- `plugins/atm-session-lifecycle`
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
+- `plugins/atm-state-relay`
+
+Planning rules for these targets:
+
+- ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
+- the generic implementation baseline remains the Claude hook API doc plus the
+  captured Claude fixtures
+- no planned hook crate becomes current architecture until it lands with code,
+  tests, and the same-PR `docs/architecture.md` crate inventory update
+
+### 9.4 Cursor Follow-On Boundary
+
+Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`, but the
+current architecture does not yet include:
+
+- Cursor harness capture
+- Cursor-targeting runtime crates
+- Cursor hook payloads as an implementation dependency
+
+Those remain later follow-on work after the Claude ATM baseline is captured,
+reviewed, revised, and implemented.

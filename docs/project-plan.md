@@ -52,6 +52,7 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 acceptance | hook API docs, `docs/plugin-plan-s9.md`, `test-harness/hooks/` docs |
 
 ## 5. Execution Controls
 
@@ -571,3 +572,128 @@ The release plan is complete only when:
 - branch head is frozen before QA/reviewer handoff
 - exact validation commands are recorded on that frozen branch state
 - reviewer and QA signoff are recorded on the final branch state
+
+## 17. Post-Release Hook Extension Track
+
+This track begins only after the current release plan is accepted.
+
+Purpose:
+- extend `schook` toward the Claude ATM hook set without guessing hook schemas
+- keep provider-specific evidence and ATM-specific behavior separate
+- make the first implementation pass small, exact, and test-driven
+
+### Hook Phase 0: Review Baseline
+
+Status:
+- in review
+
+Focus:
+- freeze the hook planning baseline in docs before any hook runtime code is written
+
+Deliverables:
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/hook-api/codex-hook-api.md`
+- `docs/hook-api/cursor-agent-hook-api.md`
+- `docs/plugin-plan-s9.md`
+- core-doc additions in `docs/requirements.md` and `docs/architecture.md`
+
+Acceptance criteria:
+- the Claude implementation baseline is explicit
+- ATM-specific behavior is isolated in its own document
+- Cursor remains documented but deferred from the first implementation pass
+- no implementation-facing field is promoted without a verified source
+
+### Hook Phase 1: Claude Schema Harness
+
+Focus:
+- build the first hook harness for Claude only
+
+Deliverables:
+- `test-harness/hooks/` scaffold
+- Claude provider adapter
+- Claude fixture capture scripts
+- Claude validation models
+- CI drift check for breaking Claude payload changes
+
+Acceptance criteria:
+- Claude hook payloads for the planned hook set are captured and validated
+- raw captured fixtures are stored as review evidence
+- CI fails on required-field removal or type drift
+
+Definition of done:
+- the team can point to captured Claude payloads instead of inferred shapes
+
+### Hook Phase 2: Plan Revision From Captured Claude Schema
+
+Focus:
+- revise the hook plan from captured evidence before implementation starts
+
+Deliverables:
+- updated `docs/plugin-plan-s9.md`
+- updated `docs/hook-api/claude-hook-api.md`
+- any additional traceability/gap notes needed for implementation readiness
+
+Acceptance criteria:
+- every planned Claude implementation field is backed by captured fixtures or
+  existing source-of-truth code/docs/tests
+- unknown fields remain explicitly deferred
+- implementation tasks can start without schema guessing
+
+### Hook Phase 3: Claude Session And Lifecycle Implementation
+
+Focus:
+- implement the Claude lifecycle pair first
+
+Deliverables:
+- `plugins/atm-session-lifecycle`
+- tests proving `SessionStart` / `SessionEnd` behavior against the captured
+  contract
+
+Acceptance criteria:
+- lifecycle hooks use only verified inputs
+- ATM-specific routing/persistence stays bounded by the ATM extension doc
+
+### Hook Phase 4: Claude Command And Spawn Gates
+
+Focus:
+- implement the Bash identity pair and the Task spawn gate
+
+Deliverables:
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
+- direct behavior tests for command-sensitive and team-policy behavior
+
+Acceptance criteria:
+- no field is relied on unless it was verified in Phase 1 or added in a later
+  approved schema capture
+- command-sensitive behavior is tested directly
+
+### Hook Phase 5: Claude Relay Hooks
+
+Focus:
+- implement the notification/permission/stop relays
+
+Deliverables:
+- `plugins/atm-state-relay`
+- direct tests for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
+
+Acceptance criteria:
+- relay behavior is bounded to the verified Claude ATM baseline
+- failure posture is documented and tested
+
+### Hook Phase 6: Cross-Provider Follow-On
+
+Focus:
+- only after the Claude baseline is stable, decide whether to expand to other
+  providers
+
+Current deferred items:
+- Codex harness and implementation work
+- Gemini harness and implementation work
+- Cursor harness capture
+- Cursor runtime implementation
+
+Entry rule:
+- this phase requires separate approval after the Claude ATM baseline is
+  captured, revised, and implemented

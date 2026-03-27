@@ -164,7 +164,23 @@ Retired observability IDs:
 | DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 | DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
 
-## 7. Release Rule
+## 7. Post-Release Hook Extension Track
+
+These items are not part of the current release baseline above. They define the
+required guardrails for the next hook-extension development track after release
+work is complete.
+
+| ID | Status | Priority | Requirement | Acceptance Scenario |
+| --- | --- | --- | --- | --- |
+| HKR-001 | Deferred | Must | The first hook-extension implementation target shall be the current Claude ATM hook set documented in `docs/hook-api/claude-hook-api.md`; ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md` and is not itself the generic hook contract. | Hook-extension work cites the Claude API doc as the implementation baseline and keeps ATM-only routing/persistence details in the separate ATM extension doc. |
+| HKR-002 | Deferred | Must | No hook implementation code shall be written until the Claude hook schema harness captures and validates the required Claude payloads for the planned hook set. | The first hook-development sprint produces captured Claude fixtures and validation models before any hook runtime crate is added. |
+| HKR-003 | Deferred | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/plugin-plan-s9.md` and the hook API docs are updated from captured fixtures before the first hook crate lands. |
+| HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall cover only the currently verified eight-hook ATM baseline: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, `PreToolUse(Task)`, `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`. | Hook crates and tests map only to that verified eight-hook set unless requirements are explicitly expanded later. |
+| HKR-005 | Deferred | Must | The Claude schema harness shall fail CI on required-field removal or type drift and shall preserve raw captured fixtures as evidence. | Hook-schema CI fails on breaking Claude payload drift and retains captured fixture artifacts for review. |
+| HKR-006 | Deferred | Must | Provider-specific docs for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block the first Claude implementation path. | The first hook-development sequence proceeds on Claude-only capture and implementation even while other provider docs remain present. |
+| HKR-007 | Deferred | Must | Cursor Agent shall remain documented as a provider reference during the first development pass, but Cursor harness capture and Cursor-targeting runtime implementation are deferred until a later explicitly approved follow-on sprint. | `docs/hook-api/cursor-agent-hook-api.md` exists, while the first harness and implementation work stays Claude-only. |
+
+## 8. Release Rule
 
 If a behavior is not implemented and not required for release, it must be deferred.
 
