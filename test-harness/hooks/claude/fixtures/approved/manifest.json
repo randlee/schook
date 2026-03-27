@@ -1,0 +1,14 @@
+{
+  "provider": "claude",
+  "status": "phase1_scaffold",
+  "hooks": {
+    "SessionStart": [],
+    "SessionEnd": [],
+    "PreToolUse(Bash)": [],
+    "PostToolUse(Bash)": [],
+    "PreToolUse(Task)": [],
+    "PermissionRequest": [],
+    "Notification(idle_prompt)": [],
+    "Stop": []
+  }
+}
