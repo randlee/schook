@@ -8,6 +8,14 @@ behavioral reference.
 
 This sprint is planning-only. It does not change runtime code.
 
+The intended execution sequence after review is:
+
+1. build the Claude-first harness
+2. capture verified Claude payloads
+3. revise this plan from captured evidence
+4. implement the Claude ATM hook crates
+5. defer other providers until the Claude baseline is stable
+
 ## Planning Baseline
 
 Durable platform references for this plan live in:
@@ -96,21 +104,21 @@ Minimum first-pass capture matrix:
 
 - Claude: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PreToolUse(Task)`,
   `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, `Notification(idle_prompt)`
-- Codex: document and capture the currently available hook/notify surfaces
-- Gemini: document and capture the currently available hook surfaces
-- Cursor Agent:
-  - controllable: `beforeShellExecution`, `beforeMCPExecution`,
-    `beforeReadFile`
-  - informational: `afterFileEdit`, `stop`
+
+Documented but deferred from the first harness pass:
+
+- Codex
+- Gemini
+- Cursor Agent
 
 Acceptance for this first step:
 
-- the harness can launch each installed provider in a minimal scripted run
-- raw hook payloads are captured and stored by provider/hook type
-- provider-specific models validate the captured payloads
+- the harness can launch Claude in a minimal scripted run
+- raw Claude hook payloads are captured and stored by hook type
+- provider-specific models validate the captured Claude payloads
 - CI fails on breaking hook schema drift
-- the S9 implementation plan only promotes fields that are backed by captured
-  payload evidence or existing source-of-truth docs
+- the S9 implementation plan only promotes Claude implementation fields that
+  are backed by captured payload evidence or existing source-of-truth docs
 
 ## Step 2: Plan Revision After Full Schema Capture
 
@@ -133,10 +141,35 @@ Required outputs:
 
 Acceptance for this second step:
 
-- every planned hook input field is traceable to a source document, live script,
-  test, Rust reader, or captured fixture
+- every planned Claude implementation field is traceable to a source document,
+  live script, test, Rust reader, or captured fixture
 - every still-unknown field remains explicitly marked unknown/deferred
 - no code-writing task starts before this revision step is complete
+
+## Review Gate
+
+This document is ready for review when:
+
+- the first development step is clearly the Claude-first harness
+- the required Claude capture matrix is explicit
+- the post-capture plan revision step is mandatory
+- ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
+- Codex, Gemini, and Cursor remain documented without being turned into
+  immediate development blockers
+
+## Immediate Development Scope
+
+First development pass:
+
+- Claude harness capture
+- Claude plan revision
+- Claude ATM hook implementation
+
+Not part of the first development pass:
+
+- Codex harness or runtime work
+- Gemini harness or runtime work
+- Cursor harness or runtime work
 
 ## Session And Agent Correlation Model
 
@@ -248,8 +281,15 @@ Current publicly documented hook names relevant to this plan:
 Planning rule:
 
 - use these hook names for sequencing and crate layout only
-- do not promote any Cursor stdin fields into implementation scope until the
-  harness captures real payloads for the installed `cursor-agent` runtime
+- do not promote any Cursor stdin fields into implementation scope until a
+  later dedicated Cursor harness pass captures real payloads for the installed
+  `cursor-agent` runtime
+
+Current execution decision:
+
+- keep Cursor API documentation in this planning set now
+- defer Cursor harness capture and Cursor-targeting development until after the
+  Claude ATM baseline has been captured, reviewed, revised, and implemented
 
 Recommended crate split after schema capture:
 
@@ -313,9 +353,9 @@ Why this split:
 
 Deliver:
 
-- provider launch adapters for `claude`, `codex`, `gemini`, and `cursor-agent`
-- provider-specific hook payload models
-- fixture capture and validation tests
+- Claude provider launch adapter
+- Claude hook payload models
+- Claude fixture capture and validation tests
 - drift-report output for unknown-field additions and breaking schema changes
 
 Dependencies:
@@ -327,7 +367,7 @@ Dependencies:
 Deliver:
 
 - revised hook API docs with only verified fields
-- revised S9 plan for remaining implementation work
+- revised S9 plan for the remaining Claude implementation work
 - explicit deferral markers for anything still not captured or source-backed
 
 Dependencies:
@@ -380,9 +420,10 @@ Deliver:
 
 - Codex session-identity follow-up plan if the runner gains a verified
   SessionStart-equivalent surface
-- Cursor Agent schema-backed follow-on plan revision once the harness captures
-  `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`,
-  `afterFileEdit`, and `stop`
+- Gemini follow-on plan only after Gemini capture work is explicitly approved
+- Cursor Agent schema-backed follow-on plan revision only after a later
+  dedicated Cursor harness pass captures `beforeShellExecution`,
+  `beforeMCPExecution`, `beforeReadFile`, `afterFileEdit`, and `stop`
 - `plugins/cursor-agent-gates` only after controllable hook request/response
   schemas are captured
 - `plugins/cursor-agent-relay` only after informational hook payloads are
@@ -393,7 +434,7 @@ Deliver:
 Dependencies:
 
 - Claude baseline implemented and validated first
-- Cursor hook schemas captured and the plan revised from that evidence first
+- separate approval to expand beyond the Claude-first path
 
 ## Per-Hook Notes
 
@@ -447,6 +488,7 @@ The relay hooks are lower design risk than the policy hooks. They mostly need:
 This plan is sufficient when:
 
 - the live schema-capture harness is the first implementation gate
+- that first implementation gate is explicitly Claude-first
 - the post-capture plan revision gate is explicit and mandatory
 - the Claude hook set is documented per-platform rather than mixed with Codex
   assumptions
@@ -455,3 +497,4 @@ This plan is sufficient when:
   inputs, action summary, crate assignment, and sequencing position
 - platform gaps are called out honestly instead of hidden inside implementation
   tasks
+- Cursor remains documented without being turned into an immediate dev blocker
