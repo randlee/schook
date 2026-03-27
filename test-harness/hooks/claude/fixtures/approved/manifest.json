@@ -6,9 +6,8 @@
     "SessionEnd": [],
     "PreToolUse(Bash)": [],
     "PostToolUse(Bash)": [],
-    "PreToolUse(Task)": [],
+    "PreToolUse(Agent)": [],
     "PermissionRequest": [],
-    "Notification(idle_prompt)": [],
     "Stop": []
   }
 }

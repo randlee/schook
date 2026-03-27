@@ -41,9 +41,8 @@ def test_capture_scripts_write_raw_payload_files(tmp_path: Path, claude_root: Pa
         "session-end": "session_end.py",
         "pretooluse-bash": "pre_tool_use_bash.py",
         "posttooluse-bash": "post_tool_use_bash.py",
-        "pretooluse-task": "pre_tool_use_task.py",
+        "pretooluse-agent": "pre_tool_use_agent.py",
         "permission-request": "permission_request.py",
-        "notification": "notification.py",
         "stop": "stop.py",
     }
 

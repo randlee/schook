@@ -5,8 +5,7 @@ EXPECTED_HOOKS = {
     "SessionEnd": "session-end",
     "PreToolUse(Bash)": "pretooluse-bash",
     "PostToolUse(Bash)": "posttooluse-bash",
-    "PreToolUse(Task)": "pretooluse-task",
+    "PreToolUse(Agent)": "pretooluse-agent",
     "PermissionRequest": "permission-request",
-    "Notification(idle_prompt)": "notification",
     "Stop": "stop",
 }

@@ -48,10 +48,9 @@ This phase does not yet provide:
 - `SessionEnd`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
-- `PreToolUse(Task)`
+- `PreToolUse(Agent)`
 - `PermissionRequest`
 - `Stop`
-- `Notification(idle_prompt)`
 
 ## Runner Usage
 
