@@ -37,7 +37,7 @@ not define a competing execution sequence.
 - `docs/hook-api/cursor-agent-hook-api.md`
   - documented provider reference only; not part of the first implementation path
 - `test-harness/hooks/README.md`
-  - harness contract, directory ownership, fixture policy, report lifecycle, and `pytest` split
+  - planned harness contract file created in Phase 1; it will own directory ownership, fixture policy, report lifecycle, and the `pytest` split
 - `docs/requirements.md`
   - hook requirements, especially `HKR-001` through `HKR-007`
 - `docs/architecture.md`
@@ -79,7 +79,7 @@ No later step may begin early because a prototype branch already exists.
 No hook runtime code starts until all of the following are true:
 
 - this plan is reviewed and accepted
-- `test-harness/hooks/README.md` is reviewed and accepted as the harness contract
+- Phase 1 has created `test-harness/hooks/README.md` and reviewers have accepted it as the harness contract
 - Claude payloads for the required first-pass capture set are captured
 - the captured payloads validate against provider-specific Pydantic models
 - schema artifacts are generated from those validated models
@@ -157,7 +157,6 @@ Gate to start:
 Deliverables:
 
 - this document accepted as the umbrella execution plan
-- `test-harness/hooks/README.md` accepted as the harness contract
 - `docs/hook-api/claude-hook-api.md` accepted as the current Claude fact baseline
 - `docs/hook-api/atm-hook-extension.md` accepted as the ATM-only extension layer
 
@@ -179,6 +178,7 @@ Gate to start:
 
 Deliverables:
 
+- `test-harness/hooks/README.md` created as the harness contract file
 - `test-harness/hooks/` directory structure in place
 - Claude provider harness subdirectories in place:
   - `prompts/`
@@ -301,7 +301,7 @@ Done when:
 - unknowns are called out explicitly as gaps or deferrals
 - reviewers can point to fixture or source evidence for every required field used by the next implementation phase
 
-### Phase 5: Re-Evaluate And Then Implement Hook Plugins
+### Phase 5: Re-Evaluate And Sequence Implementation
 
 Purpose:
 
@@ -321,11 +321,39 @@ Deliverables for the phase-start decision:
 
 Only after that disposition is complete may runtime implementation work begin.
 
-Implementation targets to evaluate in this phase:
+The implementation track after this phase must follow the Hook Phase 3/4/5
+split from `docs/project-plan.md`:
 
-- session lifecycle behavior
+#### Hook Phase 3: Session Foundation
+
+Depends on:
+
+- Phase 4 complete
+
+Deliverables:
+
+- session lifecycle implementation
+- persisted session correlation keyed by verified inputs only
+
+#### Hook Phase 4: Bash Identity And Spawn Gates
+
+Depends on:
+
+- Hook Phase 3 complete
+
+Deliverables:
+
 - Bash ATM identity behavior
 - Task spawn gating behavior
+
+#### Hook Phase 5: Relay Hooks
+
+Depends on:
+
+- Hook Phase 3 complete
+
+Deliverables:
+
 - relay behavior for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
 
 Rules:
