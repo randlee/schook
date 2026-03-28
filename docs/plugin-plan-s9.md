@@ -747,8 +747,8 @@ Absent and empty `permission_suggestions` are treated as equivalent.
 #### NotificationPayload fields
 
 `NotificationPayload` remains DEFERRED. No verified payload fixture exists in
-`test-harness/hooks/claude/fixtures/approved/`, and the local Haiku harness
-still records this surface as wired-but-unresolved rather than captured.
+`test-harness/hooks/claude/fixtures/approved/`; the harness is wired for this
+surface, but no verified payload was captured locally.
 
 Done when:
 
@@ -828,12 +828,12 @@ Implementation dependency classification for `S9-HP3` / `S9-HP4` / `S9-HP5`:
 | `PostToolUse(Bash)` `tool_response.output`, `tool_response.error` | deferred because still not verified | accepted by Phase 3 model for drift, absent from approved fixtures | no |
 | `PermissionRequest.permission_mode` and `permission_suggestions` | verified by captured fixture | `permission-request-bash.json` | yes, optional |
 | `Stop.permission_mode`, `last_assistant_message` | verified by captured fixture | `stop.json` | yes, optional |
-| `Notification` base payload fields beyond event identity | deferred because still not verified | no approved fixture; harness remains wired-but-unresolved | no |
+| `Notification` base payload fields beyond event identity | DEFERRED: wired in harness, no verified payload captured | no approved fixture; no verified local capture exists | no |
 | `CLAUDE_PROJECT_DIR` as startup project-root anchor | verified by source docs/scripts/tests | Claude hook strategy docs + ATM scripts + team-lead clarification | yes |
 | `ai_root_dir` chaining from persisted session state | verified by source docs/scripts/tests | BC design + requirements + architecture | yes |
 | `.atm.toml` file name and primary lookup at `ai_root_dir/.atm.toml` | verified by source docs/scripts/tests | current ATM docs/scripts + project plan | yes |
 | parent/subagent lineage fields from raw Claude payloads | deferred because still not verified | no approved fixture or source-backed Claude schema | no |
-| `Notification(idle_prompt)` runtime behavior | deferred because still not verified | harness wiring exists, local capture absent | no |
+| `Notification(idle_prompt)` runtime behavior | DEFERRED: wired in harness, no verified payload captured | harness wiring exists, but no verified local capture exists | no |
 | teammate-idle relay behavior | verified by source docs/scripts/tests | ATM relay docs/scripts, not Claude fixture capture | yes in `S9-HP5` only |
 
 Done when:
