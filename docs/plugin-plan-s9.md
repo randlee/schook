@@ -713,12 +713,12 @@ The generated HTML must follow the `xhtml-plugin-expert` visual conventions:
   - warning = red
   - impact = blue
 
-### Global `html-report-expert` Agent
+### Global `html-report` Skill
 
-The plan assumes a reusable global agent at:
+The plan assumes a reusable global skill at:
 
 ```text
-$HOME/.claude/agents/html-report-expert.md
+$HOME/.claude/skills/html-report/
 ```
 
 Path note:
@@ -735,7 +735,7 @@ Responsibilities:
 
 The schook skill at `.claude/skills/hook-schema-drift/` is the domain-aware
 caller. It runs the Python entry point, then hands the drift JSON to the
-background HTML agent.
+background `html-report` skill flow.
 
 ### Automatable Hook Coverage
 
