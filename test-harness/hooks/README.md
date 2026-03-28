@@ -38,6 +38,42 @@ has been promoted from captured evidence into a validated provider model.
 7. Every live run writes a formal output directory and a formal report.
 8. Approved fixture snapshots are long-lived contract evidence.
 
+## Quick Rerun Commands
+
+Run the fast harness suite:
+
+```bash
+pytest test-harness/hooks/
+```
+
+Run one non-interactive Claude surface:
+
+```bash
+test-harness/hooks/scripts/run-capture.sh claude pretooluse-bash
+```
+
+Prepare a manual Claude/Haiku session with harness-local settings:
+
+```bash
+CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh
+```
+
+Run the interactive helper for surfaces that do not work in `-p` mode:
+
+```bash
+uv run --with pexpect \
+  test-harness/hooks/claude/scripts/run-interactive-capture.py \
+  notification
+```
+
+Current operational split:
+
+- use `run-capture.sh` for prompt-driven surfaces
+- use `prepare-manual-launch.sh` for permission, compact, and other manual
+  interactive probes
+- use `run-interactive-capture.py` only when the harness must hold Claude open
+  without a prompt
+
 ## Directory Contract
 
 ```text
@@ -224,12 +260,36 @@ Required Claude capture set:
 
 - `SessionStart`
 - `SessionEnd`
+- `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
-- `PreToolUse(Task)`
+<<<<<<< HEAD
+- logical teammate/background spawn surface
 - `PermissionRequest`
 - `Stop`
-- `Notification(idle_prompt)`
+- `Notification`
+
+Current captured Claude baseline in this branch:
+
+- `SessionStart(source="startup")`
+- `SessionStart(source="compact")`
+- `SessionEnd`
+- `PreCompact`
+- `PreToolUse(Bash)`
+- `PostToolUse(Bash)`
+- logical teammate/background spawn via `PreToolUse(tool_name="Agent")`
+- `PermissionRequest` for `Write`
+- `PermissionRequest` for `Bash`
+- `Stop`
+
+Still unresolved after repeated live Haiku runs:
+
+- `Notification`
+=======
+- `PreToolUse(Agent)`
+- `PermissionRequest`
+- `Stop`
+>>>>>>> origin/feature/s9-harness-build
 
 The sequence is:
 
@@ -270,3 +330,21 @@ Review rule:
 
 Those docs should not duplicate the full harness contract here unless the
 high-level release or architecture story requires it.
+
+## Claude Rerun Notes
+
+For repeatable Claude reruns from the harness worktree:
+
+1. `cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing`
+2. `CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh`
+3. run the printed `claude --model ... --setting-sources local --settings ...`
+   command exactly
+
+Important operational notes from live Haiku capture:
+
+- use harness-local settings, not a bare `claude` launch
+- `Stop` is the reliable observed end-of-turn signal
+- `SessionStart` by itself did not emit `Stop` when no turn occurred
+- `PreCompact` plus `SessionStart(source="compact")` are both now captured
+- `Notification` remained uncaptured after repeated long-idle runs and should
+  stay documented as unresolved in this environment until reproduced

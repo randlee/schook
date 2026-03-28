@@ -13,6 +13,8 @@ The source-of-truth inputs for this document are:
   - `docs/agent-teams-best-practices.md`
 - current ATM hook docs, scripts, tests, and session fallback code in the
   `agent-team-mail` repo
+- real Claude Haiku captures under `test-harness/hooks/claude/captures/raw/`
+  for claims marked captured in this document
 
 ## Platform Rules
 
@@ -35,7 +37,21 @@ The source-of-truth inputs for this document are:
 
 ## Current Schema Baseline
 
-What is actually verified today for `SessionStart` from the live hook behavior:
+The live harness now verifies actual Claude Haiku payloads for these surfaces:
+
+- `SessionStart`
+- `SessionEnd`
+- `PreCompact`
+- `PreToolUse(Bash)`
+- teammate/background spawn via `PreToolUse(Agent)`
+- `PostToolUse(Bash)`
+- `PermissionRequest`
+- `Stop`
+
+`Notification(idle_prompt)` remains wired in the harness but unresolved in
+local capture.
+
+For `SessionStart`, the following is verified from live hook behavior:
 
 - payload field names used by the live hook:
   - `session_id`
@@ -57,6 +73,7 @@ What is not verified today:
 - a full upstream Claude JSON schema for all hook payloads
 - cwd/root/agent metadata as guaranteed `SessionStart` payload fields
 - parent/subagent/session lineage fields in Claude hook payloads
+- a live `Notification` payload in this harness environment
 
 ## Session Correlation Model
 

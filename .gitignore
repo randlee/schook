@@ -22,3 +22,14 @@ target
 
 .sc-hooks/observability/
 examples/runtime-layout/.sc-hooks/
+
+# Python harness artifacts
+__pycache__/
+*.pyc
+
+# Local developer/editor noise
+.prompts/
+.temp/
+.serena/
+.DS_Store
+task-vars.json
