@@ -35,7 +35,7 @@ metadata:
 
   <workflow>
     <step id="a">Read this task. Ask questions if anything is unclear. Then ACK this message immediately.</step>
-    <step id="b">Before coding: run `git fetch origin && git merge origin/{{ pr_target }}` to include all prior sprint fixes. Then complete development work.</step>
+    <step id="b">Before coding: run `git fetch origin &amp;&amp; git merge origin/{{ pr_target }}` to include all prior sprint fixes. Then complete development work.</step>
     <step id="c">Push your commit. Send me: branch name + commit hash. Do NOT wait — I will open the PR in parallel.</step>
     <step id="d">Run cargo test. Report results (PASS or FAIL with details).</step>
     <step id="e">Send task-complete announcement: commit hash, test summary, any notes. Then immediately start the next sprint task already in your inbox — do NOT wait for QA or team-lead go-ahead.</step>
