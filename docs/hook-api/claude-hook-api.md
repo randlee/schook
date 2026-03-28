@@ -71,7 +71,8 @@ For `SessionStart`, the following is verified from live hook behavior:
 What is not verified today:
 
 - a full upstream Claude JSON schema for all hook payloads
-- cwd/root/agent metadata as guaranteed `SessionStart` payload fields
+- cwd/root/agent metadata as guaranteed `SessionStart` payload fields across
+  all launches
 - parent/subagent/session lineage fields in Claude hook payloads
 - a live `Notification` payload in this harness environment
 
@@ -131,6 +132,10 @@ Adjacent but not part of the current eight-hook baseline:
   fresh/resume/compact classification must be documented as internal logic, not
   as a claimed Claude wire enum
 - the runtime should preserve session records across directory changes
+- `SessionStart(source="resume")` is now captured evidence, not just a
+  documented provider claim
+- `/clear` produces `SessionEnd(reason="clear")` followed by a new
+  `SessionStart(source="clear")` and a new `session_id`
 - Bash-specific hooks need command-sensitive behavior, not just hook-type
   matching
 - Agent spawn gating is policy-heavy and should remain separate from generic ATM

@@ -65,3 +65,54 @@ def test_runner_script_exists_and_is_executable(claude_root: Path) -> None:
     runner = claude_root / "scripts" / "run-capture.sh"
     assert runner.exists()
     assert runner.stat().st_mode & 0o111
+
+
+@pytest.mark.provider_claude
+def test_pretooluse_agent_fixture_matches_captured_spawn_shape(claude_root: Path) -> None:
+    fixture_path = claude_root / "fixtures" / "approved" / "pretooluse-agent.json"
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    assert fixture["hook_event_name"] == "PreToolUse"
+    assert fixture["tool_name"] == "Agent"
+    assert fixture["session_id"]
+    assert fixture["tool_use_id"]
+
+    tool_input = fixture["tool_input"]
+    assert tool_input["name"] == "harness-child"
+    assert tool_input["run_in_background"] is True
+    assert isinstance(tool_input["prompt"], str) and tool_input["prompt"]
+    assert isinstance(tool_input["description"], str) and tool_input["description"]
+
+
+@pytest.mark.provider_claude
+def test_session_start_fixtures_cover_startup_compact_and_resume(claude_root: Path) -> None:
+    fixture_dir = claude_root / "fixtures" / "approved"
+    observed_sources = {}
+    for filename in [
+        "session-start-startup.json",
+        "session-start-compact.json",
+        "session-start-resume.json",
+        "session-start-clear.json",
+    ]:
+        fixture = json.loads((fixture_dir / filename).read_text(encoding="utf-8"))
+        observed_sources[filename] = fixture["source"]
+
+    assert observed_sources == {
+        "session-start-startup.json": "startup",
+        "session-start-compact.json": "compact",
+        "session-start-resume.json": "resume",
+        "session-start-clear.json": "clear",
+    }
+
+
+@pytest.mark.provider_claude
+def test_clear_transition_produces_session_end_reason_clear_and_new_start(claude_root: Path) -> None:
+    fixture_dir = claude_root / "fixtures" / "approved"
+    session_end = json.loads((fixture_dir / "session-end-clear.json").read_text(encoding="utf-8"))
+    session_start = json.loads((fixture_dir / "session-start-clear.json").read_text(encoding="utf-8"))
+
+    assert session_end["hook_event_name"] == "SessionEnd"
+    assert session_end["reason"] == "clear"
+    assert session_start["hook_event_name"] == "SessionStart"
+    assert session_start["source"] == "clear"
+    assert session_end["session_id"] != session_start["session_id"]

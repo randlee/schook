@@ -60,7 +60,10 @@ Captured:
 
 - `SessionStart(source="startup")`
 - `SessionStart(source="compact")`
+- `SessionStart(source="resume")`
+- `SessionStart(source="clear")`
 - `SessionEnd`
+- `SessionEnd(reason="clear")`
 - `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
@@ -77,12 +80,14 @@ Observed live notes:
 
 - `Stop` is the reliable end-of-turn signal in current Haiku capture
 - `SessionStart` alone did not emit `Stop` when no turn occurred
+- `/clear` required a manual harness-local interactive run; an automated PTY
+  attempt only yielded a new `startup` session
 - `Notification` remained uncaptured after repeated long-idle runs with
-  `matcher = ""`
+  `matcher = ""`, including the bounded follow-up probe on this branch
 
 ## Runner Usage
 
-Use [run-capture.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing/test-harness/hooks/claude/scripts/run-capture.sh)
+Use [run-capture.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup/test-harness/hooks/claude/scripts/run-capture.sh)
 to launch a Claude session against one canned prompt while writing artifacts to
 the harness tree.
 
@@ -106,14 +111,14 @@ Behavior:
 - leaves raw payload files in the harness capture directory
 
 For manual interactive runs, use
-[prepare-manual-launch.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing/test-harness/hooks/claude/scripts/prepare-manual-launch.sh).
+[prepare-manual-launch.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup/test-harness/hooks/claude/scripts/prepare-manual-launch.sh).
 It prints a temporary settings file path and the exact `claude` command to run
 with harness-local hooks.
 
 Recommended manual rerun flow:
 
 ```bash
-cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing
+cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup
 CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh
 ```
 
@@ -123,7 +128,7 @@ command exactly.
 For the interactive helper used during this live pass:
 
 ```bash
-cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing
+cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup
 uv run --with pexpect \
   test-harness/hooks/claude/scripts/run-interactive-capture.py \
   notification
@@ -133,6 +138,11 @@ Interactive surface notes from this capture pass:
 
 - `PermissionRequest` was easiest to reproduce by asking Claude to write a file
   and leaving the request blocked at the permission prompt
+- `SessionStart(source="resume")` was captured by ending a prompt-driven
+  session and then resuming that exact `session_id` with `claude --resume`
+- `SessionStart(source="clear")` was captured by running `/clear` in a manual
+  harness-local interactive session; Claude emitted `SessionEnd(reason="clear")`
+  followed immediately by a new `SessionStart(source="clear")`
 - `PreCompact` plus post-compact `SessionStart(source="compact")` were captured
   only after launching Claude with harness-local settings and running
   `/compact` manually
