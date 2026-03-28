@@ -104,11 +104,15 @@ surfaces:
 
 - `SessionStart`
 - `SessionEnd`
+- `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
 - `PreToolUse(Agent)`
 - `PermissionRequest`
 - `Stop`
+
+Still wired in the harness but not locally captured:
+
 - `Notification(idle_prompt)`
 
 The runtime plan may not promote additional Claude fields or behaviors into
@@ -260,7 +264,7 @@ Done when:
 ### S9-P2A: Phase 2A: Build Global HTML Reporting Stack
 
 Status:
-- Not started
+- Completed for Sprint 9 gating
 
 Purpose:
 
@@ -299,7 +303,8 @@ Done when:
 ### S9-P3: Phase 3: Create Pydantic Models And Schema Artifacts
 
 Status:
-- Not started
+- Completed
+- completion reference: PR `#50` (`feature/s9-p3-pydantic-schema`)
 
 Purpose:
 
@@ -410,6 +415,7 @@ class DriftErrorCode(str, Enum):
 
 class BashToolInput(BaseModel):
     command: str
+    description: Optional[str] = None
 
 
 class AgentToolInput(BaseModel):
@@ -763,7 +769,8 @@ Done when:
 ### S9-P4: Phase 4: Revise The Plan From Verified Schema
 
 Status:
-- Not started
+- In review
+- review reference: PR `#51` (`feature/s9-p4-plan-revision`)
 
 Purpose:
 
@@ -777,6 +784,8 @@ Deliverables:
 
 - revised `docs/plugin-plan-s9.md`
 - revised `docs/hook-api/claude-hook-api.md` where captured evidence clarifies fields
+- explicit note that `PreCompact` was promoted into the verified minimum Claude
+  baseline as a Phase 2 capture discovery feeding the Phase 4 revision
 - explicit classification for each planned implementation dependency:
   - verified by source docs/scripts/tests
   - verified by captured fixture
