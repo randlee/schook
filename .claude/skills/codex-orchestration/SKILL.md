@@ -220,6 +220,94 @@ Every task message to arch-ctm MUST embed the 5-step workflow from `dev-template
 
 Every QA assignment to quality-mgr MUST embed the 5-step workflow from `qa-template.xml.j2`. This ensures quality-mgr always spawns `rust-qa-agent` and `atm-qa-agent` as background agents instead of running checks himself.
 
+### Render Contract
+
+`sc-compose --var-file` currently accepts scalar values. For these templates, `deliverables`, `acceptance_criteria`, and `references` must be passed as scalar strings, not JSON arrays.
+
+Use one of these two patterns:
+- `--var-file` with single-line scalar summaries
+- `--var` with shell-quoted multiline text when you need line breaks
+
+Do not change the templates to loop over arrays unless `sc-compose` gains typed array support and the examples below are updated and re-tested.
+
+### Tested `sc-compose` Examples
+
+Dev assignment example:
+
+```json
+{
+  "task_id": "SC-EXAMPLE-DEV-1",
+  "sprint": "S9-BC.1",
+  "assignee": "arch-ctm",
+  "description": "Implement session foundation hook runtime.",
+  "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
+  "branch": "feature/s9-bc1-session-foundation",
+  "pr_target": "integrate/s9-hook-runtime",
+  "deliverables": "Create canonical session.json lifecycle handling; persist project_root_dir from CLAUDE_PROJECT_DIR; add atomic write coverage tests.",
+  "acceptance_criteria": "cargo test --workspace PASS; cargo clippy --all-targets --all-features -- -D warnings PASS; session foundation hooks update state only on material change.",
+  "references": "docs/requirements.md; docs/architecture.md; docs/project-plan.md; docs/phase-bc-hook-runtime-design.md"
+}
+```
+
+```bash
+sc-compose render .claude/skills/codex-orchestration/dev-template.xml.j2 \
+  --var-file .claude/skills/codex-orchestration/examples/dev-template-vars.json
+```
+
+Multiline dev example:
+
+```bash
+sc-compose render .claude/skills/codex-orchestration/dev-template.xml.j2 \
+  --var task_id=SC-EXAMPLE-DEV-2 \
+  --var sprint=S9-BC.1 \
+  --var assignee=arch-ctm \
+  --var description='Implement session foundation hook runtime.' \
+  --var worktree_path=/Users/example/schook-worktrees/feature-s9-bc1-session-foundation \
+  --var branch=feature/s9-bc1-session-foundation \
+  --var pr_target=integrate/s9-hook-runtime \
+  --var $'deliverables=- Create canonical session.json lifecycle handling\n- Persist project_root_dir from CLAUDE_PROJECT_DIR\n- Add atomic write coverage tests' \
+  --var $'acceptance_criteria=- cargo test --workspace PASS\n- cargo clippy --all-targets --all-features -- -D warnings PASS\n- session foundation hooks update state only on material change' \
+  --var $'references=- docs/requirements.md\n- docs/architecture.md\n- docs/project-plan.md\n- docs/phase-bc-hook-runtime-design.md'
+```
+
+QA assignment example:
+
+```json
+{
+  "task_id": "SC-EXAMPLE-QA-1",
+  "sprint": "S9-BC.1",
+  "description": "Run QA on BC.1 session foundation implementation.",
+  "pr_number": "57",
+  "branch": "feature/s9-bc1-session-foundation",
+  "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
+  "commits": "abc1234",
+  "deliverables": "Canonical session-state file ownership; atomic write semantics; mandatory hook logging for lifecycle hooks.",
+  "references": "docs/requirements.md; docs/architecture.md; docs/project-plan.md; docs/phase-bc-hook-runtime-design.md"
+}
+```
+
+```bash
+sc-compose render .claude/skills/codex-orchestration/qa-template.xml.j2 \
+  --var-file .claude/skills/codex-orchestration/examples/qa-template-vars.json
+```
+
+Multiline QA example:
+
+```bash
+sc-compose render .claude/skills/codex-orchestration/qa-template.xml.j2 \
+  --var task_id=SC-EXAMPLE-QA-2 \
+  --var sprint=S9-BC.1 \
+  --var description='Run QA on BC.1 session foundation implementation.' \
+  --var pr_number=57 \
+  --var branch=feature/s9-bc1-session-foundation \
+  --var worktree_path=/Users/example/schook-worktrees/feature-s9-bc1-session-foundation \
+  --var commits=abc1234 \
+  --var $'deliverables=- Canonical session-state file ownership\n- Atomic write semantics\n- Mandatory hook logging for lifecycle hooks' \
+  --var $'references=- docs/requirements.md\n- docs/architecture.md\n- docs/project-plan.md\n- docs/phase-bc-hook-runtime-design.md'
+```
+
+These examples are the working baseline for this skill. If the templates change, re-run both commands and update the checked-in examples in the same change.
+
 ## Task List Tracking
 
 Use TaskList to track each sprint's sub-tasks. Each sprint assignment creates 4 tasks:

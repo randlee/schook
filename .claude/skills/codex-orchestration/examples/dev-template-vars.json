@@ -1,0 +1,12 @@
+{
+  "task_id": "SC-EXAMPLE-DEV-1",
+  "sprint": "S9-BC.1",
+  "assignee": "arch-ctm",
+  "description": "Implement session foundation hook runtime.",
+  "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
+  "branch": "feature/s9-bc1-session-foundation",
+  "pr_target": "integrate/s9-hook-runtime",
+  "deliverables": "Create canonical session.json lifecycle handling; persist project_root_dir from CLAUDE_PROJECT_DIR; add atomic write coverage tests.",
+  "acceptance_criteria": "cargo test --workspace PASS; cargo clippy --all-targets --all-features -- -D warnings PASS; session foundation hooks update state only on material change.",
+  "references": "docs/requirements.md; docs/architecture.md; docs/project-plan.md; docs/phase-bc-hook-runtime-design.md"
+}
