@@ -60,7 +60,7 @@ Important planning rule:
 | Sprint 9 | S9-P4 | Not started | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
 | Sprint 9 | S9-P5 | Not started | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
 | Sprint 9 | S9-HP3 | Planned | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
-| Sprint 9 | S9-HP4 | Planned | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `sc-hooks-agent-spawn-gates`, `sc-hooks-tool-output-gates`, direct behavior tests |
+| Sprint 9 | S9-HP4 | Planned | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
 | Sprint 9 | S9-HP5 | Planned | Hook Phase 5: Relay Hooks | `HKR-004` | S9-P5 | `sc-hooks-atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
@@ -808,8 +808,8 @@ Focus:
 - implement the spawn gate and structured tool-output gate from the clean BC design
 
 Deliverables:
-- `sc-hooks-agent-spawn-gates`
-- `sc-hooks-tool-output-gates`
+- `agent-spawn-gates`
+- `tool-output-gates`
 - direct behavior tests for command-sensitive and team-policy behavior
 - schema lookup from inline prompt definitions or same-name sibling schema files
 - named-agent versus background-agent policy table

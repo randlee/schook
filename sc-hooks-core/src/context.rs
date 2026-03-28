@@ -30,7 +30,9 @@ impl HookContext {
     }
 
     pub fn payload_value(&self) -> Result<&Value, HookError> {
-        self.raw_input.get("payload").ok_or_else(|| HookError::validation("payload", "missing payload object"))
+        self.raw_input
+            .get("payload")
+            .ok_or_else(|| HookError::validation("payload", "missing payload object"))
     }
 
     pub fn payload<T: DeserializeOwned>(&self) -> Result<T, HookError> {

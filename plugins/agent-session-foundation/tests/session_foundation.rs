@@ -174,9 +174,8 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
         ]);
         let _cwd = CurrentDirGuard::set(&other_dir);
         let mut payload = load_fixture("stop.json");
-        payload["session_id"] = serde_json::Value::String(
-            "a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string(),
-        );
+        payload["session_id"] =
+            serde_json::Value::String("a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string());
         payload["cwd"] = serde_json::Value::String(other_dir.to_str().expect("utf8").to_string());
         handler
             .handle(hook_context_with_payload(HookType::Stop, None, payload))

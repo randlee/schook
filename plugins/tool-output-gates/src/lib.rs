@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
@@ -27,6 +27,12 @@ struct BashToolInput {
     _command: String,
     #[serde(default, rename = "description")]
     _description: Option<String>,
+    #[serde(default, alias = "json_schema", alias = "output_schema")]
+    schema: Option<Value>,
+    #[serde(default)]
+    file_path: Option<PathBuf>,
+    #[serde(default)]
+    output_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,13 +47,17 @@ struct BashToolResponse {
     _is_image: Option<bool>,
     #[serde(default, rename = "noOutputExpected")]
     _no_output_expected: Option<bool>,
+    #[serde(default)]
+    file_path: Option<PathBuf>,
+    #[serde(default)]
+    output_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PostToolUseBashPayload {
     tool_name: String,
     #[serde(rename = "tool_input")]
-    _tool_input: BashToolInput,
+    tool_input: BashToolInput,
     tool_response: BashToolResponse,
 }
 
@@ -86,11 +96,9 @@ impl SyncHandler for ToolOutputGatesHandler {
             return Ok(proceed());
         }
 
-        let Some(schema_path) = std::env::var_os("SC_HOOK_JSON_SCHEMA_PATH") else {
+        let Some(schema) = resolve_schema(&payload)? else {
             return Ok(proceed());
         };
-        let schema_path = std::path::PathBuf::from(schema_path);
-        let schema = load_schema(&schema_path)?;
         let stdout = payload.tool_response.stdout.as_deref().unwrap_or("");
         let json_value = match extract_single_fenced_json(stdout) {
             Ok(value) => value,
@@ -106,8 +114,106 @@ impl SyncHandler for ToolOutputGatesHandler {
     }
 }
 
+fn resolve_schema(payload: &PostToolUseBashPayload) -> Result<Option<Value>, HookError> {
+    if let Some(schema) = payload.tool_input.schema.as_ref() {
+        return parse_inline_schema(schema).map(Some);
+    }
+
+    if let Some(schema) = discover_sibling_schema(payload)? {
+        return Ok(Some(schema));
+    }
+
+    let Some(schema_path) = std::env::var_os("SC_HOOK_JSON_SCHEMA_PATH") else {
+        return Ok(None);
+    };
+    let schema_path = PathBuf::from(schema_path);
+    load_schema(&schema_path).map(Some)
+}
+
+fn parse_inline_schema(schema: &Value) -> Result<Value, HookError> {
+    match schema {
+        Value::Object(_) | Value::Bool(_) => Ok(schema.clone()),
+        Value::String(body) => {
+            serde_json::from_str(body).map_err(|source| HookError::InvalidPayload {
+                input_excerpt: body.chars().take(120).collect(),
+                source: Some(source),
+            })
+        }
+        other => Err(HookError::validation(
+            "tool_input.schema",
+            format!(
+                "expected embedded schema object/bool or JSON string, found {}",
+                json_type_name(other)
+            ),
+        )),
+    }
+}
+
+fn discover_sibling_schema(payload: &PostToolUseBashPayload) -> Result<Option<Value>, HookError> {
+    for output_path in referenced_output_paths(payload) {
+        for schema_path in sibling_schema_candidates(&output_path) {
+            if schema_path.exists() {
+                return load_schema(&schema_path).map(Some);
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn referenced_output_paths(payload: &PostToolUseBashPayload) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    for path in [
+        payload.tool_input.file_path.as_ref(),
+        payload.tool_input.output_path.as_ref(),
+        payload.tool_response.file_path.as_ref(),
+        payload.tool_response.output_path.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        push_candidate_path(&mut candidates, path);
+    }
+
+    if let Some(stdout) = payload.tool_response.stdout.as_deref() {
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            push_candidate_path(&mut candidates, Path::new(trimmed));
+        }
+    }
+
+    candidates
+}
+
+fn push_candidate_path(paths: &mut Vec<PathBuf>, candidate: &Path) {
+    if !candidate.exists() {
+        return;
+    }
+    let owned = candidate.to_path_buf();
+    if !paths.iter().any(|existing| existing == &owned) {
+        paths.push(owned);
+    }
+}
+
+fn sibling_schema_candidates(path: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) {
+        candidates.push(path.with_file_name(format!("{stem}.schema.json")));
+    }
+    if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
+        let pathbuf = path.with_file_name(format!("{name}.schema.json"));
+        if !candidates.iter().any(|existing| existing == &pathbuf) {
+            candidates.push(pathbuf);
+        }
+    }
+    candidates
+}
+
 fn load_schema(path: &Path) -> Result<Value, HookError> {
-    let body = fs::read_to_string(path).map_err(|source| HookError::state_io(path.to_path_buf(), source))?;
+    let body = fs::read_to_string(path)
+        .map_err(|source| HookError::state_io(path.to_path_buf(), source))?;
     serde_json::from_str(&body).map_err(|source| HookError::InvalidPayload {
         input_excerpt: body.chars().take(120).collect(),
         source: Some(source),
@@ -179,7 +285,11 @@ fn validate_against_schema(schema: &Value, value: &Value, path: &str) -> Result<
         if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
             for (key, property_schema) in properties {
                 if let Some(field_value) = object.get(key) {
-                    validate_against_schema(property_schema, field_value, &format!("{path}.{key}"))?;
+                    validate_against_schema(
+                        property_schema,
+                        field_value,
+                        &format!("{path}.{key}"),
+                    )?;
                 }
             }
         }
@@ -214,6 +324,17 @@ fn validate_type(expected_type: &str, value: &Value, path: &str) -> Result<(), S
         Ok(())
     } else {
         Err(format!("{path} must be {expected_type}"))
+    }
+}
+
+fn json_type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
     }
 }
 
@@ -295,6 +416,15 @@ mod tests {
         path
     }
 
+    fn bash_context_with_payload(payload: Value) -> HookContext {
+        HookContext::new(
+            HookType::PostToolUse,
+            Some("Bash".to_string()),
+            serde_json::json!({ "payload": payload }),
+            None,
+        )
+    }
+
     #[test]
     fn post_tool_use_bash_routes_through_gate_and_validates_success() {
         let _guard = test_lock().lock().expect("lock");
@@ -304,7 +434,10 @@ mod tests {
 
         let handler = ToolOutputGatesHandler;
         let result = handler
-            .handle(bash_context("```json\n{\"status\":\"ok\",\"ok\":true}\n```", "Bash"))
+            .handle(bash_context(
+                "```json\n{\"status\":\"ok\",\"ok\":true}\n```",
+                "Bash",
+            ))
             .expect("handler result");
 
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
@@ -325,7 +458,9 @@ mod tests {
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
         assert_eq!(
             result.reason.as_deref(),
-            Some("Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout.")
+            Some(
+                "Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout."
+            )
         );
     }
 
@@ -338,13 +473,18 @@ mod tests {
 
         let handler = ToolOutputGatesHandler;
         let result = handler
-            .handle(bash_context("```json\n{\"status\":\"ok\"}\n```\n```json\n{\"status\":\"dup\"}\n```", "Bash"))
+            .handle(bash_context(
+                "```json\n{\"status\":\"ok\"}\n```\n```json\n{\"status\":\"dup\"}\n```",
+                "Bash",
+            ))
             .expect("handler result");
 
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
         assert_eq!(
             result.reason.as_deref(),
-            Some("Tool output blocked: expected exactly one fenced `json` block, found 2. Retry by emitting a single ```json ... ``` block to stdout.")
+            Some(
+                "Tool output blocked: expected exactly one fenced `json` block, found 2. Retry by emitting a single ```json ... ``` block to stdout."
+            )
         );
     }
 
@@ -363,7 +503,9 @@ mod tests {
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
         assert_eq!(
             result.reason.as_deref(),
-            Some("Tool output blocked: $.status is required. Retry by emitting exactly one fenced `json` block that matches the declared schema.")
+            Some(
+                "Tool output blocked: $.status is required. Retry by emitting exactly one fenced `json` block that matches the declared schema."
+            )
         );
     }
 
@@ -386,6 +528,85 @@ mod tests {
         let handler = ToolOutputGatesHandler;
         let result = handler
             .handle(bash_context("```json\n{\"status\":\"ok\"}\n```", "Bash"))
+            .expect("handler result");
+
+        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+    }
+
+    #[test]
+    fn inline_schema_definition_takes_priority() {
+        let _guard = test_lock().lock().expect("lock");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let fallback_schema_path = write_schema(&temp);
+        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &fallback_schema_path);
+
+        let handler = ToolOutputGatesHandler;
+        let result = handler
+            .handle(bash_context_with_payload(serde_json::json!({
+                "tool_name": "Bash",
+                "tool_input": {
+                    "command": "echo",
+                    "description": "Emit structured output",
+                    "schema": {
+                        "type": "object",
+                        "required": ["state"],
+                        "properties": {
+                            "state": { "type": "string" }
+                        }
+                    }
+                },
+                "tool_response": {
+                    "stdout": "```json\n{\"state\":\"ok\"}\n```",
+                    "stderr": "",
+                    "interrupted": false,
+                    "isImage": false,
+                    "noOutputExpected": false
+                }
+            })))
+            .expect("handler result");
+
+        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+    }
+
+    #[test]
+    fn sibling_schema_file_is_discovered_from_referenced_output_path() {
+        let _guard = test_lock().lock().expect("lock");
+        // SAFETY: tests serialize env mutation with a process-wide mutex.
+        unsafe { std::env::remove_var("SC_HOOK_JSON_SCHEMA_PATH") };
+        let temp = tempfile::tempdir().expect("tempdir");
+        let output_path = temp.path().join("report.json");
+        fs::write(&output_path, "{}").expect("write output");
+        let sibling_schema = temp.path().join("report.schema.json");
+        fs::write(
+            &sibling_schema,
+            serde_json::json!({
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                    "status": { "type": "string" }
+                }
+            })
+            .to_string(),
+        )
+        .expect("write schema");
+
+        let handler = ToolOutputGatesHandler;
+        let result = handler
+            .handle(bash_context_with_payload(serde_json::json!({
+                "tool_name": "Bash",
+                "tool_input": {
+                    "command": "cat",
+                    "description": "Render report"
+                },
+                "tool_response": {
+                    "stdout": format!("{}\n```json\n{{\"status\":\"ok\"}}\n```", output_path.display()),
+                    "stderr": "",
+                    "interrupted": false,
+                    "isImage": false,
+                    "noOutputExpected": false,
+                    "file_path": output_path
+                }
+            })))
             .expect("handler result");
 
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);

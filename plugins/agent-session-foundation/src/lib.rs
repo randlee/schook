@@ -3,9 +3,7 @@ mod payloads;
 
 use std::collections::BTreeMap;
 
-use payloads::{
-    PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload,
-};
+use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
@@ -239,7 +237,9 @@ fn resolve_transition(
                 session_id: SessionId::new(payload.session_id)?,
                 agent_state: AgentState::Ended,
                 session_start_source: None,
-                state_reason: payload.reason.unwrap_or_else(|| "session_ended".to_string()),
+                state_reason: payload
+                    .reason
+                    .unwrap_or_else(|| "session_ended".to_string()),
                 ended_at: Some(utc_timestamp_now()),
             })
         }

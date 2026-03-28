@@ -4,4 +4,3 @@ use tool_output_gates::ToolOutputGatesHandler;
 fn main() {
     std::process::exit(PluginRunner::run_sync(&ToolOutputGatesHandler));
 }
-

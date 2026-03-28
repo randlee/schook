@@ -33,9 +33,18 @@ pub fn emit_session_log(
         .map_err(|err| HookError::internal(format!("failed to initialize logger: {err}")))?;
 
     let mut fields = Map::new();
-    fields.insert("hook_event".to_string(), Value::String(hook_event.to_string()));
-    fields.insert("session_id".to_string(), Value::String(record.session_id.to_string()));
-    fields.insert("active_pid".to_string(), Value::from(record.active_pid.get()));
+    fields.insert(
+        "hook_event".to_string(),
+        Value::String(hook_event.to_string()),
+    );
+    fields.insert(
+        "session_id".to_string(),
+        Value::String(record.session_id.to_string()),
+    );
+    fields.insert(
+        "active_pid".to_string(),
+        Value::from(record.active_pid.get()),
+    );
     fields.insert(
         "ai_root_dir".to_string(),
         Value::String(record.ai_root_dir.to_string()),
@@ -51,13 +60,19 @@ pub fn emit_session_log(
     );
     fields.insert(
         "persist_outcome".to_string(),
-        Value::String(match persist {
-            PersistOutcome::Created => "created",
-            PersistOutcome::Updated => "updated",
-            PersistOutcome::Unchanged => "unchanged",
-        }.to_string()),
+        Value::String(
+            match persist {
+                PersistOutcome::Created => "created",
+                PersistOutcome::Updated => "updated",
+                PersistOutcome::Unchanged => "unchanged",
+            }
+            .to_string(),
+        ),
     );
-    fields.insert("state_revision".to_string(), Value::from(record.state_revision));
+    fields.insert(
+        "state_revision".to_string(),
+        Value::from(record.state_revision),
+    );
 
     let event = LogEvent {
         version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),

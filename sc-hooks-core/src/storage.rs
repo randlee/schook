@@ -44,8 +44,8 @@ impl SessionStore {
         if !path.exists() {
             return Ok(None);
         }
-        let body =
-            fs::read_to_string(&path).map_err(|source| HookError::state_io(path.clone(), source))?;
+        let body = fs::read_to_string(&path)
+            .map_err(|source| HookError::state_io(path.clone(), source))?;
         let record = serde_json::from_str::<CanonicalSessionRecord>(&body).map_err(|source| {
             HookError::InvalidPayload {
                 input_excerpt: body.chars().take(120).collect(),
@@ -62,8 +62,9 @@ impl SessionStore {
                 .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
         }
 
-        let rendered = serde_json::to_string_pretty(record)
-            .map_err(|err| HookError::internal(format!("failed to serialize session record: {err}")))?;
+        let rendered = serde_json::to_string_pretty(record).map_err(|err| {
+            HookError::internal(format!("failed to serialize session record: {err}"))
+        })?;
         if let Ok(existing) = fs::read_to_string(&path)
             && existing == rendered
         {
@@ -102,7 +103,9 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
     let root = std::env::var_os("SC_HOOKS_STATE_DIR")
         .map(PathBuf::from)
         .or_else(dirs::home_dir)
-        .ok_or_else(|| HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory"))?;
+        .ok_or_else(|| {
+            HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
+        })?;
 
     if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
         Ok(root)
@@ -132,7 +135,10 @@ mod tests {
             "session_started",
         );
 
-        assert_eq!(store.persist(&record).expect("create"), PersistOutcome::Created);
+        assert_eq!(
+            store.persist(&record).expect("create"),
+            PersistOutcome::Created
+        );
         assert_eq!(
             store.persist(&record).expect("unchanged"),
             PersistOutcome::Unchanged

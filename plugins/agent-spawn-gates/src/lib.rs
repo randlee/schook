@@ -138,12 +138,14 @@ fn load_agent_spawn_policy(project_root_dir: &Path) -> Result<AgentSpawnPolicy, 
     }
     let body = fs::read_to_string(&config_path)
         .map_err(|source| HookError::state_io(config_path.clone(), source))?;
-    toml::from_str::<AtmTomlRoot>(&body).map(|root| root.agent_spawn).map_err(|err| {
-        HookError::validation(
-            ".atm.toml",
-            format!("failed to parse {}: {err}", config_path.display()),
-        )
-    })
+    toml::from_str::<AtmTomlRoot>(&body)
+        .map(|root| root.agent_spawn)
+        .map_err(|err| {
+            HookError::validation(
+                ".atm.toml",
+                format!("failed to parse {}: {err}", config_path.display()),
+            )
+        })
 }
 
 fn spawn_extension(
@@ -321,5 +323,25 @@ mod tests {
             .expect("handler result");
 
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+    }
+
+    #[test]
+    fn missing_session_record_blocks_with_retryable_reason() {
+        let _guard = test_lock().lock().expect("lock");
+        let state_root = tempfile::tempdir().expect("state root");
+        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
+
+        let handler = AgentSpawnGatesHandler;
+        let result = handler
+            .handle(agent_context(Some(true), "Agent"))
+            .expect("handler result");
+
+        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+        assert_eq!(
+            result.reason.as_deref(),
+            Some(
+                "Agent spawn blocked: canonical session state is unavailable. Retry after SessionStart establishes state for this session.",
+            )
+        );
     }
 }
