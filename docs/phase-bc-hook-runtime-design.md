@@ -234,10 +234,10 @@ pub enum HookError {
         source: std::io::Error,
     },
     #[error("validation failed for {field}")]
+    /// Originating semantic error — no upstream source by design.
     Validation {
         field: String,
         message: String,
-        // Originating semantic validation error, not a wrapper around an upstream source.
     },
     #[error("internal error in {component}")]
     Internal {
