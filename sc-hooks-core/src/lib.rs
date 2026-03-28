@@ -7,6 +7,8 @@ pub mod exit_codes;
 pub mod manifest;
 pub mod results;
 pub mod session;
+pub mod storage;
+pub mod tools;
 pub mod validation;
 
 pub const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";

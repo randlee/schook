@@ -119,6 +119,7 @@ pub struct CanonicalSessionRecord {
     pub parent_session_id: Option<SessionId>,
     #[serde(default)]
     pub parent_active_pid: Option<ActivePid>,
+    #[serde(alias = "project_root_dir")]
     pub ai_root_dir: AiRootDir,
     pub ai_current_dir: AiCurrentDir,
     pub session_start_source: String,

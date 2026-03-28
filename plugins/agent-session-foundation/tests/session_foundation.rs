@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::{Mutex, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
 use sc_hooks_core::context::HookContext;
@@ -47,22 +47,17 @@ fn test_lock() -> &'static Mutex<()> {
 }
 
 struct EnvGuard {
-    _lock: MutexGuard<'static, ()>,
     entries: Vec<(String, Option<String>)>,
 }
 
 impl EnvGuard {
     fn set(pairs: &[(&str, &str)]) -> Self {
-        let lock = test_lock().lock().expect("test lock");
         let mut entries = Vec::new();
         for (key, value) in pairs {
             entries.push(((*key).to_string(), std::env::var(key).ok()));
             unsafe { std::env::set_var(key, value) };
         }
-        Self {
-            _lock: lock,
-            entries,
-        }
+        Self { entries }
     }
 }
 
@@ -97,11 +92,10 @@ impl Drop for CurrentDirGuard {
 
 #[test]
 fn persists_session_record_by_session_id() {
+    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
-    let startup_dir = temp.path().join("startup-cwd");
     fs::create_dir_all(&project_root).expect("project root");
-    fs::create_dir_all(&startup_dir).expect("startup dir");
     let _env = EnvGuard::set(&[
         (
             "SC_HOOKS_STATE_DIR",
@@ -114,14 +108,12 @@ fn persists_session_record_by_session_id() {
         ("SC_HOOK_AGENT_PID", "777"),
     ]);
     let handler = SessionFoundationHandler;
-    let mut payload = load_fixture("session-start-startup.json");
-    payload["cwd"] = serde_json::Value::String(startup_dir.to_str().expect("utf8").to_string());
 
     handler
-        .handle(hook_context_with_payload(
+        .handle(hook_context(
             HookType::SessionStart,
             None,
-            payload,
+            "session-start-startup.json",
         ))
         .expect("session start should persist");
 
@@ -134,15 +126,13 @@ fn persists_session_record_by_session_id() {
     assert_eq!(parsed["session_id"], "a760f75c-055a-46f9-bcbb-447c47a22f3c");
     assert_eq!(parsed["active_pid"], 777);
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
-    assert_eq!(
-        parsed["ai_current_dir"],
-        startup_dir.to_str().expect("utf8")
-    );
+    assert_eq!(parsed["ai_current_dir"], "/synthetic/test/session-start");
     assert_eq!(parsed["agent_state"], "starting");
 }
 
 #[test]
 fn later_lifecycle_events_correlate_across_directory_changes() {
+    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let other_dir = temp.path().join("repo-b");
@@ -202,6 +192,7 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 
 #[test]
 fn emits_hook_log_for_state_changes_and_noop_writes() {
+    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");

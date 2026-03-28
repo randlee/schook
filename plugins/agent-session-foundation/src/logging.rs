@@ -6,7 +6,7 @@ use sc_observability_types::{
 };
 use serde_json::{Map, Value};
 
-use crate::state::PersistOutcome;
+use sc_hooks_core::storage::PersistOutcome;
 
 pub fn emit_session_log(
     record: &CanonicalSessionRecord,

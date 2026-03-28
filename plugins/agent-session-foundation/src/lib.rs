@@ -1,9 +1,7 @@
 mod logging;
 mod payloads;
-mod state;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
@@ -16,9 +14,9 @@ use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
     utc_timestamp_now,
 };
+use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
-use state::SessionStore;
 
 #[derive(Debug, Default)]
 pub struct SessionFoundationHandler;
@@ -148,7 +146,7 @@ fn resolve_runtime(
 
 fn build_next_record(
     lifecycle_event: LifecycleEvent,
-    context: &HookContext,
+    _context: &HookContext,
     existing: Option<CanonicalSessionRecord>,
     resolved: &ResolvedRuntime,
     session_start_source: Option<&str>,
@@ -213,8 +211,6 @@ fn build_next_record(
     if lifecycle_event == LifecycleEvent::SessionStart && record.created_at.is_empty() {
         record.created_at = utc_timestamp_now();
     }
-
-    let _ = context;
 
     Ok(record)
 }
@@ -353,21 +349,6 @@ fn resolve_active_pid(
         .ok_or_else(|| HookError::invalid_context("active_pid unavailable before SessionStart"))
 }
 
-fn resolve_state_root() -> Result<PathBuf, HookError> {
-    let root = std::env::var_os("SC_HOOKS_STATE_DIR")
-        .map(PathBuf::from)
-        .or_else(dirs::home_dir)
-        .ok_or_else(|| {
-            HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
-        })?;
-
-    if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
-        Ok(root)
-    } else {
-        Ok(root.join(".sc-hooks").join("state").join("sessions"))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,7 +360,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionStart,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/session-start","source":"startup"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp","source":"startup"}}),
                     None,
                 ),
                 LifecycleEvent::SessionStart,
@@ -394,7 +375,7 @@ mod tests {
                 &HookContext::new(
                     HookType::PreCompact,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/pre-compact"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
                     None,
                 ),
                 LifecycleEvent::PreCompact,
@@ -409,7 +390,7 @@ mod tests {
                 &HookContext::new(
                     HookType::Stop,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/stop","stop_hook_active":false}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp","stop_hook_active":false}}),
                     None,
                 ),
                 LifecycleEvent::Stop,
@@ -424,7 +405,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionEnd,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/session-end"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
                     None,
                 ),
                 LifecycleEvent::SessionEnd,

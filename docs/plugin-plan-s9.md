@@ -678,6 +678,9 @@ Model notes:
 | `tool_name` | `Literal["Agent"]` | yes | same |
 | `tool_input.prompt` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
+| `tool_input.subagent_type` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
+| `tool_input.name` | `Optional[str]` | no | same |
+| `tool_input.team_name` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_input.run_in_background` | `Optional[bool]` | no | same |
 | `permission_mode` | `Optional[str]` | no | same |
 | `tool_use_id` | `Optional[str]` | no | same |
@@ -699,7 +702,9 @@ Deferred, not fixture-verified for implementation:
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
+| `tool_response.output` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stdout` | `Optional[str]` | no | same |
+| `tool_response.error` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stderr` | `Optional[str]` | no | same |
 | `tool_response.interrupted` | `bool` | yes | same |
 | `tool_response.isImage` | `Optional[bool]` | no | same |
