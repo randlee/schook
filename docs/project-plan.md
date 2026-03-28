@@ -780,8 +780,8 @@ Focus:
 
 Deliverables:
 - `plugins/agent-session-foundation`
-- tests proving `SessionStart` / `SessionEnd` behavior against the captured
-  contract
+- tests proving `SessionStart`, `SessionEnd`, and `Stop` state-tracking
+  behavior against the captured contract
 - canonical session-state file keyed by:
   - `session_id`
   - `active_pid`
