@@ -1,3 +1,5 @@
+use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::HookError;
 use sc_hooks_core::manifest::Manifest;
 
 use crate::result::{AsyncResult, HookResult};
@@ -7,11 +9,11 @@ pub trait ManifestProvider {
 }
 
 pub trait SyncHandler: ManifestProvider {
-    fn handle(&self, input: serde_json::Value) -> Result<HookResult, String>;
+    fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
 }
 
 pub trait AsyncHandler: ManifestProvider {
-    fn handle_async(&self, input: serde_json::Value) -> Result<AsyncResult, String>;
+    fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
 }
 
 #[cfg(test)]
@@ -44,7 +46,7 @@ mod tests {
     }
 
     impl SyncHandler for DummySync {
-        fn handle(&self, _input: serde_json::Value) -> Result<HookResult, String> {
+        fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
             Ok(crate::result::proceed())
         }
     }
@@ -53,7 +55,12 @@ mod tests {
     fn sync_handler_trait_is_usable() {
         let handler = DummySync;
         let output = handler
-            .handle(serde_json::json!({}))
+            .handle(HookContext::new(
+                sc_hooks_core::events::HookType::PreToolUse,
+                Some("Write".to_string()),
+                serde_json::json!({}),
+                None,
+            ))
             .expect("sync handler should succeed");
         assert_eq!(output.action, sc_hooks_core::results::HookAction::Proceed);
     }

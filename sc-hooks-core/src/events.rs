@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HookType {
@@ -27,6 +28,26 @@ impl HookType {
             Self::TeammateIdle => "TeammateIdle",
             Self::PermissionRequest => "PermissionRequest",
             Self::Stop => "Stop",
+        }
+    }
+}
+
+impl FromStr for HookType {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "PreToolUse" => Ok(Self::PreToolUse),
+            "PostToolUse" => Ok(Self::PostToolUse),
+            "PreCompact" => Ok(Self::PreCompact),
+            "PostCompact" => Ok(Self::PostCompact),
+            "SessionStart" => Ok(Self::SessionStart),
+            "SessionEnd" => Ok(Self::SessionEnd),
+            "Notification" => Ok(Self::Notification),
+            "TeammateIdle" => Ok(Self::TeammateIdle),
+            "PermissionRequest" => Ok(Self::PermissionRequest),
+            "Stop" => Ok(Self::Stop),
+            _ => Err("unknown hook type"),
         }
     }
 }

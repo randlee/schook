@@ -1,0 +1,643 @@
+//! ATM-specific relay and identity-file handling layered on top of the generic
+//! session foundation and gate plugins.
+
+use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use sc_hooks_core::context::HookContext;
+use sc_hooks_core::dispatch::DispatchMode;
+use sc_hooks_core::errors::HookError;
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::results::HookResult;
+use sc_hooks_core::session::{AgentState, CanonicalSessionRecord, SessionId, utc_timestamp_now};
+use sc_hooks_core::storage::{SessionStore, resolve_state_root};
+use sc_hooks_sdk::result::proceed;
+use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use serde::Deserialize;
+use serde_json::{Map, Value, json};
+
+#[derive(Debug, Default)]
+pub struct AtmExtensionHandler;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AtmRouting {
+    team: String,
+    identity: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RecordUpdate {
+    hook_event: &'static str,
+    state_reason: &'static str,
+    agent_state: Option<AgentState>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BashToolInput {
+    command: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct BashPayload {
+    #[serde(rename = "session_id")]
+    _session_id: String,
+    tool_name: String,
+    tool_input: BashToolInput,
+}
+
+#[derive(Debug, Deserialize)]
+struct PermissionRequestPayload {
+    session_id: String,
+    tool_name: String,
+    tool_input: Value,
+    #[serde(default)]
+    permission_suggestions: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StopPayload {
+    session_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct TeammateIdlePayload {
+    #[serde(default)]
+    session_id: Option<String>,
+}
+
+impl ManifestProvider for AtmExtensionHandler {
+    fn manifest(&self) -> Manifest {
+        Manifest {
+            contract_version: 1,
+            name: "atm-extension".to_string(),
+            mode: DispatchMode::Sync,
+            hooks: vec![
+                "PreToolUse".to_string(),
+                "PostToolUse".to_string(),
+                "PermissionRequest".to_string(),
+                "Stop".to_string(),
+                "TeammateIdle".to_string(),
+                "Notification".to_string(),
+            ],
+            matchers: vec!["*".to_string()],
+            payload_conditions: Vec::new(),
+            timeout_ms: Some(2_000),
+            long_running: false,
+            response_time: None,
+            requires: BTreeMap::new(),
+            optional: BTreeMap::new(),
+            sandbox: None,
+            description: Some(
+                "Layers ATM routing, relay events, and identity-file handling onto the canonical session state."
+                    .to_string(),
+            ),
+        }
+    }
+}
+
+impl SyncHandler for AtmExtensionHandler {
+    fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
+        match context.hook {
+            HookType::PreToolUse => handle_pre_tool_use(context),
+            HookType::PostToolUse => handle_post_tool_use(context),
+            HookType::PermissionRequest => handle_permission_request(context),
+            HookType::Stop => handle_stop(context),
+            HookType::TeammateIdle => handle_teammate_idle(context),
+            HookType::Notification => Ok(proceed()),
+            _ => Ok(proceed()),
+        }
+    }
+}
+
+fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
+    let payload: BashPayload = context.payload()?;
+    if payload.tool_name != "Bash" {
+        return Ok(proceed());
+    }
+
+    let Some((store, record)) = load_record_for_context(&context)? else {
+        return Ok(proceed());
+    };
+    let payload_value = context.payload_value()?;
+    let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
+        return Ok(proceed());
+    };
+
+    persist_atm_update(
+        &store,
+        record.clone(),
+        &routing,
+        RecordUpdate {
+            hook_event: "PreToolUse",
+            state_reason: "atm_identity_write",
+            agent_state: None,
+        },
+    )?;
+
+    if is_atm_invocation(&payload.tool_input.command) {
+        let identity_file = identity_file_path(record.active_pid.get());
+        if let Err(err) = write_identity_file(&identity_file, &record, &routing) {
+            eprintln!(
+                "atm-extension: failed to write ATM identity file {}: {err}",
+                identity_file.display()
+            );
+        }
+    }
+
+    Ok(proceed())
+}
+
+fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
+    let payload: BashPayload = context.payload()?;
+    if payload.tool_name != "Bash" {
+        return Ok(proceed());
+    }
+
+    let Some((store, record)) = load_record_for_context(&context)? else {
+        return Ok(proceed());
+    };
+    let payload_value = context.payload_value()?;
+    let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
+        return Ok(proceed());
+    };
+
+    persist_atm_update(
+        &store,
+        record.clone(),
+        &routing,
+        RecordUpdate {
+            hook_event: "PostToolUse",
+            state_reason: "atm_identity_cleanup",
+            agent_state: None,
+        },
+    )?;
+
+    if is_atm_invocation(&payload.tool_input.command) {
+        let identity_file = identity_file_path(record.active_pid.get());
+        if let Err(err) = delete_identity_file(&identity_file) {
+            eprintln!(
+                "atm-extension: failed to delete ATM identity file {}: {err}",
+                identity_file.display()
+            );
+        }
+    }
+
+    Ok(proceed())
+}
+
+fn handle_permission_request(context: HookContext) -> Result<HookResult, HookError> {
+    let payload: PermissionRequestPayload = context.payload()?;
+    if let Some(suggestions) = payload.permission_suggestions.as_ref() {
+        validate_permission_suggestions(suggestions)?;
+    }
+
+    let Some((store, record)) = load_record_for_context(&context)? else {
+        return Ok(proceed());
+    };
+    let payload_value = context.payload_value()?;
+    let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
+        return Ok(proceed());
+    };
+
+    let process_id = record.active_pid.get();
+    persist_atm_update(
+        &store,
+        record,
+        &routing,
+        RecordUpdate {
+            hook_event: "PermissionRequest",
+            state_reason: "permission_requested",
+            agent_state: Some(AgentState::AwaitingPermission),
+        },
+    )?;
+    append_relay_event(
+        relay_event_root(),
+        json!({
+            "event": "permission_request",
+            "session_id": payload.session_id,
+            "process_id": process_id,
+            "agent": routing.identity,
+            "team": routing.team,
+            "tool_name": payload.tool_name,
+            "tool_input": payload.tool_input,
+            "source": {"kind": "claude_hook"},
+        }),
+    );
+
+    Ok(proceed())
+}
+
+fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
+    let payload: StopPayload = context.payload()?;
+    let Some((store, record)) = load_record_for_context(&context)? else {
+        return Ok(proceed());
+    };
+    let payload_value = context.payload_value()?;
+    let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
+        return Ok(proceed());
+    };
+
+    let process_id = record.active_pid.get();
+    persist_atm_update(
+        &store,
+        record,
+        &routing,
+        RecordUpdate {
+            hook_event: "Stop",
+            state_reason: "relay_stop",
+            agent_state: Some(AgentState::Idle),
+        },
+    )?;
+    append_relay_event(
+        relay_event_root(),
+        json!({
+            "event": "stop",
+            "session_id": payload.session_id,
+            "process_id": process_id,
+            "agent": routing.identity,
+            "team": routing.team,
+            "source": {"kind": "claude_hook"},
+        }),
+    );
+
+    Ok(proceed())
+}
+
+fn handle_teammate_idle(context: HookContext) -> Result<HookResult, HookError> {
+    let payload: TeammateIdlePayload = context.payload()?;
+    let loaded = load_record_for_context(&context)?;
+    let record_ref = loaded.as_ref().map(|(_, record)| record);
+    let payload_value = context.payload_value()?;
+    let Some(routing) = resolve_atm_routing(payload_value, record_ref) else {
+        return Ok(proceed());
+    };
+
+    let process_id = record_ref
+        .map(|record| record.active_pid.get())
+        .or_else(resolve_process_id_from_env)
+        .unwrap_or_else(std::process::id);
+
+    if let Some((store, record)) = loaded {
+        persist_atm_update(
+            &store,
+            record,
+            &routing,
+            RecordUpdate {
+                hook_event: "TeammateIdle",
+                state_reason: "teammate_idle",
+                agent_state: Some(AgentState::Idle),
+            },
+        )?;
+    }
+
+    append_relay_event(
+        relay_event_root(),
+        json!({
+            "event": "teammate_idle",
+            "session_id": payload.session_id,
+            "process_id": process_id,
+            "agent": routing.identity,
+            "team": routing.team,
+            "received_at": utc_timestamp_now(),
+            "source": {"kind": "claude_hook"},
+        }),
+    );
+
+    Ok(proceed())
+}
+
+fn load_record_for_context(
+    context: &HookContext,
+) -> Result<Option<(SessionStore, CanonicalSessionRecord)>, HookError> {
+    let state_root = resolve_state_root()?;
+    let store = SessionStore::new(state_root);
+    let Some(session_id) = context
+        .payload_value()?
+        .get("session_id")
+        .and_then(Value::as_str)
+    else {
+        return Ok(None);
+    };
+
+    let session_id = SessionId::new(session_id.to_string())?;
+    let Some(record) = store.load(&session_id)? else {
+        return Ok(None);
+    };
+    Ok(Some((store, record)))
+}
+
+fn resolve_atm_routing(
+    payload: &Value,
+    record: Option<&CanonicalSessionRecord>,
+) -> Option<AtmRouting> {
+    let payload_tool_input = payload.get("tool_input").and_then(Value::as_object);
+    let existing = record.and_then(existing_atm_extension);
+    let config =
+        record.and_then(|existing_record| load_atm_config(existing_record.ai_root_dir.as_path()));
+
+    let team = first_nonempty([
+        string_field(payload, "team_name"),
+        string_field(payload, "team"),
+        payload_tool_input.and_then(|tool_input| string_field_from_map(tool_input, "team_name")),
+        std::env::var("ATM_TEAM")
+            .ok()
+            .filter(|value| !value.trim().is_empty()),
+        existing.as_ref().map(|routing| routing.team.clone()),
+        config
+            .as_ref()
+            .and_then(|atm_config| atm_config.default_team.clone()),
+    ])?;
+
+    let identity = first_nonempty([
+        string_field(payload, "teammate_name"),
+        string_field(payload, "name"),
+        string_field(payload, "agent"),
+        payload_tool_input.and_then(|tool_input| string_field_from_map(tool_input, "name")),
+        std::env::var("ATM_IDENTITY")
+            .ok()
+            .filter(|value| !value.trim().is_empty()),
+        existing.as_ref().map(|routing| routing.identity.clone()),
+        config.and_then(|atm_config| atm_config.identity),
+    ])?;
+
+    Some(AtmRouting { team, identity })
+}
+
+fn existing_atm_extension(record: &CanonicalSessionRecord) -> Option<AtmRouting> {
+    let atm = record.extensions.get("atm")?.as_object()?;
+    Some(AtmRouting {
+        team: atm.get("atm_team")?.as_str()?.to_string(),
+        identity: atm.get("atm_identity")?.as_str()?.to_string(),
+    })
+}
+
+#[derive(Debug)]
+struct AtmConfig {
+    default_team: Option<String>,
+    identity: Option<String>,
+}
+
+fn load_atm_config(ai_root_dir: &Path) -> Option<AtmConfig> {
+    let path = ai_root_dir.join(".atm.toml");
+    let body = fs::read_to_string(path).ok()?;
+    let parsed = toml::from_str::<toml::Value>(&body).ok()?;
+    let core = parsed.get("core")?.as_table()?;
+    Some(AtmConfig {
+        default_team: core
+            .get("default_team")
+            .and_then(toml::Value::as_str)
+            .map(str::to_string),
+        identity: core
+            .get("identity")
+            .and_then(toml::Value::as_str)
+            .map(str::to_string),
+    })
+}
+
+fn string_field(payload: &Value, key: &str) -> Option<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn string_field_from_map(map: &Map<String, Value>, key: &str) -> Option<String> {
+    map.get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn first_nonempty<const N: usize>(candidates: [Option<String>; N]) -> Option<String> {
+    candidates
+        .into_iter()
+        .flatten()
+        .find(|candidate| !candidate.trim().is_empty())
+}
+
+fn persist_atm_update(
+    store: &SessionStore,
+    mut record: CanonicalSessionRecord,
+    routing: &AtmRouting,
+    update: RecordUpdate,
+) -> Result<(), HookError> {
+    let atm_extension = json!({
+        "atm_team": routing.team,
+        "atm_identity": routing.identity,
+    });
+
+    let mut material_changed = record.extensions.get("atm") != Some(&atm_extension);
+    if material_changed {
+        record.extensions.insert("atm".to_string(), atm_extension);
+    }
+
+    if let Some(agent_state) = update.agent_state
+        && record.agent_state != agent_state
+    {
+        record.agent_state = agent_state;
+        material_changed = true;
+    }
+
+    if record.last_hook_event != update.hook_event {
+        record.last_hook_event = update.hook_event.to_string();
+        material_changed = true;
+    }
+
+    if record.state_reason != update.state_reason {
+        record.state_reason = update.state_reason.to_string();
+        material_changed = true;
+    }
+
+    if !material_changed {
+        return Ok(());
+    }
+
+    record.state_revision += 1;
+    let now = utc_timestamp_now();
+    record.updated_at = now.clone();
+    record.last_hook_event_at = now;
+    store.persist(&record)?;
+
+    Ok(())
+}
+
+fn relay_event_root() -> Option<PathBuf> {
+    std::env::var_os("ATM_HOME")
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)
+}
+
+fn append_relay_event(root: Option<PathBuf>, event: Value) {
+    let Some(root) = root else {
+        return;
+    };
+    let events_path = root
+        .join(".atm")
+        .join("daemon")
+        .join("hooks")
+        .join("events.jsonl");
+    let result = (|| -> std::io::Result<()> {
+        if let Some(parent) = events_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&events_path)?;
+        writeln!(file, "{}", serde_json::to_string(&event)?)?;
+        Ok(())
+    })();
+
+    if let Err(err) = result {
+        eprintln!(
+            "atm-extension: failed to append relay event {}: {err}",
+            events_path.display()
+        );
+    }
+}
+
+fn identity_file_path(active_pid: u32) -> PathBuf {
+    std::env::temp_dir().join(format!("atm-hook-{active_pid}.json"))
+}
+
+fn write_identity_file(
+    path: &Path,
+    record: &CanonicalSessionRecord,
+    routing: &AtmRouting,
+) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let created_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs_f64())
+        .unwrap_or(0.0);
+    let rendered = serde_json::to_string(&json!({
+        "pid": record.active_pid.get(),
+        "session_id": record.session_id.as_str(),
+        "agent_name": routing.identity,
+        "team_name": routing.team,
+        "created_at": created_at,
+    }))?;
+    fs::write(path, rendered)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
+fn delete_identity_file(path: &Path) -> std::io::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
+}
+
+fn is_atm_invocation(command: &str) -> bool {
+    let tokens = shell_words::split(command).unwrap_or_else(|_| {
+        command
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    });
+
+    tokens.iter().any(|token| {
+        token == "atm"
+            || token.ends_with("/atm")
+            || token.ends_with("\\atm")
+            || token == "atm.exe"
+            || token.ends_with("/atm.exe")
+    })
+}
+
+fn resolve_process_id_from_env() -> Option<u32> {
+    std::env::var("SC_HOOK_AGENT_PID")
+        .ok()
+        .and_then(|raw| raw.parse::<u32>().ok())
+        .filter(|value| *value > 0)
+}
+
+fn validate_permission_suggestions(value: &Value) -> Result<(), HookError> {
+    let suggestions = value.as_array().ok_or_else(|| {
+        HookError::validation("permission_suggestions", "must be an array when present")
+    })?;
+    for (index, suggestion) in suggestions.iter().enumerate() {
+        let suggestion_object = suggestion.as_object().ok_or_else(|| {
+            HookError::validation(
+                format!("permission_suggestions[{index}]"),
+                "must be an object",
+            )
+        })?;
+        validate_optional_string_field(suggestion_object, index, "type")?;
+        validate_optional_string_field(suggestion_object, index, "destination")?;
+        validate_optional_string_field(suggestion_object, index, "mode")?;
+        validate_optional_string_field(suggestion_object, index, "behavior")?;
+
+        if let Some(rules) = suggestion_object.get("rules") {
+            let rules = rules.as_array().ok_or_else(|| {
+                HookError::validation(
+                    format!("permission_suggestions[{index}].rules"),
+                    "must be an array",
+                )
+            })?;
+            for (rule_index, rule) in rules.iter().enumerate() {
+                let rule_object = rule.as_object().ok_or_else(|| {
+                    HookError::validation(
+                        format!("permission_suggestions[{index}].rules[{rule_index}]"),
+                        "must be an object",
+                    )
+                })?;
+                validate_required_string_field(rule_object, index, rule_index, "toolName")?;
+                validate_required_string_field(rule_object, index, rule_index, "ruleContent")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_optional_string_field(
+    suggestion_object: &Map<String, Value>,
+    suggestion_index: usize,
+    field_name: &str,
+) -> Result<(), HookError> {
+    if let Some(value) = suggestion_object.get(field_name)
+        && !value.is_string()
+    {
+        return Err(HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].{field_name}"),
+            "must be a string",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_required_string_field(
+    rule_object: &Map<String, Value>,
+    suggestion_index: usize,
+    rule_index: usize,
+    field_name: &str,
+) -> Result<(), HookError> {
+    let Some(value) = rule_object.get(field_name) else {
+        return Err(HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].{field_name}"),
+            "is required",
+        ));
+    };
+    if !value.is_string() {
+        return Err(HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].{field_name}"),
+            "must be a string",
+        ));
+    }
+    Ok(())
+}

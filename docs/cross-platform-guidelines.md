@@ -12,8 +12,8 @@ runtime and harness code.
 
 ## State And Tempfile Rules
 
-- canonical hook session-state storage must resolve from `ATM_HOME` first, then
-  the platform home-directory resolver
+- canonical hook session-state storage must resolve from `SC_HOOKS_STATE_DIR`
+  first, then the platform home-directory resolver
 - `/tmp` must not be used as canonical state storage
 - atomic writes should use same-directory temp-file creation plus rename
 - Windows-safe atomic write behavior should use the `tempfile` crate rather

@@ -678,6 +678,9 @@ Model notes:
 | `tool_name` | `Literal["Agent"]` | yes | same |
 | `tool_input.prompt` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
+| `tool_input.subagent_type` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
+| `tool_input.name` | `Optional[str]` | no | same |
+| `tool_input.team_name` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_input.run_in_background` | `Optional[bool]` | no | same |
 | `permission_mode` | `Optional[str]` | no | same |
 | `tool_use_id` | `Optional[str]` | no | same |
@@ -699,7 +702,9 @@ Deferred, not fixture-verified for implementation:
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
+| `tool_response.output` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stdout` | `Optional[str]` | no | same |
+| `tool_response.error` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stderr` | `Optional[str]` | no | same |
 | `tool_response.interrupted` | `bool` | yes | same |
 | `tool_response.isImage` | `Optional[bool]` | no | same |
@@ -825,8 +830,8 @@ Implementation dependency classification for `S9-HP3` / `S9-HP4` / `S9-HP5`:
 | `Stop.permission_mode`, `last_assistant_message` | verified by captured fixture | `stop.json` | yes, optional |
 | `Notification` base payload fields beyond event identity | deferred because still not verified | no approved fixture; harness remains wired-but-unresolved | no |
 | `CLAUDE_PROJECT_DIR` as startup project-root anchor | verified by source docs/scripts/tests | Claude hook strategy docs + ATM scripts + team-lead clarification | yes |
-| `project_root_dir` chaining from persisted session state | verified by source docs/scripts/tests | BC design + requirements + architecture | yes |
-| `.atm.toml` file name and primary lookup at `project_root_dir/.atm.toml` | verified by source docs/scripts/tests | current ATM docs/scripts + project plan | yes |
+| `ai_root_dir` chaining from persisted session state | verified by source docs/scripts/tests | BC design + requirements + architecture | yes |
+| `.atm.toml` file name and primary lookup at `ai_root_dir/.atm.toml` | verified by source docs/scripts/tests | current ATM docs/scripts + project plan | yes |
 | parent/subagent lineage fields from raw Claude payloads | deferred because still not verified | no approved fixture or source-backed Claude schema | no |
 | `Notification(idle_prompt)` runtime behavior | deferred because still not verified | harness wiring exists, local capture absent | no |
 | teammate-idle relay behavior | verified by source docs/scripts/tests | ATM relay docs/scripts, not Claude fixture capture | yes in `S9-HP5` only |
@@ -920,7 +925,8 @@ Deliverables:
   - canonical Rust types for:
     - `SessionId`
     - `ActivePid`
-    - `ProjectRootDir`
+    - `AiRootDir`
+    - `AiCurrentDir`
     - `ProviderStatus`
     - `DriftErrorCode`
     - `DriftEntry`
@@ -959,10 +965,15 @@ Verified field inputs allowed in HP3:
   - `permission_mode` (optional)
   - `last_assistant_message` (optional)
 - source-backed runtime context:
-  - `CLAUDE_PROJECT_DIR` -> `project_root_dir`
+  - `CLAUDE_PROJECT_DIR` -> `ai_root_dir`
 
 Explicitly deferred in HP3:
 
+- `PreToolUse(Bash)`, `PreToolUse(Agent)`, `PostToolUse(Bash)`, and
+  `PermissionRequest`
+  These remain inside the overall `HKR-004` Claude baseline, but concrete
+  runtime ownership is deferred to `S9-HP4` so HP3 stays limited to lifecycle
+  persistence.
 - `Notification(idle_prompt)` payload fields
 - any parent/subagent lineage fields not present in approved Claude fixtures
 
@@ -981,7 +992,7 @@ Required tests:
   `session_id`
 - integration tests proving `SessionStart` in directory A and later lifecycle
   hooks in directory B still resolve the same session record through
-  `project_root_dir`
+  `ai_root_dir`
 - tests for atomic write behavior and unchanged-state no-rewrite behavior
 - tests for mandatory hook-log emission on state-changing and no-op invocations
 - `cargo test --workspace`
@@ -992,7 +1003,8 @@ Success criteria:
 - lifecycle code consumes only verified fields from the Phase 4 evidence set
 - canonical session-state schema matches `HKR-004`, `HKR-008`, `HKR-009`, and
   `HKR-012`
-- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR`, never from cwd
+- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR`, never from cwd
+- `ai_current_dir` is chained from lifecycle payload `cwd`
 - ATM-specific routing remains outside `plugins/agent-session-foundation`
 - same-PR architecture inventory updates land when new runtime crates are added
 
@@ -1032,10 +1044,10 @@ Deliverables:
 - fenced/blocking JSON tool-utility behavior
 - `.atm.toml` reference and lookup contract for ATM-aware policy decisions:
   - file name: `.atm.toml`
-  - primary lookup location: `project_root_dir/.atm.toml`
+  - primary lookup location: `ai_root_dir/.atm.toml`
   - child-agent behavior: inherit parent team context when child current
     directory differs but parent session still points at the same
-    `project_root_dir`
+    `ai_root_dir`
   - fallback: no cwd heuristics; if `.atm.toml` is absent, ATM-specific policy
     is unavailable and the generic gate behavior continues
 - same-PR architecture inventory updates when either plugin crate lands
@@ -1216,7 +1228,8 @@ Done when:
 
 1. `S9-HP3` Session Foundation
    - first because all later crates depend on canonical session-state,
-     `project_root_dir`, normalized `agent_state`, and mandatory hook logging
+     `ai_root_dir`, `ai_current_dir`, normalized `agent_state`, and mandatory
+     hook logging
 2. `S9-HP4` Bash Identity + Spawn Gates
    - second because spawn/tool-output policy depends on the HP3 state substrate
      but resolves its own deferred fields explicitly

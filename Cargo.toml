@@ -4,6 +4,10 @@ members = [
   "sc-hooks-core",
   "sc-hooks-sdk",
   "sc-hooks-test",
+  "plugins/agent-session-foundation",
+  "plugins/agent-spawn-gates",
+  "plugins/atm-extension",
+  "plugins/tool-output-gates",
 ]
 resolver = "2"
 

@@ -1,0 +1,15 @@
+[package]
+name = "agent-session-foundation"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+sc-observability = { path = "../../../../sc-observability/crates/sc-observability" }
+sc-observability-types = { path = "../../../../sc-observability/crates/sc-observability-types" }
+sc-hooks-core = { path = "../../sc-hooks-core" }
+sc-hooks-sdk = { path = "../../sc-hooks-sdk" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+
+[dev-dependencies]
+tempfile = "3.23.0"

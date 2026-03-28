@@ -114,8 +114,8 @@ Rules:
 
 - directory changes do not change identity
 - compaction does not change `session_id`
-- `/clear` ends the prior session and starts a new `session_id`
 - a fresh Claude process creates a new `session_id`
+- `/clear` ends the prior session and starts a new `session_id`
 - later hooks should read persisted session state rather than trying to infer
   identity from current working directory or subprocess lineage
 - `PPID` can be used as a local diagnostic cross-check, but it is not the
@@ -134,7 +134,7 @@ future `schook` base record must stay identical.
 Implementation-facing reading for `schook`:
 
 - `session_id` is the verified Claude lifecycle anchor
-- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
+- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
 - `active_pid` remains part of the planned runtime identity tuple, but is a
   runtime-managed field rather than a Claude payload contract claim
 - `Notification(idle_prompt)` stays outside the verified identity/state model

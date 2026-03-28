@@ -60,7 +60,7 @@ Important planning rule:
 | Sprint 9 | S9-P4 | Not started | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
 | Sprint 9 | S9-P5 | Not started | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
 | Sprint 9 | S9-HP3 | Planned | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
-| Sprint 9 | S9-HP4 | Planned | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `sc-hooks-agent-spawn-gates`, `sc-hooks-tool-output-gates`, direct behavior tests |
+| Sprint 9 | S9-HP4 | Planned | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
 | Sprint 9 | S9-HP5 | Planned | Hook Phase 5: Relay Hooks | `HKR-004` | S9-P5 | `sc-hooks-atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
@@ -396,13 +396,13 @@ Definition of done:
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing every current `plugins/` crate as scaffold/reference only.
+  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing the legacy `plugins/` crates as scaffold/reference only and requiring explicit maturity status for any later implementation crate.
 - What code was removed early rather than left in parallel?
   No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
 - Which files/crates were the owned write scope for the sprint?
   `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
-  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
+  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`, even when a source implementation crate such as `plugins/agent-session-foundation` exists in the workspace.
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 6 is unblocked because plugin maturity claims are now binary and consistent across docs and metadata; any future plugin promotion will require a new scoped sprint with install guidance and direct behavior tests.
 
@@ -779,15 +779,18 @@ Focus:
 - implement the Claude lifecycle pair first
 
 Deliverables:
-- `sc-hooks-session-foundation`
+- `plugins/agent-session-foundation`
 - tests proving `SessionStart` / `SessionEnd` behavior against the captured
   contract
 - canonical session-state file keyed by:
   - `session_id`
   - `active_pid`
-  - `project_root_dir`
-- `project_root_dir` chaining from `CLAUDE_PROJECT_DIR`
+  - `ai_root_dir`
+- `ai_root_dir` chaining from `CLAUDE_PROJECT_DIR`
+- `ai_current_dir` chaining from payload `cwd`
 - `PreCompact` and `Stop` handling on the normalized `agent_state` path
+- `PreToolUse`, `PostToolUse`, and `PermissionRequest` explicitly deferred to
+  `S9-HP4`
 - atomic write semantics for `session.json`
 - no `session.json` rewrite when the canonical record is unchanged
 - mandatory hook logging for every lifecycle invocation
@@ -805,8 +808,8 @@ Focus:
 - implement the spawn gate and structured tool-output gate from the clean BC design
 
 Deliverables:
-- `sc-hooks-agent-spawn-gates`
-- `sc-hooks-tool-output-gates`
+- `agent-spawn-gates`
+- `tool-output-gates`
 - direct behavior tests for command-sensitive and team-policy behavior
 - schema lookup from inline prompt definitions or same-name sibling schema files
 - named-agent versus background-agent policy table
