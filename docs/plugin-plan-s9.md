@@ -285,7 +285,8 @@ Deliverables:
   `## Schema Drift Detection Tooling`
 - both files pass review against:
   `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
-- one tested invocation that produces a valid self-contained HTML file
+- one tested invocation (HKR-012) that produces a valid self-contained HTML file
+  confirmed by `html-validate`
 
 Done when:
 
@@ -1331,6 +1332,13 @@ Phase 3 is not complete until all of the following exist:
   Claude payload model
 - `test-harness/hooks/run-schema-drift.py`
 - per-provider adapters at `test-harness/hooks/<provider>/schema_drift.py`
+- per-hook field tables for all verified hook types matching captured fixture
+  evidence (see §S9-P3 field tables)
+- explicit `DriftEntry` model definition with all required fields:
+  `hook_event_name`, `field_name`, `error_code`, `old_value`, `new_value`,
+  `source`, `action`, `recovery`, `message`
+- explicit `DriftReport` model definition with all required fields:
+  `provider`, `run_timestamp`, `status`, `entries`
 - drift JSON output per run that validates against `DriftReport`
 - a self-contained HTML report per run
 - `.claude/skills/hook-schema-drift/SKILL.md`
