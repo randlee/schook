@@ -233,12 +233,17 @@ The first hook-extension development path is:
 
 1. build a Claude-focused schema harness under `test-harness/hooks/`
 2. capture and validate real Claude hook payloads
-3. revise hook docs and the implementation plan from captured evidence
-4. implement the Claude ATM hook crates
+3. build and QA the global HTML reporting stack
+4. revise hook docs and the implementation plan from captured evidence
+5. implement the Claude ATM hook crates
 
 Current status:
 
-- steps 1-3 are complete for the Claude baseline
+- steps 1-2 are complete for the Claude baseline
+- post-capture doc and plan revision from captured evidence is complete for the
+  current Claude baseline
+- the global HTML reporting stack is now an explicit prerequisite before
+  schema-drift/report-generating work can close
 - captured `SessionStart.source` values now include `startup`, `compact`,
   `resume`, and `clear`
 - `Notification(idle_prompt)` remains part of the documented Claude surface, but
@@ -254,8 +259,9 @@ The planned hook harness owns:
 - provider launch adapters
 - captured raw fixtures
 - provider-specific validation models
-- schema-drift CI checks
+- manual schema-drift detection tooling
 - review artifacts for newly observed or changed payload fields
+- integration with the global HTML reporting stack for self-contained reports
 
 Initial execution scope:
 
@@ -285,6 +291,12 @@ Planning rules for these targets:
 - the detailed post-capture BC design in
   `docs/phase-bc-hook-runtime-design.md` is authoritative for crate roles,
   state ownership, and trait boundaries
+- `sc-hooks-session-foundation` is responsible for the canonical session-state
+  record keyed by `session_id`, `active_pid`, and `project_root_dir`
+- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR` and must not fall
+  back to cwd heuristics
+- canonical `session.json` updates use atomic write semantics and skip unchanged
+  rewrites while still emitting hook logs
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority

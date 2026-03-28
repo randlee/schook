@@ -55,7 +55,8 @@ Important planning rule:
 | Sprint 9 | S9-P0 | Completed | Phase 0: Review Baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Sprint 9 | S9-P1 | Completed | Phase 1: Build Harness | `HKR-002`, `HKR-005` | S9-P0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Sprint 9 | S9-P2 | Completed | Phase 2: Capture Claude Payloads | `HKR-002`, `HKR-003` | S9-P1 | `test-harness/hooks/claude/captures/raw/`, approved fixtures, capture reports |
-| Sprint 9 | S9-P3 | Not started | Phase 3: Pydantic Models + Schema | `HKR-003` | S9-P2 complete (unblocked) | Pydantic models, generated schema artifacts, drift validation tests |
+| Sprint 9 | S9-P2A | Not started | Phase 2A: Global HTML Reporting Stack | `HKR-005`, `HKR-012` | S9-P2 | `$HOME/.claude/skills/html-report/SKILL.md`, `~/.claude/agents/html-report-generator.md`, validation example |
+| Sprint 9 | S9-P3 | Not started | Phase 3: Pydantic Models + Schema | `HKR-003`, `HKR-005` | S9-P2A | Pydantic models, generated schema artifacts, drift validation tests |
 | Sprint 9 | S9-P4 | Not started | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
 | Sprint 9 | S9-P5 | Not started | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
 | Sprint 9 | S9-HP3 | Planned | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
@@ -631,12 +632,17 @@ Deliverables:
 - Claude provider adapter
 - Claude fixture capture scripts
 - Claude validation models
-- CI drift check for breaking Claude payload changes
+- approved fixture snapshots and harness reports
+- rerunnable harness entry points documented in repo docs
+- `Notification(idle_prompt)` kept wired in the harness as a bounded probe, not
+  promoted as a verified payload shape
 
 Acceptance criteria:
 - Claude hook payloads for the planned hook set are captured and validated
 - raw captured fixtures are stored as review evidence
-- CI fails on required-field removal or type drift
+- the harness can be rerun from repo docs without reconstructing ad hoc setup
+- the harness baseline distinguishes verified captures from wired-but-unresolved
+  probes
 
 Definition of done:
 - the team can point to captured Claude payloads instead of inferred shapes
@@ -653,6 +659,8 @@ Deliverables:
 - captured Claude payloads stored under `test-harness/hooks/claude/captures/raw/`
 - approved fixtures and follow-up capture notes in the harness tree
 - evidence for `startup`, `resume`, `clear`, `compact`, `PreCompact`, `PreToolUse(Bash)`, `PreToolUse(Agent)`, `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, and `SessionEnd`
+- explicit note that `Notification(idle_prompt)` remains wired-but-unresolved in
+  this environment after bounded probing
 
 Acceptance criteria:
 - the required first-pass Claude capture set is backed by local fixtures
@@ -661,6 +669,28 @@ Acceptance criteria:
 
 Note:
 - S9-P2 completed as part of the executed S9-P1 harness follow-on; captured artifacts now live under `test-harness/hooks/claude/captures/raw/`
+
+### S9-P2A: Phase 2A: Global HTML Reporting Stack
+
+Status:
+- not started
+
+Focus:
+- build the reusable global HTML reporting stack before any schema-drift sprint
+  depends on report generation
+
+Deliverables:
+- `$HOME/.claude/skills/html-report/SKILL.md`
+- `~/.claude/agents/html-report-generator.md`
+- both files reviewed against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+- one tested invocation producing a valid self-contained HTML file
+
+Acceptance criteria:
+- the discovery and execution layers both exist at the required paths
+- both pass the guidelines review gate
+- the execution layer can be invoked as a background agent from a caller skill
+- a test invocation proves self-contained HTML output
 
 ### S9-P3: Phase 3: Pydantic Models + Schema
 
@@ -672,13 +702,20 @@ Focus:
 
 Deliverables:
 - provider-specific Pydantic models for the captured Claude payloads
+- `pyproject.toml` with `pydantic>=2.0` and `pytest`
 - generated schema artifacts derived from those models
 - drift validation tests for the captured fixtures
+- `test-harness/hooks/run-schema-drift.py`
+- per-provider adapters under `test-harness/hooks/<provider>/`
+- `.claude/skills/hook-schema-drift/`
+- report-generation flow that uses the completed global HTML reporting stack
 
 Acceptance criteria:
 - captured Claude fixtures validate against the Pydantic models
 - schema artifacts exist for the validated models
 - drift classification rules execute in tests
+- schema drift remains a manual tool path, not CI
+- any report-generating workflow depends on completed `S9-P2A`
 
 ### S9-P4: Phase 4: Revise Plan from Schema
 
@@ -692,10 +729,17 @@ Deliverables:
 - updated `docs/plugin-plan-s9.md`
 - updated `docs/hook-api/claude-hook-api.md`
 - traceability and implementation-readiness notes derived from validated schema
+- explicit classification of each implementation dependency as:
+  - source-backed
+  - fixture-backed
+  - deferred
+- cross-reference back to `docs/phase-bc-hook-runtime-design.md` for the frozen
+  runtime design boundary
 
 Acceptance criteria:
 - every planned Claude implementation field is backed by validated schema or retained as an explicit deferral
 - implementation-facing docs no longer depend on pre-schema guesses
+- implementation-facing docs and the BC design doc agree on what code lands next
 
 ### S9-P5: Phase 5: Re-Evaluate + Sequence
 
@@ -738,10 +782,22 @@ Deliverables:
 - `sc-hooks-session-foundation`
 - tests proving `SessionStart` / `SessionEnd` behavior against the captured
   contract
+- canonical session-state file keyed by:
+  - `session_id`
+  - `active_pid`
+  - `project_root_dir`
+- `project_root_dir` chaining from `CLAUDE_PROJECT_DIR`
+- `PreCompact` and `Stop` handling on the normalized `agent_state` path
+- atomic write semantics for `session.json`
+- no `session.json` rewrite when the canonical record is unchanged
+- mandatory hook logging for every lifecycle invocation
 
 Acceptance criteria:
 - lifecycle hooks use only verified inputs
 - ATM-specific routing/persistence stays bounded by the ATM extension doc
+- the canonical session-state schema matches the documented BC design
+- state identity and persistence are stable across directory changes and PID-bound
+  hook calls
 
 ### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
 
@@ -752,11 +808,17 @@ Deliverables:
 - `sc-hooks-agent-spawn-gates`
 - `sc-hooks-tool-output-gates`
 - direct behavior tests for command-sensitive and team-policy behavior
+- schema lookup from inline prompt definitions or same-name sibling schema files
+- named-agent versus background-agent policy table
+- exact retryable block responses for invalid fenced JSON
+- fenced `json` extraction and validation tests
 
 Acceptance criteria:
 - no field is relied on unless it was verified in Phase 1 or added in a later
   approved schema capture
 - command-sensitive behavior is tested directly
+- invalid fenced JSON returns exact retryable failure reasons
+- spawn policy outcomes are tested for named-agent and background-agent paths
 
 ### S9-HP5: Hook Phase 5: Relay Hooks
 
@@ -765,11 +827,20 @@ Focus:
 
 Deliverables:
 - `sc-hooks-atm-extension`
-- direct tests for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
+- direct tests for `PermissionRequest` and `Stop`
+- direct tests for teammate-idle mapping onto normalized `idle`
+- ATM enrichment layered onto the canonical session-state record via extension
+  fields
+- ATM environment inheritance rules for `ATM_TEAM` and `ATM_IDENTITY`
+- `Notification(idle_prompt)` kept wired and documented, but still deferred
+  unless a live payload is captured
 
 Acceptance criteria:
 - relay behavior is bounded to the verified Claude ATM baseline
 - failure posture is documented and tested
+- ATM extends the canonical record; it does not redefine the generic state model
+- parent/child ATM identity behavior is documented and tested where the child
+  environment overrides `ATM_IDENTITY`
 
 ### Hook Phase 6: Cross-Provider Follow-On
 

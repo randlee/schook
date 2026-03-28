@@ -263,7 +263,6 @@ Required Claude capture set:
 - `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
-<<<<<<< HEAD
 - logical teammate/background spawn surface
 - `PermissionRequest`
 - `Stop`
@@ -285,11 +284,6 @@ Current captured Claude baseline in this branch:
 Still unresolved after repeated live Haiku runs:
 
 - `Notification`
-=======
-- `PreToolUse(Agent)`
-- `PermissionRequest`
-- `Stop`
->>>>>>> origin/feature/s9-harness-build
 
 The sequence is:
 
