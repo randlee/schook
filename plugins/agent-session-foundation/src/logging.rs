@@ -21,7 +21,7 @@ pub fn emit_session_log(
         .map_err(|err| HookError::internal(format!("invalid log action: {err}")))?;
 
     let root = record
-        .project_root_dir
+        .ai_root_dir
         .as_path()
         .join(sc_hooks_core::OBSERVABILITY_ROOT);
     let mut config = LoggerConfig::default_for(service.clone(), root);
@@ -37,8 +37,12 @@ pub fn emit_session_log(
     fields.insert("session_id".to_string(), Value::String(record.session_id.to_string()));
     fields.insert("active_pid".to_string(), Value::from(record.active_pid.get()));
     fields.insert(
-        "project_root_dir".to_string(),
-        Value::String(record.project_root_dir.to_string()),
+        "ai_root_dir".to_string(),
+        Value::String(record.ai_root_dir.to_string()),
+    );
+    fields.insert(
+        "ai_current_dir".to_string(),
+        Value::String(record.ai_current_dir.to_string()),
     );
     fields.insert(
         "agent_state_after".to_string(),

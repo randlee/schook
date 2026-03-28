@@ -52,13 +52,13 @@ impl ActivePid {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ProjectRootDir(PathBuf);
+pub struct AiRootDir(PathBuf);
 
-impl ProjectRootDir {
+impl AiRootDir {
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
         let path = path.into();
         if path.as_os_str().is_empty() {
-            return Err(HookError::validation("project_root_dir", "must be non-empty"));
+            return Err(HookError::validation("ai_root_dir", "must be non-empty"));
         }
         Ok(Self(path))
     }
@@ -68,7 +68,31 @@ impl ProjectRootDir {
     }
 }
 
-impl fmt::Display for ProjectRootDir {
+impl fmt::Display for AiRootDir {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.display().fmt(f)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AiCurrentDir(PathBuf);
+
+impl AiCurrentDir {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
+        let path = path.into();
+        if path.as_os_str().is_empty() {
+            return Err(HookError::validation("ai_current_dir", "must be non-empty"));
+        }
+        Ok(Self(path))
+    }
+
+    pub fn as_path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl fmt::Display for AiCurrentDir {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.display().fmt(f)
     }
@@ -95,7 +119,9 @@ pub struct CanonicalSessionRecord {
     pub parent_session_id: Option<SessionId>,
     #[serde(default)]
     pub parent_active_pid: Option<ActivePid>,
-    pub project_root_dir: ProjectRootDir,
+    #[serde(alias = "project_root_dir")]
+    pub ai_root_dir: AiRootDir,
+    pub ai_current_dir: AiCurrentDir,
     pub session_start_source: String,
     pub agent_state: AgentState,
     pub state_revision: u64,
@@ -116,7 +142,8 @@ impl CanonicalSessionRecord {
         provider: impl Into<String>,
         session_id: SessionId,
         active_pid: ActivePid,
-        project_root_dir: ProjectRootDir,
+        ai_root_dir: AiRootDir,
+        ai_current_dir: AiCurrentDir,
         session_start_source: impl Into<String>,
         agent_state: AgentState,
         last_hook_event: impl Into<String>,
@@ -130,7 +157,8 @@ impl CanonicalSessionRecord {
             active_pid,
             parent_session_id: None,
             parent_active_pid: None,
-            project_root_dir,
+            ai_root_dir,
+            ai_current_dir,
             session_start_source: session_start_source.into(),
             agent_state,
             state_revision: 1,
@@ -173,7 +201,8 @@ mod tests {
             "claude",
             SessionId::new("session-1").expect("session id"),
             ActivePid::new(42).expect("pid"),
-            ProjectRootDir::new("/repo").expect("root"),
+            AiRootDir::new("/repo").expect("root"),
+            AiCurrentDir::new("/repo/subdir").expect("current"),
             "startup",
             AgentState::AwaitingPermission,
             "PermissionRequest",

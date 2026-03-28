@@ -1,0 +1,918 @@
+{
+  "$defs": {
+    "AgentToolInput": {
+      "additionalProperties": true,
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "run_in_background": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Run In Background"
+        },
+        "subagent_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subagent Type"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "title": "AgentToolInput",
+      "type": "object"
+    },
+    "BashToolInput": {
+      "additionalProperties": true,
+      "properties": {
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "BashToolInput",
+      "type": "object"
+    },
+    "BashToolResponse": {
+      "additionalProperties": true,
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "interrupted": {
+          "default": false,
+          "title": "Interrupted",
+          "type": "boolean"
+        },
+        "isImage": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Isimage"
+        },
+        "noOutputExpected": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nooutputexpected"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output"
+        },
+        "stderr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stderr"
+        },
+        "stdout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stdout"
+        }
+      },
+      "title": "BashToolResponse",
+      "type": "object"
+    },
+    "NotificationPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "Notification",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd"
+      ],
+      "title": "NotificationPayload",
+      "type": "object"
+    },
+    "PermissionRequestPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "PermissionRequest",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "permission_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Mode"
+        },
+        "permission_suggestions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/PermissionSuggestion"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Suggestions"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "tool_input": {
+          "additionalProperties": true,
+          "title": "Tool Input",
+          "type": "object"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd",
+        "tool_name",
+        "tool_input"
+      ],
+      "title": "PermissionRequestPayload",
+      "type": "object"
+    },
+    "PermissionSuggestion": {
+      "additionalProperties": true,
+      "properties": {
+        "behavior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Behavior"
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Destination"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mode"
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/PermissionSuggestionRule"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "PermissionSuggestion",
+      "type": "object"
+    },
+    "PermissionSuggestionRule": {
+      "additionalProperties": true,
+      "properties": {
+        "ruleContent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rulecontent"
+        },
+        "toolName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Toolname"
+        }
+      },
+      "title": "PermissionSuggestionRule",
+      "type": "object"
+    },
+    "PostToolUseBashPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "PostToolUse",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "permission_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Mode"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "tool_input": {
+          "$ref": "#/$defs/BashToolInput"
+        },
+        "tool_name": {
+          "const": "Bash",
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "tool_response": {
+          "$ref": "#/$defs/BashToolResponse"
+        },
+        "tool_use_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Use Id"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd",
+        "tool_name",
+        "tool_input",
+        "tool_response"
+      ],
+      "title": "PostToolUseBashPayload",
+      "type": "object"
+    },
+    "PreCompactPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "custom_instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Custom Instructions"
+        },
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "PreCompact",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd"
+      ],
+      "title": "PreCompactPayload",
+      "type": "object"
+    },
+    "PreToolUseAgentPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "PreToolUse",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "permission_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Mode"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "tool_input": {
+          "$ref": "#/$defs/AgentToolInput"
+        },
+        "tool_name": {
+          "const": "Agent",
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "tool_use_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Use Id"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd",
+        "tool_name",
+        "tool_input"
+      ],
+      "title": "PreToolUseAgentPayload",
+      "type": "object"
+    },
+    "PreToolUseBashPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "PreToolUse",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "permission_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Mode"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "tool_input": {
+          "$ref": "#/$defs/BashToolInput"
+        },
+        "tool_name": {
+          "const": "Bash",
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "tool_use_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Use Id"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd",
+        "tool_name",
+        "tool_input"
+      ],
+      "title": "PreToolUseBashPayload",
+      "type": "object"
+    },
+    "SessionEndPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "SessionEnd",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd"
+      ],
+      "title": "SessionEndPayload",
+      "type": "object"
+    },
+    "SessionStartPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "SessionStart",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd",
+        "source"
+      ],
+      "title": "SessionStartPayload",
+      "type": "object"
+    },
+    "StopPayload": {
+      "additionalProperties": true,
+      "properties": {
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "hook_event_name": {
+          "const": "Stop",
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "last_assistant_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Assistant Message"
+        },
+        "permission_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Mode"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "stop_hook_active": {
+          "default": false,
+          "title": "Stop Hook Active",
+          "type": "boolean"
+        },
+        "transcript_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transcript Path"
+        }
+      },
+      "required": [
+        "session_id",
+        "hook_event_name",
+        "cwd"
+      ],
+      "title": "StopPayload",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "payload": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "Notification": "#/$defs/NotificationPayload",
+              "PermissionRequest": "#/$defs/PermissionRequestPayload",
+              "PostToolUse": "#/$defs/PostToolUseBashPayload",
+              "PreCompact": "#/$defs/PreCompactPayload",
+              "SessionEnd": "#/$defs/SessionEndPayload",
+              "SessionStart": "#/$defs/SessionStartPayload",
+              "Stop": "#/$defs/StopPayload"
+            },
+            "propertyName": "hook_event_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SessionStartPayload"
+            },
+            {
+              "$ref": "#/$defs/SessionEndPayload"
+            },
+            {
+              "$ref": "#/$defs/PreCompactPayload"
+            },
+            {
+              "$ref": "#/$defs/PostToolUseBashPayload"
+            },
+            {
+              "$ref": "#/$defs/PermissionRequestPayload"
+            },
+            {
+              "$ref": "#/$defs/StopPayload"
+            },
+            {
+              "$ref": "#/$defs/NotificationPayload"
+            }
+          ]
+        },
+        {
+          "discriminator": {
+            "mapping": {
+              "Agent": "#/$defs/PreToolUseAgentPayload",
+              "Bash": "#/$defs/PreToolUseBashPayload"
+            },
+            "propertyName": "tool_name"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PreToolUseBashPayload"
+            },
+            {
+              "$ref": "#/$defs/PreToolUseAgentPayload"
+            }
+          ]
+        }
+      ],
+      "title": "Payload"
+    }
+  },
+  "required": [
+    "payload"
+  ],
+  "title": "ClaudeHookPayload",
+  "type": "object"
+}

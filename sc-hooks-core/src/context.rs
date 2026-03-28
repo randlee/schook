@@ -10,7 +10,7 @@ use crate::events::HookType;
 pub struct HookContext {
     pub hook: HookType,
     pub event: Option<String>,
-    pub raw_input: Value,
+    raw_input: Value,
     pub metadata_path: Option<PathBuf>,
 }
 

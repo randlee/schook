@@ -98,7 +98,7 @@ impl SessionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sc_hooks_core::session::{ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir};
+    use sc_hooks_core::session::{ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord};
 
     #[test]
     fn unchanged_records_do_not_rewrite() {
@@ -108,7 +108,8 @@ mod tests {
             "claude",
             SessionId::new("session-1").expect("session"),
             ActivePid::new(11).expect("pid"),
-            ProjectRootDir::new("/repo").expect("root"),
+            AiRootDir::new("/repo").expect("root"),
+            AiCurrentDir::new("/repo/subdir").expect("current"),
             "startup",
             AgentState::Starting,
             "SessionStart",

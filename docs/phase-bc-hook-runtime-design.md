@@ -48,7 +48,7 @@ Important observed facts:
 ## Design Rules
 
 1. Hook state has one source of truth.
-2. `project_root_dir` is never guessed from cwd.
+2. `ai_root_dir` is never guessed from cwd.
 3. State and logging stay single-process; no daemon sits in the critical path.
 4. Hook logging is mandatory for every invocation initially.
 5. Raw hook events and normalized runtime state are separate concepts.
@@ -78,12 +78,13 @@ Important observed facts:
 
 ### Storage Root Resolution
 
-- The runtime base-directory signal is `ATM_HOME`.
-- Path resolution must follow the standard ATM home lookup:
-  1. non-empty `ATM_HOME`
-  2. platform home directory from the canonical ATM home resolver
+- The generic session-foundation base-directory signal is `SC_HOOKS_STATE_DIR`.
+- Path resolution must follow:
+  1. non-empty `SC_HOOKS_STATE_DIR`
+  2. platform home directory from the canonical home-directory resolver
 - The canonical BC session-state directory is:
-  - `<atm_home>/.atm/hooks/state/sessions/`
+  - `<state_root>/` when `SC_HOOKS_STATE_DIR` is provided
+  - `~/.sc-hooks/state/sessions/` otherwise
 - The canonical BC hook-log directory remains owned by `sc-observability`; hook
   state must not invent a second log root.
 - All paths must be constructed with path-join APIs, not string concatenation.
@@ -101,7 +102,8 @@ Important observed facts:
   "active_pid": 12345,
   "parent_session_id": null,
   "parent_active_pid": null,
-  "project_root_dir": "/repo/root",
+  "ai_root_dir": "/repo/root",
+  "ai_current_dir": "/repo/root/subdir",
   "session_start_source": "startup",
   "agent_state": "starting",
   "state_revision": 1,
@@ -124,7 +126,8 @@ Important observed facts:
 
 - `session_id`
 - `active_pid`
-- `project_root_dir`
+- `ai_root_dir`
+- `ai_current_dir`
 - `agent_state`
 - `session_start_source`
 - `state_revision`
@@ -134,7 +137,8 @@ The minimal stable association is:
 
 - `session_id`
 - `active_pid`
-- `project_root_dir`
+- `ai_root_dir`
+- `ai_current_dir`
 
 ## Normalized Agent State
 
@@ -175,7 +179,8 @@ Every hook invocation follows one path:
 2. Resolve canonical context:
    - `session_id`
    - `active_pid`
-   - `project_root_dir`
+   - `ai_root_dir`
+   - `ai_current_dir`
 3. Load the canonical session file if it exists, or create it on
    `SessionStart`
 4. Build normalized context from raw event plus persisted state
@@ -199,7 +204,8 @@ Required per-invocation fields:
 - `hook_event`
 - `session_id`
 - `active_pid`
-- `project_root_dir`
+- `ai_root_dir`
+- `ai_current_dir`
 - `agent_state_before`
 - `agent_state_after`
 - `matched_handlers`
@@ -234,6 +240,7 @@ pub enum HookError {
         source: std::io::Error,
     },
     #[error("validation failed for {field}")]
+    /// Originating semantic error — no upstream source by design.
     Validation {
         field: String,
         message: String,
@@ -324,7 +331,8 @@ The identity triple uses mandatory newtypes:
 
 - `SessionId(String)`
 - `ActivePid(u32)`
-- `ProjectRootDir(PathBuf)`
+- `AiRootDir(PathBuf)`
+- `AiCurrentDir(PathBuf)`
 
 Rules:
 

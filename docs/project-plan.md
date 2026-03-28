@@ -785,9 +785,12 @@ Deliverables:
 - canonical session-state file keyed by:
   - `session_id`
   - `active_pid`
-  - `project_root_dir`
-- `project_root_dir` chaining from `CLAUDE_PROJECT_DIR`
-- `PreToolUse`, `PermissionRequest`, `PreCompact`, and `Stop` handling on the normalized `agent_state` path
+  - `ai_root_dir`
+- `ai_root_dir` chaining from `CLAUDE_PROJECT_DIR`
+- `ai_current_dir` chaining from payload `cwd`
+- `PreCompact` and `Stop` handling on the normalized `agent_state` path
+- `PreToolUse`, `PostToolUse`, and `PermissionRequest` explicitly deferred to
+  `S9-HP4`
 - atomic write semantics for `session.json`
 - no `session.json` rewrite when the canonical record is unchanged
 - mandatory hook logging for every lifecycle invocation
