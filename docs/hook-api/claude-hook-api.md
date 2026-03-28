@@ -76,6 +76,28 @@ What is not verified today:
 - parent/subagent/session lineage fields in Claude hook payloads
 - a live `Notification` payload in this harness environment
 
+What is verified by the committed Sprint 9 Phase 3 schema/tooling:
+
+- `SessionStart` also carries optional `model`
+- `SessionEnd` may carry optional `reason`
+- `PreToolUse(Bash)` and `PreToolUse(Agent)` carry optional
+  `permission_mode` and `tool_use_id`
+- `PreToolUse(Agent).tool_input` carries verified `description`, `name`, and
+  `run_in_background`
+- `PostToolUse(Bash).tool_response` is currently observed with
+  `stdout`, `stderr`, `interrupted`, `isImage`, and `noOutputExpected`
+- `PermissionRequest` may carry optional `permission_mode` and
+  `permission_suggestions`
+- `Stop` may carry optional `permission_mode` and `last_assistant_message`
+
+Deferred in the Phase 3 schema because the model allows them for future drift
+comparison but the current approved fixture set does not prove them yet:
+
+- `PreToolUse(Agent).tool_input.subagent_type`
+- `PreToolUse(Agent).tool_input.team_name`
+- `PostToolUse(Bash).tool_response.output`
+- `PostToolUse(Bash).tool_response.error`
+
 ## Session Correlation Model
 
 Claude hook calls should treat identity and context as separate concerns.
@@ -92,9 +114,12 @@ Rules:
 
 - directory changes do not change identity
 - compaction does not change `session_id`
+- `/clear` ends the prior session and starts a new `session_id`
 - a fresh Claude process creates a new `session_id`
 - later hooks should read persisted session state rather than trying to infer
   identity from current working directory or subprocess lineage
+- `PPID` can be used as a local diagnostic cross-check, but it is not the
+  persisted identity key in the verified Sprint 9 plan
 
 Current verified ATM-backed persistent record fields:
 
