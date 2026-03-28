@@ -97,7 +97,10 @@ fn persists_session_record_by_session_id() {
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
     let _env = EnvGuard::set(&[
-        ("ATM_HOME", temp.path().to_str().expect("atm home utf8")),
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
         (
             "CLAUDE_PROJECT_DIR",
             project_root.to_str().expect("project root utf8"),
@@ -116,13 +119,17 @@ fn persists_session_record_by_session_id() {
 
     let state_file = temp
         .path()
-        .join(".atm/hooks/state/sessions/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
     assert_eq!(parsed["session_id"], "a760f75c-055a-46f9-bcbb-447c47a22f3c");
     assert_eq!(parsed["active_pid"], 777);
-    assert_eq!(parsed["project_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(
+        parsed["ai_current_dir"],
+        "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing"
+    );
     assert_eq!(parsed["agent_state"], "starting");
 }
 
@@ -138,7 +145,10 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 
     {
         let _env = EnvGuard::set(&[
-            ("ATM_HOME", temp.path().to_str().expect("atm home utf8")),
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
             (
                 "CLAUDE_PROJECT_DIR",
                 project_root.to_str().expect("project root utf8"),
@@ -156,7 +166,10 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 
     {
         let _env = EnvGuard::set(&[
-            ("ATM_HOME", temp.path().to_str().expect("atm home utf8")),
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
             ("SC_HOOK_AGENT_PID", "900"),
         ]);
         let _cwd = CurrentDirGuard::set(&other_dir);
@@ -164,6 +177,7 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
         payload["session_id"] = serde_json::Value::String(
             "a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string(),
         );
+        payload["cwd"] = serde_json::Value::String(other_dir.to_str().expect("utf8").to_string());
         handler
             .handle(hook_context_with_payload(HookType::Stop, None, payload))
             .expect("stop should update existing session");
@@ -171,11 +185,12 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 
     let state_file = temp
         .path()
-        .join(".atm/hooks/state/sessions/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
-    assert_eq!(parsed["project_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], other_dir.to_str().expect("utf8"));
     assert_eq!(parsed["agent_state"], "idle");
 }
 
@@ -186,7 +201,10 @@ fn emits_hook_log_for_state_changes_and_noop_writes() {
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
     let _env = EnvGuard::set(&[
-        ("ATM_HOME", temp.path().to_str().expect("atm home utf8")),
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
         (
             "CLAUDE_PROJECT_DIR",
             project_root.to_str().expect("project root utf8"),

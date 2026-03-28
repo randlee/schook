@@ -4,8 +4,7 @@ mod payloads;
 use std::collections::BTreeMap;
 
 use payloads::{
-    PermissionRequestPayload, PreCompactPayload, PreToolUsePayload, SessionEndPayload,
-    SessionStartPayload, StopPayload,
+    PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload,
 };
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
@@ -14,7 +13,8 @@ use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
-    ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir, SessionId, utc_timestamp_now,
+    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
+    utc_timestamp_now,
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
@@ -28,8 +28,6 @@ enum LifecycleEvent {
     SessionStart,
     SessionEnd,
     PreCompact,
-    PreToolUse,
-    PermissionRequest,
     Stop,
 }
 
@@ -46,7 +44,8 @@ struct SessionTransition {
 struct ResolvedRuntime {
     session_id: SessionId,
     active_pid: ActivePid,
-    project_root_dir: ProjectRootDir,
+    ai_root_dir: AiRootDir,
+    ai_current_dir: AiCurrentDir,
     transition: SessionTransition,
 }
 
@@ -60,8 +59,6 @@ impl ManifestProvider for SessionFoundationHandler {
                 "SessionStart".to_string(),
                 "SessionEnd".to_string(),
                 "PreCompact".to_string(),
-                "PreToolUse".to_string(),
-                "PermissionRequest".to_string(),
                 "Stop".to_string(),
             ],
             matchers: vec!["*".to_string()],
@@ -109,8 +106,6 @@ impl TryFrom<HookType> for LifecycleEvent {
             HookType::SessionStart => Ok(Self::SessionStart),
             HookType::SessionEnd => Ok(Self::SessionEnd),
             HookType::PreCompact => Ok(Self::PreCompact),
-            HookType::PreToolUse => Ok(Self::PreToolUse),
-            HookType::PermissionRequest => Ok(Self::PermissionRequest),
             HookType::Stop => Ok(Self::Stop),
             _ => Err(HookError::invalid_context(format!(
                 "unsupported hook for session foundation: {}",
@@ -126,8 +121,6 @@ impl LifecycleEvent {
             Self::SessionStart => "SessionStart",
             Self::SessionEnd => "SessionEnd",
             Self::PreCompact => "PreCompact",
-            Self::PreToolUse => "PreToolUse",
-            Self::PermissionRequest => "PermissionRequest",
             Self::Stop => "Stop",
         }
     }
@@ -140,20 +133,22 @@ fn resolve_runtime(
 ) -> Result<ResolvedRuntime, HookError> {
     let session_id = session_id_from_context(context, lifecycle_event)?;
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
-    let project_root_dir = resolve_project_root_dir(lifecycle_event, existing)?;
+    let ai_root_dir = resolve_ai_root_dir(lifecycle_event, existing)?;
+    let ai_current_dir = resolve_ai_current_dir(context)?;
     let transition = resolve_transition(context, lifecycle_event, &session_id)?;
 
     Ok(ResolvedRuntime {
         session_id,
         active_pid,
-        project_root_dir,
+        ai_root_dir,
+        ai_current_dir,
         transition,
     })
 }
 
 fn build_next_record(
     lifecycle_event: LifecycleEvent,
-    context: &HookContext,
+    _context: &HookContext,
     existing: Option<CanonicalSessionRecord>,
     resolved: &ResolvedRuntime,
     session_start_source: Option<&str>,
@@ -165,7 +160,8 @@ fn build_next_record(
         Some(mut record) => {
             let next_source = session_start_source.unwrap_or(record.session_start_source.as_str());
             let material_changed = record.active_pid != resolved.active_pid
-                || record.project_root_dir != resolved.project_root_dir
+                || record.ai_root_dir != resolved.ai_root_dir
+                || record.ai_current_dir != resolved.ai_current_dir
                 || record.agent_state != resolved.transition.agent_state
                 || record.session_start_source != next_source
                 || record.last_hook_event != event_name
@@ -176,7 +172,8 @@ fn build_next_record(
             }
 
             record.active_pid = resolved.active_pid;
-            record.project_root_dir = resolved.project_root_dir.clone();
+            record.ai_root_dir = resolved.ai_root_dir.clone();
+            record.ai_current_dir = resolved.ai_current_dir.clone();
             record.agent_state = resolved.transition.agent_state;
             record.session_start_source = next_source.to_string();
             record.updated_at = now.clone();
@@ -190,7 +187,8 @@ fn build_next_record(
             "claude",
             resolved.session_id.clone(),
             resolved.active_pid,
-            resolved.project_root_dir.clone(),
+            resolved.ai_root_dir.clone(),
+            resolved.ai_current_dir.clone(),
             session_start_source.unwrap_or("startup"),
             resolved.transition.agent_state,
             event_name.clone(),
@@ -215,8 +213,6 @@ fn build_next_record(
     if lifecycle_event == LifecycleEvent::SessionStart && record.created_at.is_empty() {
         record.created_at = utc_timestamp_now();
     }
-
-    let _ = context;
 
     Ok(record)
 }
@@ -254,26 +250,6 @@ fn resolve_transition(
                 agent_state: AgentState::Compacting,
                 session_start_source: None,
                 state_reason: "compaction_started".to_string(),
-                ended_at: None,
-            })
-        }
-        LifecycleEvent::PreToolUse => {
-            let payload: PreToolUsePayload = context.payload()?;
-            Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
-                agent_state: AgentState::Busy,
-                session_start_source: None,
-                state_reason: "tool_invocation_started".to_string(),
-                ended_at: None,
-            })
-        }
-        LifecycleEvent::PermissionRequest => {
-            let payload: PermissionRequestPayload = context.payload()?;
-            Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
-                agent_state: AgentState::AwaitingPermission,
-                session_start_source: None,
-                state_reason: "permission_requested".to_string(),
                 ended_at: None,
             })
         }
@@ -317,14 +293,6 @@ fn session_id_from_context(
             let payload: PreCompactPayload = context.payload()?;
             SessionId::new(payload.session_id)
         }
-        LifecycleEvent::PreToolUse => {
-            let payload: PreToolUsePayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::PermissionRequest => {
-            let payload: PermissionRequestPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
         LifecycleEvent::Stop => {
             let payload: StopPayload = context.payload()?;
             SessionId::new(payload.session_id)
@@ -332,24 +300,33 @@ fn session_id_from_context(
     }
 }
 
-fn resolve_project_root_dir(
+fn resolve_ai_root_dir(
     lifecycle_event: LifecycleEvent,
     existing: Option<&CanonicalSessionRecord>,
-) -> Result<ProjectRootDir, HookError> {
+) -> Result<AiRootDir, HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart {
         let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|_| {
             HookError::invalid_context("CLAUDE_PROJECT_DIR is required on SessionStart")
         })?;
-        return ProjectRootDir::new(env_root);
+        return AiRootDir::new(env_root);
     }
 
     existing
-        .map(|record| record.project_root_dir.clone())
+        .map(|record| record.ai_root_dir.clone())
         .ok_or_else(|| {
             HookError::invalid_context(
-                "project_root_dir unavailable before SessionStart established canonical state",
+                "ai_root_dir unavailable before SessionStart established canonical state",
             )
         })
+}
+
+fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookError> {
+    let cwd = context
+        .payload_value()?
+        .get("cwd")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
+    AiCurrentDir::new(cwd)
 }
 
 fn resolve_active_pid(
@@ -392,36 +369,6 @@ mod tests {
             .expect("start transition")
             .agent_state,
             AgentState::Starting
-        );
-        assert_eq!(
-            resolve_transition(
-                &HookContext::new(
-                    HookType::PreToolUse,
-                    Some("Bash".to_string()),
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
-                    None,
-                ),
-                LifecycleEvent::PreToolUse,
-                &SessionId::new("s1").expect("session id"),
-            )
-            .expect("tool transition")
-            .agent_state,
-            AgentState::Busy
-        );
-        assert_eq!(
-            resolve_transition(
-                &HookContext::new(
-                    HookType::PermissionRequest,
-                    None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
-                    None,
-                ),
-                LifecycleEvent::PermissionRequest,
-                &SessionId::new("s1").expect("session id"),
-            )
-            .expect("permission transition")
-            .agent_state,
-            AgentState::AwaitingPermission
         );
         assert_eq!(
             resolve_transition(

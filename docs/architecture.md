@@ -301,9 +301,10 @@ Planning rules for these targets:
   `docs/phase-bc-hook-runtime-design.md` is authoritative for crate roles,
   state ownership, and trait boundaries
 - `sc-hooks-session-foundation` is responsible for the canonical session-state
-  record keyed by `session_id`, `active_pid`, and `project_root_dir`
-- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR` and must not fall
+  record keyed by `session_id`, `active_pid`, and `ai_root_dir`
+- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR` and must not fall
   back to cwd heuristics
+- `ai_current_dir` is captured from each lifecycle payload `cwd`
 - canonical `session.json` updates use atomic write semantics and skip unchanged
   rewrites while still emitting hook logs
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,

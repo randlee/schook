@@ -1,3 +1,7 @@
+//! PreToolUse(Agent) policy gate for named-agent vs background-agent launches.
+//! Reads canonical session state, enforces `.atm.toml` project policy, and
+//! records subagent linkage metadata for later relay/runtime steps.
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -99,7 +103,7 @@ impl SyncHandler for AgentSpawnGatesHandler {
             SpawnKind::NamedAgent
         };
 
-        let policy = load_agent_spawn_policy(record.project_root_dir.as_path())?;
+        let policy = load_agent_spawn_policy(record.ai_root_dir.as_path())?;
         if policy.background_only && spawn_kind == SpawnKind::NamedAgent {
             return Ok(block(
                 "Agent spawn blocked: this project requires background agents. Retry with `tool_input.run_in_background=true`.",
@@ -115,7 +119,13 @@ impl SyncHandler for AgentSpawnGatesHandler {
             record.state_revision += 1;
             record.updated_at = utc_timestamp_now();
         }
-        let _ = store.persist(&record)?;
+        let persist = store.persist(&record)?;
+        debug_assert!(matches!(
+            persist,
+            sc_hooks_core::storage::PersistOutcome::Created
+                | sc_hooks_core::storage::PersistOutcome::Updated
+                | sc_hooks_core::storage::PersistOutcome::Unchanged
+        ));
 
         Ok(proceed())
     }
@@ -162,7 +172,7 @@ fn excerpt(text: &str) -> String {
 mod tests {
     use super::*;
     use sc_hooks_core::session::{
-        ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir, SessionId,
+        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
     };
     use std::sync::{Mutex, OnceLock};
 
@@ -204,7 +214,8 @@ mod tests {
             "claude",
             session_id.clone(),
             ActivePid::new(4242).expect("pid"),
-            ProjectRootDir::new(project_root).expect("root"),
+            AiRootDir::new(project_root).expect("root"),
+            AiCurrentDir::new(project_root.join("agents")).expect("current"),
             "startup",
             AgentState::Busy,
             "PreToolUse",
@@ -246,16 +257,15 @@ mod tests {
     #[test]
     fn named_agent_is_blocked_when_project_requires_background_agents() {
         let _guard = test_lock().lock().expect("lock");
-        let atm_home = tempfile::tempdir().expect("atm home");
+        let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
         fs::write(
             project_root.path().join(".atm.toml"),
             "[agent_spawn]\nbackground_only = true\n",
         )
         .expect("write .atm.toml");
-        let _env = EnvGuard::set("ATM_HOME", atm_home.path());
-        let state_root = resolve_state_root().expect("state root");
-        let _session_id = write_record(&state_root, project_root.path());
+        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
+        let _session_id = write_record(state_root.path(), project_root.path());
 
         let handler = AgentSpawnGatesHandler;
         let result = handler
@@ -274,11 +284,10 @@ mod tests {
     #[test]
     fn background_agent_writes_linkage_into_canonical_state() {
         let _guard = test_lock().lock().expect("lock");
-        let atm_home = tempfile::tempdir().expect("atm home");
+        let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
-        let _env = EnvGuard::set("ATM_HOME", atm_home.path());
-        let state_root = resolve_state_root().expect("state root");
-        let session_id = write_record(&state_root, project_root.path());
+        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
+        let session_id = write_record(state_root.path(), project_root.path());
 
         let handler = AgentSpawnGatesHandler;
         let result = handler
@@ -286,7 +295,7 @@ mod tests {
             .expect("handler result");
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
 
-        let store = SessionStore::new(state_root);
+        let store = SessionStore::new(state_root.path().to_path_buf());
         let updated = store
             .load(&session_id)
             .expect("load")
@@ -301,11 +310,10 @@ mod tests {
     #[test]
     fn missing_atm_file_falls_back_to_generic_policy() {
         let _guard = test_lock().lock().expect("lock");
-        let atm_home = tempfile::tempdir().expect("atm home");
+        let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
-        let _env = EnvGuard::set("ATM_HOME", atm_home.path());
-        let state_root = resolve_state_root().expect("state root");
-        let _session_id = write_record(&state_root, project_root.path());
+        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
+        let _session_id = write_record(state_root.path(), project_root.path());
 
         let handler = AgentSpawnGatesHandler;
         let result = handler

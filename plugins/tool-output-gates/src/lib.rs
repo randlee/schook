@@ -1,3 +1,7 @@
+//! PostToolUse(Bash) output gate for fenced JSON extraction and schema checks.
+//! Blocks malformed or non-conforming structured output with exact retryable
+//! reasons so callers can rerun the tool successfully.
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -371,5 +375,43 @@ mod tests {
             .expect("handler result");
 
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+    }
+
+    #[test]
+    fn missing_schema_path_is_a_noop() {
+        let _guard = test_lock().lock().expect("lock");
+        // SAFETY: tests serialize env mutation with a process-wide mutex.
+        unsafe { std::env::remove_var("SC_HOOK_JSON_SCHEMA_PATH") };
+
+        let handler = ToolOutputGatesHandler;
+        let result = handler
+            .handle(bash_context("```json\n{\"status\":\"ok\"}\n```", "Bash"))
+            .expect("handler result");
+
+        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+    }
+
+    #[test]
+    fn enum_validation_failures_are_retryable() {
+        let schema = serde_json::json!({
+            "type": "string",
+            "enum": ["ok", "warn"]
+        });
+
+        let err = validate_against_schema(&schema, &serde_json::json!("bad"), "$")
+            .expect_err("enum mismatch should fail");
+        assert_eq!(err, "$ must be one of the schema enum values");
+    }
+
+    #[test]
+    fn array_item_validation_is_enforced() {
+        let schema = serde_json::json!({
+            "type": "array",
+            "items": { "type": "integer" }
+        });
+
+        let err = validate_against_schema(&schema, &serde_json::json!([1, "oops"]), "$")
+            .expect_err("mixed array should fail");
+        assert_eq!(err, "$[1] must be integer");
     }
 }

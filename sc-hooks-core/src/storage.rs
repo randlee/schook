@@ -99,17 +99,22 @@ impl SessionStore {
 }
 
 pub fn resolve_state_root() -> Result<PathBuf, HookError> {
-    let atm_home = std::env::var_os("ATM_HOME")
+    let root = std::env::var_os("SC_HOOKS_STATE_DIR")
         .map(PathBuf::from)
         .or_else(dirs::home_dir)
-        .ok_or_else(|| HookError::invalid_context("unable to resolve ATM_HOME or home directory"))?;
-    Ok(atm_home.join(".atm").join("hooks").join("state").join("sessions"))
+        .ok_or_else(|| HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory"))?;
+
+    if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
+        Ok(root)
+    } else {
+        Ok(root.join(".sc-hooks").join("state").join("sessions"))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::{ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir};
+    use crate::session::{ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord};
 
     #[test]
     fn unchanged_records_do_not_rewrite() {
@@ -119,7 +124,8 @@ mod tests {
             "claude",
             SessionId::new("session-1").expect("session"),
             ActivePid::new(11).expect("pid"),
-            ProjectRootDir::new("/repo").expect("root"),
+            AiRootDir::new("/repo").expect("root"),
+            AiCurrentDir::new("/repo/subdir").expect("current"),
             "startup",
             AgentState::Starting,
             "SessionStart",
