@@ -1,0 +1,200 @@
+{
+  "$defs": {
+    "DriftEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "error_code": {
+          "$ref": "#/$defs/DriftErrorCode"
+        },
+        "field_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Name"
+        },
+        "hook_event_name": {
+          "title": "Hook Event Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "new_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Value"
+        },
+        "old_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Value"
+        },
+        "recovery": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recovery"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        }
+      },
+      "required": [
+        "hook_event_name",
+        "error_code",
+        "message"
+      ],
+      "title": "DriftEntry",
+      "type": "object"
+    },
+    "DriftErrorCode": {
+      "enum": [
+        "REQUIRED_FIELD_REMOVED",
+        "FIELD_TYPE_CHANGED",
+        "FIELD_ADDED",
+        "OPTIONAL_FIELD_REMOVED",
+        "CAPTURE_FAILED",
+        "PROVIDER_NOT_AVAILABLE",
+        "PROVIDER_NOT_SUPPORTED"
+      ],
+      "title": "DriftErrorCode",
+      "type": "string"
+    },
+    "ProviderStatus": {
+      "enum": [
+        "PASS",
+        "DRIFT",
+        "ERROR",
+        "NOT_SUPPORTED",
+        "STALE"
+      ],
+      "title": "ProviderStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "drift_history_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Drift History Path"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/DriftEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "report_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Report Path"
+    },
+    "run_timestamp": {
+      "title": "Run Timestamp",
+      "type": "string"
+    },
+    "schema_paths": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "title": "Schema Paths",
+      "type": "object"
+    },
+    "section_paths": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Section Paths",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/ProviderStatus"
+    },
+    "validated_fixtures": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Validated Fixtures",
+      "type": "array"
+    }
+  },
+  "required": [
+    "provider",
+    "run_timestamp",
+    "status",
+    "entries"
+  ],
+  "title": "DriftReport",
+  "type": "object"
+}

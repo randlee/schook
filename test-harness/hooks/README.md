@@ -122,6 +122,36 @@ Meaning of each subdirectory:
 - `scripts/`: harness runner scripts and report generation helpers
 - `tests/`: `pytest` tests for the provider
 
+## Layout Split
+
+The harness intentionally uses two parallel roots:
+
+- `test-harness/`
+  - canonical docs, runner scripts, fixture snapshots, generated artifacts, and
+    the `pytest` collection root used by the plan
+- `test_harness/`
+  - the importable Python package that contains the real implementation modules
+
+Why both exist:
+
+- hyphenated paths match the planned harness layout and are easier to read in
+  docs and shell commands
+- underscored paths are required for normal Python imports
+
+Wrapper rule:
+
+- files under `test-harness/` that mirror Python modules are thin re-export
+  wrappers over `test_harness/`
+- those wrappers exist so CLI entry points, test paths, and documentation can
+  keep the planned harness layout without forcing Python to import from an
+  invalid package name
+
+Contributor rule:
+
+- put importable Python logic in `test_harness/`
+- keep `test-harness/` wrappers thin and documented
+- do not fork implementation between the two trees
+
 ## Execution Model
 
 The harness has two test layers.
