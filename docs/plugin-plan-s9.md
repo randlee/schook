@@ -991,6 +991,8 @@ Required tests:
 - integration tests proving `SessionStart` in directory A and later lifecycle
   hooks in directory B still resolve the same session record through
   `ai_root_dir`
+- integration tests proving `Stop` updates the existing canonical session
+  record and transitions normalized state tracking to `idle`
 - tests for atomic write behavior and unchanged-state no-rewrite behavior
 - tests for mandatory hook-log emission on state-changing and no-op invocations
 - `cargo test --workspace`

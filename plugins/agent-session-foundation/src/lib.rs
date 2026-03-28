@@ -377,7 +377,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionStart,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp","source":"startup"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/session-start","source":"startup"}}),
                     None,
                 ),
                 LifecycleEvent::SessionStart,
@@ -392,7 +392,7 @@ mod tests {
                 &HookContext::new(
                     HookType::PreCompact,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/pre-compact"}}),
                     None,
                 ),
                 LifecycleEvent::PreCompact,
@@ -407,7 +407,7 @@ mod tests {
                 &HookContext::new(
                     HookType::Stop,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp","stop_hook_active":false}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/stop","stop_hook_active":false}}),
                     None,
                 ),
                 LifecycleEvent::Stop,
@@ -422,7 +422,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionEnd,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/tmp"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/synthetic/test/session-end"}}),
                     None,
                 ),
                 LifecycleEvent::SessionEnd,
