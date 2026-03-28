@@ -1,9 +1,7 @@
 mod logging;
 mod payloads;
-mod state;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use payloads::{
     PermissionRequestPayload, PreCompactPayload, PreToolUsePayload, SessionEndPayload,
@@ -18,9 +16,9 @@ use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir, SessionId, utc_timestamp_now,
 };
+use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
-use state::SessionStore;
 
 #[derive(Debug, Default)]
 pub struct SessionFoundationHandler;
@@ -372,14 +370,6 @@ fn resolve_active_pid(
     existing
         .map(|record| record.active_pid)
         .ok_or_else(|| HookError::invalid_context("active_pid unavailable before SessionStart"))
-}
-
-fn resolve_state_root() -> Result<PathBuf, HookError> {
-    let atm_home = std::env::var_os("ATM_HOME")
-        .map(PathBuf::from)
-        .or_else(dirs::home_dir)
-        .ok_or_else(|| HookError::invalid_context("unable to resolve ATM_HOME or home directory"))?;
-    Ok(atm_home.join(".atm").join("hooks").join("state").join("sessions"))
 }
 
 #[cfg(test)]

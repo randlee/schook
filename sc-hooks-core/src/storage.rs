@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 
-use sc_hooks_core::context::HookContext;
-use sc_hooks_core::errors::HookError;
-use sc_hooks_core::session::{CanonicalSessionRecord, SessionId};
 use tempfile::NamedTempFile;
+
+use crate::context::HookContext;
+use crate::errors::HookError;
+use crate::session::{CanonicalSessionRecord, SessionId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistOutcome {
@@ -43,7 +44,8 @@ impl SessionStore {
         if !path.exists() {
             return Ok(None);
         }
-        let body = fs::read_to_string(&path).map_err(|source| HookError::state_io(path.clone(), source))?;
+        let body =
+            fs::read_to_string(&path).map_err(|source| HookError::state_io(path.clone(), source))?;
         let record = serde_json::from_str::<CanonicalSessionRecord>(&body).map_err(|source| {
             HookError::InvalidPayload {
                 input_excerpt: body.chars().take(120).collect(),
@@ -56,7 +58,8 @@ impl SessionStore {
     pub fn persist(&self, record: &CanonicalSessionRecord) -> Result<PersistOutcome, HookError> {
         let path = self.path_for(&record.session_id);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
+            fs::create_dir_all(parent)
+                .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
         }
 
         let rendered = serde_json::to_string_pretty(record)
@@ -95,10 +98,18 @@ impl SessionStore {
     }
 }
 
+pub fn resolve_state_root() -> Result<PathBuf, HookError> {
+    let atm_home = std::env::var_os("ATM_HOME")
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)
+        .ok_or_else(|| HookError::invalid_context("unable to resolve ATM_HOME or home directory"))?;
+    Ok(atm_home.join(".atm").join("hooks").join("state").join("sessions"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sc_hooks_core::session::{ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir};
+    use crate::session::{ActivePid, AgentState, CanonicalSessionRecord, ProjectRootDir};
 
     #[test]
     fn unchanged_records_do_not_rewrite() {

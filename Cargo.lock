@@ -6,7 +6,6 @@ version = 4
 name = "agent-session-foundation"
 version = "0.1.0"
 dependencies = [
- "dirs",
  "sc-hooks-core",
  "sc-hooks-sdk",
  "sc-observability",
@@ -14,6 +13,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "agent-spawn-gates"
+version = "0.1.0"
+dependencies = [
+ "sc-hooks-core",
+ "sc-hooks-sdk",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]
@@ -475,8 +486,10 @@ dependencies = [
 name = "sc-hooks-core"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "time",
 ]
@@ -701,6 +714,17 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "tool-output-gates"
+version = "0.1.0"
+dependencies = [
+ "sc-hooks-core",
+ "sc-hooks-sdk",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
 
 [[package]]
 name = "unicode-ident"

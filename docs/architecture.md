@@ -42,14 +42,16 @@ The host does not:
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
 | `plugins/agent-session-foundation` | Session lifecycle persistence keyed by `session_id`, normalized `agent_state` transitions, atomic state writes, and per-invocation lifecycle logging |
+| `plugins/agent-spawn-gates` | `PreToolUse(Agent)` policy checks, named-agent versus background-agent enforcement, `.atm.toml` project policy lookup, and subagent linkage writes into canonical session state |
+| `plugins/tool-output-gates` | `PostToolUse(Bash)` fenced-JSON extraction, schema validation, and exact retryable block responses for invalid structured output |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
-- current source plugin inventory in `plugins/` is: `agent-session-foundation`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
 - the legacy crates (`audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`) remain scaffold/reference only
-- `agent-session-foundation` is the first source plugin crate on the runtime-implementation path in this branch; it has direct behavior tests, but it is still delivered as source code rather than a preinstalled runtime plugin
+- `agent-session-foundation`, `agent-spawn-gates`, and `tool-output-gates` are the current source plugin crates on the runtime-implementation path in this branch; they have direct behavior tests, but are still delivered as source code rather than preinstalled runtime plugins
 
 ## 3.1 Public Contract Vs Internal Typed Model
 
@@ -277,13 +279,18 @@ Documented but deferred from the first harness pass:
 
 ### 9.3 Planned Hook Crate Targets
 
-These are planned hook-extension targets only. They are not current source
-inventory and are not current runtime crates:
+The current runtime-implementation path in this branch includes:
 
-- `sc-hooks-session-foundation`
-- `sc-hooks-agent-spawn-gates`
-- `sc-hooks-tool-output-gates`
+- `sc-hooks-session-foundation` via `plugins/agent-session-foundation`
+- `sc-hooks-agent-spawn-gates` via `plugins/agent-spawn-gates`
+- `sc-hooks-tool-output-gates` via `plugins/tool-output-gates`
+
+Remaining planned hook-extension target:
+
 - `sc-hooks-atm-extension`
+
+Only `sc-hooks-atm-extension` remains a planned-only target here; the other
+three now exist as current source crates in this branch.
 
 Planning rules for these targets:
 
