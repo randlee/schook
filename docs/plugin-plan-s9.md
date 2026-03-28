@@ -270,8 +270,14 @@ Gate to start:
 Deliverables:
 
 - provider-specific Pydantic models for the captured Claude payloads
+- `pyproject.toml` with `pydantic>=2.0` and `pytest` declared
+- complete Pydantic discriminated-union model for Claude hook payloads
 - generated schema artifacts derived from those models
+- `test-harness/hooks/run-schema-drift.py` as the single schema-drift entry point
+- per-provider adapters under `test-harness/hooks/<provider>/`
 - fixture validation tests for the captured payloads
+- single self-contained HTML report per run
+- `.claude/skills/hook-schema-drift/` slash command definition
 - drift classification logic:
   - required field removed => fail
   - required field type changed => fail
@@ -284,6 +290,141 @@ Rules:
 - required known fields are strict
 - unknown extra fields may be allowed early, but they must be surfaced in reports
 - no cross-provider shared schema is assumed
+
+#### Pydantic Model Design
+
+Phase 3 must include a complete Claude payload model design in Python so the
+drift tooling and fixture validation path share the same contract:
+
+```python
+from __future__ import annotations
+
+from typing import Annotated, Any, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class BashToolInput(BaseModel):
+    command: str
+
+
+class AgentToolInput(BaseModel):
+    prompt: str
+    subagent_type: Optional[str] = None
+    name: Optional[str] = None
+    team_name: Optional[str] = None
+
+
+class BashToolResponse(BaseModel):
+    output: Optional[str] = None
+    error: Optional[str] = None
+    interrupted: bool = False
+
+
+class HookPayloadBase(BaseModel):
+    session_id: str
+    hook_event_name: str
+    cwd: str
+    transcript_path: Optional[str] = None
+
+
+class SessionStartPayload(HookPayloadBase):
+    hook_event_name: Literal["SessionStart"]
+    source: str
+
+
+class SessionEndPayload(HookPayloadBase):
+    hook_event_name: Literal["SessionEnd"]
+
+
+class PreCompactPayload(HookPayloadBase):
+    hook_event_name: Literal["PreCompact"]
+    trigger: Optional[str] = None
+    custom_instructions: Optional[str] = None
+
+
+class PreToolUseBashPayload(HookPayloadBase):
+    hook_event_name: Literal["PreToolUse"]
+    tool_name: Literal["Bash"]
+    tool_input: BashToolInput
+
+
+class PreToolUseAgentPayload(HookPayloadBase):
+    hook_event_name: Literal["PreToolUse"]
+    tool_name: Literal["Agent"]
+    tool_input: AgentToolInput
+
+
+class PostToolUseBashPayload(HookPayloadBase):
+    hook_event_name: Literal["PostToolUse"]
+    tool_name: Literal["Bash"]
+    tool_input: BashToolInput
+    tool_response: BashToolResponse
+
+
+class PermissionRequestPayload(HookPayloadBase):
+    hook_event_name: Literal["PermissionRequest"]
+    tool_name: str
+    tool_input: dict[str, Any]
+
+
+class StopPayload(HookPayloadBase):
+    hook_event_name: Literal["Stop"]
+    stop_hook_active: bool = False
+
+
+class NotificationPayload(HookPayloadBase):
+    hook_event_name: Literal["Notification"]
+    # Deferred: no verified payload shape yet.
+
+
+PrimaryClaudeHookPayload = Annotated[
+    Union[
+        SessionStartPayload,
+        SessionEndPayload,
+        PreCompactPayload,
+        PostToolUseBashPayload,
+        PermissionRequestPayload,
+        StopPayload,
+        NotificationPayload,
+    ],
+    Field(discriminator="hook_event_name"),
+]
+
+PreToolUsePayload = Annotated[
+    Union[PreToolUseBashPayload, PreToolUseAgentPayload],
+    Field(discriminator="tool_name"),
+]
+
+
+class ClaudeHookEnvelope(BaseModel):
+    payload: Union[PrimaryClaudeHookPayload, PreToolUsePayload]
+
+    @model_validator(mode="before")
+    @classmethod
+    def dispatch_pre_tool_use(cls, value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            raise TypeError("Claude hook payload must be a mapping")
+
+        if value.get("hook_event_name") == "PreToolUse":
+            tool_name = value.get("tool_name")
+            if tool_name not in {"Bash", "Agent"}:
+                raise ValueError(f"Unsupported PreToolUse tool_name: {tool_name!r}")
+
+        return {"payload": value}
+
+
+ClaudeHookPayload = ClaudeHookEnvelope
+```
+
+Model notes:
+
+- `SessionStartPayload.source` remains `str`, not a `Literal`, because
+  `compact` and `clear` should not be frozen into code as enum-only assumptions
+  until the multi-provider drift tooling is in place.
+- `PreToolUse` and `PostToolUse` require a second discriminator on `tool_name`.
+- `NotificationPayload` remains deferred because live Haiku capture has not
+  produced a verified payload shape.
 
 Done when:
 
@@ -426,6 +567,232 @@ The current task is not:
 - building hook runtime crates
 - widening scope to Codex, Gemini, or Cursor implementation
 - treating the prototype crates as the accepted implementation baseline
+
+## Schema Drift Detection Tooling
+
+### Purpose
+
+Phase 3 must add a single manual CLI entry point for detecting provider hook
+payload drift after provider upgrades.
+
+This tooling is not part of CI. It is a manual investigation tool that uses a
+single provider argument and a shared reporting flow.
+
+### Entry Point
+
+The required entry point is:
+
+```text
+test-harness/hooks/run-schema-drift.py <provider>
+```
+
+Supported providers:
+
+- `claude`
+- `codex`
+- `gemini`
+- `cursor`
+- `opencode`
+
+### Slash Command
+
+Phase 3 must also define a slash-command skill at:
+
+```text
+.claude/skills/hook-schema-drift/
+```
+
+Required command:
+
+```text
+/hook-schema-drift <provider>
+```
+
+Required flow:
+
+1. invoke `run-schema-drift.py <provider>`
+2. on completion, spawn `html-report-expert` as a background agent with
+   `run_in_background=true`
+3. the background agent reads the drift JSON and generates the annotated HTML report
+4. the calling agent receives the report path and displays it to the user
+
+The `html-report-expert` spawn must stay in the background so the calling agent
+does not accumulate HTML-generation context.
+
+### Provider States
+
+#### Supported + CLI available
+
+The tooling must:
+
+- run the automatable capture sequence for that provider
+- parse fresh captures through the provider Pydantic models
+- compare fresh captures against approved fixtures as the old schema baseline
+- emit drift JSON covering:
+  - added fields
+  - removed required fields
+  - type changes
+- include a note for non-automatable hooks using their last-known fixture
+
+#### Supported + CLI not available
+
+The tooling must:
+
+- skip live capture
+- emit the error `Agent CLI not available on this machine`
+- list all hook types from the last approved fixture set
+- label those hook entries as `STALE` with the fixture date
+
+#### Not supported
+
+The tooling must:
+
+- emit the error `Provider not yet supported`
+- include a subsection listing the work required to add support:
+  - provider CLI dependency
+  - capture script
+  - Pydantic models
+  - approved fixtures
+  - adapter registration in `run-schema-drift.py`
+
+### HTML Report Structure
+
+Each run must produce one self-contained HTML report:
+
+- no external CSS
+- no iframes
+- full `DOCTYPE`
+- charset declaration required
+
+Required output path:
+
+```text
+test-harness/hooks/<provider>/reports/<ISO-timestamp>/schema-drift-report.html
+```
+
+Required report sections:
+
+1. Header
+   - provider
+   - run timestamp
+   - overall status: `PASS`, `DRIFT`, `ERROR`, or `NOT_SUPPORTED`
+2. Summary table
+   - hook type
+   - old status
+   - new status
+   - verdict
+3. One per-hook `<section>`
+   - OLD SCHEMA field table: name, type, required, evidence source
+   - NEW SCHEMA field table if fresh capture exists
+   - `No fresh capture — last known: <date>` when no fresh capture exists
+   - DRIFT callout if schemas differ
+   - ANALYSIS block below the diff, supplied by `html-report-expert`
+4. Non-automatable hooks subsection
+   - `SessionStart(source=compact)` with last-known fixture and manual procedure
+   - `SessionStart(source=clear)` with last-known fixture and manual procedure
+5. Drift action section
+   - summary of all detected changes
+   - recommended action:
+     `Create a schook issue — do not divert current project to fix schema`
+   - no auto-fix
+   - no auto-model rewrite
+
+### Visual Conventions
+
+The generated HTML must follow the `xhtml-plugin-expert` visual conventions:
+
+- all CSS inline
+- `DOCTYPE` and charset required
+- green (`#065f46` header / `#6ee7b7` border) for PASS / no change
+- amber (`#92400e` / `#f59e0b`) for DRIFT / action needed
+- red (`#991b1b` / `#ef4444`) for removed required fields / error / unsupported
+- blue (`#1e40af` / `#3b82f6`) for informational analysis
+- callout boxes:
+  - verdict = green
+  - action = amber
+  - warning = red
+  - impact = blue
+
+### Global `html-report-expert` Agent
+
+The plan assumes a reusable global agent at:
+
+```text
+$HOME/.claude/agents/html-report-expert.md
+```
+
+Path note:
+
+- the exact user-global path remains pending user confirmation
+- this plan assumes the standard `$HOME/.claude/` location until confirmed
+
+Responsibilities:
+
+- input: structured drift JSON
+- output: annotated self-contained HTML
+- owns visual system and report formatting
+- does not own schook-specific schema rules
+
+The schook skill at `.claude/skills/hook-schema-drift/` is the domain-aware
+caller. It runs the Python entry point, then hands the drift JSON to the
+background HTML agent.
+
+### Automatable Hook Coverage
+
+The harness can automate:
+
+- `SessionStart(startup)`
+- `SessionEnd`
+- `PreCompact`
+- `PreToolUse(Bash)`
+- `PostToolUse(Bash)`
+- `PreToolUse(Agent)`
+- `PermissionRequest(Write)`
+- `PermissionRequest(Bash)`
+- `Stop`
+
+The harness cannot fully automate:
+
+- `SessionStart(source=compact)` because it requires user `/compact`
+- `SessionStart(source=clear)` because it requires user `/clear`
+
+Schema impact of those manual-only hooks:
+
+- the difference is in the `source` value
+- they do not introduce additional structural fields
+
+The report must therefore show:
+
+- the last-known approved fixture
+- a short manual capture procedure note
+
+### Schema Version Strategy
+
+Versioning rules:
+
+- old schema = committed Pydantic models plus approved fixtures in the repo
+- new schema = current-run captures
+- Git history is the version archive
+- no `schema-vN.json` files
+
+On drift:
+
+- report the change to the user
+- recommend creating a schook issue
+- do not auto-fix
+- do not auto-update models
+
+### Required Deliverables For Phase 3
+
+Phase 3 is not complete until all of the following exist:
+
+- `pyproject.toml` with `pydantic>=2.0` and `pytest`
+- the discriminated-union Claude payload model
+- `test-harness/hooks/run-schema-drift.py`
+- per-provider adapters under `test-harness/hooks/<provider>/`
+- drift JSON output per run
+- a self-contained HTML report per run
+- `.claude/skills/hook-schema-drift/`
 
 ## Provider Scope
 
