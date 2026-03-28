@@ -489,11 +489,25 @@ class PostToolUseBashPayload(HookPayloadBase):
     tool_use_id: Optional[str] = None
 
 
+class PermissionSuggestionRule(BaseModel):
+    ruleContent: Optional[str] = None
+    toolName: Optional[str] = None
+
+
+class PermissionSuggestion(BaseModel):
+    type: str
+    behavior: Optional[str] = None
+    destination: Optional[str] = None
+    mode: Optional[str] = None
+    rules: Optional[list[PermissionSuggestionRule]] = None
+
+
 class PermissionRequestPayload(HookPayloadBase):
     hook_event_name: Literal["PermissionRequest"]
     tool_name: str
     tool_input: dict[str, Any]
     permission_mode: Optional[str] = None
+    permission_suggestions: Optional[list[PermissionSuggestion]] = None
 
 
 class StopPayload(HookPayloadBase):
@@ -707,7 +721,7 @@ Deferred, not fixture-verified for implementation:
 
 #### NotificationPayload fields
 
-`NotificationPayload` remains deferred. No verified payload fixture exists in
+`NotificationPayload` remains DEFERRED. No verified payload fixture exists in
 `test-harness/hooks/claude/fixtures/approved/`, and the local Haiku harness
 still records this surface as wired-but-unresolved rather than captured.
 

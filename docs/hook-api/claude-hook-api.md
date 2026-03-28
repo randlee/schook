@@ -48,8 +48,8 @@ The live harness now verifies actual Claude Haiku payloads for these surfaces:
 - `PermissionRequest`
 - `Stop`
 
-`Notification(idle_prompt)` remains wired in the harness but unresolved in
-local capture.
+`Notification(idle_prompt)` remains DEFERRED: wired in the harness, but no
+verified payload was captured locally.
 
 For `SessionStart`, the following is verified from live hook behavior:
 
@@ -157,8 +157,7 @@ Adjacent but not part of the current eight-hook baseline:
   `interrupted`, `isImage`, and `noOutputExpected`; legacy `output` / `error`
   fields stay deferred
 - `Notification(idle_prompt)` stays part of the documented Claude surface, but
-  should be labeled wired-but-unresolved in the harness until a local capture
-  actually lands
+  remains DEFERRED until a local payload capture actually lands
 - lifecycle and relay hooks are fail-open today; if `schook` changes that
   posture, the change must be explicit in requirements and protocol docs
 - no `schook` code should be written against inferred Claude payload fields that
