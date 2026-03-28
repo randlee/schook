@@ -10,7 +10,7 @@ combination of local CLI behavior and public Cursor hook documentation.
 ## Current Source Of Truth
 
 - local CLI help from `cursor-agent --help`
-- local Cursor CLI state under `/Users/randlee/.cursor/`
+- local Cursor CLI state under `$HOME/.cursor/`
 - public Cursor docs page `https://cursor.com/docs/hooks`
 
 This document only promotes facts that are directly visible from those sources.
@@ -27,10 +27,10 @@ This document only promotes facts that are directly visible from those sources.
 
 ## Path And Environment Rules
 
-- local Cursor CLI state currently lives under `/Users/randlee/.cursor/`
-- `/Users/randlee/.cursor/cli-config.json` is a verified local configuration
+- local Cursor CLI state currently lives under `$HOME/.cursor/`
+- `$HOME/.cursor/cli-config.json` is a verified local configuration
   input
-- `/Users/randlee/.cursor/hooks.json` is not currently present on this machine
+- `$HOME/.cursor/hooks.json` is not currently present on this machine
 - current working directory must not be treated as a stable hook identity or
   provider-contract signal
 - provider-specific path and environment assumptions must be captured by the
@@ -52,8 +52,8 @@ Current locally verified CLI behavior:
 
 Current locally verified config state:
 
-- `/Users/randlee/.cursor/cli-config.json` exists
-- `/Users/randlee/.cursor/hooks.json` does not currently exist on this machine
+- `$HOME/.cursor/cli-config.json` exists
+- `$HOME/.cursor/hooks.json` does not currently exist on this machine
 
 That means `schook` can treat Cursor Agent as an installed provider with a
 current CLI/runtime surface, but not as a provider whose local hook config and

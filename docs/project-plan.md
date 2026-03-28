@@ -42,23 +42,27 @@ Important planning rule:
 
 ## 4. Sprint Sequence
 
-| Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
-| --- | --- | --- | --- | --- | --- |
-| Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
-| Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
-| Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
-| Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
-| Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
-| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
-| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
-| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
-| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| Sprint | Identifier | Status | Focus | Primary drivers | Gate / Depends on | Primary write scope |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sprint 0 | — | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
+| Sprint 1 | — | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 2 | — | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 3 | — | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
+| Sprint 4 | — | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 5 | — | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 6 | — | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | — | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| Sprint 9 | S9-P0 | Completed | Phase 0: Review Baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Sprint 9 | S9-P1 | Completed | Phase 1: Build Harness | `HKR-002`, `HKR-005` | S9-P0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Sprint 9 | S9-P2 | Completed | Phase 2: Capture Claude Payloads | `HKR-002`, `HKR-003` | S9-P1 | `test-harness/hooks/claude/captures/raw/`, approved fixtures, capture reports |
+| Sprint 9 | S9-P3 | Not started | Phase 3: Pydantic Models + Schema | `HKR-003` | S9-P2 complete (unblocked) | Pydantic models, generated schema artifacts, drift validation tests |
+| Sprint 9 | S9-P4 | Not started | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
+| Sprint 9 | S9-P5 | Not started | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
+| Sprint 9 | S9-HP3 | Planned | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
+| Sprint 9 | S9-HP4 | Planned | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `sc-hooks-agent-spawn-gates`, `sc-hooks-tool-output-gates`, direct behavior tests |
+| Sprint 9 | S9-HP5 | Planned | Hook Phase 5: Relay Hooks | `HKR-004` | S9-P5 | `sc-hooks-atm-extension`, relay tests |
+| Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
+| Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
 
@@ -588,10 +592,10 @@ Purpose:
 - keep provider-specific evidence and ATM-specific behavior separate
 - make the first implementation pass small, exact, and test-driven
 
-### Hook Phase 0: Review Baseline
+### S9-P0: Phase 0: Review Baseline
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
@@ -611,20 +615,15 @@ Acceptance criteria:
 - ATM-specific behavior is isolated in its own document
 - Cursor remains documented but deferred from the first implementation pass
 - no implementation-facing field is promoted without a verified source
-- Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
+- S9-P0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
 
-### Hook Phase 1: Claude Schema Harness
+### S9-P1: Phase 1: Build Harness
+
+Status:
+- completed
 
 Focus:
-- build the first hook harness for Claude only and freeze the captured
-  provider baseline before writing runtime hook code
-
-Write scope:
-
-- `test-harness/hooks/README.md`
-- `test-harness/hooks/scripts/run-capture.sh`
-- `test-harness/hooks/claude/{prompts,hooks,models,fixtures,captures,reports,scripts,tests}/`
-- fixture manifests and harness runner helpers
+- build the first hook harness for Claude only
 
 Deliverables:
 - `test-harness/hooks/README.md` harness contract file
@@ -633,166 +632,144 @@ Deliverables:
 - Claude fixture capture scripts
 - Claude validation models
 - CI drift check for breaking Claude payload changes
-- approved fixture snapshots and a first live Claude Haiku report
-
-Required tests:
-
-- `pytest test-harness/hooks/`
-- harness structure and fixture validation tests under
-  `test-harness/hooks/claude/tests/`
 
 Acceptance criteria:
 - Claude hook payloads for the planned hook set are captured and validated
 - raw captured fixtures are stored as review evidence
 - CI fails on required-field removal or type drift
-- the harness can be rerun from repo docs without reconstructing ad hoc setup
 
 Definition of done:
 - the team can point to captured Claude payloads instead of inferred shapes
 
-### Hook Phase 2: Plan Revision From Captured Claude Schema
+### S9-P2: Phase 2: Capture Claude Payloads
+
+Status:
+- completed
 
 Focus:
-- revise the hook plan from captured evidence before implementation starts
+- collect the actual Claude hook payloads that later schema/model and implementation work must obey
 
-Write scope:
+Deliverables:
+- captured Claude payloads stored under `test-harness/hooks/claude/captures/raw/`
+- approved fixtures and follow-up capture notes in the harness tree
+- evidence for `startup`, `resume`, `clear`, `compact`, `PreCompact`, `PreToolUse(Bash)`, `PreToolUse(Agent)`, `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, and `SessionEnd`
 
-- `docs/plugin-plan-s9.md`
-- `docs/hook-api/claude-hook-api.md`
-- `docs/hook-api/atm-hook-extension.md`
-- `docs/project-plan.md`
-- `docs/requirements.md`
-- `docs/architecture.md`
+Acceptance criteria:
+- the required first-pass Claude capture set is backed by local fixtures
+- capture artifacts are committed in the harness tree
+- implementation-facing docs cite captured evidence instead of inferred payload shapes
+
+Note:
+- S9-P2 completed as part of the executed S9-P1 harness follow-on; captured artifacts now live under `test-harness/hooks/claude/captures/raw/`
+
+### S9-P3: Phase 3: Pydantic Models + Schema
+
+Status:
+- not started
+
+Focus:
+- create provider-specific Pydantic models and generated schema artifacts from the captured Claude fixtures
+
+Deliverables:
+- provider-specific Pydantic models for the captured Claude payloads
+- generated schema artifacts derived from those models
+- drift validation tests for the captured fixtures
+
+Acceptance criteria:
+- captured Claude fixtures validate against the Pydantic models
+- schema artifacts exist for the validated models
+- drift classification rules execute in tests
+
+### S9-P4: Phase 4: Revise Plan from Schema
+
+Status:
+- not started
+
+Focus:
+- revise the hook plan from validated schema before implementation starts
 
 Deliverables:
 - updated `docs/plugin-plan-s9.md`
 - updated `docs/hook-api/claude-hook-api.md`
-- any additional traceability/gap notes needed for implementation readiness
-- frozen normalized `agent_state` model
-- frozen canonical session-state schema
-- frozen hook trait/result/context contract
-
-Required tests:
-
-- `pytest test-harness/hooks/`
-- `cargo test --workspace`
+- traceability and implementation-readiness notes derived from validated schema
 
 Acceptance criteria:
-- every planned Claude implementation field is backed by captured fixtures or
-  existing source-of-truth code/docs/tests
-- unknown fields remain explicitly deferred
-- implementation tasks can start without schema guessing
-- the remaining hook phases define exact code to write, tests required, and
-  success criteria
+- every planned Claude implementation field is backed by validated schema or retained as an explicit deferral
+- implementation-facing docs no longer depend on pre-schema guesses
 
-### Hook Phase 3: Claude Session And Lifecycle Implementation
+### S9-P5: Phase 5: Re-Evaluate + Sequence
+
+Status:
+- not started
 
 Focus:
-- freeze the hook trait and implement the generic lifecycle/state foundation first
-
-Write scope:
-
-- `sc-hooks-core/`
-- `sc-hooks-sdk/`
-- `plugins/agent-session-foundation/`
-- same-PR updates to `docs/architecture.md`, `docs/requirements.md`, and
-  `docs/project-plan.md`
+- decide the implementation queue and prototype disposition only after the schema phases finish
 
 Deliverables:
-- final hook trait/context/result contract in `sc-hooks-core` / `sc-hooks-sdk`
-- `plugins/agent-session-foundation`
-- tests proving `SessionStart`, `SessionEnd`, and `PreCompact` against the
-  captured contract
-- session-state file implementation with normalized `agent_state` transitions
-- same-agent correlation across directory changes
+- explicit disposition for each prototype crate
+- runtime implementation sequence derived from validated schema
 
-Required tests:
+Acceptance criteria:
+- implementation tasks are ready to start without schema guessing
+- prototype branches remain reference-only until this sequencing pass is complete
 
-- unit tests for normalized `agent_state` transitions
-- integration tests for session-state persistence keyed by `session_id`
-- integration tests proving `SessionStart` in directory A and later lifecycle
-  events in directory B still resolve the same session record
-- `cargo test --workspace`
-- `cargo clippy --all-targets --all-features -- -D warnings`
+### S9-PBC: Plan-BC: BC Design Consolidation
+
+Status:
+- in QA
+
+Focus:
+- consolidate the clean post-capture runtime design in this repo before implementation starts
+
+Deliverables:
+- `docs/phase-bc-hook-runtime-design.md`
+- core-doc alignment for session-state ownership, `agent_state`, logging, trait boundaries, and crate split
+
+Acceptance criteria:
+- the clean runtime design authority lives in `schook`
+- implementation phases below can reference one runtime design source of truth
+
+### S9-HP3: Hook Phase 3: Session Foundation
+
+Focus:
+- implement the Claude lifecycle pair first
+
+Deliverables:
+- `sc-hooks-session-foundation`
+- tests proving `SessionStart` / `SessionEnd` behavior against the captured
+  contract
 
 Acceptance criteria:
 - lifecycle hooks use only verified inputs
-- ATM-specific routing stays out of the generic lifecycle crate
-- the session-state schema matches the documented canonical record
-- the trait boundary no longer relies on raw `serde_json::Value` alone as the
-  only plugin-facing abstraction
+- ATM-specific routing/persistence stays bounded by the ATM extension doc
 
-### Hook Phase 4: Claude Command And Spawn Gates
+### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
 
 Focus:
-- implement the generic spawn and tool-gate utilities
-
-Write scope:
-
-- `plugins/agent-spawn-gates/`
-- `plugins/tool-output-gates/`
-- any same-PR doc updates required if the captured schema or blocking contract
-  needs clarifying
+- implement the spawn gate and structured tool-output gate from the clean BC design
 
 Deliverables:
-- `plugins/agent-spawn-gates`
-- `plugins/tool-output-gates`
-- direct behavior tests for named-agent vs background-agent policy
-- direct behavior tests for fenced-JSON/schema-governed spawn blocking
-- schema lookup from inline prompt definitions or same-name sibling schema files
-- exact retryable block responses for invalid fenced JSON
-
-Required tests:
-
-- direct tests for `tool_name = "Agent"` spawn-gate routing
-- tests for named-agent versus background-agent policy outcomes
-- tests for subagent linkage fields written into the canonical session-state file
-- tests for fenced `json` extraction and schema validation success/failure
-- tests proving invalid input returns exact retryable failure reasons
-- `cargo test --workspace`
-- `cargo clippy --all-targets --all-features -- -D warnings`
+- `sc-hooks-agent-spawn-gates`
+- `sc-hooks-tool-output-gates`
+- direct behavior tests for command-sensitive and team-policy behavior
 
 Acceptance criteria:
 - no field is relied on unless it was verified in Phase 1 or added in a later
   approved schema capture
-- spawn and tool-blocking behavior is tested directly
-- block responses explain exactly how the caller can retry successfully
-- generic blocking/fenced-JSON policy remains separate from ATM-specific relay
-  behavior
+- command-sensitive behavior is tested directly
 
-### Hook Phase 5: Claude Relay Hooks
+### S9-HP5: Hook Phase 5: Relay Hooks
 
 Focus:
-- implement ATM-specific extension behavior after the generic layer is stable
-
-Write scope:
-
-- `plugins/atm-extension/`
-- ATM-only docs where relay semantics or teammate-idle mapping must be frozen
+- implement the notification/permission/stop relays
 
 Deliverables:
-- `plugins/atm-extension`
-- direct tests for ATM Bash identity-file behavior
-- direct tests for `PermissionRequest` and `Stop`
-- direct tests for teammate-idle mapping onto normalized `idle`
-- ATM enrichment on the canonical session-state file through extension fields
-- `Notification` stays wired and documented, but remains deferred until a live
-  payload is captured
-
-Required tests:
-
-- tests for ATM identity-file create/delete behavior around `atm` Bash commands
-- tests for ATM extension fields on the canonical session-state record
-- tests for relay mapping on `PermissionRequest`, `Stop`, and teammate-idle
-- `cargo test --workspace`
-- `cargo clippy --all-targets --all-features -- -D warnings`
+- `sc-hooks-atm-extension`
+- direct tests for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
 
 Acceptance criteria:
-- ATM behavior is layered on top of the generic hook utilities rather than
-  defining them
+- relay behavior is bounded to the verified Claude ATM baseline
 - failure posture is documented and tested
-- `Notification` stays wired but does not block completion of this phase until
-  a live payload is captured and promoted
 
 ### Hook Phase 6: Cross-Provider Follow-On
 
@@ -800,28 +777,11 @@ Focus:
 - only after the Claude baseline is stable, decide whether to expand to other
   providers
 
-Write scope:
-
-- provider follow-on planning docs only
-- no runtime crate work without separate approval and provider-specific capture
-
 Current deferred items:
 - Codex harness and implementation work
 - Gemini harness and implementation work
 - Cursor harness capture
 - Cursor runtime implementation
-
-Required tests:
-
-- docs-only validation plus any provider harness tests explicitly approved for
-  that provider follow-on
-
-Acceptance criteria:
-
-- follow-on provider work is represented as schema-backed planning, not guessed
-  implementation
-- Claude remains the only active runtime baseline until another provider is
-  explicitly captured and approved
 
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
