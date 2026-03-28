@@ -41,13 +41,15 @@ The host does not:
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
+| `plugins/agent-session-foundation` | Session lifecycle persistence keyed by `session_id`, normalized `agent_state` transitions, atomic state writes, and per-invocation lifecycle logging |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
-- source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
-- current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
-- every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
+- source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
+- current source plugin inventory in `plugins/` is: `agent-session-foundation`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- the legacy crates (`audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`) remain scaffold/reference only
+- `agent-session-foundation` is the first source plugin crate on the runtime-implementation path in this branch; it has direct behavior tests, but it is still delivered as source code rather than a preinstalled runtime plugin
 
 ## 3.1 Public Contract Vs Internal Typed Model
 
