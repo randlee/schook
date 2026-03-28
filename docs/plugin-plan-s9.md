@@ -1107,7 +1107,8 @@ Each run must produce one self-contained HTML report:
 - HTML5 `<!DOCTYPE html>`
 - `<meta charset="utf-8">`
 - HTML-escape all payload content before rendering
-- no inline JavaScript
+- minimal inline JavaScript is permitted only for clipboard copy actions on copy
+  buttons; no other JavaScript is allowed
 
 Required output path:
 
