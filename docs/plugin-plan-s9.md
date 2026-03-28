@@ -104,11 +104,15 @@ surfaces:
 
 - `SessionStart`
 - `SessionEnd`
+- `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
 - `PreToolUse(Agent)`
 - `PermissionRequest`
 - `Stop`
+
+Still wired in the harness but not locally captured:
+
 - `Notification(idle_prompt)`
 
 The runtime plan may not promote additional Claude fields or behaviors into
@@ -260,7 +264,7 @@ Done when:
 ### S9-P2A: Phase 2A: Build Global HTML Reporting Stack
 
 Status:
-- Not started
+- Completed for Sprint 9 gating
 
 Purpose:
 
@@ -295,11 +299,13 @@ Done when:
 - the global execution layer can be invoked in the background from a caller
   skill
 - a test invocation proves that the generated HTML is self-contained and valid
+- Sprint 9 planning can point to the approved local draft as the satisfied
+  prerequisite for Phase 3 and later phases
 
 ### S9-P3: Phase 3: Create Pydantic Models And Schema Artifacts
 
 Status:
-- Not started
+- Completed
 
 Purpose:
 
@@ -410,19 +416,26 @@ class DriftErrorCode(str, Enum):
 
 class BashToolInput(BaseModel):
     command: str
+    description: Optional[str] = None
 
 
 class AgentToolInput(BaseModel):
     prompt: str
+    description: Optional[str] = None
     subagent_type: Optional[str] = None
     name: Optional[str] = None
     team_name: Optional[str] = None
+    run_in_background: Optional[bool] = None
 
 
 class BashToolResponse(BaseModel):
     output: Optional[str] = None
+    stdout: Optional[str] = None
     error: Optional[str] = None
+    stderr: Optional[str] = None
     interrupted: bool = False
+    isImage: Optional[bool] = None
+    noOutputExpected: Optional[bool] = None
 
 
 class HookPayloadBase(BaseModel):
@@ -437,10 +450,12 @@ class HookPayloadBase(BaseModel):
 class SessionStartPayload(HookPayloadBase):
     hook_event_name: Literal["SessionStart"]
     source: str
+    model: Optional[str] = None
 
 
 class SessionEndPayload(HookPayloadBase):
     hook_event_name: Literal["SessionEnd"]
+    reason: Optional[str] = None
 
 
 class PreCompactPayload(HookPayloadBase):
@@ -453,12 +468,16 @@ class PreToolUseBashPayload(HookPayloadBase):
     hook_event_name: Literal["PreToolUse"]
     tool_name: Literal["Bash"]
     tool_input: BashToolInput
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
 
 
 class PreToolUseAgentPayload(HookPayloadBase):
     hook_event_name: Literal["PreToolUse"]
     tool_name: Literal["Agent"]
     tool_input: AgentToolInput
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
 
 
 class PostToolUseBashPayload(HookPayloadBase):
@@ -466,17 +485,22 @@ class PostToolUseBashPayload(HookPayloadBase):
     tool_name: Literal["Bash"]
     tool_input: BashToolInput
     tool_response: BashToolResponse
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
 
 
 class PermissionRequestPayload(HookPayloadBase):
     hook_event_name: Literal["PermissionRequest"]
     tool_name: str
     tool_input: dict[str, Any]
+    permission_mode: Optional[str] = None
 
 
 class StopPayload(HookPayloadBase):
     hook_event_name: Literal["Stop"]
     stop_hook_active: bool = False
+    permission_mode: Optional[str] = None
+    last_assistant_message: Optional[str] = None
 
 
 class NotificationPayload(HookPayloadBase):
@@ -573,7 +597,8 @@ Model notes:
 | `hook_event_name` | `Literal["SessionStart"]` | yes | same |
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
-| `source` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json`, `test-harness/hooks/claude/fixtures/approved/session-start-compact.json` |
+| `source` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json`, `test-harness/hooks/claude/fixtures/approved/session-start-compact.json`, `test-harness/hooks/claude/fixtures/approved/session-start-resume.json`, `test-harness/hooks/claude/fixtures/approved/session-start-clear.json` |
+| `model` | `Optional[str]` | no | same |
 
 #### SessionEndPayload fields
 
@@ -583,6 +608,7 @@ Model notes:
 | `hook_event_name` | `Literal["SessionEnd"]` | yes | same |
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
+| `reason` | `Optional[str]` | no | `test-harness/hooks/claude/fixtures/approved/session-end-clear.json` |
 
 #### PreCompactPayload fields
 
@@ -605,6 +631,9 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
 
 #### PreToolUseAgentPayload fields
 
@@ -616,9 +645,16 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Agent"]` | yes | same |
 | `tool_input.prompt` | `str` | yes | same |
-| `tool_input.subagent_type` | `Optional[str]` | no | same |
-| `tool_input.name` | `Optional[str]` | no | same |
-| `tool_input.team_name` | `Optional[str]` | no | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `tool_input.run_in_background` | `Optional[bool]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
+
+Deferred, not fixture-verified for implementation:
+
+- `tool_input.subagent_type`
+- `tool_input.name`
+- `tool_input.team_name`
 
 #### PostToolUseBashPayload fields
 
@@ -630,9 +666,19 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
-| `tool_response.output` | `Optional[str]` | no | same |
-| `tool_response.error` | `Optional[str]` | no | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `tool_response.stdout` | `Optional[str]` | no | same |
+| `tool_response.stderr` | `Optional[str]` | no | same |
 | `tool_response.interrupted` | `bool` | yes | same |
+| `tool_response.isImage` | `Optional[bool]` | no | same |
+| `tool_response.noOutputExpected` | `Optional[bool]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
+
+Deferred, not fixture-verified for implementation:
+
+- `tool_response.output`
+- `tool_response.error`
 
 #### PermissionRequestPayload fields
 
@@ -644,6 +690,8 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/permission-request-write.json`, `test-harness/hooks/claude/fixtures/approved/permission-request-bash.json` |
 | `tool_input` | `dict[str, Any]` | yes | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `permission_suggestions` | `Optional[list[PermissionSuggestion]]` | no | same |
 
 #### StopPayload fields
 
@@ -654,6 +702,8 @@ Model notes:
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
 | `stop_hook_active` | `bool` | yes | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `last_assistant_message` | `Optional[str]` | no | same |
 
 #### NotificationPayload fields
 
@@ -693,7 +743,7 @@ Done when:
 ### S9-P4: Phase 4: Revise The Plan From Verified Schema
 
 Status:
-- Not started
+- Completed
 
 Purpose:
 
@@ -728,7 +778,7 @@ Done when:
 ### S9-P5: Phase 5: Re-Evaluate And Sequence Implementation
 
 Status:
-- Not started
+- Completed
 
 Purpose:
 
@@ -747,6 +797,45 @@ Deliverables for the phase-start decision:
 - an implementation sequence for Claude ATM hooks derived from verified schema
 
 Only after that disposition is complete may runtime implementation work begin.
+
+### Implementation Start Gate
+
+All five pre-implementation gate conditions now pass:
+
+1. Capture baseline frozen: PASS
+   - approved Claude fixture set exists under
+     `test-harness/hooks/claude/fixtures/approved/`
+   - locally captured startup sources now include `startup`, `compact`,
+     `resume`, and `clear`
+   - `Notification(idle_prompt)` remains explicitly excluded from the verified
+     set and carried as a deferral
+2. Reporting prerequisite satisfied: PASS
+   - the global HTML reporting stack has an approved local draft and validated
+     render/lint flow
+   - `S9-P3` outputs no longer depend on an undefined reporting path
+3. Schema + drift tooling complete: PASS
+   - `test-harness/hooks/run-schema-drift.py claude` produces validated drift
+     JSON, schema artifacts, and a self-contained HTML report
+   - Phase 3 drift classification tests now cover:
+     - required field removed
+     - optional field removed
+     - field added
+     - field type changed
+4. Plan revision complete: PASS
+   - implementation-facing docs now distinguish:
+     - fixture-backed fields
+     - source-backed fields
+     - explicit deferrals
+   - no HP section below relies on `Notification` or other unresolved fields
+     without a deferral label
+5. Implementation sequence frozen: PASS
+   - `S9-HP3 -> S9-HP4 -> S9-HP5`
+   - `S9-HP5` is independent of Session Foundation at the planning layer only
+     insofar as relay semantics were designed separately, but execution still
+     depends on `S9-P5` and `S9-HP4`
+
+Implementation may start because all five gate checks are now explicit and
+reviewable in this document.
 
 The implementation track after this phase must follow the Hook Phase 3/4/5
 split from `docs/project-plan.md`:
@@ -786,6 +875,32 @@ Deliverables:
   - `docs/requirements.md`
   - `docs/project-plan.md`
   whenever a new runtime crate lands
+
+Verified field inputs allowed in HP3:
+
+- `SessionStart`
+  - `session_id`
+  - `cwd`
+  - `transcript_path`
+  - `source`
+  - `model` (optional)
+- `SessionEnd`
+  - `session_id`
+  - `reason` (optional; verified from `/clear`)
+- `PreCompact`
+  - `trigger` (optional)
+  - `custom_instructions` (optional)
+- `Stop`
+  - `stop_hook_active`
+  - `permission_mode` (optional)
+  - `last_assistant_message` (optional)
+- source-backed runtime context:
+  - `CLAUDE_PROJECT_DIR` -> `project_root_dir`
+
+Explicitly deferred in HP3:
+
+- `Notification(idle_prompt)` payload fields
+- any parent/subagent lineage fields not present in approved Claude fixtures
 
 Write scope:
 
@@ -861,6 +976,36 @@ Deliverables:
     is unavailable and the generic gate behavior continues
 - same-PR architecture inventory updates when either plugin crate lands
 
+Verified field inputs allowed in HP4:
+
+- `PreToolUse(Bash)`
+  - `tool_name == "Bash"`
+  - `tool_input.command`
+  - `tool_input.description` (optional)
+  - `permission_mode` (optional)
+  - `tool_use_id` (optional)
+- `PreToolUse(Agent)`
+  - `tool_name == "Agent"`
+  - `tool_input.prompt`
+  - `tool_input.description` (optional)
+  - `tool_input.run_in_background` (optional)
+  - `permission_mode` (optional)
+  - `tool_use_id` (optional)
+- `PostToolUse(Bash)`
+  - `tool_response.stdout` (optional)
+  - `tool_response.stderr` (optional)
+  - `tool_response.interrupted`
+  - `tool_response.isImage` (optional)
+  - `tool_response.noOutputExpected` (optional)
+
+Explicitly deferred in HP4:
+
+- `PreToolUse(Agent).tool_input.subagent_type`
+- `PreToolUse(Agent).tool_input.name`
+- `PreToolUse(Agent).tool_input.team_name`
+- `PostToolUse(Bash).tool_response.output`
+- `PostToolUse(Bash).tool_response.error`
+
 Write scope:
 
 - `plugins/agent-spawn-gates/`
@@ -919,6 +1064,27 @@ Deliverables:
   live later
 - same-PR architecture inventory updates when the ATM extension crate lands
 
+Verified field inputs allowed in HP5:
+
+- `PermissionRequest`
+  - `tool_name`
+  - `tool_input`
+  - `permission_mode` (optional)
+  - `permission_suggestions` (optional)
+- `Stop`
+  - `session_id`
+  - `stop_hook_active`
+  - `permission_mode` (optional)
+  - `last_assistant_message` (optional)
+- teammate-idle
+  - ATM extension event only; not a Claude payload contract claim
+
+Explicitly deferred in HP5:
+
+- `Notification(idle_prompt)` payload shape until it is captured live
+- any ATM relay field not backed by generic session-state schema plus ATM
+  extension docs
+
 Write scope:
 
 - `plugins/atm-extension/`
@@ -957,6 +1123,22 @@ Done when:
 
 - implementation tasks are derived from verified schema rather than inferred payload shapes
 - the runtime work queue is ready to start without guessing
+- the ordered implementation checkpoint below is accepted as the final sequence
+
+### Final Implementation Sequence Checkpoint
+
+1. `S9-HP3` Session Foundation
+   - first because all later crates depend on canonical session-state,
+     `project_root_dir`, normalized `agent_state`, and mandatory hook logging
+2. `S9-HP4` Bash Identity + Spawn Gates
+   - second because spawn/tool-output policy depends on the HP3 state substrate
+     but resolves its own deferred fields explicitly
+3. `S9-HP5` Relay Hooks
+   - third because ATM relay behavior layers onto the generic runtime and uses
+     HP4 outputs for Bash/tool policy integration
+
+No later hook-runtime PR may invert this sequence without updating this section
+and the matching project-plan row.
 
 ## Immediate Work Package
 
