@@ -39,16 +39,20 @@ Targets:
 
 ### SessionStart(source="clear")
 
-- status: not captured in this automated pass
-- reason:
-  - an automated PTY attempt sending `/clear` did not produce
-    `SessionStart(source="clear")`; it only yielded a new `startup` session
+- status: captured
+- method:
+  - automated PTY attempt was insufficient; it yielded a new `startup` session
     at `captures/raw/20260328T041916.304626Z-session-start.json`
-  - reliable capture still appears to require a manual interactive `/clear`
-    session under harness-local settings
-- next step:
-  - perform one manual harness-local `/clear` run and promote the resulting
-    `SessionStart(source="clear")` payload if captured
+  - manual harness-local interactive session then ran `/clear`
+- raw evidence:
+  - `captures/raw/20260328T042431.621233Z-session-end.json`
+  - `captures/raw/20260328T042431.654039Z-session-start.json`
+- approved fixture promotion:
+  - `fixtures/approved/session-end-clear.json`
+  - `fixtures/approved/session-start-clear.json`
+- key finding:
+  - `/clear` produces `SessionEnd(reason="clear")` followed by a new
+    `SessionStart(source="clear")` with a different `session_id`
 
 ### Notification(idle_prompt)
 

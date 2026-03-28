@@ -92,6 +92,7 @@ def test_session_start_fixtures_cover_startup_compact_and_resume(claude_root: Pa
         "session-start-startup.json",
         "session-start-compact.json",
         "session-start-resume.json",
+        "session-start-clear.json",
     ]:
         fixture = json.loads((fixture_dir / filename).read_text(encoding="utf-8"))
         observed_sources[filename] = fixture["source"]
@@ -100,4 +101,18 @@ def test_session_start_fixtures_cover_startup_compact_and_resume(claude_root: Pa
         "session-start-startup.json": "startup",
         "session-start-compact.json": "compact",
         "session-start-resume.json": "resume",
+        "session-start-clear.json": "clear",
     }
+
+
+@pytest.mark.provider_claude
+def test_clear_transition_produces_session_end_reason_clear_and_new_start(claude_root: Path) -> None:
+    fixture_dir = claude_root / "fixtures" / "approved"
+    session_end = json.loads((fixture_dir / "session-end-clear.json").read_text(encoding="utf-8"))
+    session_start = json.loads((fixture_dir / "session-start-clear.json").read_text(encoding="utf-8"))
+
+    assert session_end["hook_event_name"] == "SessionEnd"
+    assert session_end["reason"] == "clear"
+    assert session_start["hook_event_name"] == "SessionStart"
+    assert session_start["source"] == "clear"
+    assert session_end["session_id"] != session_start["session_id"]

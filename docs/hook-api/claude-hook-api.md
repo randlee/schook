@@ -58,11 +58,11 @@ Verified `SessionStart.source` values from live capture:
 - `startup`
 - `compact`
 - `resume`
+- `clear`
 
 What is not verified today:
 
 - a full upstream Claude JSON schema for all hook payloads
-- a confirmed literal `source = "clear"` value
 - cwd/root/agent metadata as guaranteed `SessionStart` payload fields across
   all launches
 - parent/subagent/session lineage fields in Claude hook payloads
@@ -490,6 +490,8 @@ Live harness note:
 - the runtime should preserve session records across directory changes
 - `SessionStart(source="resume")` is now captured evidence, not just a
   documented provider claim
+- `/clear` produces `SessionEnd(reason="clear")` followed by a new
+  `SessionStart(source="clear")` and a new `session_id`
 - Bash-specific hooks need command-sensitive behavior, not just hook-type
   matching
 - teammate/background spawn gating is policy-heavy and should remain separate

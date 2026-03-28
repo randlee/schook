@@ -61,7 +61,9 @@ Captured:
 - `SessionStart(source="startup")`
 - `SessionStart(source="compact")`
 - `SessionStart(source="resume")`
+- `SessionStart(source="clear")`
 - `SessionEnd`
+- `SessionEnd(reason="clear")`
 - `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
@@ -72,15 +74,14 @@ Captured:
 
 Not yet captured:
 
-- `SessionStart(source="clear")`
 - `Notification`
 
 Observed live notes:
 
 - `Stop` is the reliable end-of-turn signal in current Haiku capture
 - `SessionStart` alone did not emit `Stop` when no turn occurred
-- an automated `/clear` PTY attempt did not yield `source = "clear"`; it
-  produced a new `startup` session instead
+- `/clear` required a manual harness-local interactive run; an automated PTY
+  attempt only yielded a new `startup` session
 - `Notification` remained uncaptured after repeated long-idle runs with
   `matcher = ""`, including the bounded follow-up probe on this branch
 
@@ -139,11 +140,12 @@ Interactive surface notes from this capture pass:
   and leaving the request blocked at the permission prompt
 - `SessionStart(source="resume")` was captured by ending a prompt-driven
   session and then resuming that exact `session_id` with `claude --resume`
+- `SessionStart(source="clear")` was captured by running `/clear` in a manual
+  harness-local interactive session; Claude emitted `SessionEnd(reason="clear")`
+  followed immediately by a new `SessionStart(source="clear")`
 - `PreCompact` plus post-compact `SessionStart(source="compact")` were captured
   only after launching Claude with harness-local settings and running
   `/compact` manually
-- an automated `/clear` probe did not yield `source = "clear"`; treat clear as
-  a manual follow-up capture until proven otherwise
 - `Notification` remained unresolved even after switching to `matcher = ""`
   and waiting more than 60 seconds
 
