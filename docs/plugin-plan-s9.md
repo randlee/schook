@@ -278,6 +278,10 @@ Deliverables:
 - fixture validation tests for the captured payloads
 - single self-contained HTML report per run
 - `.claude/skills/hook-schema-drift/` slash command definition
+- global `html-report` skill dependency documented and gated at:
+  - normalized path: `$HOME/.claude/skills/html-report/`
+  - current local machine path: `/Users/randlee/.claude/skills/html-report/`
+  - required tested invocation example before any report-generating sprint can close
 - drift classification logic:
   - required field removed => fail
   - required field type changed => fail
@@ -290,6 +294,16 @@ Rules:
 - required known fields are strict
 - unknown extra fields may be allowed early, but they must be surfaced in reports
 - no cross-provider shared schema is assumed
+
+Phase 3 hard gate for HTML reporting:
+
+- any work item that produces an HTML drift report is blocked until the global
+  `html-report` skill exists at `$HOME/.claude/skills/html-report/`
+- on this machine, that resolves to `/Users/randlee/.claude/skills/html-report/`
+- the global skill must be complete and have a tested invocation example before
+  Phase 3 report output is considered runnable
+- the project-local `.claude/skills/hook-schema-drift/` command is the caller
+  only; it does not replace the global HTML rendering skill
 
 #### Pydantic Model Design
 
@@ -431,6 +445,10 @@ Done when:
 - captured fixtures validate against the Claude Pydantic models
 - schema artifacts exist for the validated Claude models
 - drift policy is executable in tests, not just described in prose
+- the global `html-report` skill exists, is tested, and is callable by the
+  project-local `.claude/skills/hook-schema-drift/` flow
+- both drift JSON and the self-contained HTML report are produced by the Phase 3
+  path; JSON-only output does not close the reporting deliverable
 
 ### S9-P4: Phase 4: Revise The Plan From Verified Schema
 
@@ -611,13 +629,13 @@ Required command:
 Required flow:
 
 1. invoke `run-schema-drift.py <provider>`
-2. on completion, spawn `html-report-expert` as a background agent with
+2. on completion, invoke the global `html-report` skill as a background flow with
    `run_in_background=true`
 3. the background agent reads the drift JSON and generates the annotated HTML report
 4. the calling agent receives the report path and displays it to the user
 
-The `html-report-expert` spawn must stay in the background so the calling agent
-does not accumulate HTML-generation context.
+The global `html-report` skill invocation must stay in the background so the
+calling agent does not accumulate HTML-generation context.
 
 ### Provider States
 
@@ -686,7 +704,7 @@ Required report sections:
    - NEW SCHEMA field table if fresh capture exists
    - `No fresh capture — last known: <date>` when no fresh capture exists
    - DRIFT callout if schemas differ
-   - ANALYSIS block below the diff, supplied by `html-report-expert`
+   - ANALYSIS block below the diff, supplied by the global `html-report` skill
 4. Non-automatable hooks subsection
    - `SessionStart(source=compact)` with last-known fixture and manual procedure
    - `SessionStart(source=clear)` with last-known fixture and manual procedure
@@ -723,8 +741,10 @@ $HOME/.claude/skills/html-report/
 
 Path note:
 
-- the exact user-global path remains pending user confirmation
-- this plan assumes the standard `$HOME/.claude/` location until confirmed
+- normalized path requirement: `$HOME/.claude/skills/html-report/`
+- current local machine path: `/Users/randlee/.claude/skills/html-report/`
+- the path must exist before any report-generating sprint is considered complete
+- installation and tested invocation are explicit prerequisites, not assumptions
 
 Responsibilities:
 
@@ -736,6 +756,13 @@ Responsibilities:
 The schook skill at `.claude/skills/hook-schema-drift/` is the domain-aware
 caller. It runs the Python entry point, then hands the drift JSON to the
 background `html-report` skill flow.
+
+Required readiness before report-generating work can close:
+
+- the global `html-report` skill is installed at the required path
+- a tested invocation example is checked and documented
+- the generated HTML is self-contained and matches the visual conventions in
+  this section
 
 ### Automatable Hook Coverage
 
