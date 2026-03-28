@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schook-hook-harness"
+version = "0.1.0"
+description = "Sprint 9 hook harness validation package for schook"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.0",
+  "pytest>=8.0",
+  "jinja2>=3.1",
+]
+
+[tool.setuptools]
+packages = [
+  "test_harness",
+  "test_harness.hooks",
+  "test_harness.hooks.claude",
+  "test_harness.hooks.claude.models",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+markers = [
+  "provider_claude: tests for the Claude harness",
+]

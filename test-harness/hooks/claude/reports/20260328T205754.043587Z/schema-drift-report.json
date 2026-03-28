@@ -1,0 +1,37 @@
+{
+  "drift_history_path": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/drift-history/20260328T205754.043587Z-drift.json",
+  "entries": [],
+  "provider": "claude",
+  "report_path": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/schema-drift-report.html",
+  "run_timestamp": "20260328T205754.043587Z",
+  "schema_paths": {
+    "claude_hook_payload": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/schema/claude-hook-payload.schema.json",
+    "drift_report": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/schema/drift-report.schema.json"
+  },
+  "section_paths": [
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/permissionrequest.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/posttooluse-bash.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/precompact.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/pretooluse-agent.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/pretooluse-bash.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/sessionend.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/sessionstart.xhtml",
+    "/Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/sections/stop.xhtml"
+  ],
+  "status": "PASS",
+  "validated_fixtures": [
+    "session-start-startup.json",
+    "session-start-compact.json",
+    "session-start-resume.json",
+    "session-start-clear.json",
+    "session-end.json",
+    "session-end-clear.json",
+    "pre-compact-manual.json",
+    "pretooluse-bash.json",
+    "pretooluse-agent.json",
+    "posttooluse-bash.json",
+    "permission-request-write.json",
+    "permission-request-bash.json",
+    "stop.json"
+  ]
+}
