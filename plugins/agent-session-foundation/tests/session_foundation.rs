@@ -118,7 +118,11 @@ fn persists_session_record_by_session_id() {
     payload["cwd"] = serde_json::Value::String(startup_dir.to_str().expect("utf8").to_string());
 
     handler
-        .handle(hook_context_with_payload(HookType::SessionStart, None, payload))
+        .handle(hook_context_with_payload(
+            HookType::SessionStart,
+            None,
+            payload,
+        ))
         .expect("session start should persist");
 
     let state_file = temp
@@ -130,7 +134,10 @@ fn persists_session_record_by_session_id() {
     assert_eq!(parsed["session_id"], "a760f75c-055a-46f9-bcbb-447c47a22f3c");
     assert_eq!(parsed["active_pid"], 777);
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
-    assert_eq!(parsed["ai_current_dir"], startup_dir.to_str().expect("utf8"));
+    assert_eq!(
+        parsed["ai_current_dir"],
+        startup_dir.to_str().expect("utf8")
+    );
     assert_eq!(parsed["agent_state"], "starting");
 }
 
@@ -174,9 +181,8 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
         ]);
         let _cwd = CurrentDirGuard::set(&other_dir);
         let mut payload = load_fixture("stop.json");
-        payload["session_id"] = serde_json::Value::String(
-            "a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string(),
-        );
+        payload["session_id"] =
+            serde_json::Value::String("a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string());
         payload["cwd"] = serde_json::Value::String(other_dir.to_str().expect("utf8").to_string());
         handler
             .handle(hook_context_with_payload(HookType::Stop, None, payload))

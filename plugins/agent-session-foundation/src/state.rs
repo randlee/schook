@@ -43,7 +43,8 @@ impl SessionStore {
         if !path.exists() {
             return Ok(None);
         }
-        let body = fs::read_to_string(&path).map_err(|source| HookError::state_io(path.clone(), source))?;
+        let body = fs::read_to_string(&path)
+            .map_err(|source| HookError::state_io(path.clone(), source))?;
         let record = serde_json::from_str::<CanonicalSessionRecord>(&body).map_err(|source| {
             HookError::InvalidPayload {
                 input_excerpt: body.chars().take(120).collect(),
@@ -56,11 +57,13 @@ impl SessionStore {
     pub fn persist(&self, record: &CanonicalSessionRecord) -> Result<PersistOutcome, HookError> {
         let path = self.path_for(&record.session_id);
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
+            fs::create_dir_all(parent)
+                .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
         }
 
-        let rendered = serde_json::to_string_pretty(record)
-            .map_err(|err| HookError::internal(format!("failed to serialize session record: {err}")))?;
+        let rendered = serde_json::to_string_pretty(record).map_err(|err| {
+            HookError::internal(format!("failed to serialize session record: {err}"))
+        })?;
         if let Ok(existing) = fs::read_to_string(&path)
             && existing == rendered
         {
@@ -98,7 +101,9 @@ impl SessionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sc_hooks_core::session::{ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord};
+    use sc_hooks_core::session::{
+        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord,
+    };
 
     #[test]
     fn unchanged_records_do_not_rewrite() {
@@ -116,7 +121,10 @@ mod tests {
             "session_started",
         );
 
-        assert_eq!(store.persist(&record).expect("create"), PersistOutcome::Created);
+        assert_eq!(
+            store.persist(&record).expect("create"),
+            PersistOutcome::Created
+        );
         assert_eq!(
             store.persist(&record).expect("unchanged"),
             PersistOutcome::Unchanged
