@@ -269,19 +269,29 @@ Gate to start:
 
 Deliverables:
 
-- provider-specific Pydantic models for the captured Claude payloads
-- `pyproject.toml` with `pydantic>=2.0` and `pytest` declared
-- complete Pydantic discriminated-union model for Claude hook payloads
-- generated schema artifacts derived from those models
-- `test-harness/hooks/run-schema-drift.py` as the single schema-drift entry point
-- per-provider adapters under `test-harness/hooks/<provider>/`
-- fixture validation tests for the captured payloads
-- single self-contained HTML report per run
-- `.claude/skills/hook-schema-drift/` slash command definition
-- global `html-report` skill dependency documented and gated at:
-  - normalized path: `$HOME/.claude/skills/html-report/`
-  - current local machine path: `/Users/randlee/.claude/skills/html-report/`
-  - required tested invocation example before any report-generating sprint can close
+- `pyproject.toml`
+  - declares `pydantic>=2.0`
+  - declares `pytest`
+- `test-harness/hooks/claude/models/payloads.py`
+  - contains the complete discriminated-union Claude payload model
+- `test-harness/hooks/run-schema-drift.py`
+  - single schema-drift CLI entry point
+- `test-harness/hooks/<provider>/schema_drift.py`
+  - one provider adapter module per supported provider
+- `test-harness/hooks/<provider>/reports/<ISO-timestamp>/schema-drift-report.html`
+  - single self-contained HTML report per run
+- `test-harness/hooks/<provider>/drift-history/<ISO-timestamp>-drift.json`
+  - immutable drift-history artifact for each run
+- `.claude/skills/hook-schema-drift/SKILL.md`
+  - project-local slash command definition
+- discovery layer for global HTML reporting:
+  - `$HOME/.claude/skills/html-report/SKILL.md`
+  - current local machine path:
+    `/Users/randlee/.claude/skills/html-report/SKILL.md`
+- execution layer for global HTML reporting:
+  - `~/.claude/agents/html-report-generator.md`
+  - current local machine path:
+    `/Users/randlee/.claude/agents/html-report-generator.md`
 - drift classification logic:
   - required field removed => fail
   - required field type changed => fail
@@ -294,14 +304,24 @@ Rules:
 - required known fields are strict
 - unknown extra fields may be allowed early, but they must be surfaced in reports
 - no cross-provider shared schema is assumed
+- every Phase 3 deliverable must name:
+  - the exact file path
+  - its content requirements
+  - its done-when criteria
 
 Phase 3 hard gate for HTML reporting:
 
 - any work item that produces an HTML drift report is blocked until the global
-  `html-report` skill exists at `$HOME/.claude/skills/html-report/`
-- on this machine, that resolves to `/Users/randlee/.claude/skills/html-report/`
-- the global skill must be complete and have a tested invocation example before
-  Phase 3 report output is considered runnable
+  `html-report` discovery layer exists at `$HOME/.claude/skills/html-report/SKILL.md`
+- any work item that produces an HTML drift report is blocked until the global
+  `html-report-generator` execution layer exists at `~/.claude/agents/html-report-generator.md`
+- on this machine, those resolve to:
+  - `/Users/randlee/.claude/skills/html-report/SKILL.md`
+  - `/Users/randlee/.claude/agents/html-report-generator.md`
+- both files must pass QA against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+- the global HTML reporting stack must be complete and have a tested invocation
+  example before Phase 3 report output is considered runnable
 - the project-local `.claude/skills/hook-schema-drift/` command is the caller
   only; it does not replace the global HTML rendering skill
 
@@ -313,9 +333,29 @@ drift tooling and fixture validation path share the same contract:
 ```python
 from __future__ import annotations
 
+from enum import Enum
 from typing import Annotated, Any, Literal, Optional, Union
+from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class ProviderStatus(str, Enum):
+    PASS = "PASS"
+    DRIFT = "DRIFT"
+    ERROR = "ERROR"
+    NOT_SUPPORTED = "NOT_SUPPORTED"
+    STALE = "STALE"
+
+
+class DriftErrorCode(str, Enum):
+    REQUIRED_FIELD_REMOVED = "REQUIRED_FIELD_REMOVED"
+    FIELD_TYPE_CHANGED = "FIELD_TYPE_CHANGED"
+    FIELD_ADDED = "FIELD_ADDED"
+    OPTIONAL_FIELD_REMOVED = "OPTIONAL_FIELD_REMOVED"
+    CAPTURE_FAILED = "CAPTURE_FAILED"
+    PROVIDER_NOT_AVAILABLE = "PROVIDER_NOT_AVAILABLE"
+    PROVIDER_NOT_SUPPORTED = "PROVIDER_NOT_SUPPORTED"
 
 
 class BashToolInput(BaseModel):
@@ -336,7 +376,9 @@ class BashToolResponse(BaseModel):
 
 
 class HookPayloadBase(BaseModel):
-    session_id: str
+    model_config = ConfigDict(extra="allow")
+
+    session_id: UUID
     hook_event_name: str
     cwd: str
     transcript_path: Optional[str] = None
@@ -392,6 +434,22 @@ class NotificationPayload(HookPayloadBase):
     # Deferred: no verified payload shape yet.
 
 
+class DriftEntry(BaseModel):
+    hook_event_name: str
+    field_name: Optional[str] = None
+    error_code: DriftErrorCode
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    message: str
+
+
+class DriftReport(BaseModel):
+    provider: str
+    run_timestamp: str
+    status: ProviderStatus
+    entries: list[DriftEntry]
+
+
 PrimaryClaudeHookPayload = Annotated[
     Union[
         SessionStartPayload,
@@ -439,6 +497,109 @@ Model notes:
 - `PreToolUse` and `PostToolUse` require a second discriminator on `tool_name`.
 - `NotificationPayload` remains deferred because live Haiku capture has not
   produced a verified payload shape.
+- UUID format is enforced at the Python layer. This prevents malformed session
+  IDs from corrupting Rust session-state deserialization in `S9-HP3`.
+- `HookPayloadBase` uses `ConfigDict(extra="allow")` for forward compatibility;
+  extra fields must still be surfaced in drift output.
+- `drift-report.json` must validate against `DriftReport`.
+- unhandled Python exceptions in drift capture/classification must be caught and
+  serialized as a `DriftEntry` with `error_code=CAPTURE_FAILED`.
+
+#### SessionStartPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json` |
+| `hook_event_name` | `Literal["SessionStart"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `source` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json`, `test-harness/hooks/claude/fixtures/approved/session-start-compact.json` |
+
+#### SessionEndPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/session-end.json` |
+| `hook_event_name` | `Literal["SessionEnd"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+
+#### PreCompactPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/pre-compact-manual.json` |
+| `hook_event_name` | `Literal["PreCompact"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `trigger` | `Optional[str]` | no | same |
+| `custom_instructions` | `Optional[str]` | no | same |
+
+#### PreToolUseBashPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/pretooluse-bash.json` |
+| `hook_event_name` | `Literal["PreToolUse"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `tool_name` | `Literal["Bash"]` | yes | same |
+| `tool_input.command` | `str` | yes | same |
+
+#### PreToolUseAgentPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/pretooluse-agent.json` |
+| `hook_event_name` | `Literal["PreToolUse"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `tool_name` | `Literal["Agent"]` | yes | same |
+| `tool_input.prompt` | `str` | yes | same |
+| `tool_input.subagent_type` | `Optional[str]` | no | same |
+| `tool_input.name` | `Optional[str]` | no | same |
+| `tool_input.team_name` | `Optional[str]` | no | same |
+
+#### PostToolUseBashPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/posttooluse-bash.json` |
+| `hook_event_name` | `Literal["PostToolUse"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `tool_name` | `Literal["Bash"]` | yes | same |
+| `tool_input.command` | `str` | yes | same |
+| `tool_response.output` | `Optional[str]` | no | same |
+| `tool_response.error` | `Optional[str]` | no | same |
+| `tool_response.interrupted` | `bool` | yes | same |
+
+#### PermissionRequestPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/permission-request-write.json` |
+| `hook_event_name` | `Literal["PermissionRequest"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `tool_name` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/permission-request-write.json`, `test-harness/hooks/claude/fixtures/approved/permission-request-bash.json` |
+| `tool_input` | `dict[str, Any]` | yes | same |
+
+#### StopPayload fields
+
+| Field | Type | Required | Evidence source |
+| --- | --- | --- | --- |
+| `session_id` | `UUID` | yes | `test-harness/hooks/claude/fixtures/approved/stop.json` |
+| `hook_event_name` | `Literal["Stop"]` | yes | same |
+| `cwd` | `str` | yes | same |
+| `transcript_path` | `Optional[str]` | no | same |
+| `stop_hook_active` | `bool` | yes | same |
+
+#### NotificationPayload fields
+
+`NotificationPayload` remains deferred. No verified payload fixture exists in
+`test-harness/hooks/claude/fixtures/approved/`, and the local Haiku harness
+still records this surface as wired-but-unresolved rather than captured.
 
 Done when:
 
@@ -604,6 +765,18 @@ The required entry point is:
 test-harness/hooks/run-schema-drift.py <provider>
 ```
 
+CLI contract:
+
+- implemented with `argparse`
+- positional argument: `<provider>`
+- optional argument: `--output-dir`
+- exit code `0` = `PASS`
+- exit code `1` = `DRIFT`
+- exit code `2` = `ERROR` or `NOT_SUPPORTED`
+- drift JSON path is echoed to stdout
+- all errors are written to stderr
+- file output must use atomic write via `<output>.tmp` and `os.replace(...)`
+
 Supported providers:
 
 - `claude`
@@ -629,13 +802,26 @@ Required command:
 Required flow:
 
 1. invoke `run-schema-drift.py <provider>`
-2. on completion, invoke the global `html-report` skill as a background flow with
-   `run_in_background=true`
+2. on completion, invoke the global `html-report-generator` execution layer as a
+   background agent with `run_in_background=true`
 3. the background agent reads the drift JSON and generates the annotated HTML report
 4. the calling agent receives the report path and displays it to the user
 
-The global `html-report` skill invocation must stay in the background so the
-calling agent does not accumulate HTML-generation context.
+The global HTML background execution must stay in the background so the calling
+agent does not accumulate HTML-generation context.
+
+`hook-schema-drift` skill file spec:
+
+- file path: `.claude/skills/hook-schema-drift/SKILL.md`
+- content requirements:
+  - YAML frontmatter
+  - command contract for `/hook-schema-drift <provider>`
+  - explicit dependency on the global html-report stack
+  - explicit `run_in_background=true` requirement for the HTML execution layer
+  - failure behavior when the background HTML agent fails:
+    - drift JSON path still returned
+    - error surfaced to stderr/user
+    - no silent success
 
 ### Provider States
 
@@ -679,8 +865,10 @@ Each run must produce one self-contained HTML report:
 
 - no external CSS
 - no iframes
-- full `DOCTYPE`
-- charset declaration required
+- HTML5 `<!DOCTYPE html>`
+- `<meta charset="utf-8">`
+- HTML-escape all payload content before rendering
+- no inline JavaScript
 
 Required output path:
 
@@ -733,33 +921,98 @@ The generated HTML must follow the `xhtml-plugin-expert` visual conventions:
 
 ### Global `html-report` Skill
 
-The plan assumes a reusable global skill at:
+The plan requires a reusable two-tier global HTML reporting stack:
 
 ```text
-$HOME/.claude/skills/html-report/
+$HOME/.claude/skills/html-report/SKILL.md
+~/.claude/agents/html-report-generator.md
 ```
 
-Path note:
+Required reading reference before implementation:
 
-- normalized path requirement: `$HOME/.claude/skills/html-report/`
-- current local machine path: `/Users/randlee/.claude/skills/html-report/`
-- the path must exist before any report-generating sprint is considered complete
-- installation and tested invocation are explicit prerequisites, not assumptions
+`/Users/randlee/Documents/github-radiant/data-sourcegenerators/.claude/agents/xhtml-plugin-expert.md`
+
+This agent demonstrates the correct structure, CSS conventions, and content
+patterns for self-contained HTML reports. The new
+`html-report-generator` MUST follow its structural patterns unless the
+guidelines document below says otherwise.
+
+QA gate:
+
+the completed `~/.claude/skills/html-report/SKILL.md` and
+`~/.claude/agents/html-report-generator.md` MUST pass review against:
+
+`/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+
+The QA reviewer will use that document as the acceptance checklist for those
+two files. The implementer must read it before writing a single line.
+
+Discovery layer:
+
+- normalized path: `$HOME/.claude/skills/html-report/SKILL.md`
+- current local machine path: `/Users/randlee/.claude/skills/html-report/SKILL.md`
+
+Execution layer:
+
+- normalized path: `~/.claude/agents/html-report-generator.md`
+- current local machine path: `/Users/randlee/.claude/agents/html-report-generator.md`
 
 Responsibilities:
 
-- input: structured drift JSON
-- output: annotated self-contained HTML
-- owns visual system and report formatting
-- does not own schook-specific schema rules
+- discovery layer (`~/.claude/skills/html-report/SKILL.md`):
+  - routes callers to the execution layer
+  - documents the generic HTML reporting purpose
+  - contains no repo-specific policy
+- execution layer (`~/.claude/agents/html-report-generator.md`):
+  - consumes structured drift JSON
+  - returns structured success/error JSON
+  - emits the self-contained HTML report
+  - owns visual system and report formatting
+  - does not own schook-specific schema rules
 
 The schook skill at `.claude/skills/hook-schema-drift/` is the domain-aware
 caller. It runs the Python entry point, then hands the drift JSON to the
-background `html-report` skill flow.
+background `html-report-generator` execution layer.
+
+Prescriptive deliverable spec for the global html-report stack:
+
+File 1: `~/.claude/skills/html-report/SKILL.md`
+
+Content requirements:
+
+- YAML frontmatter:
+  - `name: html-report`
+  - `version: 1.0.0`
+  - `description:` one line
+- `## Purpose` section
+- `## Agent Delegation` section naming `html-report-generator`
+- `## Input Contract` section
+- `## Scratchpad Areas` section
+- `## Example invocation` section with a minimal fenced JSON input example
+
+File 2: `~/.claude/agents/html-report-generator.md`
+
+Content requirements:
+
+- YAML frontmatter:
+  - `name: html-report-generator`
+  - `version: 1.0.0`
+  - `description:` one line
+- `## Input` section with fenced JSON schema showing required fields
+- `## Output` section with fenced JSON schema showing:
+  - `{ success, data: { report_path }, error }`
+- `## Report Structure` section
+- `## Scratchpad` section documenting the `<div class="scratchpad">` pattern
+- `## Code Examples` section with a minimal HTML document skeleton and inline CSS
 
 Required readiness before report-generating work can close:
 
-- the global `html-report` skill is installed at the required path
+- both files exist at the specified paths
+- both pass review against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+- `html-report-generator` can be invoked as a background agent from
+  `hook-schema-drift`
+- a test invocation produces a valid self-contained HTML file
 - a tested invocation example is checked and documented
 - the generated HTML is self-contained and matches the visual conventions in
   this section
@@ -799,6 +1052,8 @@ Versioning rules:
 
 - old schema = committed Pydantic models plus approved fixtures in the repo
 - new schema = current-run captures
+- drift history path:
+  `test-harness/hooks/<provider>/drift-history/<ISO-timestamp>-drift.json`
 - Git history is the version archive
 - no `schema-vN.json` files
 
@@ -814,12 +1069,24 @@ On drift:
 Phase 3 is not complete until all of the following exist:
 
 - `pyproject.toml` with `pydantic>=2.0` and `pytest`
-- the discriminated-union Claude payload model
+- `test-harness/hooks/claude/models/payloads.py` with the discriminated-union
+  Claude payload model
 - `test-harness/hooks/run-schema-drift.py`
-- per-provider adapters under `test-harness/hooks/<provider>/`
-- drift JSON output per run
+- per-provider adapters at `test-harness/hooks/<provider>/schema_drift.py`
+- drift JSON output per run that validates against `DriftReport`
 - a self-contained HTML report per run
-- `.claude/skills/hook-schema-drift/`
+- `.claude/skills/hook-schema-drift/SKILL.md`
+- `$HOME/.claude/skills/html-report/SKILL.md`
+- `~/.claude/agents/html-report-generator.md`
+
+Required pytest coverage:
+
+- fixture validation for all approved Claude fixtures
+- required-field removal detection
+- extra-field tolerance with surfaced drift reporting
+- drift classification logic for every `DriftErrorCode`
+- HTML structure validation
+- marker split between fixture/schema tests and `live_capture`
 
 ## Provider Scope
 
