@@ -134,7 +134,7 @@ future `schook` base record must stay identical.
 Implementation-facing reading for `schook`:
 
 - `session_id` is the verified Claude lifecycle anchor
-- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
+- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
 - `active_pid` remains part of the planned runtime identity tuple, but is a
   runtime-managed field rather than a Claude payload contract claim
 - `Notification(idle_prompt)` stays outside the verified identity/state model

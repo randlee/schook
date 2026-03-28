@@ -1,9 +1,12 @@
 pub mod conditions;
+pub mod context;
 pub mod dispatch;
+pub mod errors;
 pub mod events;
 pub mod exit_codes;
 pub mod manifest;
 pub mod results;
+pub mod session;
 pub mod validation;
 
 pub const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";
