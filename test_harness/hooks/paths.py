@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 
@@ -10,6 +11,6 @@ CLAUDE_FIXTURES_ROOT = CLAUDE_ROOT / "fixtures" / "approved"
 CLAUDE_REPORTS_ROOT = CLAUDE_ROOT / "reports"
 CLAUDE_DRIFT_HISTORY_ROOT = CLAUDE_ROOT / "drift-history"
 CLAUDE_SCHEMA_ROOT = CLAUDE_ROOT / "schema"
-GLOBAL_HTML_SKILL_ROOT = Path.home() / ".claude" / "skills" / "html-report"
-GLOBAL_HTML_AGENT_PATH = Path.home() / ".claude" / "agents" / "html-report-generator.md"
-
+ATM_HOME_ROOT = Path(os.environ.get("ATM_HOME") or Path.home())
+GLOBAL_HTML_SKILL_ROOT = ATM_HOME_ROOT / ".claude" / "skills" / "html-report"
+GLOBAL_HTML_AGENT_PATH = ATM_HOME_ROOT / ".claude" / "agents" / "html-report-generator.md"
