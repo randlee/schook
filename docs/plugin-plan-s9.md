@@ -313,12 +313,30 @@ Deliverables:
 - `pyproject.toml`
   - declares `pydantic>=2.0`
   - declares `pytest`
+  - Done when:
+    - file exists at repo root
+    - `pip install -e .` succeeds
+    - `pytest --collect-only` discovers the test suite without errors
 - `test-harness/hooks/claude/models/payloads.py`
   - contains the complete discriminated-union Claude payload model
+  - Done when:
+    - `from test_harness.hooks.claude.models.payloads import ClaudeHookPayload`
+      imports without error
+    - all approved fixtures validate against the model
+    - `pytest test-harness/hooks/claude/tests/` passes
 - `test-harness/hooks/run-schema-drift.py`
   - single schema-drift CLI entry point
 - `test-harness/hooks/<provider>/schema_drift.py`
   - one provider adapter module per supported provider
+  - content requirements:
+    - exports `run_drift(output_dir: Path) -> DriftReport`
+    - encapsulates provider-specific capture, fixture loading, and drift
+      comparison
+    - returns only validated `DriftReport` data to the shared CLI
+  - Done when:
+    - `run-schema-drift.py claude` imports and calls the adapter
+    - exit code matches the `PASS` / `DRIFT` / `ERROR` contract
+    - drift JSON output validates against `DriftReport`
 - `test-harness/hooks/<provider>/reports/<ISO-timestamp>/schema-drift-report.html`
   - single self-contained HTML report per run
 - `test-harness/hooks/<provider>/drift-history/<ISO-timestamp>-drift.json`
@@ -471,6 +489,9 @@ class DriftEntry(BaseModel):
     error_code: DriftErrorCode
     old_value: Optional[str] = None
     new_value: Optional[str] = None
+    source: Optional[str] = None
+    action: Optional[str] = None
+    recovery: Optional[str] = None
     message: str
 
 
@@ -530,11 +551,18 @@ Model notes:
   produced a verified payload shape.
 - UUID format is enforced at the Python layer. This prevents malformed session
   IDs from corrupting Rust session-state deserialization in `S9-HP3`.
+- `ProviderStatus` and `DriftErrorCode` are Python wire-format enums only. The
+  Rust implementation in `S9-HP3` must define its own independent enums or
+  newtypes in `sc-hooks-core`; Python and Rust do not share a type library.
 - `HookPayloadBase` uses `ConfigDict(extra="allow")` for forward compatibility;
   extra fields must still be surfaced in drift output.
 - `drift-report.json` must validate against `DriftReport`.
 - unhandled Python exceptions in drift capture/classification must be caught and
   serialized as a `DriftEntry` with `error_code=CAPTURE_FAILED`.
+- when `error_code=CAPTURE_FAILED`, the `DriftEntry` must include:
+  - `source`: which hook surface or drift stage failed
+  - `action`: user-facing recovery action such as `run manual capture`
+  - `recovery`: optional machine-readable retry instruction when automatable
 
 #### SessionStartPayload fields
 
@@ -640,6 +668,25 @@ Done when:
 - both drift JSON and the self-contained HTML report are produced by the Phase 3
   path; JSON-only output does not close the reporting deliverable
 
+#### Rust design requirements for S9-P3 outputs
+
+- the Python drift report is a wire-format boundary, not a shared library
+  boundary
+- `sc-hooks-core` must define Rust-native equivalents of:
+  - `ProviderStatus`
+  - `DriftErrorCode`
+  - `DriftEntry`
+  - `DriftReport`
+- the Rust equivalents may mirror the Python names, but they must be declared
+  independently with Rust derives and validation rules
+- the Python CLI must preserve error provenance so the Rust side can surface the
+  failure chain intact
+- if `os.replace()` fails after the `.tmp` file is written:
+  - the `.tmp` file must be explicitly removed
+  - stderr must include the failing `.tmp` path
+  - the command must exit non-zero
+  - no partial success may be reported
+
 ### S9-P4: Phase 4: Revise The Plan From Verified Schema
 
 Status:
@@ -712,8 +759,77 @@ Depends on:
 
 Deliverables:
 
-- session lifecycle implementation
-- persisted session correlation keyed by verified inputs only
+- `sc-hooks-core`
+  - final trait/context freeze used by the hook runtime
+  - canonical Rust types for:
+    - `SessionId`
+    - `ActivePid`
+    - `ProjectRootDir`
+    - `ProviderStatus`
+    - `DriftErrorCode`
+    - `DriftEntry`
+    - `DriftReport`
+  - structured `HookError` boundary and normalized `agent_state` transitions
+- `sc-hooks-sdk`
+  - provider adapters
+  - handler registration
+  - observability bridge integration
+- `plugins/agent-session-foundation`
+  - canonical session-state ownership
+  - `SessionStart`, `SessionEnd`, `PreCompact`, and `Stop` handling
+  - persisted session correlation keyed only by verified inputs
+- same-PR updates to:
+  - `docs/architecture.md`
+  - `docs/requirements.md`
+  - `docs/project-plan.md`
+  whenever a new runtime crate lands
+
+Write scope:
+
+- `sc-hooks-core/`
+- `sc-hooks-sdk/`
+- `plugins/agent-session-foundation/`
+- same-PR updates to `docs/architecture.md`, `docs/requirements.md`, and
+  `docs/project-plan.md`
+
+Required tests:
+
+- unit tests for normalized `agent_state` transitions
+- integration tests for canonical session-state persistence keyed by
+  `session_id`
+- integration tests proving `SessionStart` in directory A and later lifecycle
+  hooks in directory B still resolve the same session record through
+  `project_root_dir`
+- tests for atomic write behavior and unchanged-state no-rewrite behavior
+- tests for mandatory hook-log emission on state-changing and no-op invocations
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- lifecycle code consumes only verified fields from the Phase 4 evidence set
+- canonical session-state schema matches `HKR-004`, `HKR-008`, `HKR-009`, and
+  `HKR-012`
+- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR`, never from cwd
+- ATM-specific routing remains outside `plugins/agent-session-foundation`
+- same-PR architecture inventory updates land when new runtime crates are added
+
+Done when:
+
+- the runtime work queue for session lifecycle is implementable without open
+  design questions
+- required tests pass
+- no unverified fields are consumed in the lifecycle path
+
+#### Rust design requirements for S9-HP3
+
+- `HookError` must use structured variants with named fields and source-chain
+  preservation via `thiserror`
+- no library boundary may expose raw message-only errors
+- every wrapped error must retain `#[source]`
+- session identity types must remain newtypes, not bare primitives
+- Python drift JSON is deserialized into Rust-owned types declared in
+  `sc-hooks-core`, not shared directly across languages
 
 #### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
 
@@ -726,8 +842,56 @@ Depends on:
 
 Deliverables:
 
-- Bash ATM identity behavior
-- spawn gating behavior
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- named-agent versus background-agent policy
+- subagent linkage/tracking
+- fenced/blocking JSON tool-utility behavior
+- `.atm.toml` reference and lookup contract for ATM-aware policy decisions:
+  - file name: `.atm.toml`
+  - primary lookup location: `project_root_dir/.atm.toml`
+  - child-agent behavior: inherit parent team context when child current
+    directory differs but parent session still points at the same
+    `project_root_dir`
+  - fallback: no cwd heuristics; if `.atm.toml` is absent, ATM-specific policy
+    is unavailable and the generic gate behavior continues
+- same-PR architecture inventory updates when either plugin crate lands
+
+Write scope:
+
+- `plugins/agent-spawn-gates/`
+- `plugins/tool-output-gates/`
+- `.atm.toml` documentation and any same-PR doc updates needed to clarify the
+  blocking contract
+
+Required tests:
+
+- direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for named-agent versus background-agent policy outcomes
+- tests for subagent linkage fields written into the canonical session-state
+  file
+- tests for `.atm.toml` lookup order and missing-file behavior
+- tests for fenced `json` extraction and schema validation success/failure
+- tests proving invalid input returns exact retryable failure reasons
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- spawn and tool-blocking behavior is tested directly
+- `plugins/tool-output-gates` is implemented separately from
+  `plugins/agent-spawn-gates`
+- `HKR-010`, `HKR-011`, and `HKR-013` are satisfied by concrete crate scope and
+  tests
+- no unverified field is relied on without a later approved schema capture
+- block responses explain exactly how the caller can retry successfully
+
+Done when:
+
+- both gate plugins are specified well enough to implement without follow-up
+  design questions
+- required tests pass
+- no unverified fields are consumed in spawn or tool-output policy
 
 #### S9-HP5: Hook Phase 5: Relay Hooks
 
@@ -736,11 +900,47 @@ Status:
 
 Depends on:
 
-- Hook Phase 3 complete
+- S9-P5 complete
 
 Deliverables:
 
-- relay behavior for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
+- `plugins/atm-extension`
+- ATM-specific Bash identity-file handling
+- relay mechanism for:
+  - `PermissionRequest`
+  - `Stop`
+  - teammate-idle
+- `Notification(idle_prompt)` remains explicitly deferred unless it is captured
+  live later
+- same-PR architecture inventory updates when the ATM extension crate lands
+
+Write scope:
+
+- `plugins/atm-extension/`
+- ATM-only docs where relay semantics or teammate-idle mapping must be frozen
+
+Required tests:
+
+- tests for ATM identity-file create/delete behavior around `atm` Bash commands
+- tests for `PermissionRequest`, `Stop`, and teammate-idle relay behavior
+- tests proving ATM extension fields layer onto the canonical session record
+  instead of redefining it
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Success criteria:
+
+- ATM relay behavior layers on generic utilities instead of defining them
+- relay targets and relay mechanism are explicitly documented
+- ATM environment inheritance and child override behavior are tested
+- unresolved `Notification(idle_prompt)` capture does not block HP5 unless a
+  later requirement explicitly changes the baseline
+
+Done when:
+
+- relay-extension work is implementation-ready without open design questions
+- required tests pass
+- ATM behavior is clearly layered on generic utilities, not defining them
 
 Rules:
 
@@ -806,6 +1006,11 @@ CLI contract:
 - drift JSON path is echoed to stdout
 - all errors are written to stderr
 - file output must use atomic write via `<output>.tmp` and `os.replace(...)`
+- if `os.replace(...)` fails after the temp file is written:
+  - remove the temp file explicitly
+  - emit stderr that includes the temp-file path
+  - return exit code `2`
+  - do not report success
 
 Supported providers:
 
@@ -1019,6 +1224,15 @@ Content requirements:
 - `## Input Contract` section
 - `## Scratchpad Areas` section
 - `## Example invocation` section with a minimal fenced JSON input example
+- zero repo-specific content
+
+Done when:
+
+- file exists at the normalized path
+- content requirements are present in the file
+- zero repo-specific content is preserved
+- the file passes review against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
 
 File 2: `~/.claude/agents/html-report-generator.md`
 
@@ -1034,6 +1248,15 @@ Content requirements:
 - `## Report Structure` section
 - `## Scratchpad` section documenting the `<div class="scratchpad">` pattern
 - `## Code Examples` section with a minimal HTML document skeleton and inline CSS
+
+Done when:
+
+- file exists at the normalized path
+- background-agent invocation from `hook-schema-drift` succeeds and returns
+  `{ success: true, data: { report_path } }`
+- generated HTML is self-contained and validates against the visual conventions
+- the file passes review against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
 
 Required readiness before report-generating work can close:
 

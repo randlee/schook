@@ -63,6 +63,12 @@ Important observed facts:
 - Disk is the source of truth; in-memory state is a working copy only
 - Every `session.json` update must use an atomic write in the same directory
   (`temp + rename`); in-place mutation is forbidden
+- If the atomic rename step fails after the temp file is written:
+  - the temp file must be explicitly removed
+  - the previous canonical state file remains the source of truth
+  - the failure must be logged through `sc-observability`
+  - stderr and hook logs must include the temp-file path
+  - the runtime must surface the error instead of silently reporting success
 - No daemon cache is authoritative for hook-state correctness
 - Session-state storage must not use `/tmp`
 - If the canonical session record is unchanged after handler execution, the
@@ -211,12 +217,34 @@ Optional ATM extension fields:
 `sc-hooks-core` owns the canonical hook-runtime error enum:
 
 ```rust
+#[derive(Debug, thiserror::Error)]
 pub enum HookError {
-    InvalidPayload { message: String },
+    #[error("invalid payload near {input_excerpt}")]
+    InvalidPayload {
+        input_excerpt: String,
+        #[source]
+        source: Option<serde_json::Error>,
+    },
+    #[error("invalid context: {message}")]
     InvalidContext { message: String },
-    StateIo { message: String },
-    Validation { message: String },
-    Internal { message: String },
+    #[error("state I/O failed for {path}")]
+    StateIo {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("validation failed for {field}")]
+    Validation {
+        field: String,
+        message: String,
+    },
+    #[error("internal error in {component}")]
+    Internal {
+        component: &'static str,
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 ```
 
@@ -225,6 +253,11 @@ Rules:
 - library crates use canonical typed errors, not `anyhow` in their public
   contract
 - `HookError` variants are stable across runtime crates
+- parse failures are represented as `HookError::InvalidPayload` with a source
+  `serde_json::Error` and an excerpt of the offending input
+- no hook error may discard an originating source error through bare `?`
+  propagation without wrapping it in a parent `HookError` that preserves the
+  source chain
 - fail-open versus fail-closed posture is determined by the handler/crate
   contract, not by ad hoc string matching
 
