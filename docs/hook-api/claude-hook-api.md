@@ -114,8 +114,8 @@ Rules:
 
 - directory changes do not change identity
 - compaction does not change `session_id`
-- a fresh Claude process creates a new `session_id`
 - `/clear` ends the prior session and starts a new `session_id`
+- a fresh Claude process creates a new `session_id`
 - later hooks should read persisted session state rather than trying to infer
   identity from current working directory or subprocess lineage
 - `PPID` can be used as a local diagnostic cross-check, but it is not the

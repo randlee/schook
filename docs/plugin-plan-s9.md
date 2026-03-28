@@ -678,9 +678,6 @@ Model notes:
 | `tool_name` | `Literal["Agent"]` | yes | same |
 | `tool_input.prompt` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
-| `tool_input.subagent_type` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
-| `tool_input.name` | `Optional[str]` | no | same |
-| `tool_input.team_name` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_input.run_in_background` | `Optional[bool]` | no | same |
 | `permission_mode` | `Optional[str]` | no | same |
 | `tool_use_id` | `Optional[str]` | no | same |
@@ -702,9 +699,7 @@ Deferred, not fixture-verified for implementation:
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
 | `tool_input.description` | `Optional[str]` | no | same |
-| `tool_response.output` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stdout` | `Optional[str]` | no | same |
-| `tool_response.error` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_response.stderr` | `Optional[str]` | no | same |
 | `tool_response.interrupted` | `bool` | yes | same |
 | `tool_response.isImage` | `Optional[bool]` | no | same |
@@ -729,6 +724,8 @@ Deferred, not fixture-verified for implementation:
 | `tool_input` | `dict[str, Any]` | yes | same |
 | `permission_mode` | `Optional[str]` | no | same |
 | `permission_suggestions` | `Optional[list[PermissionSuggestion]]` | no | same |
+
+Absent and empty `permission_suggestions` are treated as equivalent.
 
 #### StopPayload fields
 
@@ -1132,12 +1129,20 @@ Deliverables:
 
 - `plugins/atm-extension`
 - ATM-specific Bash identity-file handling
+- four-stage relay path named explicitly in the implementation contract:
+  - `RawRequest`
+  - `ValidatedRequest`
+  - `RelayDecision`
+  - `RelayResult`
 - relay mechanism for:
   - `PermissionRequest`
   - `Stop`
   - teammate-idle
 - `Notification(idle_prompt)` remains explicitly deferred unless it is captured
   live later
+- relay traits stay sealed inside `plugins/atm-extension`; downstream crates
+  consume emitted events and extension records rather than implementing relay
+  base traits directly
 - same-PR architecture inventory updates when the ATM extension crate lands
 
 Verified field inputs allowed in HP5:
@@ -1170,6 +1175,8 @@ Required tests:
 
 - tests for ATM identity-file create/delete behavior around `atm` Bash commands
 - tests for `PermissionRequest`, `Stop`, and teammate-idle relay behavior
+- tests proving a malformed `permission_suggestions` entry returns a structured
+  `HookError` with the failing suggestion index and offending field name
 - tests proving ATM extension fields layer onto the canonical session record
   instead of redefining it
 - `cargo test --workspace`
@@ -1194,6 +1201,19 @@ Rules:
 - prototype branches remain reference-only until this phase completes the re-evaluation
 - no field may be consumed in runtime code unless it is backed by the verified Phase 4 outputs
 - architecture inventory updates must happen in the same PR as any accepted runtime crate introduction
+
+#### Rust design requirements for S9-HP5
+
+- `PermissionSuggestion.type` maps to an enum when values are closed, or to a
+  `SuggestionType(String)` newtype when values remain open; HP5 must not use a
+  bare `String` for this discriminator
+- `PermissionSuggestionRule.toolName` reuses the `ToolName` newtype established
+  in HP4
+- `PermissionSuggestionRule.ruleContent` uses a `RuleContent(String)` newtype
+  with non-empty validation
+- malformed `permission_suggestions` entries must surface through structured
+  `HookError` values rather than `unwrap()`, silent discard, or bare string
+  errors
 
 Done when:
 
