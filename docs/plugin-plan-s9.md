@@ -667,6 +667,8 @@ Done when:
 - drift policy is executable in tests, not just described in prose
 - both drift JSON and the self-contained HTML report are produced by the Phase 3
   path; JSON-only output does not close the reporting deliverable
+- the complete Phase 3 checklist in `Required Deliverables For Phase 3` exists;
+  that checklist is the authoritative closure list for `S9-P3`
 
 #### Rust design requirements for S9-P3 outputs
 
@@ -844,6 +846,7 @@ Deliverables:
 
 - `plugins/agent-spawn-gates`
 - `plugins/tool-output-gates`
+- `PostToolUse(Bash)` hook routing — handled via `plugins/tool-output-gates`
 - named-agent versus background-agent policy
 - subagent linkage/tracking
 - fenced/blocking JSON tool-utility behavior
@@ -867,6 +870,7 @@ Write scope:
 Required tests:
 
 - direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for `PostToolUse(Bash)` payload routing through `tool-output-gates`
 - tests for named-agent versus background-agent policy outcomes
 - tests for subagent linkage fields written into the canonical session-state
   file
@@ -900,7 +904,7 @@ Status:
 
 Depends on:
 
-- S9-P5 complete
+- S9-P5 complete AND S9-HP4 complete
 
 Deliverables:
 
