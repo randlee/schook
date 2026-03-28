@@ -150,7 +150,10 @@ Rules:
 
 ## Phase Plan
 
-### Phase 0: Review Baseline
+### S9-P0: Phase 0: Review Baseline
+
+Status:
+- Completed
 
 Purpose:
 
@@ -173,7 +176,10 @@ Done when:
 - Claude-first scope is explicit
 - prototype crates are explicitly marked reference-only
 
-### Phase 1: Build The Harness
+### S9-P1: Phase 1: Build The Harness
+
+Status:
+- Completed
 
 Purpose:
 
@@ -214,7 +220,10 @@ Done when:
 - `pytest -m live_capture` has a defined Claude execution path
 - harness output locations are automatic and documented
 
-### Phase 2: Capture Real Claude Payloads
+### S9-P2: Phase 2: Capture Real Claude Payloads
+
+Status:
+- Completed
 
 Purpose:
 
@@ -223,6 +232,9 @@ Purpose:
 Gate to start:
 
 - Phase 1 complete
+
+Note:
+- completed as part of the executed harness pass; captured artifacts now live under `test-harness/hooks/claude/captures/raw/`
 
 Deliverables:
 
@@ -242,7 +254,10 @@ Done when:
 - run artifacts exist under the harness output contract
 - the capture run produces a complete `run-report.md`
 
-### Phase 3: Create Pydantic Models And Schema Artifacts
+### S9-P3: Phase 3: Create Pydantic Models And Schema Artifacts
+
+Status:
+- Not started
 
 Purpose:
 
@@ -276,7 +291,10 @@ Done when:
 - schema artifacts exist for the validated Claude models
 - drift policy is executable in tests, not just described in prose
 
-### Phase 4: Revise The Plan From Verified Schema
+### S9-P4: Phase 4: Revise The Plan From Verified Schema
+
+Status:
+- Not started
 
 Purpose:
 
@@ -308,7 +326,10 @@ Done when:
 - unknowns are called out explicitly as gaps or deferrals
 - reviewers can point to fixture or source evidence for every required field used by the next implementation phase
 
-### Phase 5: Re-Evaluate And Sequence Implementation
+### S9-P5: Phase 5: Re-Evaluate And Sequence Implementation
+
+Status:
+- Not started
 
 Purpose:
 
@@ -331,7 +352,10 @@ Only after that disposition is complete may runtime implementation work begin.
 The implementation track after this phase must follow the Hook Phase 3/4/5
 split from `docs/project-plan.md`:
 
-#### Hook Phase 3: Session Foundation
+#### S9-HP3: Hook Phase 3: Session Foundation
+
+Status:
+- Planned
 
 Depends on:
 
@@ -342,7 +366,10 @@ Deliverables:
 - session lifecycle implementation
 - persisted session correlation keyed by verified inputs only
 
-#### Hook Phase 4: Bash Identity And Spawn Gates
+#### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
+
+Status:
+- Planned
 
 Depends on:
 
@@ -351,9 +378,12 @@ Depends on:
 Deliverables:
 
 - Bash ATM identity behavior
-- Task spawn gating behavior
+- spawn gating behavior
 
-#### Hook Phase 5: Relay Hooks
+#### S9-HP5: Hook Phase 5: Relay Hooks
+
+Status:
+- Planned
 
 Depends on:
 
@@ -375,6 +405,12 @@ Done when:
 - the runtime work queue is ready to start without guessing
 
 ## Immediate Work Package
+
+S9-PBC is tracked separately as:
+
+- `S9-PBC` — Plan-BC: BC Design Consolidation
+- current status: In QA
+- current authority: `docs/phase-bc-hook-runtime-design.md`
 
 The immediate Sprint 9 work is limited to Phases 0 through 4.
 
