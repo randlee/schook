@@ -52,12 +52,12 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | Planned | Claude session and lifecycle implementation | `HKR-004` | Hook Phase 2 | `plugins/atm-session-lifecycle`, same-PR architecture inventory update |
-| Hook Phase 4 | Planned | Claude command and spawn gates | `HKR-004` | Hook Phase 3 | `plugins/atm-bash-identity`, `plugins/gate-agent-spawns`, direct behavior tests |
-| Hook Phase 5 | Planned | Claude relay hooks | `HKR-004` | Hook Phase 3 | `plugins/atm-state-relay`, relay tests |
+| Hook Phase 0 | Completed | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 1 | Completed | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Hook Phase 2 | Completed | plan revision and BC design freeze from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, `docs/phase-bc-hook-runtime-design.md` |
+| Hook Phase 3 | Planned | Claude session and lifecycle implementation | `HKR-004` | Hook Phase 2 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
+| Hook Phase 4 | Planned | Claude command and spawn gates | `HKR-004` | Hook Phase 3 | `sc-hooks-agent-spawn-gates`, `sc-hooks-tool-output-gates`, direct behavior tests |
+| Hook Phase 5 | Planned | Claude relay and ATM extension hooks | `HKR-004` | Hook Phase 3 | `sc-hooks-atm-extension`, relay tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
@@ -642,12 +642,15 @@ Focus:
 Deliverables:
 - updated `docs/plugin-plan-s9.md`
 - updated `docs/hook-api/claude-hook-api.md`
+- new `docs/phase-bc-hook-runtime-design.md`
 - any additional traceability/gap notes needed for implementation readiness
 
 Acceptance criteria:
 - every planned Claude implementation field is backed by captured fixtures or
   existing source-of-truth code/docs/tests
 - unknown fields remain explicitly deferred
+- the BC design doc freezes session-state ownership, `agent_state`, logging,
+  trait boundaries, and the clean crate split before code starts
 - implementation tasks can start without schema guessing
 
 ### Hook Phase 3: Claude Session And Lifecycle Implementation
@@ -656,7 +659,7 @@ Focus:
 - implement the Claude lifecycle pair first
 
 Deliverables:
-- `plugins/atm-session-lifecycle`
+- `sc-hooks-session-foundation`
 - tests proving `SessionStart` / `SessionEnd` behavior against the captured
   contract
 
@@ -667,11 +670,11 @@ Acceptance criteria:
 ### Hook Phase 4: Claude Command And Spawn Gates
 
 Focus:
-- implement the Bash identity pair and the Task spawn gate
+- implement the spawn gate and structured tool-output gate from the clean BC design
 
 Deliverables:
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
+- `sc-hooks-agent-spawn-gates`
+- `sc-hooks-tool-output-gates`
 - direct behavior tests for command-sensitive and team-policy behavior
 
 Acceptance criteria:
@@ -685,7 +688,7 @@ Focus:
 - implement the notification/permission/stop relays
 
 Deliverables:
-- `plugins/atm-state-relay`
+- `sc-hooks-atm-extension`
 - direct tests for `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`
 
 Acceptance criteria:

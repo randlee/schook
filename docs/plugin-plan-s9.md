@@ -44,6 +44,9 @@ not define a competing execution sequence.
   - crate boundaries and inventory rules
 - `docs/project-plan.md`
   - project-level sequencing for the hook track
+- `docs/phase-bc-hook-runtime-design.md`
+  - clean post-capture runtime design authority for state, logging, trait
+    boundaries, and crate split
 
 ## Current Planning Baseline
 
@@ -52,8 +55,11 @@ not define a competing execution sequence.
   separately in `docs/hook-api/atm-hook-extension.md`.
 - Codex, Gemini, and Cursor remain documented follow-on providers, not current
   implementation targets.
-- Current ATM source-of-truth comes from `agent-team-mail` docs, scripts,
-  tests, and Rust fallback code.
+- Current ATM behavior may be referenced from `agent-team-mail` docs, scripts,
+  tests, and Rust fallback code, but those materials are reference-only for the
+  clean redesign.
+- The clean post-capture runtime design authority lives in this repo, not in
+  `agent-team-mail`.
 - Current Sprint 9 prototype crates are reference-only:
   - `plugins/atm-session-lifecycle`
   - `plugins/atm-bash-identity`
@@ -90,18 +96,19 @@ schema-capture mode.
 
 ## Required Claude Capture Set
 
-The first pass must capture real payloads for these Claude hook surfaces:
+The first pass capture set is now locally evidenced for these Claude hook
+surfaces:
 
 - `SessionStart`
 - `SessionEnd`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
-- `PreToolUse(Task)`
+- `PreToolUse(Agent)`
 - `PermissionRequest`
 - `Stop`
 - `Notification(idle_prompt)`
 
-The plan may not promote additional Claude fields or behaviors into
+The runtime plan may not promote additional Claude fields or behaviors into
 implementation scope unless they are backed by:
 
 - current source-of-truth docs/scripts/tests, or

@@ -224,6 +224,9 @@ The current architecture does not aim to provide:
 The next hook-extension track is a planned architecture addition, not part of
 the current release implementation boundary above.
 
+The detailed post-capture design authority for this track lives in
+`docs/phase-bc-hook-runtime-design.md`.
+
 ### 9.1 Claude-First Development Gate
 
 The first hook-extension development path is:
@@ -233,7 +236,16 @@ The first hook-extension development path is:
 3. revise hook docs and the implementation plan from captured evidence
 4. implement the Claude ATM hook crates
 
-Until steps 1-3 are complete, hook runtime crates remain planning targets only.
+Current status:
+
+- steps 1-3 are complete for the Claude baseline
+- captured `SessionStart.source` values now include `startup`, `compact`,
+  `resume`, and `clear`
+- `Notification(idle_prompt)` remains part of the documented Claude surface, but
+  is currently wired-but-unresolved in local Haiku capture
+
+Hook runtime crates remain planning targets until the post-capture BC design
+package is accepted and implementation begins.
 
 ### 9.2 Planned Harness Subsystem
 
@@ -260,16 +272,22 @@ Documented but deferred from the first harness pass:
 These are planned hook-extension targets only. They are not current source
 inventory and are not current runtime crates:
 
-- `plugins/atm-session-lifecycle`
-- `plugins/atm-bash-identity`
-- `plugins/gate-agent-spawns`
-- `plugins/atm-state-relay`
+- `sc-hooks-session-foundation`
+- `sc-hooks-agent-spawn-gates`
+- `sc-hooks-tool-output-gates`
+- `sc-hooks-atm-extension`
 
 Planning rules for these targets:
 
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
   captured Claude fixtures
+- the detailed post-capture BC design in
+  `docs/phase-bc-hook-runtime-design.md` is authoritative for crate roles,
+  state ownership, and trait boundaries
+- legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
+  `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
+  not the clean design authority
 - no planned hook crate becomes current architecture until it lands with code,
   tests, and the same-PR `docs/architecture.md` crate inventory update
 

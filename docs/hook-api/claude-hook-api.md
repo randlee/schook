@@ -7,13 +7,12 @@ This document records the currently verified Claude Code hook surfaces that
 
 The source-of-truth inputs for this document are:
 
-- installed hook scripts under `/Users/randlee/.claude/scripts/`
-- Claude-specific notes in
-  `/Users/randlee/Documents/github/synaptic-canvas/docs/agent-tool-use-best-practices.md`
-- Claude-specific notes in
-  `/Users/randlee/Documents/github/synaptic-canvas/docs/agent-teams-best-practices.md`
-- current ATM hook docs, scripts, tests, and session fallback code in
-  `/Users/randlee/Documents/github/agent-team-mail`
+- installed Claude hook scripts
+- Claude-specific notes in the `synaptic-canvas` repo:
+  - `docs/agent-tool-use-best-practices.md`
+  - `docs/agent-teams-best-practices.md`
+- current ATM hook docs, scripts, tests, and session fallback code in the
+  `agent-team-mail` repo
 
 ## Platform Rules
 
@@ -42,8 +41,13 @@ What is actually verified today for `SessionStart` from the live hook behavior:
   - `session_id`
   - `source`
 - verified observed `source` values:
-  - `init`
+  - `startup`
   - `compact`
+  - `resume`
+  - `clear`
+- capture evidence:
+  - `startup` and `compact` were captured in PR `#42`
+  - `resume` and `clear` were captured in PR `#44`
 - current script behavior:
   - `source == "compact"` -> compact-return message
   - any other value -> fresh-or-unknown start message
@@ -51,7 +55,6 @@ What is actually verified today for `SessionStart` from the live hook behavior:
 What is not verified today:
 
 - a full upstream Claude JSON schema for all hook payloads
-- a confirmed literal `source = "resume"` value
 - cwd/root/agent metadata as guaranteed `SessionStart` payload fields
 - parent/subagent/session lineage fields in Claude hook payloads
 
@@ -92,7 +95,7 @@ future `schook` base record must stay identical.
 | Session end | `SessionEnd` | `session-end.py` | `session_id`, `.atm.toml` core routing | emits ATM `session_end`, removes session record | `SessionEnd` sync plugin |
 | ATM identity write | `PreToolUse` on `Bash` | `atm-identity-write.py` | `tool_input.command`, `session_id`, ATM repo/env context | writes temp identity file for `atm` commands only | `PreToolUse/Bash` sync plugin |
 | ATM identity cleanup | `PostToolUse` on `Bash` | `atm-identity-cleanup.py` | hook routing context only | deletes temp identity file written by the paired pre-hook | `PostToolUse/Bash` sync plugin |
-| Agent spawn gate | `PreToolUse` on `Task` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `name`, `team_name`, `session_id`, team config | blocks unsafe spawns or mismatched team usage | `PreToolUse/Task` sync plugin |
+| Agent spawn gate | `PreToolUse` on `Agent` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `name`, `team_name`, `session_id`, team config | blocks unsafe spawns or mismatched team usage | `PreToolUse/Agent` sync plugin |
 | Idle notification relay | `Notification` on `idle_prompt` | `notification-idle-relay.py` | `session_id`, team/agent routing fields | emits ATM idle heartbeat | `Notification/idle_prompt` async-safe sync plugin |
 | Permission relay | `PermissionRequest` | `permission-request-relay.py` | `session_id`, `tool_name`, `tool_input`, team/agent routing | emits ATM permission-request event | `PermissionRequest` sync plugin |
 | Stop relay | `Stop` | `stop-relay.py` | `session_id`, team/agent routing | emits ATM stop/idle event | `Stop` sync plugin |
@@ -113,8 +116,11 @@ Adjacent but not part of the current eight-hook baseline:
 - the runtime should preserve session records across directory changes
 - Bash-specific hooks need command-sensitive behavior, not just hook-type
   matching
-- Task spawn gating is policy-heavy and should remain separate from generic ATM
+- Agent spawn gating is policy-heavy and should remain separate from generic ATM
   relays
+- `Notification(idle_prompt)` stays part of the documented Claude surface, but
+  should be labeled wired-but-unresolved in the harness until a local capture
+  actually lands
 - lifecycle and relay hooks are fail-open today; if `schook` changes that
   posture, the change must be explicit in requirements and protocol docs
 - no `schook` code should be written against inferred Claude payload fields that
