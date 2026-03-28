@@ -707,6 +707,8 @@ Deferred, not fixture-verified for implementation:
 | `permission_mode` | `Optional[str]` | no | same |
 | `permission_suggestions` | `Optional[list[PermissionSuggestion]]` | no | same |
 
+Absent and empty `permission_suggestions` are treated as equivalent.
+
 #### StopPayload fields
 
 | Field | Type | Required | Evidence source |
@@ -1070,12 +1072,20 @@ Deliverables:
 
 - `plugins/atm-extension`
 - ATM-specific Bash identity-file handling
+- four-stage relay path named explicitly in the implementation contract:
+  - `RawRequest`
+  - `ValidatedRequest`
+  - `RelayDecision`
+  - `RelayResult`
 - relay mechanism for:
   - `PermissionRequest`
   - `Stop`
   - teammate-idle
 - `Notification(idle_prompt)` remains explicitly deferred unless it is captured
   live later
+- relay traits stay sealed inside `plugins/atm-extension`; downstream crates
+  consume emitted events and extension records rather than implementing relay
+  base traits directly
 - same-PR architecture inventory updates when the ATM extension crate lands
 
 Verified field inputs allowed in HP5:
@@ -1108,6 +1118,8 @@ Required tests:
 
 - tests for ATM identity-file create/delete behavior around `atm` Bash commands
 - tests for `PermissionRequest`, `Stop`, and teammate-idle relay behavior
+- tests proving a malformed `permission_suggestions` entry returns a structured
+  `HookError` with the failing suggestion index and offending field name
 - tests proving ATM extension fields layer onto the canonical session record
   instead of redefining it
 - `cargo test --workspace`
@@ -1132,6 +1144,19 @@ Rules:
 - prototype branches remain reference-only until this phase completes the re-evaluation
 - no field may be consumed in runtime code unless it is backed by the verified Phase 4 outputs
 - architecture inventory updates must happen in the same PR as any accepted runtime crate introduction
+
+#### Rust design requirements for S9-HP5
+
+- `PermissionSuggestion.type` maps to an enum when values are closed, or to a
+  `SuggestionType(String)` newtype when values remain open; HP5 must not use a
+  bare `String` for this discriminator
+- `PermissionSuggestionRule.toolName` reuses the `ToolName` newtype established
+  in HP4
+- `PermissionSuggestionRule.ruleContent` uses a `RuleContent(String)` newtype
+  with non-empty validation
+- malformed `permission_suggestions` entries must surface through structured
+  `HookError` values rather than `unwrap()`, silent discard, or bare string
+  errors
 
 Done when:
 
