@@ -237,6 +237,7 @@ pub enum HookError {
     Validation {
         field: String,
         message: String,
+        // Originating semantic validation error, not a wrapper around an upstream source.
     },
     #[error("internal error in {component}")]
     Internal {

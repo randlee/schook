@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -7,11 +8,15 @@ import pytest
 
 
 def _run_cli(*args: str, workdir: Path) -> subprocess.CompletedProcess[str]:
+    pythonpath = str(workdir)
+    if existing := os.environ.get("PYTHONPATH"):
+        pythonpath = f"{pythonpath}{os.pathsep}{existing}"
     return subprocess.run(
         [sys.executable, "test-harness/hooks/run-schema-drift.py", *args],
         cwd=workdir,
         text=True,
         capture_output=True,
+        env={**os.environ, "PYTHONPATH": pythonpath},
     )
 
 
