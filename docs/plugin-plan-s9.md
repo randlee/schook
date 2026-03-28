@@ -18,9 +18,10 @@ This plan covers:
 
 1. harness build
 2. live Claude payload capture
-3. Pydantic model and schema creation
-4. plan revision from verified schema
-5. only then hook implementation evaluation and sequencing
+3. build and validate the global HTML reporting stack required by schema-drift reporting
+4. Pydantic model and schema creation
+5. plan revision from verified schema
+6. only then hook implementation evaluation and sequencing
 
 Supporting documents remain source-of-truth references for platform facts,
 requirements, architecture boundaries, and harness contract details. They do
@@ -39,7 +40,7 @@ not define a competing execution sequence.
 - `test-harness/hooks/README.md`
   - planned harness contract file created in Phase 1; it will own directory ownership, fixture policy, report lifecycle, and the `pytest` split
 - `docs/requirements.md`
-  - hook requirements, especially `HKR-001` through `HKR-007`
+  - hook requirements, especially `HKR-001` through `HKR-012`
 - `docs/architecture.md`
   - crate boundaries and inventory rules
 - `docs/project-plan.md`
@@ -74,9 +75,10 @@ The work must happen in this order:
 
 1. build the payload capture harness
 2. capture real Claude hook payloads
-3. create Pydantic models and schema artifacts from captured payloads
-4. revise the plan from verified schema
-5. re-evaluate or implement each hook plugin against validated schema
+3. build and QA the global HTML reporting stack
+4. create Pydantic models and schema artifacts from captured payloads
+5. revise the plan from verified schema
+6. re-evaluate or implement each hook plugin against validated schema
 
 No later step may begin early because a prototype branch already exists.
 
@@ -87,6 +89,7 @@ No hook runtime code starts until all of the following are true:
 - this plan is reviewed and accepted
 - Phase 1 has created `test-harness/hooks/README.md` and reviewers have accepted it as the harness contract
 - Claude payloads for the required first-pass capture set are captured
+- the global HTML reporting stack is complete and QA-approved
 - the captured payloads validate against provider-specific Pydantic models
 - schema artifacts are generated from those validated models
 - this plan is revised from the captured evidence
@@ -254,6 +257,44 @@ Done when:
 - run artifacts exist under the harness output contract
 - the capture run produces a complete `run-report.md`
 
+### S9-P2A: Phase 2A: Build Global HTML Reporting Stack
+
+Status:
+- Not started
+
+Purpose:
+
+- make the global HTML reporting dependency real before schema-drift tooling
+  depends on it
+
+Gate to start:
+
+- Phase 2 complete with captured Claude fixtures
+
+Deliverables:
+
+- discovery layer:
+  - `$HOME/.claude/skills/html-report/SKILL.md`
+  - current local machine path:
+    `/Users/randlee/.claude/skills/html-report/SKILL.md`
+- execution layer:
+  - `~/.claude/agents/html-report-generator.md`
+  - current local machine path:
+    `/Users/randlee/.claude/agents/html-report-generator.md`
+- both files follow the prescriptive file/content requirements in
+  `## Schema Drift Detection Tooling`
+- both files pass review against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+- one tested invocation that produces a valid self-contained HTML file
+
+Done when:
+
+- the discovery and execution layer files both exist at the required paths
+- both pass review against the guidelines document
+- the global execution layer can be invoked in the background from a caller
+  skill
+- a test invocation proves that the generated HTML is self-contained and valid
+
 ### S9-P3: Phase 3: Create Pydantic Models And Schema Artifacts
 
 Status:
@@ -265,7 +306,7 @@ Purpose:
 
 Gate to start:
 
-- Phase 2 complete with captured Claude fixtures
+- Phase 2A complete
 
 Deliverables:
 
@@ -309,21 +350,11 @@ Rules:
   - its content requirements
   - its done-when criteria
 
-Phase 3 hard gate for HTML reporting:
+Phase 3 prerequisite:
 
-- any work item that produces an HTML drift report is blocked until the global
-  `html-report` discovery layer exists at `$HOME/.claude/skills/html-report/SKILL.md`
-- any work item that produces an HTML drift report is blocked until the global
-  `html-report-generator` execution layer exists at `~/.claude/agents/html-report-generator.md`
-- on this machine, those resolve to:
-  - `/Users/randlee/.claude/skills/html-report/SKILL.md`
-  - `/Users/randlee/.claude/agents/html-report-generator.md`
-- both files must pass QA against:
-  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
-- the global HTML reporting stack must be complete and have a tested invocation
-  example before Phase 3 report output is considered runnable
+- `S9-P2A` must be complete before Phase 3 begins
 - the project-local `.claude/skills/hook-schema-drift/` command is the caller
-  only; it does not replace the global HTML rendering skill
+  only; it does not replace the global HTML rendering stack
 
 #### Pydantic Model Design
 
@@ -606,8 +637,6 @@ Done when:
 - captured fixtures validate against the Claude Pydantic models
 - schema artifacts exist for the validated Claude models
 - drift policy is executable in tests, not just described in prose
-- the global `html-report` skill exists, is tested, and is callable by the
-  project-local `.claude/skills/hook-schema-drift/` flow
 - both drift JSON and the self-contained HTML report are produced by the Phase 3
   path; JSON-only output does not close the reporting deliverable
 
@@ -732,11 +761,12 @@ S9-PBC is tracked separately as:
 - current status: In QA
 - current authority: `docs/phase-bc-hook-runtime-design.md`
 
-The immediate Sprint 9 work is limited to Phases 0 through 4.
+The immediate Sprint 9 work is limited to Phases 0 through 5.
 
 That means the current task is:
 
 - make the harness build-and-capture sequence explicit
+- make the global HTML reporting prerequisite explicit
 - make the schema/model phase explicit
 - make the post-capture plan revision gate explicit
 - remove any wording that makes plugin crates sound like the current build task
@@ -892,7 +922,7 @@ Required report sections:
    - NEW SCHEMA field table if fresh capture exists
    - `No fresh capture — last known: <date>` when no fresh capture exists
    - DRIFT callout if schemas differ
-   - ANALYSIS block below the diff, supplied by the global `html-report` skill
+   - ANALYSIS block below the diff, supplied by the global HTML reporting stack
 4. Non-automatable hooks subsection
    - `SessionStart(source=compact)` with last-known fixture and manual procedure
    - `SessionStart(source=clear)` with last-known fixture and manual procedure
@@ -919,7 +949,7 @@ The generated HTML must follow the `xhtml-plugin-expert` visual conventions:
   - warning = red
   - impact = blue
 
-### Global `html-report` Skill
+### Global HTML Reporting Stack
 
 The plan requires a reusable two-tier global HTML reporting stack:
 

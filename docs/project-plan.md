@@ -55,7 +55,8 @@ Important planning rule:
 | Sprint 9 | S9-P0 | Completed | Phase 0: Review Baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Sprint 9 | S9-P1 | Completed | Phase 1: Build Harness | `HKR-002`, `HKR-005` | S9-P0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Sprint 9 | S9-P2 | Completed | Phase 2: Capture Claude Payloads | `HKR-002`, `HKR-003` | S9-P1 | `test-harness/hooks/claude/captures/raw/`, approved fixtures, capture reports |
-| Sprint 9 | S9-P3 | Not started | Phase 3: Pydantic Models + Schema | `HKR-003` | S9-P2 complete (unblocked) | Pydantic models, generated schema artifacts, drift validation tests |
+| Sprint 9 | S9-P2A | Not started | Phase 2A: Global HTML Reporting Stack | `HKR-005`, `HKR-012` | S9-P2 | `$HOME/.claude/skills/html-report/SKILL.md`, `~/.claude/agents/html-report-generator.md`, validation example |
+| Sprint 9 | S9-P3 | Not started | Phase 3: Pydantic Models + Schema | `HKR-003`, `HKR-005` | S9-P2A | Pydantic models, generated schema artifacts, drift validation tests |
 | Sprint 9 | S9-P4 | Not started | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
 | Sprint 9 | S9-P5 | Not started | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
 | Sprint 9 | S9-HP3 | Planned | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
@@ -669,6 +670,28 @@ Acceptance criteria:
 Note:
 - S9-P2 completed as part of the executed S9-P1 harness follow-on; captured artifacts now live under `test-harness/hooks/claude/captures/raw/`
 
+### S9-P2A: Phase 2A: Global HTML Reporting Stack
+
+Status:
+- not started
+
+Focus:
+- build the reusable global HTML reporting stack before any schema-drift sprint
+  depends on report generation
+
+Deliverables:
+- `$HOME/.claude/skills/html-report/SKILL.md`
+- `~/.claude/agents/html-report-generator.md`
+- both files reviewed against:
+  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
+- one tested invocation producing a valid self-contained HTML file
+
+Acceptance criteria:
+- the discovery and execution layers both exist at the required paths
+- both pass the guidelines review gate
+- the execution layer can be invoked as a background agent from a caller skill
+- a test invocation proves self-contained HTML output
+
 ### S9-P3: Phase 3: Pydantic Models + Schema
 
 Status:
@@ -685,16 +708,14 @@ Deliverables:
 - `test-harness/hooks/run-schema-drift.py`
 - per-provider adapters under `test-harness/hooks/<provider>/`
 - `.claude/skills/hook-schema-drift/`
-- report-generation contract that depends on the global `html-report` skill at
-  `$HOME/.claude/skills/html-report/`
+- report-generation flow that uses the completed global HTML reporting stack
 
 Acceptance criteria:
 - captured Claude fixtures validate against the Pydantic models
 - schema artifacts exist for the validated models
 - drift classification rules execute in tests
 - schema drift remains a manual tool path, not CI
-- any report-generating workflow is blocked until the global `html-report`
-  skill exists and has a tested invocation example
+- any report-generating workflow depends on completed `S9-P2A`
 
 ### S9-P4: Phase 4: Revise Plan from Schema
 
