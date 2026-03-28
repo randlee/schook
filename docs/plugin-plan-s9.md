@@ -413,16 +413,26 @@ class BashToolInput(BaseModel):
 
 
 class AgentToolInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     prompt: str
+    description: Optional[str] = None
     subagent_type: Optional[str] = None
     name: Optional[str] = None
     team_name: Optional[str] = None
+    run_in_background: Optional[bool] = None
 
 
 class BashToolResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     output: Optional[str] = None
+    stdout: Optional[str] = None
     error: Optional[str] = None
+    stderr: Optional[str] = None
     interrupted: bool = False
+    isImage: Optional[bool] = None
+    noOutputExpected: Optional[bool] = None
 
 
 class HookPayloadBase(BaseModel):
@@ -437,10 +447,12 @@ class HookPayloadBase(BaseModel):
 class SessionStartPayload(HookPayloadBase):
     hook_event_name: Literal["SessionStart"]
     source: str
+    model: Optional[str] = None
 
 
 class SessionEndPayload(HookPayloadBase):
     hook_event_name: Literal["SessionEnd"]
+    reason: Optional[str] = None
 
 
 class PreCompactPayload(HookPayloadBase):
@@ -453,12 +465,16 @@ class PreToolUseBashPayload(HookPayloadBase):
     hook_event_name: Literal["PreToolUse"]
     tool_name: Literal["Bash"]
     tool_input: BashToolInput
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
 
 
 class PreToolUseAgentPayload(HookPayloadBase):
     hook_event_name: Literal["PreToolUse"]
     tool_name: Literal["Agent"]
     tool_input: AgentToolInput
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
 
 
 class PostToolUseBashPayload(HookPayloadBase):
@@ -466,17 +482,40 @@ class PostToolUseBashPayload(HookPayloadBase):
     tool_name: Literal["Bash"]
     tool_input: BashToolInput
     tool_response: BashToolResponse
+    permission_mode: Optional[str] = None
+    tool_use_id: Optional[str] = None
+
+
+class PermissionSuggestionRule(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    ruleContent: Optional[str] = None
+    toolName: Optional[str] = None
+
+
+class PermissionSuggestion(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    type: str
+    behavior: Optional[str] = None
+    destination: Optional[str] = None
+    mode: Optional[str] = None
+    rules: Optional[list[PermissionSuggestionRule]] = None
 
 
 class PermissionRequestPayload(HookPayloadBase):
     hook_event_name: Literal["PermissionRequest"]
     tool_name: str
     tool_input: dict[str, Any]
+    permission_mode: Optional[str] = None
+    permission_suggestions: Optional[list[PermissionSuggestion]] = None
 
 
 class StopPayload(HookPayloadBase):
     hook_event_name: Literal["Stop"]
     stop_hook_active: bool = False
+    permission_mode: Optional[str] = None
+    last_assistant_message: Optional[str] = None
 
 
 class NotificationPayload(HookPayloadBase):
@@ -501,6 +540,11 @@ class DriftReport(BaseModel):
     run_timestamp: str
     status: ProviderStatus
     entries: list[DriftEntry]
+    validated_fixtures: list[str] = []
+    schema_paths: dict[str, str] = {}
+    drift_history_path: Optional[str] = None
+    report_path: Optional[str] = None
+    section_paths: list[str] = []
 
 
 PrimaryClaudeHookPayload = Annotated[
@@ -547,6 +591,12 @@ Model notes:
 - `SessionStartPayload.source` remains `str`, not a `Literal`, because
   `compact` and `clear` should not be frozen into code as enum-only assumptions
   until the multi-provider drift tooling is in place.
+- `SessionStartPayload.model`, `SessionEndPayload.reason`,
+  `PreToolUse(...).permission_mode`, `PreToolUse(...).tool_use_id`,
+  `PostToolUse(Bash).tool_response.stdout/stderr`,
+  `PermissionRequest.permission_suggestions`, and
+  `Stop.last_assistant_message` are verified in the committed Phase 3 evidence
+  set and are implementation-visible unless later drift invalidates them.
 - `PreToolUse` and `PostToolUse` require a second discriminator on `tool_name`.
 - `NotificationPayload` remains deferred because live Haiku capture has not
   produced a verified payload shape.
@@ -574,6 +624,7 @@ Model notes:
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
 | `source` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json`, `test-harness/hooks/claude/fixtures/approved/session-start-compact.json` |
+| `model` | `Optional[str]` | no | `test-harness/hooks/claude/fixtures/approved/session-start-startup.json` |
 
 #### SessionEndPayload fields
 
@@ -583,6 +634,7 @@ Model notes:
 | `hook_event_name` | `Literal["SessionEnd"]` | yes | same |
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
+| `reason` | `Optional[str]` | no | `test-harness/hooks/claude/fixtures/approved/session-end-clear.json` |
 
 #### PreCompactPayload fields
 
@@ -605,6 +657,9 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
 
 #### PreToolUseAgentPayload fields
 
@@ -616,9 +671,13 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Agent"]` | yes | same |
 | `tool_input.prompt` | `str` | yes | same |
-| `tool_input.subagent_type` | `Optional[str]` | no | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `tool_input.subagent_type` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
 | `tool_input.name` | `Optional[str]` | no | same |
-| `tool_input.team_name` | `Optional[str]` | no | same |
+| `tool_input.team_name` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
+| `tool_input.run_in_background` | `Optional[bool]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
 
 #### PostToolUseBashPayload fields
 
@@ -630,9 +689,16 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `Literal["Bash"]` | yes | same |
 | `tool_input.command` | `str` | yes | same |
-| `tool_response.output` | `Optional[str]` | no | same |
-| `tool_response.error` | `Optional[str]` | no | same |
+| `tool_input.description` | `Optional[str]` | no | same |
+| `tool_response.output` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
+| `tool_response.stdout` | `Optional[str]` | no | same |
+| `tool_response.error` | `Optional[str]` | no | `DEFERRED — field accepted by P3 model for provider drift, not present in current approved fixture set` |
+| `tool_response.stderr` | `Optional[str]` | no | same |
 | `tool_response.interrupted` | `bool` | yes | same |
+| `tool_response.isImage` | `Optional[bool]` | no | same |
+| `tool_response.noOutputExpected` | `Optional[bool]` | no | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `tool_use_id` | `Optional[str]` | no | same |
 
 #### PermissionRequestPayload fields
 
@@ -644,6 +710,8 @@ Model notes:
 | `transcript_path` | `Optional[str]` | no | same |
 | `tool_name` | `str` | yes | `test-harness/hooks/claude/fixtures/approved/permission-request-write.json`, `test-harness/hooks/claude/fixtures/approved/permission-request-bash.json` |
 | `tool_input` | `dict[str, Any]` | yes | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `permission_suggestions` | `Optional[list[PermissionSuggestion]]` | no | `test-harness/hooks/claude/fixtures/approved/permission-request-bash.json` |
 
 #### StopPayload fields
 
@@ -654,6 +722,8 @@ Model notes:
 | `cwd` | `str` | yes | same |
 | `transcript_path` | `Optional[str]` | no | same |
 | `stop_hook_active` | `bool` | yes | same |
+| `permission_mode` | `Optional[str]` | no | same |
+| `last_assistant_message` | `Optional[str]` | no | same |
 
 #### NotificationPayload fields
 
@@ -712,6 +782,8 @@ Deliverables:
   - verified by captured fixture
   - deferred because still not verified
 - implementation sequence updated only from captured evidence
+- implementation dependency classification table covering every runtime-facing
+  dependency used by `S9-HP3`, `S9-HP4`, and `S9-HP5`
 
 Required review questions:
 
@@ -719,11 +791,37 @@ Required review questions:
 - which fields are stable enough to implement against?
 - which prior prototype assumptions were wrong, incomplete, or still unverified?
 
+Implementation dependency classification for `S9-HP3` / `S9-HP4` / `S9-HP5`:
+
+| Dependency / field group | Classification | Evidence | Allowed use in implementation |
+| --- | --- | --- | --- |
+| `session_id`, `hook_event_name`, `cwd`, `transcript_path` on captured lifecycle/tool hooks | verified by captured fixture | approved Claude fixtures + Phase 3 Pydantic model | yes |
+| `SessionStart.source` values `startup`, `compact`, `resume`, `clear` | verified by captured fixture | approved `SessionStart` fixtures | yes |
+| `SessionStart.model` | verified by captured fixture | `session-start-startup.json` | yes, optional |
+| `SessionEnd.reason` | verified by captured fixture | `session-end-clear.json` | yes, optional |
+| `PreCompact.trigger`, `PreCompact.custom_instructions` | verified by captured fixture | `pre-compact-manual.json` | yes, optional |
+| `PreToolUse(Bash)` `tool_input.command`, `tool_input.description`, `permission_mode`, `tool_use_id` | verified by captured fixture | `pretooluse-bash.json` | yes |
+| `PreToolUse(Agent)` `tool_input.prompt`, `description`, `name`, `run_in_background`, `permission_mode`, `tool_use_id` | verified by captured fixture | `pretooluse-agent.json` | yes |
+| `tool_input.subagent_type`, `tool_input.team_name` for `PreToolUse(Agent)` | deferred because still not verified | accepted by Phase 3 model for drift, absent from approved fixtures | no |
+| `PostToolUse(Bash)` `tool_response.stdout`, `stderr`, `interrupted`, `isImage`, `noOutputExpected`, `permission_mode`, `tool_use_id` | verified by captured fixture | `posttooluse-bash.json` | yes |
+| `PostToolUse(Bash)` `tool_response.output`, `tool_response.error` | deferred because still not verified | accepted by Phase 3 model for drift, absent from approved fixtures | no |
+| `PermissionRequest.permission_mode` and `permission_suggestions` | verified by captured fixture | `permission-request-bash.json` | yes, optional |
+| `Stop.permission_mode`, `last_assistant_message` | verified by captured fixture | `stop.json` | yes, optional |
+| `Notification` base payload fields beyond event identity | deferred because still not verified | no approved fixture; harness remains wired-but-unresolved | no |
+| `CLAUDE_PROJECT_DIR` as startup project-root anchor | verified by source docs/scripts/tests | Claude hook strategy docs + ATM scripts + team-lead clarification | yes |
+| `project_root_dir` chaining from persisted session state | verified by source docs/scripts/tests | BC design + requirements + architecture | yes |
+| `.atm.toml` file name and primary lookup at `project_root_dir/.atm.toml` | verified by source docs/scripts/tests | current ATM docs/scripts + project plan | yes |
+| parent/subagent lineage fields from raw Claude payloads | deferred because still not verified | no approved fixture or source-backed Claude schema | no |
+| `Notification(idle_prompt)` runtime behavior | deferred because still not verified | harness wiring exists, local capture absent | no |
+| teammate-idle relay behavior | verified by source docs/scripts/tests | ATM relay docs/scripts, not Claude fixture capture | yes in `S9-HP5` only |
+
 Done when:
 
 - implementation-facing docs rely only on verified fields
 - unknowns are called out explicitly as gaps or deferrals
 - reviewers can point to fixture or source evidence for every required field used by the next implementation phase
+- every HP3/HP4/HP5 dependency is classified as source-backed, fixture-backed,
+  or deferred before implementation begins
 
 ### S9-P5: Phase 5: Re-Evaluate And Sequence Implementation
 
