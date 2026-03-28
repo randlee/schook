@@ -285,7 +285,8 @@ Deliverables:
   `## Schema Drift Detection Tooling`
 - both files pass review against:
   `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
-- one tested invocation that produces a valid self-contained HTML file
+- one tested invocation (HKR-012) that produces a valid self-contained HTML file
+  confirmed by `html-validate`
 
 Done when:
 
@@ -667,6 +668,8 @@ Done when:
 - drift policy is executable in tests, not just described in prose
 - both drift JSON and the self-contained HTML report are produced by the Phase 3
   path; JSON-only output does not close the reporting deliverable
+- the complete Phase 3 checklist in `Required Deliverables For Phase 3` exists;
+  that checklist is the authoritative closure list for `S9-P3`
 
 #### Rust design requirements for S9-P3 outputs
 
@@ -755,7 +758,7 @@ Status:
 
 Depends on:
 
-- Phase 4 complete
+- S9-P5 complete
 
 Deliverables:
 
@@ -844,6 +847,7 @@ Deliverables:
 
 - `plugins/agent-spawn-gates`
 - `plugins/tool-output-gates`
+- `PostToolUse(Bash)` hook routing — handled via `plugins/tool-output-gates`
 - named-agent versus background-agent policy
 - subagent linkage/tracking
 - fenced/blocking JSON tool-utility behavior
@@ -867,6 +871,7 @@ Write scope:
 Required tests:
 
 - direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for `PostToolUse(Bash)` payload routing through `tool-output-gates`
 - tests for named-agent versus background-agent policy outcomes
 - tests for subagent linkage fields written into the canonical session-state
   file
@@ -900,7 +905,7 @@ Status:
 
 Depends on:
 
-- S9-P5 complete
+- S9-P5 complete AND S9-HP4 complete
 
 Deliverables:
 
@@ -1103,7 +1108,8 @@ Each run must produce one self-contained HTML report:
 - HTML5 `<!DOCTYPE html>`
 - `<meta charset="utf-8">`
 - HTML-escape all payload content before rendering
-- no inline JavaScript
+- minimal inline JavaScript is permitted only for clipboard copy actions on copy
+  buttons; no other JavaScript is allowed
 
 Required output path:
 
@@ -1326,6 +1332,13 @@ Phase 3 is not complete until all of the following exist:
   Claude payload model
 - `test-harness/hooks/run-schema-drift.py`
 - per-provider adapters at `test-harness/hooks/<provider>/schema_drift.py`
+- per-hook field tables for all verified hook types matching captured fixture
+  evidence (see §S9-P3 field tables)
+- explicit `DriftEntry` model definition with all required fields:
+  `hook_event_name`, `field_name`, `error_code`, `old_value`, `new_value`,
+  `source`, `action`, `recovery`, `message`
+- explicit `DriftReport` model definition with all required fields:
+  `provider`, `run_timestamp`, `status`, `entries`
 - drift JSON output per run that validates against `DriftReport`
 - a self-contained HTML report per run
 - `.claude/skills/hook-schema-drift/SKILL.md`
