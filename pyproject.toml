@@ -25,4 +25,5 @@ packages = [
 addopts = "-ra"
 markers = [
   "provider_claude: tests for the Claude harness",
+  "live_capture: launches a real provider and captures hook payloads",
 ]

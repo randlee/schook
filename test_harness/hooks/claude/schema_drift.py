@@ -3,10 +3,12 @@ from __future__ import annotations
 import html
 import json
 import subprocess
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_origin
 
+from pydantic import BaseModel, ValidationError
 from jinja2 import Environment, select_autoescape
 from markupsafe import Markup
 
@@ -15,7 +17,16 @@ from test_harness.hooks.claude.models.payloads import (
     DriftEntry,
     DriftErrorCode,
     DriftReport,
+    NotificationPayload,
+    PermissionRequestPayload,
+    PostToolUseBashPayload,
+    PreCompactPayload,
+    PreToolUseAgentPayload,
+    PreToolUseBashPayload,
     ProviderStatus,
+    SessionEndPayload,
+    SessionStartPayload,
+    StopPayload,
     validate_claude_hook_payload,
 )
 from test_harness.hooks.paths import (
@@ -34,9 +45,18 @@ def _utc_timestamp() -> str:
 
 def _atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f"{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    )
+    tmp_path = Path(tmp_handle.name)
     try:
-        tmp_path.write_text(content, encoding="utf-8")
+        with tmp_handle:
+            tmp_handle.write(content)
         tmp_path.replace(path)
     except Exception:
         if tmp_path.exists():
@@ -54,6 +74,175 @@ def _load_manifest() -> dict[str, Any]:
 
 def _load_fixture(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+_HOOK_EVENT_TO_MODEL: dict[str, type[BaseModel]] = {
+    "SessionStart": SessionStartPayload,
+    "SessionEnd": SessionEndPayload,
+    "PreCompact": PreCompactPayload,
+    "PostToolUse": PostToolUseBashPayload,
+    "PermissionRequest": PermissionRequestPayload,
+    "Stop": StopPayload,
+    "Notification": NotificationPayload,
+}
+
+
+def _field_name(prefix: str, field: str) -> str:
+    return f"{prefix}.{field}" if prefix else field
+
+
+def _unwrap_annotation(annotation: Any) -> Any:
+    origin = get_origin(annotation)
+    if origin is None:
+        return annotation
+    args = [arg for arg in get_args(annotation) if arg is not type(None)]
+    if len(args) == 1:
+        return _unwrap_annotation(args[0])
+    return annotation
+
+
+def _is_basemodel(annotation: Any) -> bool:
+    return isinstance(annotation, type) and issubclass(annotation, BaseModel)
+
+
+def _resolve_payload_model(payload: dict[str, Any]) -> type[BaseModel]:
+    if payload.get("hook_event_name") == "PreToolUse":
+        tool_name = payload.get("tool_name")
+        if tool_name == "Bash":
+            return PreToolUseBashPayload
+        if tool_name == "Agent":
+            return PreToolUseAgentPayload
+        raise ValueError(f"Unsupported PreToolUse tool_name: {tool_name!r}")
+
+    hook_event_name = payload.get("hook_event_name")
+    try:
+        return _HOOK_EVENT_TO_MODEL[hook_event_name]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported hook_event_name: {hook_event_name!r}") from exc
+
+
+def _validation_error_code(error_type: str) -> DriftErrorCode:
+    if error_type == "missing":
+        return DriftErrorCode.REQUIRED_FIELD_REMOVED
+    return DriftErrorCode.FIELD_TYPE_CHANGED
+
+
+def _classify_validation_errors(
+    *,
+    hook_name: str,
+    validation_error: ValidationError,
+) -> list[DriftEntry]:
+    entries: list[DriftEntry] = []
+    for error in validation_error.errors():
+        loc = ".".join(str(part) for part in error.get("loc", ())) or hook_name
+        code = _validation_error_code(error.get("type", ""))
+        entries.append(
+            DriftEntry(
+                hook_event_name=hook_name,
+                field_name=loc,
+                error_code=code,
+                source=hook_name,
+                action="update the candidate payload or refresh the approved schema baseline",
+                message=error.get("msg", "payload validation failed"),
+            )
+        )
+    return entries
+
+
+def _dedupe_entries(entries: list[DriftEntry]) -> list[DriftEntry]:
+    deduped: list[DriftEntry] = []
+    seen: set[tuple[str, str | None, DriftErrorCode, str]] = set()
+    for entry in entries:
+        key = (entry.hook_event_name, entry.field_name, entry.error_code, entry.message)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(entry)
+    return deduped
+
+
+def _compare_payload_shapes(
+    *,
+    hook_name: str,
+    model: type[BaseModel],
+    baseline: dict[str, Any],
+    candidate: dict[str, Any],
+    prefix: str = "",
+) -> list[DriftEntry]:
+    entries: list[DriftEntry] = []
+    known_fields = model.model_fields
+    baseline_keys = set(baseline)
+    candidate_keys = set(candidate)
+
+    for extra_key in sorted(candidate_keys - baseline_keys):
+        entries.append(
+            DriftEntry(
+                hook_event_name=hook_name,
+                field_name=_field_name(prefix, extra_key),
+                error_code=DriftErrorCode.FIELD_ADDED,
+                source=hook_name,
+                action="review the added field and update the schema only if it is accepted",
+                message=f"Candidate payload added field {_field_name(prefix, extra_key)!r}",
+            )
+        )
+
+    for missing_key in sorted(baseline_keys - candidate_keys):
+        field_info = known_fields.get(missing_key)
+        error_code = (
+            DriftErrorCode.REQUIRED_FIELD_REMOVED
+            if field_info is not None and field_info.is_required()
+            else DriftErrorCode.OPTIONAL_FIELD_REMOVED
+        )
+        entries.append(
+            DriftEntry(
+                hook_event_name=hook_name,
+                field_name=_field_name(prefix, missing_key),
+                error_code=error_code,
+                source=hook_name,
+                action="restore the missing field or refresh the approved schema baseline",
+                message=f"Candidate payload removed field {_field_name(prefix, missing_key)!r}",
+            )
+        )
+
+    for shared_key in sorted((baseline_keys & candidate_keys) & set(known_fields)):
+        field_info = known_fields[shared_key]
+        annotation = _unwrap_annotation(field_info.annotation)
+        baseline_value = baseline[shared_key]
+        candidate_value = candidate[shared_key]
+        child_prefix = _field_name(prefix, shared_key)
+
+        if _is_basemodel(annotation) and isinstance(baseline_value, dict) and isinstance(candidate_value, dict):
+            entries.extend(
+                _compare_payload_shapes(
+                    hook_name=hook_name,
+                    model=annotation,
+                    baseline=baseline_value,
+                    candidate=candidate_value,
+                    prefix=child_prefix,
+                )
+            )
+
+    return entries
+
+
+def classify_payload_drift(
+    *,
+    baseline_payload: dict[str, Any],
+    candidate_payload: dict[str, Any],
+) -> list[DriftEntry]:
+    hook_name = baseline_payload.get("hook_event_name", "unknown")
+    model = _resolve_payload_model(baseline_payload)
+    entries = _compare_payload_shapes(
+        hook_name=hook_name,
+        model=model,
+        baseline=baseline_payload,
+        candidate=candidate_payload,
+    )
+    try:
+        model.model_validate(candidate_payload)
+    except ValidationError as exc:
+        entries.extend(_classify_validation_errors(hook_name=hook_name, validation_error=exc))
+    return _dedupe_entries(entries)
 
 
 def _load_template_source(name: str) -> str:
@@ -217,6 +406,7 @@ def run_drift(output_dir: Path) -> DriftReport:
     manifest = _load_manifest()
     validated_fixtures: list[str] = []
     validated_by_hook: dict[str, list[str]] = {}
+    entries: list[DriftEntry] = []
 
     for hook_name, filenames in manifest["hooks"].items():
         validated_by_hook[hook_name] = []
@@ -224,19 +414,21 @@ def run_drift(output_dir: Path) -> DriftReport:
             fixture_path = CLAUDE_FIXTURES_ROOT / filename
             payload = _load_fixture(fixture_path)
             validate_claude_hook_payload(payload)
+            entries.extend(classify_payload_drift(baseline_payload=payload, candidate_payload=payload))
             validated_fixtures.append(filename)
             validated_by_hook[hook_name].append(filename)
 
     run_timestamp = _utc_timestamp()
     schema_paths = _write_schema_artifacts()
     report_path, section_paths = _generate_report(run_timestamp, validated_by_hook)
+    status = ProviderStatus.DRIFT if entries else ProviderStatus.PASS
 
     drift_history_path = output_dir / "drift-history" / f"{run_timestamp}-drift.json"
     report = DriftReport(
         provider="claude",
         run_timestamp=run_timestamp,
-        status=ProviderStatus.PASS,
-        entries=[],
+        status=status,
+        entries=entries,
         validated_fixtures=validated_fixtures,
         schema_paths=schema_paths,
         drift_history_path=str(drift_history_path),
