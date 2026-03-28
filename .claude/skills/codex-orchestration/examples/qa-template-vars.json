@@ -1,0 +1,11 @@
+{
+  "task_id": "SC-EXAMPLE-QA-1",
+  "sprint": "S9-BC.1",
+  "description": "Run QA on BC.1 session foundation implementation.",
+  "pr_number": "57",
+  "branch": "feature/s9-bc1-session-foundation",
+  "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
+  "commits": "abc1234",
+  "deliverables": "Canonical session-state file ownership; atomic write semantics; mandatory hook logging for lifecycle hooks.",
+  "references": "docs/requirements.md; docs/architecture.md; docs/project-plan.md; docs/phase-bc-hook-runtime-design.md"
+}
