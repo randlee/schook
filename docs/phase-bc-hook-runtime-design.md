@@ -60,14 +60,30 @@ Important observed facts:
 ### Storage Rules
 
 - One JSON file per `session_id`
-- Canonical location: `.sc-hooks/state/sessions/<session_id>.json`
 - Disk is the source of truth; in-memory state is a working copy only
 - Every `session.json` update must use an atomic write in the same directory
   (`temp + rename`); in-place mutation is forbidden
+- No daemon cache is authoritative for hook-state correctness
+- Session-state storage must not use `/tmp`
 - If the canonical session record is unchanged after handler execution, the
   runtime must not rewrite the file
 - `state_revision` increments only on persisted material change
 - Hook logging remains mandatory even when no state write occurs
+
+### Storage Root Resolution
+
+- The runtime base-directory signal is `ATM_HOME`.
+- Path resolution must follow the standard ATM home lookup:
+  1. non-empty `ATM_HOME`
+  2. platform home directory from the canonical ATM home resolver
+- The canonical BC session-state directory is:
+  - `<atm_home>/.atm/hooks/state/sessions/`
+- The canonical BC hook-log directory remains owned by `sc-observability`; hook
+  state must not invent a second log root.
+- All paths must be constructed with path-join APIs, not string concatenation.
+- Hardcoded absolute paths, `/tmp`, and Unix-only separators are forbidden.
+- Cross-platform path behavior must follow
+  [cross-platform-guidelines.md](cross-platform-guidelines.md).
 
 ### Canonical Schema
 
@@ -189,6 +205,39 @@ Optional ATM extension fields:
 
 - `atm_team`
 - `atm_identity`
+
+## Error Types
+
+`sc-hooks-core` owns the canonical hook-runtime error enum:
+
+```rust
+pub enum HookError {
+    InvalidPayload { message: String },
+    InvalidContext { message: String },
+    StateIo { message: String },
+    Validation { message: String },
+    Internal { message: String },
+}
+```
+
+Rules:
+
+- library crates use canonical typed errors, not `anyhow` in their public
+  contract
+- `HookError` variants are stable across runtime crates
+- fail-open versus fail-closed posture is determined by the handler/crate
+  contract, not by ad hoc string matching
+
+## Error Posture Matrix
+
+| Crate | Primary responsibility | Error posture | Canonical error type |
+| --- | --- | --- | --- |
+| `sc-hooks-core` | shared types, state transitions, persistence contract | library surface only | `HookError` |
+| `sc-hooks-sdk` | provider adapters, handler registry, observability bridge | fail-open adapter surface unless an upstream gate explicitly blocks | `HookError` |
+| `sc-hooks-session-foundation` | canonical session-state ownership and lifecycle hooks | fail-open | `HookError` |
+| `sc-hooks-agent-spawn-gates` | `PreToolUse(Agent)` policy checks | fail-closed | `HookError` |
+| `sc-hooks-tool-output-gates` | fenced JSON validation for tools and agents | fail-closed | `HookError` |
+| `sc-hooks-atm-extension` | ATM routing and identity enrichment | fail-open | `HookError` |
 
 ## Planned Crate Split
 
