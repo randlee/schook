@@ -48,8 +48,8 @@ The live harness now verifies actual Claude Haiku payloads for these surfaces:
 - `PermissionRequest`
 - `Stop`
 
-`Notification(idle_prompt)` remains wired in the harness but unresolved in
-local capture.
+`Notification(idle_prompt)` remains DEFERRED: wired in the harness, but no
+verified payload was captured locally.
 
 For `SessionStart`, the following is verified from live hook behavior:
 
@@ -83,7 +83,8 @@ Claude hook calls should treat identity and context as separate concerns.
 Current verified anchor:
 
 1. SessionStart-captured `session_id`
-2. hook subprocess parent PID (`PPID`) as a same-process cross-check
+2. `CLAUDE_PROJECT_DIR` as the source-backed project-root anchor when the hook
+   environment provides it
 3. `ATM_TEAM` + `ATM_IDENTITY` only as routing labels, not as a unique instance
    key
 
@@ -91,9 +92,9 @@ Rules:
 
 - directory changes do not change identity
 - compaction does not change `session_id`
-- a fresh Claude process creates a new `session_id` and a new PPID
+- a fresh Claude process creates a new `session_id`
 - later hooks should read persisted session state rather than trying to infer
-  identity from current working directory
+  identity from current working directory or subprocess lineage
 
 Current verified ATM-backed persistent record fields:
 
@@ -105,6 +106,15 @@ Current verified ATM-backed persistent record fields:
 This is a statement of the current ATM implementation, not a claim that the
 future `schook` base record must stay identical.
 
+Implementation-facing reading for `schook`:
+
+- `session_id` is the verified Claude lifecycle anchor
+- `project_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
+- `active_pid` remains part of the planned runtime identity tuple, but is a
+  runtime-managed field rather than a Claude payload contract claim
+- `Notification(idle_prompt)` stays outside the verified identity/state model
+  until a live payload is captured
+
 ## Verified Claude Hook Behaviors
 
 | Behavior | Claude surface | Current script | Fields consumed | Current side effects | Planned `schook` mapping |
@@ -113,10 +123,10 @@ future `schook` base record must stay identical.
 | Session end | `SessionEnd` | `session-end.py` | `session_id`, `.atm.toml` core routing | emits ATM `session_end`, removes session record | `SessionEnd` sync plugin |
 | ATM identity write | `PreToolUse` on `Bash` | `atm-identity-write.py` | `tool_input.command`, `session_id`, ATM repo/env context | writes temp identity file for `atm` commands only | `PreToolUse/Bash` sync plugin |
 | ATM identity cleanup | `PostToolUse` on `Bash` | `atm-identity-cleanup.py` | hook routing context only | deletes temp identity file written by the paired pre-hook | `PostToolUse/Bash` sync plugin |
-| Agent spawn gate | `PreToolUse` on `Agent` | `gate-agent-spawns.py` | `tool_input.subagent_type`, `name`, `team_name`, `session_id`, team config | blocks unsafe spawns or mismatched team usage | `PreToolUse/Agent` sync plugin |
+| Agent spawn gate | `PreToolUse` on `Agent` | `gate-agent-spawns.py` | verified: `tool_input.prompt`, optional `description`, optional `run_in_background`; deferred: `subagent_type`, `name`, `team_name`; plus `session_id`, team config | blocks unsafe spawns or mismatched team usage | `PreToolUse/Agent` sync plugin |
 | Idle notification relay | `Notification` on `idle_prompt` | `notification-idle-relay.py` | `session_id`, team/agent routing fields | emits ATM idle heartbeat | `Notification/idle_prompt` async-safe sync plugin |
 | Permission relay | `PermissionRequest` | `permission-request-relay.py` | `session_id`, `tool_name`, `tool_input`, team/agent routing | emits ATM permission-request event | `PermissionRequest` sync plugin |
-| Stop relay | `Stop` | `stop-relay.py` | `session_id`, team/agent routing | emits ATM stop/idle event | `Stop` sync plugin |
+| Stop relay | `Stop` | `stop-relay.py` | `session_id`, optional `permission_mode`, optional `last_assistant_message`, team/agent routing | emits ATM stop/idle event | `Stop` sync plugin |
 
 Adjacent but not part of the current eight-hook baseline:
 
@@ -140,9 +150,14 @@ Adjacent but not part of the current eight-hook baseline:
   matching
 - Agent spawn gating is policy-heavy and should remain separate from generic ATM
   relays
+- `PreToolUse(Agent)` currently provides a safe verified baseline of
+  `prompt`, optional `description`, and optional `run_in_background`; other
+  agent-tool fields stay deferred until captured again
+- `PostToolUse(Bash)` should be implemented against `stdout`, `stderr`,
+  `interrupted`, `isImage`, and `noOutputExpected`; legacy `output` / `error`
+  fields stay deferred
 - `Notification(idle_prompt)` stays part of the documented Claude surface, but
-  should be labeled wired-but-unresolved in the harness until a local capture
-  actually lands
+  remains DEFERRED until a local payload capture actually lands
 - lifecycle and relay hooks are fail-open today; if `schook` changes that
   posture, the change must be explicit in requirements and protocol docs
 - no `schook` code should be written against inferred Claude payload fields that

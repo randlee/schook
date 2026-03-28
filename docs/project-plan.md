@@ -396,13 +396,13 @@ Definition of done:
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing every current `plugins/` crate as scaffold/reference only.
+  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing the legacy `plugins/` crates as scaffold/reference only and requiring explicit maturity status for any later implementation crate.
 - What code was removed early rather than left in parallel?
   No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
 - Which files/crates were the owned write scope for the sprint?
   `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
-  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
+  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`, even when a source implementation crate such as `plugins/agent-session-foundation` exists in the workspace.
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 6 is unblocked because plugin maturity claims are now binary and consistent across docs and metadata; any future plugin promotion will require a new scoped sprint with install guidance and direct behavior tests.
 
@@ -779,7 +779,7 @@ Focus:
 - implement the Claude lifecycle pair first
 
 Deliverables:
-- `sc-hooks-session-foundation`
+- `plugins/agent-session-foundation`
 - tests proving `SessionStart` / `SessionEnd` behavior against the captured
   contract
 - canonical session-state file keyed by:
@@ -787,7 +787,7 @@ Deliverables:
   - `active_pid`
   - `project_root_dir`
 - `project_root_dir` chaining from `CLAUDE_PROJECT_DIR`
-- `PreCompact` and `Stop` handling on the normalized `agent_state` path
+- `PreToolUse`, `PermissionRequest`, `PreCompact`, and `Stop` handling on the normalized `agent_state` path
 - atomic write semantics for `session.json`
 - no `session.json` rewrite when the canonical record is unchanged
 - mandatory hook logging for every lifecycle invocation
