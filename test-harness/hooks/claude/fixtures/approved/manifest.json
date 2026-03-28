@@ -4,7 +4,8 @@
   "hooks": {
     "SessionStart": [
       "session-start-startup.json",
-      "session-start-compact.json"
+      "session-start-compact.json",
+      "session-start-resume.json"
     ],
     "SessionEnd": [
       "session-end.json"

@@ -57,11 +57,12 @@ Verified `SessionStart.source` values from live capture:
 
 - `startup`
 - `compact`
+- `resume`
 
 What is not verified today:
 
 - a full upstream Claude JSON schema for all hook payloads
-- a confirmed literal `source = "resume"` value
+- a confirmed literal `source = "clear"` value
 - cwd/root/agent metadata as guaranteed `SessionStart` payload fields across
   all launches
 - parent/subagent/session lineage fields in Claude hook payloads
@@ -487,6 +488,8 @@ Live harness note:
   as a claimed Claude wire enum
 - `Stop` is the reliable observed transition back to normalized `idle`
 - the runtime should preserve session records across directory changes
+- `SessionStart(source="resume")` is now captured evidence, not just a
+  documented provider claim
 - Bash-specific hooks need command-sensitive behavior, not just hook-type
   matching
 - teammate/background spawn gating is policy-heavy and should remain separate

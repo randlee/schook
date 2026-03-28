@@ -1,0 +1,8 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup",
+  "hook_event_name": "SessionStart",
+  "model": "claude-haiku-4-5-20251001",
+  "session_id": "bafc47d2-1126-449d-81bc-48e384571b5a",
+  "source": "startup",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-harness-followup/bafc47d2-1126-449d-81bc-48e384571b5a.jsonl"
+}
