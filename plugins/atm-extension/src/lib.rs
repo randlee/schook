@@ -1,5 +1,19 @@
 //! ATM-specific relay and identity-file handling layered on top of the generic
 //! session foundation and gate plugins.
+//!
+//! This crate owns the ATM-only portions of the hook runtime:
+//! - Bash identity-file writes for `atm` command execution
+//! - permission-request relay parsing and validation
+//! - stop / teammate-idle relay event emission
+//! - identity-file cleanup on stop paths
+//! - ATM metadata enrichment on top of the canonical session record
+//!
+//! Relay handling follows a four-stage pipeline so parsing, validation, routing,
+//! and side effects stay explicit and testable:
+//! - `RawRequest<T>` captures the raw payload plus resolved ATM routing
+//! - `ValidatedRequest<T>` carries a payload that passed shape/content checks
+//! - `RelayDecision<T>` describes the relay event, state update, and cleanup work
+//! - `RelayResult` records the side-effect application outcome
 
 use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
@@ -20,6 +34,8 @@ use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
+/// Sync hook handler that layers ATM relay behavior onto the generic hook
+/// runtime without redefining canonical session ownership.
 #[derive(Debug, Default)]
 pub struct AtmExtensionHandler;
 
