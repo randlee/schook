@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::OnceLock;
 
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
@@ -9,6 +10,7 @@ use serde_json::{Map, Value};
 
 use crate::errors::CliError;
 const SERVICE_NAME: &str = "sc-hooks";
+static LOGGER: OnceLock<Logger> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct HandlerResultRecord {
@@ -40,14 +42,12 @@ pub struct DispatchEventArgs<'a> {
 
 pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
-        .map_err(|err| CliError::internal(format!("invalid service name: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
+    let logger = logger(args.project_root)?;
     let target = TargetCategory::new("hook")
-        .map_err(|err| CliError::internal(format!("invalid log target: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid log target", source))?;
     let action = ActionName::new("dispatch.complete")
-        .map_err(|err| CliError::internal(format!("invalid log action: {err}")))?;
-
-    let logger = Logger::new(default_logger_config(service.clone(), args.project_root)?)
-        .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid log action", source))?;
 
     let mut fields = Map::new();
     fields.insert("hook".to_string(), Value::String(args.hook.to_string()));
@@ -64,13 +64,15 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     );
     fields.insert(
         "handlers".to_string(),
-        serde_json::to_value(args.handler_chain)
-            .map_err(|err| CliError::internal(format!("failed to serialize handlers: {err}")))?,
+        serde_json::to_value(args.handler_chain).map_err(|source| {
+            CliError::internal_with_source("failed to serialize handlers", source)
+        })?,
     );
     fields.insert(
         "results".to_string(),
-        serde_json::to_value(args.results)
-            .map_err(|err| CliError::internal(format!("failed to serialize results: {err}")))?,
+        serde_json::to_value(args.results).map_err(|source| {
+            CliError::internal_with_source("failed to serialize results", source)
+        })?,
     );
     fields.insert("total_ms".to_string(), Value::from(args.total_ms as u64));
     fields.insert("exit".to_string(), Value::from(args.exit));
@@ -108,24 +110,45 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         fields,
     };
 
-    logger
-        .emit(event)
-        .map_err(|err| CliError::internal(format!("failed emitting observability event: {err}")))?;
-    logger
-        .flush()
-        .map_err(|err| CliError::internal(format!("failed flushing observability event: {err}")))?;
-    logger.shutdown().map_err(|err| {
-        CliError::internal(format!("failed shutting down observability logger: {err}"))
+    logger.emit(event).map_err(|source| {
+        CliError::internal_with_source("failed emitting observability event", source)
+    })?;
+    logger.flush().map_err(|source| {
+        CliError::internal_with_source("failed flushing observability event", source)
     })?;
     Ok(())
+}
+
+fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
+    if let Some(logger) = LOGGER.get() {
+        return Ok(logger);
+    }
+
+    let service = ServiceName::new(SERVICE_NAME)
+        .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
+    let logger = Logger::new(default_logger_config(service, project_root)?).map_err(|source| {
+        CliError::internal_with_source("failed to initialize observability", source)
+    })?;
+    let _ = LOGGER.set(logger);
+    Ok(LOGGER
+        .get()
+        .expect("observability logger must be initialized before use"))
 }
 
 fn default_logger_config(
     service: ServiceName,
     project_root: Option<&Path>,
 ) -> Result<LoggerConfig, CliError> {
-    let root = sc_hooks_core::storage::observability_root_for(project_root)
-        .map_err(|err| CliError::internal(format!("failed resolving observability root: {err}")))?;
+    #[cfg(test)]
+    let _ = project_root;
+    #[cfg(test)]
+    let shared_root = crate::test_support::shared_observability_root();
+    #[cfg(test)]
+    let project_root = Some(shared_root.as_path());
+
+    let root = sc_hooks_core::storage::observability_root_for(project_root).map_err(|source| {
+        CliError::internal_with_source("failed resolving observability root", source)
+    })?;
     let mut config = LoggerConfig::default_for(service, root);
     config.level = LevelFilter::Info;
     config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
@@ -192,8 +215,8 @@ mod tests {
 
     #[test]
     fn emits_service_scoped_sc_observability_log_event() {
-        let temp = tempfile::tempdir().expect("tempdir should create");
-        let _cwd = crate::test_support::scoped_current_dir(temp.path());
+        let root = crate::test_support::shared_observability_root();
+        let _cwd = crate::test_support::scoped_current_dir(&root);
 
         emit_dispatch_event(DispatchEventArgs {
             hook: "PreToolUse",
@@ -213,15 +236,13 @@ mod tests {
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
-            project_root: Some(temp.path()),
+            project_root: Some(&root),
         })
         .expect("observability event should emit");
 
-        let path = temp
-            .path()
-            .join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
         let rendered = fs::read_to_string(path).expect("log should be readable");
-        let line = rendered.lines().next().expect("log line should exist");
+        let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value =
             serde_json::from_str(line).expect("log line should parse as json");
         assert_eq!(parsed["service"], "sc-hooks");

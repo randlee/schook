@@ -105,9 +105,7 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
         None => dirs::home_dir()
             .map(|home| home.join(".sc-hooks").join("state").join("sessions"))
             .ok_or_else(|| {
-                HookError::invalid_context(
-                    "unable to resolve SC_HOOKS_STATE_DIR or home directory",
-                )
+                HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
             }),
     }
 }

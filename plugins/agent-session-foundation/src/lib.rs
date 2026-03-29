@@ -172,6 +172,7 @@ fn build_next_record(
             record.active_pid = resolved.active_pid;
             record.ai_root_dir = resolved.ai_root_dir.clone();
             record.ai_current_dir = resolved.ai_current_dir.clone();
+            record.agent_state = resolved.transition.agent_state;
             record.session_start_source = next_source.to_string();
             record.state_revision += 1;
             record
@@ -196,7 +197,6 @@ fn build_next_record(
         ));
     }
 
-    record.agent_state = resolved.transition.agent_state;
     record.last_hook_event = event_name;
     record.last_hook_event_at = now.clone();
     record.updated_at = now;
