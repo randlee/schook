@@ -192,6 +192,8 @@ printf '%s\n' '{"action":"proceed"}'
     }
 }
 
+impl sc_hooks_test::compliance::private::Sealed for CliBinaryProbe {}
+
 fn read_last_line(path: &Path) -> Option<String> {
     let rendered = fs::read_to_string(path).ok()?;
     rendered.lines().last().map(str::to_string)

@@ -61,7 +61,6 @@ struct RelayContext {
 #[derive(Debug)]
 struct RelayDecision<T> {
     request: ValidatedRequest<T>,
-    event_name: &'static str,
     state_update: RecordUpdate,
     event_body: Value,
     cleanup_identity_file: bool,
@@ -569,7 +568,6 @@ fn permission_relay_decision(
     });
     RelayDecision {
         request,
-        event_name: "PermissionRequest",
         state_update: RecordUpdate {
             hook_event: "PermissionRequest",
             state_reason: "permission_requested",
@@ -594,7 +592,6 @@ fn stop_relay_decision(
     });
     RelayDecision {
         request,
-        event_name: "Stop",
         state_update: RecordUpdate {
             hook_event: "Stop",
             state_reason: "relay_stop",
@@ -628,7 +625,6 @@ fn execute_relay<T>(
             );
         }
     }
-    let _ = decision.event_name;
     Ok(RelayResult::Applied)
 }
 

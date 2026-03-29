@@ -3,6 +3,10 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
+pub mod private {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceCheck {
     pub name: String,
@@ -42,7 +46,7 @@ pub struct ContractScenarioResult {
     pub marker_exists: bool,
 }
 
-pub trait HostDispatchProbe {
+pub trait HostDispatchProbe: private::Sealed {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
 }
 

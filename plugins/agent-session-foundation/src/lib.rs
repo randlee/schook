@@ -1,4 +1,3 @@
-mod logging;
 mod payloads;
 
 use std::collections::BTreeMap;
@@ -91,8 +90,7 @@ impl SyncHandler for SessionFoundationHandler {
             &resolved,
             resolved.transition.session_start_source.as_deref(),
         )?;
-        let persist = store.persist(&next_record)?;
-        logging::emit_session_log(&next_record, persist, lifecycle_event.as_str())?;
+        let _persist = store.persist(&next_record)?;
 
         Ok(proceed())
     }

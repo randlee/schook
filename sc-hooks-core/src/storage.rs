@@ -1,8 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sc_observability::LoggerConfig;
-use sc_observability_types::{LevelFilter, ServiceName};
 use tempfile::NamedTempFile;
 
 use crate::context::HookContext;
@@ -102,17 +100,15 @@ impl SessionStore {
 }
 
 pub fn resolve_state_root() -> Result<PathBuf, HookError> {
-    let root = std::env::var_os("SC_HOOKS_STATE_DIR")
-        .map(PathBuf::from)
-        .or_else(dirs::home_dir)
-        .ok_or_else(|| {
-            HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
-        })?;
-
-    if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
-        Ok(root)
-    } else {
-        Ok(root.join(".sc-hooks").join("state").join("sessions"))
+    match std::env::var_os("SC_HOOKS_STATE_DIR") {
+        Some(dir) => Ok(PathBuf::from(dir)),
+        None => dirs::home_dir()
+            .map(|home| home.join(".sc-hooks").join("state").join("sessions"))
+            .ok_or_else(|| {
+                HookError::invalid_context(
+                    "unable to resolve SC_HOOKS_STATE_DIR or home directory",
+                )
+            }),
     }
 }
 
@@ -124,18 +120,6 @@ pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, Ho
         })?,
     };
     Ok(base.join(crate::OBSERVABILITY_ROOT))
-}
-
-pub fn default_logger_config(
-    service: ServiceName,
-    project_root: Option<&Path>,
-) -> Result<LoggerConfig, HookError> {
-    let root = observability_root_for(project_root)?;
-    let mut config = LoggerConfig::default_for(service, root);
-    config.level = LevelFilter::Info;
-    config.enable_console_sink = false;
-    config.enable_file_sink = true;
-    Ok(config)
 }
 
 #[cfg(test)]
