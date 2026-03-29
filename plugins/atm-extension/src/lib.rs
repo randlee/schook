@@ -83,6 +83,18 @@ struct SuggestionType(String);
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuleContent(String);
 
+impl SuggestionType {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl RuleContent {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PermissionSuggestionRule {
     tool_name: ToolName,
@@ -894,14 +906,14 @@ fn render_permission_suggestions(suggestions: &[PermissionSuggestion]) -> Value 
             .iter()
             .map(|suggestion| {
                 json!({
-                    "type": suggestion.suggestion_type.0,
+                    "type": suggestion.suggestion_type.as_str(),
                     "behavior": suggestion.behavior,
                     "destination": suggestion.destination,
                     "mode": suggestion.mode,
                     "rules": suggestion.rules.iter().map(|rule| {
                         json!({
                             "toolName": rule.tool_name.as_str(),
-                            "ruleContent": rule.rule_content.0,
+                            "ruleContent": rule.rule_content.as_str(),
                         })
                     }).collect::<Vec<_>>(),
                 })

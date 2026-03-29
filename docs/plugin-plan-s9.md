@@ -1129,6 +1129,8 @@ Status:
 Depends on:
 
 - S9-P5 complete AND S9-HP4 complete
+- HP4 and HP5 are co-delivered and jointly reviewed in this PR/QA pass because
+  the relay path depends directly on HP4 Bash/tool policy runtime behavior
 
 Deliverables:
 
