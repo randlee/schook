@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use sc_observability::LoggerConfig;
+use sc_observability_types::{LevelFilter, ServiceName};
 use tempfile::NamedTempFile;
 
 use crate::context::HookContext;
@@ -114,14 +116,33 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
     }
 }
 
-pub fn observability_root_for(project_root: &Path) -> PathBuf {
-    project_root.join(crate::OBSERVABILITY_ROOT)
+pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, HookError> {
+    let base = match project_root {
+        Some(root) => root.to_path_buf(),
+        None => std::env::current_dir().map_err(|err| {
+            HookError::invalid_context(format!("failed resolving current dir: {err}"))
+        })?,
+    };
+    Ok(base.join(crate::OBSERVABILITY_ROOT))
+}
+
+pub fn default_logger_config(
+    service: ServiceName,
+    project_root: Option<&Path>,
+) -> Result<LoggerConfig, HookError> {
+    let root = observability_root_for(project_root)?;
+    let mut config = LoggerConfig::default_for(service, root);
+    config.level = LevelFilter::Info;
+    config.enable_console_sink = false;
+    config.enable_file_sink = true;
+    Ok(config)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::session::{ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn unchanged_records_do_not_rewrite() {
@@ -147,5 +168,32 @@ mod tests {
             store.persist(&record).expect("unchanged"),
             PersistOutcome::Unchanged
         );
+    }
+
+    #[test]
+    fn observability_root_uses_current_dir_when_project_root_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let _cwd = scoped_current_dir(temp.path());
+        let expected = std::env::current_dir()
+            .expect("current dir after switch")
+            .join(crate::OBSERVABILITY_ROOT);
+        let path = observability_root_for(None).expect("root");
+        assert_eq!(path, expected);
+    }
+
+    struct CurrentDirGuard {
+        original: PathBuf,
+    }
+
+    impl Drop for CurrentDirGuard {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.original).expect("restore cwd");
+        }
+    }
+
+    fn scoped_current_dir(path: &Path) -> CurrentDirGuard {
+        let original = std::env::current_dir().expect("current dir");
+        std::env::set_current_dir(path).expect("switch cwd");
+        CurrentDirGuard { original }
     }
 }

@@ -1,8 +1,8 @@
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::session::CanonicalSessionRecord;
-use sc_observability::{Logger, LoggerConfig};
+use sc_observability::Logger;
 use sc_observability_types::{
-    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+    ActionName, Level, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
 };
 use serde_json::{Map, Value};
 
@@ -20,14 +20,11 @@ pub fn emit_session_log(
     let action = ActionName::new("session.state")
         .map_err(|err| HookError::internal(format!("invalid log action: {err}")))?;
 
-    let root = sc_hooks_core::storage::observability_root_for(record.ai_root_dir.as_path());
-    let mut config = LoggerConfig::default_for(service.clone(), root);
-    config.level = LevelFilter::Info;
-    config.enable_console_sink = false;
-    config.enable_file_sink = true;
-
-    let logger = Logger::new(config)
-        .map_err(|err| HookError::internal(format!("failed to initialize logger: {err}")))?;
+    let logger = Logger::new(sc_hooks_core::storage::default_logger_config(
+        service.clone(),
+        Some(record.ai_root_dir.as_path()),
+    )?)
+    .map_err(|err| HookError::internal(format!("failed to initialize logger: {err}")))?;
 
     let mut fields = Map::new();
     fields.insert(
