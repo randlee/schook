@@ -1,13 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
+use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
+use tempfile::NamedTempFile;
 
 use crate::errors::CliError;
 
-const STATE_PATH: &str = ".sc-hooks/state/session.json";
+const STATE_FILE_NAME: &str = "session.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct DisabledPluginInfo {
@@ -27,17 +29,35 @@ struct SessionStore {
     sessions: BTreeMap<String, SessionRecord>,
 }
 
-pub fn load_disabled_plugins(session_id: Option<&str>) -> BTreeSet<String> {
+#[derive(Debug, Clone, Copy)]
+enum LockMode {
+    Shared,
+    Exclusive,
+}
+
+struct FileLockGuard {
+    file: File,
+}
+
+impl Drop for FileLockGuard {
+    fn drop(&mut self) {
+        let _ = FileExt::unlock(&self.file);
+    }
+}
+
+pub fn load_disabled_plugins(session_id: Option<&str>) -> Result<BTreeSet<String>, CliError> {
     let Some(session_id) = normalize_session_id(session_id) else {
-        return BTreeSet::new();
+        return Ok(BTreeSet::new());
     };
 
-    let store = read_store(&state_path()).unwrap_or_default();
-    store
+    let path = state_path()?;
+    let _lock = acquire_lock(&path, LockMode::Shared)?;
+    let store = read_store(&path)?;
+    Ok(store
         .sessions
         .get(session_id)
         .map(|record| record.disabled_plugins.keys().cloned().collect())
-        .unwrap_or_default()
+        .unwrap_or_default())
 }
 
 pub fn mark_plugin_disabled(
@@ -49,7 +69,8 @@ pub fn mark_plugin_disabled(
         return Ok(());
     };
 
-    let path = state_path();
+    let path = state_path()?;
+    let _lock = acquire_lock(&path, LockMode::Exclusive)?;
     let mut store = read_store(&path)?;
     let record = store.sessions.entry(session_id.to_string()).or_default();
     record.disabled_plugins.insert(
@@ -68,14 +89,16 @@ pub fn clear_session(session_id: Option<&str>) -> Result<(), CliError> {
         return Ok(());
     };
 
-    let path = state_path();
+    let path = state_path()?;
+    let _lock = acquire_lock(&path, LockMode::Exclusive)?;
     let mut store = read_store(&path)?;
     store.sessions.remove(session_id);
     write_store(&path, &store)
 }
 
 pub fn clear_all_sessions() -> Result<(), CliError> {
-    let path = state_path();
+    let path = state_path()?;
+    let _lock = acquire_lock(&path, LockMode::Exclusive)?;
     if !path.exists() {
         return Ok(());
     }
@@ -86,6 +109,19 @@ pub fn clear_all_sessions() -> Result<(), CliError> {
             path.display()
         ))
     })
+}
+
+pub fn state_path() -> Result<PathBuf, CliError> {
+    let state_root = sc_hooks_core::storage::resolve_state_root()
+        .map_err(|err| CliError::internal(format!("failed resolving state root: {err}")))?;
+    if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
+        Ok(state_root.join(STATE_FILE_NAME))
+    } else {
+        let state_dir = state_root.parent().ok_or_else(|| {
+            CliError::internal("resolved session state root is missing parent directory")
+        })?;
+        Ok(state_dir.join(STATE_FILE_NAME))
+    }
 }
 
 fn now_timestamp() -> String {
@@ -119,13 +155,47 @@ fn now_timestamp() -> String {
     }
 }
 
-fn state_path() -> PathBuf {
-    PathBuf::from(STATE_PATH)
-}
-
 fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {
     let id = session_id?;
     if id.trim().is_empty() { None } else { Some(id) }
+}
+
+fn acquire_lock(path: &Path, mode: LockMode) -> Result<FileLockGuard, CliError> {
+    let lock_path = path.with_extension("lock");
+    if let Some(parent) = lock_path.parent() {
+        fs::create_dir_all(parent).map_err(|err| {
+            CliError::internal(format!(
+                "failed creating state lock directory {}: {err}",
+                parent.display()
+            ))
+        })?;
+    }
+
+    let file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|err| {
+            CliError::internal(format!(
+                "failed opening state lock {}: {err}",
+                lock_path.display()
+            ))
+        })?;
+
+    match mode {
+        LockMode::Shared => FileExt::lock_shared(&file),
+        LockMode::Exclusive => FileExt::lock_exclusive(&file),
+    }
+    .map_err(|err| {
+        CliError::internal(format!(
+            "failed acquiring state lock {}: {err}",
+            lock_path.display()
+        ))
+    })?;
+
+    Ok(FileLockGuard { file })
 }
 
 fn read_store(path: &Path) -> Result<SessionStore, CliError> {
@@ -160,12 +230,36 @@ fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
 
     let content = serde_json::to_string_pretty(store)
         .map_err(|err| CliError::internal(format!("failed serializing session state: {err}")))?;
-    fs::write(path, content).map_err(|err| {
+    let parent = path.parent().ok_or_else(|| {
+        CliError::internal("resolved disabled-plugin state file is missing parent directory")
+    })?;
+    let mut temp = NamedTempFile::new_in(parent).map_err(|err| {
         CliError::internal(format!(
-            "failed writing session state {}: {err}",
-            path.display()
+            "failed creating temp state file in {}: {err}",
+            parent.display()
         ))
-    })
+    })?;
+    use std::io::Write;
+    temp.write_all(content.as_bytes()).map_err(|err| {
+        CliError::internal(format!(
+            "failed writing temp state file {}: {err}",
+            temp.path().display()
+        ))
+    })?;
+    temp.flush().map_err(|err| {
+        CliError::internal(format!(
+            "failed flushing temp state file {}: {err}",
+            temp.path().display()
+        ))
+    })?;
+    temp.persist(path).map_err(|err| {
+        CliError::internal(format!(
+            "failed persisting state file {}: {}",
+            path.display(),
+            err.error
+        ))
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -173,17 +267,43 @@ mod tests {
     use super::*;
     use crate::test_support;
 
+    struct EnvGuard {
+        original: Option<std::ffi::OsString>,
+    }
+
+    impl EnvGuard {
+        fn set(value: &Path) -> Self {
+            let original = std::env::var_os("SC_HOOKS_STATE_DIR");
+            // SAFETY: tests serialize env mutation through scoped temp roots.
+            unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
+            Self { original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            if let Some(value) = &self.original {
+                // SAFETY: tests serialize env mutation through scoped temp roots.
+                unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
+            } else {
+                // SAFETY: tests serialize env mutation through scoped temp roots.
+                unsafe { std::env::remove_var("SC_HOOKS_STATE_DIR") };
+            }
+        }
+    }
+
     #[test]
     fn persists_and_loads_disabled_plugins() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
         mark_plugin_disabled(Some("session-a"), "notify", "timeout")
             .expect("second plugin should persist");
 
-        let loaded = load_disabled_plugins(Some("session-a"));
+        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
         assert!(loaded.contains("guard-paths"));
         assert!(loaded.contains("notify"));
     }
@@ -192,8 +312,9 @@ mod tests {
     fn missing_state_file_is_fail_open() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
-        let loaded = load_disabled_plugins(Some("session-a"));
+        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
         assert!(loaded.is_empty());
     }
 
@@ -201,12 +322,13 @@ mod tests {
     fn clear_session_removes_record() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
         clear_session(Some("session-a")).expect("session clear should succeed");
 
-        let loaded = load_disabled_plugins(Some("session-a"));
+        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
         assert!(loaded.is_empty());
     }
 
@@ -214,11 +336,12 @@ mod tests {
     fn disabled_at_is_iso8601_like_timestamp() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
         let content =
-            fs::read_to_string(".sc-hooks/state/session.json").expect("state file should exist");
+            fs::read_to_string(state_path().expect("state path")).expect("state file should exist");
         assert!(content.contains('T'));
         assert!(content.contains('Z'));
     }
@@ -227,23 +350,25 @@ mod tests {
     fn clear_all_sessions_removes_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
         mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect("disable state should persist");
-        assert!(Path::new(".sc-hooks/state/session.json").exists());
+        assert!(state_path().expect("state path").exists());
 
         clear_all_sessions().expect("clear_all_sessions should succeed");
-        assert!(!Path::new(".sc-hooks/state/session.json").exists());
+        assert!(!state_path().expect("state path").exists());
     }
 
     #[test]
     fn mark_plugin_disabled_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
-        fs::create_dir_all(".sc-hooks/state").expect("state dir should be creatable");
-        fs::write(".sc-hooks/state/session.json", "{not-json")
-            .expect("state file should be writable");
+        let path = state_path().expect("state path");
+        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
+        fs::write(path, "{not-json").expect("state file should be writable");
 
         let err = mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
             .expect_err("corrupt session state should not be silently reset on write");
@@ -254,13 +379,29 @@ mod tests {
     fn clear_session_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
 
-        fs::create_dir_all(".sc-hooks/state").expect("state dir should be creatable");
-        fs::write(".sc-hooks/state/session.json", "{not-json")
-            .expect("state file should be writable");
+        let path = state_path().expect("state path");
+        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
+        fs::write(path, "{not-json").expect("state file should be writable");
 
         let err = clear_session(Some("session-a"))
             .expect_err("corrupt session state should not be silently reset on clear");
+        assert!(err.to_string().contains("failed parsing session state"));
+    }
+
+    #[test]
+    fn load_disabled_plugins_fails_on_corrupt_state_file() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let _cwd = test_support::scoped_current_dir(temp.path());
+        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+
+        let path = state_path().expect("state path");
+        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
+        fs::write(path, "{not-json").expect("state file should be writable");
+
+        let err = load_disabled_plugins(Some("session-a"))
+            .expect_err("corrupt state should not silently fail open");
         assert!(err.to_string().contains("failed parsing session state"));
     }
 }

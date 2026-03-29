@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 use serde_json::{Map, Value};
+use tempfile::NamedTempFile;
 use toml::Value as TomlValue;
 
 use crate::config::ScHooksConfig;
@@ -49,19 +49,15 @@ pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
     pub session_id: Option<String>,
+    pub project_root: Option<PathBuf>,
     // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
 }
 
 #[derive(Debug)]
 struct MetadataFileGuard {
+    _file: NamedTempFile,
     path: PathBuf,
-}
-
-impl Drop for MetadataFileGuard {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
 }
 
 impl RuntimeMetadata {
@@ -90,6 +86,7 @@ pub fn prepare_for_dispatch(
 ) -> Result<PreparedMetadata, CliError> {
     let runtime = RuntimeMetadata::discover()?;
     let temp_root = std::env::temp_dir().join("sc-hooks");
+    sweep_stale_metadata_files(&temp_root, Duration::from_secs(60 * 60 * 24));
     prepare_with_runtime(config, hook, event, payload, &runtime, &temp_root)
 }
 
@@ -109,6 +106,7 @@ pub fn prepare_with_runtime(
         metadata,
         env,
         session_id: runtime.session_id.clone(),
+        project_root: runtime.repo_path.as_ref().map(PathBuf::from),
         _metadata_file: metadata_file,
     })
 }
@@ -184,28 +182,71 @@ fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFil
         ))
     })?;
 
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default();
-    let path = temp_root.join(format!("meta-{}-{nonce}.json", std::process::id()));
-
     let bytes = serde_json::to_vec(metadata)
         .map_err(|err| CliError::internal(format!("failed to serialize metadata JSON: {err}")))?;
-    let mut file = File::create(&path).map_err(|err| {
+    let mut file = NamedTempFile::new_in(temp_root).map_err(|err| {
         CliError::internal(format!(
-            "failed to create metadata file {}: {err}",
-            path.display()
+            "failed to create metadata file in {}: {err}",
+            temp_root.display()
         ))
     })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::set_permissions(file.path(), fs::Permissions::from_mode(0o600)).map_err(|err| {
+            CliError::internal(format!(
+                "failed to secure metadata file {}: {err}",
+                file.path().display()
+            ))
+        })?;
+    }
+    use std::io::Write;
     file.write_all(&bytes).map_err(|err| {
         CliError::internal(format!(
             "failed to write metadata file {}: {err}",
-            path.display()
+            file.path().display()
+        ))
+    })?;
+    file.flush().map_err(|err| {
+        CliError::internal(format!(
+            "failed to flush metadata file {}: {err}",
+            file.path().display()
         ))
     })?;
 
-    Ok(MetadataFileGuard { path })
+    Ok(MetadataFileGuard {
+        path: file.path().to_path_buf(),
+        _file: file,
+    })
+}
+
+fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
+    let Ok(entries) = fs::read_dir(temp_root) else {
+        return;
+    };
+    let now = SystemTime::now();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !name.starts_with(".tmp") && !name.starts_with("meta-") {
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        let Ok(modified) = metadata.modified() else {
+            continue;
+        };
+        let Ok(age) = now.duration_since(modified) else {
+            continue;
+        };
+        if age >= max_age {
+            let _ = fs::remove_file(path);
+        }
+    }
 }
 
 fn toml_value_to_json(value: &TomlValue) -> Result<Value, CliError> {
@@ -402,5 +443,59 @@ PreToolUse = ["guard-paths"]
             String::from_utf8(output.stdout).expect("stdout should be utf8"),
             "unset"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn metadata_file_is_owner_only_on_unix() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let config = config::parse_config_str(
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+"#,
+            "in-memory",
+        )
+        .expect("config should parse");
+        let runtime = RuntimeMetadata {
+            agent_pid: 11,
+            agent_type: None,
+            session_id: None,
+            repo_path: None,
+            repo_branch: None,
+            working_dir: "/repo".to_string(),
+        };
+
+        let prepared =
+            prepare_with_runtime(&config, "PreToolUse", None, None, &runtime, temp.path())
+                .expect("metadata should prepare");
+        let mode = fs::metadata(&prepared.env.metadata_path)
+            .expect("metadata should exist")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[test]
+    fn stale_metadata_files_are_swept_before_dispatch() {
+        let _guard = test_support::cwd_lock()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let stale = temp.path().join("meta-stale.json");
+        fs::write(&stale, "{}").expect("stale file should be writable");
+
+        sweep_stale_metadata_files(temp.path(), Duration::ZERO);
+
+        assert!(!stale.exists());
     }
 }

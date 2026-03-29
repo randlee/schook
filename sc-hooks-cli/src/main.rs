@@ -149,7 +149,7 @@ fn run() -> Result<(), CliError> {
             let payload = read_optional_payload_from_stdin()?;
             let mode = args.mode();
             let session_id = metadata::current_session_id();
-            let disabled_plugins = session::load_disabled_plugins(session_id.as_deref());
+            let disabled_plugins = session::load_disabled_plugins(session_id.as_deref())?;
             let is_session_end = args.hook == "SessionEnd";
 
             let run_result = (|| -> Result<(), CliError> {
@@ -189,8 +189,9 @@ fn run() -> Result<(), CliError> {
         }
         Commands::Audit(args) => {
             if args.reset {
+                let reset_path = session::state_path()?;
                 session::clear_all_sessions()?;
-                println!("reset: cleared .sc-hooks/state/session.json");
+                println!("reset: cleared {}", reset_path.display());
             }
             let config = config::load_default_config()?;
             let report = audit::run(

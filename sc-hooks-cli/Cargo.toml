@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.39", features = ["derive"] }
+fs2 = "0.4.3"
 nix = { version = "0.30.1", features = ["signal", "process"] }
 sc-observability = { path = "../../../sc-observability/crates/sc-observability" }
 sc-observability-types = { path = "../../../sc-observability/crates/sc-observability-types" }
@@ -13,8 +14,6 @@ sc-hooks-sdk = { path = "../sc-hooks-sdk" }
 sc-hooks-test = { path = "../sc-hooks-test" }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.145"
+tempfile = "3.23.0"
 thiserror = "2.0.12"
 toml = "0.8.20"
-
-[dev-dependencies]
-tempfile = "3.23.0"

@@ -20,10 +20,7 @@ pub fn emit_session_log(
     let action = ActionName::new("session.state")
         .map_err(|err| HookError::internal(format!("invalid log action: {err}")))?;
 
-    let root = record
-        .ai_root_dir
-        .as_path()
-        .join(sc_hooks_core::OBSERVABILITY_ROOT);
+    let root = sc_hooks_core::storage::observability_root_for(record.ai_root_dir.as_path());
     let mut config = LoggerConfig::default_for(service.clone(), root);
     config.level = LevelFilter::Info;
     config.enable_console_sink = false;
