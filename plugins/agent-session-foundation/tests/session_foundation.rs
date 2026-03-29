@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
 use sc_hooks_core::context::HookContext;
@@ -47,17 +47,25 @@ fn test_lock() -> &'static Mutex<()> {
 }
 
 struct EnvGuard {
+    _lock: MutexGuard<'static, ()>,
     entries: Vec<(String, Option<String>)>,
 }
 
 impl EnvGuard {
     fn set(pairs: &[(&str, &str)]) -> Self {
+        let lock = test_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut entries = Vec::new();
         for (key, value) in pairs {
             entries.push(((*key).to_string(), std::env::var(key).ok()));
+            // SAFETY: tests serialize environment mutation through EnvGuard's mutex.
             unsafe { std::env::set_var(key, value) };
         }
-        Self { entries }
+        Self {
+            _lock: lock,
+            entries,
+        }
     }
 }
 
@@ -65,8 +73,14 @@ impl Drop for EnvGuard {
     fn drop(&mut self) {
         for (key, original) in self.entries.drain(..) {
             match original {
-                Some(value) => unsafe { std::env::set_var(&key, value) },
-                None => unsafe { std::env::remove_var(&key) },
+                Some(value) => {
+                    // SAFETY: tests serialize environment mutation through EnvGuard's mutex.
+                    unsafe { std::env::set_var(&key, value) };
+                }
+                None => {
+                    // SAFETY: tests serialize environment mutation through EnvGuard's mutex.
+                    unsafe { std::env::remove_var(&key) };
+                }
             }
         }
     }
@@ -92,7 +106,6 @@ impl Drop for CurrentDirGuard {
 
 #[test]
 fn persists_session_record_by_session_id() {
-    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
@@ -132,7 +145,6 @@ fn persists_session_record_by_session_id() {
 
 #[test]
 fn later_lifecycle_events_correlate_across_directory_changes() {
-    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let other_dir = temp.path().join("repo-b");
@@ -192,7 +204,6 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 
 #[test]
 fn emits_hook_log_for_state_changes_and_noop_writes() {
-    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
@@ -238,7 +249,6 @@ fn emits_hook_log_for_state_changes_and_noop_writes() {
 
 #[test]
 fn session_start_requires_injected_agent_pid() {
-    let _lock = test_lock().lock().expect("test lock");
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
