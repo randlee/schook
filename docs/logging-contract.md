@@ -24,12 +24,24 @@ It covers:
 It does not define:
 - plugin stdin/stdout protocol details
 - CLI human-readable output
-- future observability sinks beyond the current file sink
+- future observability sinks beyond the current file sink baseline and the
+  contract-tested default console sink
 
 Important current reality:
 - the current implementation does not emit the old ad hoc `DispatchLogEntry`
   record shape
 - each log line is one `sc_observability_types::LogEvent`
+- the file sink is the canonical structured contract; the console sink is a
+  human-readable rendering of the same dispatch event for operator/debugging use
+
+## 1.1 Console Sink Relationship
+
+- the default console sink renders one human-readable line per qualifying
+  dispatch
+- it preserves the same dispatch semantics as the file sink for `level`,
+  `target`, `action`, and message/outcome
+- it does not inline the full structured `fields` payload; consumers that need
+  exact `fields` data must continue to use the JSONL file sink
 
 ## 2. File And Line Model
 

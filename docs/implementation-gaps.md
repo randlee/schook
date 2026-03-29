@@ -14,7 +14,7 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
 | GAP-010 | resolved in this pass | `sc-hooks-cli`, docs | host-level observability contract tests prove success, block, invalid-json error, timeout, and file-sink path behavior through the real `sc-hooks-cli` binary | broader sink/monitoring coverage remains tracked under `DEF-008` |
 | DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
-| DEF-008 | deferred | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps keep richer observability validation beyond the current file-sink dispatch contract explicitly planned but not release-blocking, with console-sink coverage named as the first follow-up | none until console/custom sink coverage and multi-hook smoke correlation are intentionally promoted |
+| DEF-008 | partially resolved in this pass | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps now prove both the file-sink dispatch contract and the first console-sink expansion through real-dispatch tests | remaining deferred work is limited to custom sinks and multi-hook smoke correlation |
 
 ## Hook Extension Requirement Tracker
 
@@ -158,7 +158,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - Exit condition:
   - requirements, protocol docs, and tests are updated together for the expanded operator set
 
-### DEF-008: Broader Observability Monitoring Coverage Stays Deferred
+### DEF-008: Console-Sink Coverage Is Closed; Broader Monitoring Stays Deferred
 
 - Current behavior:
   - the current release baseline proves the file-sink `LogEvent` contract under
@@ -167,19 +167,18 @@ This document tracks gaps between the current codebase and the release-standard 
     `OBSERVABILITY_LOG_PATH` as shared path literals for agreement between the
     CLI, tests, and docs; this is an accepted OBS-007 boundary tension because
     the constants do not own sink wiring, logger lifecycle, or event emission
-  - the next planned observability follow-up is console-sink coverage under
-    real dispatch because console logs are the most useful immediate debugging
-    surface for live/background-agent interaction tracing
-  - the baseline does not yet prove:
-    - console-sink behavior under `sc-observability`
+  - the release baseline now also proves console-sink behavior under
+    `sc-observability` for success, block, invalid-json error, and timeout
+    dispatches through the real `sc-hooks-cli` binary
+  - the remaining deferred observability work is:
     - custom sink registration paths
     - multi-hook sequence correlation / exactly-once smoke monitoring across a
       longer lifecycle
     - operator-facing monitoring flows such as background-agent log watching
 - Exit condition:
   - requirements, architecture, observability docs, and tests intentionally
-    promote richer monitoring coverage, starting with console-sink behavior and
-    then extending to custom sinks and multi-hook smoke correlation
+    promote the remaining broader monitoring coverage beyond file and console
+    sinks, extending to custom sinks and multi-hook smoke correlation
 
 ## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
 

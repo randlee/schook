@@ -61,6 +61,7 @@ This table maps the most important documented requirements to current implementa
 | OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
 | OBS-007 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests plus code inspection of crate boundaries | |
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
+| DEF-008 | partially implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | remaining deferred work is custom sinks and multi-hook monitoring correlation |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-002 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-003 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
@@ -83,4 +84,4 @@ This table maps the most important documented requirements to current implementa
 | GAP-004 | resolved | `examples/runtime-layout/.sc-hooks/`, `examples/runtime-layout/README.md` | `sc-hooks-cli/tests/runtime_layout_example.rs` plus the checked example tree |
 | GAP-005 | resolved | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests, logging/observability contract docs |
 | GAP-007 | resolved | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | dependency inspection, observability tests, architecture/requirements alignment |
-| GAP-010 | resolved | `sc-hooks-cli/tests/observability_contract.rs`, `docs/implementation-gaps.md`, `docs/project-plan.md` | real dispatch-path observability tests plus the implementation-gap and project-plan follow-up notes agree on the file-sink coverage baseline and deferred console-sink expansion |
+| GAP-010 | resolved | `sc-hooks-cli/tests/observability_contract.rs`, `docs/implementation-gaps.md`, `docs/project-plan.md` | real dispatch-path observability tests plus the implementation-gap and project-plan follow-up notes agree on the file-sink baseline and the now-complete console-sink expansion |

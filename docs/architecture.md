@@ -188,16 +188,16 @@ Current observability ownership follows the intended boundary directly:
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
 - there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
 
-Next planned observability expansion:
+Current post-file-sink expansion status:
 
-- keep the current file-sink JSONL contract as the release baseline
-- add console-sink verification next, through the same real `sc-hooks-cli`
-  dispatch path used by the file-sink contract tests
-- treat console-sink coverage as the first operator-facing debugging expansion
+- the file-sink JSONL contract remains the release baseline
+- console-sink verification is now implemented through the same real
+  `sc-hooks-cli` dispatch path used by the file-sink contract tests
+- console-sink coverage is the first operator-facing debugging expansion
   because it is the most useful immediate surface for live multi-agent and
   background-agent monitoring
-- defer custom sink registration coverage and multi-hook monitoring correlation
-  until console-sink behavior is frozen and documented
+- custom sink registration coverage and multi-hook monitoring correlation remain
+  deferred after the console-sink contract
 
 This boundary is current architecture, not deferred intent.
 

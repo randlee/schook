@@ -18,7 +18,8 @@ This document defines the current JSONL file output owned by `sc-hooks-cli`.
 
 It does not define:
 - plugin stdin/stdout JSON
-- CLI human-readable output
+- CLI human-readable output except for the contract-tested console-sink summary
+  line described below
 - spans, metrics, or OTLP export
 
 ## 2. Ownership Boundary
@@ -110,7 +111,30 @@ Implements:
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
 
-## 7. Non-Goals
+## 7. Console Sink Expansion
+
+Post-file-sink observability expansion:
+- console-sink coverage is now the first completed post-file-sink observability
+  expansion
+- the file sink remains the baseline durable contract and canonical structured
+  record surface
+- the console sink is the operator/debugging surface for live dispatch review
+  and background-agent monitoring
+
+Current relationship between sinks:
+- both sinks are driven from the same dispatch-complete `LogEvent`
+- the file sink preserves the full structured JSON event, including `fields`
+- the console sink intentionally renders a concise human-readable line from the
+  same event, so it preserves the same top-level dispatch semantics (`level`,
+  `target`, `action`, message/outcome) while not repeating the full structured
+  field payload inline
+
+Current console sink line format:
+- `<timestamp> <LEVEL> <target> <action> <message>`
+- the `message` currently includes `hook`, `event`, `mode`, handler count, and
+  `outcome`
+
+## 8. Non-Goals
 
 Related deferred boundary:
 - no current requirement ID promotes configurable sink routing, traces, metrics,
@@ -118,7 +142,7 @@ Related deferred boundary:
 
 Current `schook` observability does not yet provide:
 - configurable sink routing from `.sc-hooks/config.toml`
-- console sink customization
+- console sink customization beyond the contract-tested default summary line
 - traces
 - metrics
 - OTLP export
