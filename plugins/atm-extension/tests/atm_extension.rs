@@ -114,7 +114,7 @@ fn pre_tool_use_writes_identity_file_and_updates_extensions() {
 
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
-        ("TMPDIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
         ("ATM_TEAM", ""),
         ("ATM_IDENTITY", ""),
     ]);
@@ -162,7 +162,7 @@ fn post_tool_use_deletes_identity_file() {
 
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
-        ("TMPDIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
         ("ATM_TEAM", ""),
         ("ATM_IDENTITY", ""),
     ]);
@@ -197,7 +197,7 @@ fn non_atm_bash_command_is_a_noop_for_identity_file() {
 
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
-        ("TMPDIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
         ("ATM_TEAM", ""),
         ("ATM_IDENTITY", ""),
     ]);
@@ -287,7 +287,7 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
         ("ATM_HOME", atm_home.to_str().expect("utf8")),
-        ("TMPDIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
         ("ATM_TEAM", ""),
         ("ATM_IDENTITY", ""),
     ]);

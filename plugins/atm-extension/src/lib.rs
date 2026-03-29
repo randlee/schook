@@ -648,7 +648,13 @@ fn append_relay_event(root: Option<PathBuf>, event: Value) {
 }
 
 fn identity_file_path(active_pid: u32) -> PathBuf {
-    std::env::temp_dir().join(format!("atm-hook-{active_pid}.json"))
+    // Tests override ATM_HOOK_TMP_DIR to inject a writable temp path without
+    // touching TMPDIR (which tempfile::tempdir() reads, causing race conditions
+    // when tests call tempdir() before the EnvGuard mutex is acquired).
+    let base = std::env::var_os("ATM_HOOK_TMP_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join(format!("atm-hook-{active_pid}.json"))
 }
 
 fn write_identity_file(
