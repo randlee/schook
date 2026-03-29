@@ -1,0 +1,9 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "Code blooms in the spring\nFeatures branch and merge as one\nTests confirm the truth",
+  "permission_mode": "default",
+  "session_id": "ae03571e-0fae-486e-b050-777eaa42b803",
+  "stop_hook_active": false,
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/ae03571e-0fae-486e-b050-777eaa42b803.jsonl"
+}
