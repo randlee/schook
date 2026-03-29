@@ -28,10 +28,14 @@ The source-of-truth inputs for this document are:
 
 ## Path And Environment Rules
 
-- hook working directory is not a stable identity signal
-- `CLAUDE_PROJECT_DIR` is the correct project-root anchor when available
-- `CLAUDE_PLUGIN_ROOT` is available in hook context, not in ordinary Bash tool
-  execution
+- the current harness captures stdin JSON only; it does not yet snapshot hook
+  process environment variables
+- `cwd` is capture-verified in current raw payloads
+- `CLAUDE_PROJECT_DIR` and `CLAUDE_PLUGIN_ROOT` may exist as hook-process env
+  vars, but their presence, absence, and values are not yet locally verified by
+  the harness because env snapshots are not persisted today
+- raw hook `cwd` after the initial root-establishing `SessionStart` must be
+  treated as operational context, not as a stable identity signal
 - relative hook paths are not reliable because Claude may change the current
   directory during a session
 
@@ -73,6 +77,8 @@ What is not verified today:
 - a full upstream Claude JSON schema for all hook payloads
 - cwd/root/agent metadata as guaranteed `SessionStart` payload fields across
   all launches
+- `CLAUDE_PROJECT_DIR` and `CLAUDE_PLUGIN_ROOT` availability/value by hook
+  surface, because the current harness does not persist env snapshots
 - parent/subagent/session lineage fields in Claude hook payloads
 - a live `Notification` payload in this harness environment
 
@@ -105,8 +111,9 @@ Claude hook calls should treat identity and context as separate concerns.
 Current verified anchor:
 
 1. SessionStart-captured `session_id`
-2. `CLAUDE_PROJECT_DIR` as the source-backed project-root anchor when the hook
-   environment provides it
+2. SessionStart-captured `cwd` for the root-establishing launch (`startup`
+   today; `resume`/`clear` require additional directory-drift verification
+   before this document freezes their exact semantics)
 3. `ATM_TEAM` + `ATM_IDENTITY` only as routing labels, not as a unique instance
    key
 
@@ -120,6 +127,9 @@ Rules:
   identity from current working directory or subprocess lineage
 - `PPID` can be used as a local diagnostic cross-check, but it is not the
   persisted identity key in the verified Sprint 9 plan
+- if `CLAUDE_PROJECT_DIR` is present at runtime, it is a cross-check against
+  the persisted canonical root; it is not currently a capture-backed source of
+  truth in this harness
 
 Current verified ATM-backed persistent record fields:
 
@@ -134,11 +144,60 @@ future `schook` base record must stay identical.
 Implementation-facing reading for `schook`:
 
 - `session_id` is the verified Claude lifecycle anchor
-- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
+- the runtime should establish one canonical session root from the first
+  root-establishing `SessionStart` launch for the runtime instance and keep
+  later hook `cwd` values separate as current-directory context only
+- `SessionStart(source="startup")` `cwd` is the only currently capture-backed
+  project-root anchor in local evidence
+- `PostToolUse(Bash).cwd` is current working directory at tool execution time
+  and must not be treated as canonical project root
+- `CLAUDE_PROJECT_DIR`, when present at runtime, should be compared to the
+  persisted canonical root instead of replacing it
+- any divergence between the persisted canonical root and inbound
+  `CLAUDE_PROJECT_DIR` should emit prominent error-level observability
+- downstream consumers should receive normalized project-root context from
+  `schook` even when Claude varies the raw env surface by hook
 - `active_pid` remains part of the planned runtime identity tuple, but is a
   runtime-managed field rather than a Claude payload contract claim
 - `Notification(idle_prompt)` stays outside the verified identity/state model
   until a live payload is captured
+
+## Verified `cwd` Semantics By Hook Surface
+
+The current raw fixture set proves `cwd` is present on every captured hook
+surface, but it does not prove the same semantics for every hook.
+
+Current local evidence supports these readings:
+
+- `SessionStart(source="startup")`
+  - `cwd` is the session launch directory
+  - this is the only currently capture-backed project-root anchor in local
+    evidence
+- `SessionStart(source="compact")`
+  - `cwd` is present
+  - it must not be documented as an immutable project-root anchor because
+    Claude may have changed directory before compaction
+- `SessionStart(source="resume")`
+  - `cwd` is captured in local follow-up fixtures
+  - the harness has not yet run a resume-from-different-directory scenario, so
+    this document does not freeze whether `resume` should always establish a
+    new canonical root or merely report current working directory
+- `SessionStart(source="clear")`
+  - `cwd` is captured in local follow-up fixtures
+  - this document does not yet claim more than the presence of the field until
+    the env-capture and directory-drift follow-up lands
+- `PreToolUse(Bash)` / `PreToolUse(Agent)`
+  - `cwd` is present
+  - treat it as the current working directory snapshot at hook time, not as a
+    stable root anchor
+- `PostToolUse(Bash)`
+  - `cwd` is present
+  - treat it as the current working directory at tool execution time, not as a
+    project-root anchor
+- `PermissionRequest`, `Stop`, `SessionEnd`, `PreCompact`
+  - `cwd` is present
+  - current captures do not prove these hooks carry a stable root anchor; treat
+    them as context snapshots only
 
 ## Verified Claude Hook Behaviors
 
@@ -194,6 +253,9 @@ Adjacent but not part of the current eight-hook baseline:
 - Claude hook payloads are only partially documented by the vendor, so some
   field names are verified from live scripts rather than a formal upstream
   schema
+- the current harness does not yet persist hook env snapshots, so
+  `CLAUDE_PROJECT_DIR`, `CLAUDE_PLUGIN_ROOT`, and `ATM_*` availability cannot
+  yet be stated as capture-backed truth
 - `agent-team-mail` does not currently appear to use Pydantic models as the
   Claude hook source of truth; the current baseline is docs + scripts + tests +
   Rust fallback code

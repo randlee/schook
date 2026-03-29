@@ -320,9 +320,19 @@ Current architecture guardrails for these targets in this branch:
   state ownership, and trait boundaries
 - `sc-hooks-session-foundation` is responsible for the canonical session-state
   record keyed by `session_id`, `active_pid`, and `ai_root_dir`
-- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR` and must not fall
-  back to cwd heuristics
-- `ai_current_dir` is captured from each lifecycle payload `cwd`
+- `ai_root_dir` is established from the first root-establishing
+  `SessionStart` payload for the runtime instance and must not be rewritten
+  from later `cwd` drift
+- `ai_current_dir` is captured from each lifecycle payload `cwd` as current
+  working-directory context, not as root identity
+- inbound `CLAUDE_PROJECT_DIR`, when present, is a runtime cross-check against
+  the persisted canonical root rather than the source of truth
+- any divergence between the persisted canonical root and inbound
+  `CLAUDE_PROJECT_DIR` must emit prominent error-level observability for
+  investigation
+- downstream hook consumers receive normalized project-root context from the
+  persisted canonical session root even when Claude omits or varies raw env
+  values across hook surfaces
 - canonical `session.json` updates use atomic write semantics and skip unchanged
   rewrites while still emitting hook logs
 - the internal in-process hook trait remains sealed in `sc-hooks-core`, while
