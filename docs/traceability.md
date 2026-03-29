@@ -98,3 +98,8 @@ This table maps the most important documented requirements to current implementa
   - prior text: source-only plugin crates could remain described as non-runtime code “unless and until” a later phase promoted them
   - current text: every source crate under `plugins/` must be documented with an explicit maturity level of either scaffold/reference or runtime implementation with direct tests
   - authorizing sprint: `S9-BONUS`
+
+- `HKR-008`
+  - prior text: env-var availability of `CLAUDE_PROJECT_DIR` in hook process context was unverified; implementation of the canonical session-state record keyed by `ai_root_dir` was specified but not capture-backed
+  - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source=”startup”)` is the only capture-backed surface for establishing immutable root; later `cwd` values may drift; the full implementation of the canonical session-state model (atomic persistence, root-equality check, normalized consumer output) remains deferred pending `S10-R1`
+  - authorizing sprint: `S9-ENV-CAPTURE`

@@ -99,6 +99,7 @@ Current implication:
 | `SessionStart(source="compact")` | `20260329T211435.352660Z-session-start{,.env}.json` | project root | present and equal to project root | absent in plain manual terminal run | not observed | compact-return session still receives stable `CLAUDE_PROJECT_DIR` |
 | `SessionEnd(reason="clear")` | `20260329T211532.933293Z-session-end{,.env}.json` | project root | present and equal to project root | absent in plain manual terminal run | not observed | `/clear` ends the prior session with reason `clear` and stable project-root env |
 | `SessionStart(source="clear")` | `20260329T211532.964966Z-session-start{,.env}.json` | project root | present and equal to project root | absent in plain manual terminal run | not observed | the new cleared session receives stable `CLAUDE_PROJECT_DIR`; ATM routing vars are not implicit in a plain manual terminal |
+| `PermissionRequest` | **no env-backed captures** | — | — | — | — | **GAP**: no env snapshots exist for `PermissionRequest`; hook surface is defined in the Claude API but was not triggered during this capture pass; HKR-004 coverage for this surface remains unmet until a dedicated capture session is run |
 
 ## Immediate Design Implications
 
