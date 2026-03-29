@@ -65,6 +65,12 @@ Monitor test execution time:
 
 ## Critical Rules
 
+
+### Zero Tolerance for Pre-Existing Issues
+
+Do NOT dismiss violations as "pre-existing" or "not introduced by this sprint."
+Every violation found anywhere in the codebase is a finding regardless of when it was introduced.
+The pre-existing/new distinction is informational only — it does not change severity or blocking status.
 - **100% tests must pass** - No exceptions
 - **Must read BOTH guideline files first** - `guidelines.txt` AND `docs/cross-platform-guidelines.md`
 - **Must perform critical best-practices review** - Findings are required in every QA run
