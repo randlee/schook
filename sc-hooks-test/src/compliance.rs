@@ -48,7 +48,8 @@ pub struct ContractScenarioResult {
 
 /// Sealed probe interface for exercising the real host dispatch path against
 /// the shared compliance scenarios without exposing arbitrary external probe
-/// implementations.
+/// implementations. Implementors must provide
+/// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>`.
 pub trait HostDispatchProbe: private::Sealed {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
 }

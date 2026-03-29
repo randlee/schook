@@ -47,21 +47,22 @@ pub fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, Cli
     let plan = build_settings(config)?;
     let path = Path::new(DEFAULT_SETTINGS_PATH);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| {
-            CliError::internal(format!(
-                "failed to create settings directory {}: {err}",
-                parent.display()
-            ))
+        fs::create_dir_all(parent).map_err(|source| {
+            CliError::internal_with_source(
+                format!("failed to create settings directory {}", parent.display()),
+                source,
+            )
         })?;
     }
 
-    let rendered = serde_json::to_string_pretty(&plan.settings)
-        .map_err(|err| CliError::internal(format!("failed serializing settings.json: {err}")))?;
-    fs::write(path, rendered).map_err(|err| {
-        CliError::internal(format!(
-            "failed writing settings file {}: {err}",
-            path.display()
-        ))
+    let rendered = serde_json::to_string_pretty(&plan.settings).map_err(|source| {
+        CliError::internal_with_source("failed serializing settings.json", source)
+    })?;
+    fs::write(path, rendered).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed writing settings file {}", path.display()),
+            source,
+        )
     })?;
 
     Ok(plan)
@@ -101,10 +102,11 @@ fn collect_specs_for_hook(
             cached.clone()
         } else {
             let loaded =
-                sc_hooks_sdk::manifest::load_manifest_from_executable(&path).map_err(|err| {
-                    CliError::internal(format!(
-                        "failed loading manifest for `{handler_name}`: {err}"
-                    ))
+                sc_hooks_sdk::manifest::load_manifest_from_executable(&path).map_err(|source| {
+                    CliError::internal_with_source(
+                        format!("failed loading manifest for `{handler_name}`"),
+                        source,
+                    )
                 })?;
             manifest_cache.insert(path.clone(), loaded.clone());
             loaded

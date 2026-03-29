@@ -497,10 +497,11 @@ fn disable_plugin_for_session(
     session_id: Option<&str>,
     handler_name: &str,
 ) -> Result<(), CliError> {
-    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|err| {
-        CliError::internal(format!(
-            "failed persisting disabled state for `{handler_name}`: {err}"
-        ))
+    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed persisting disabled state for `{handler_name}`"),
+            source,
+        )
     })
 }
 

@@ -63,13 +63,25 @@ pub enum CliError {
     AuditFailure { message: String },
 
     #[error("{message}")]
-    Internal { message: String },
+    Internal {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 }
 
 impl CliError {
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn internal_with_source(message: impl Into<String>, source: impl Into<BoxedError>) -> Self {
+        Self::Internal {
+            message: message.into(),
+            source: Some(source.into()),
         }
     }
 

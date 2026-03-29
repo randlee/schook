@@ -16,11 +16,19 @@ pub enum ConditionError {
     #[error("condition `{path}` has invalid value for `{op:?}`")]
     InvalidValue { path: String, op: ConditionOperator },
 
-    #[error("invalid glob pattern `{pattern}`: {reason}")]
-    InvalidGlob { pattern: String, reason: String },
+    #[error("invalid glob pattern `{pattern}`: {source}")]
+    InvalidGlob {
+        pattern: String,
+        #[source]
+        source: glob::PatternError,
+    },
 
-    #[error("invalid regex `{pattern}`: {reason}")]
-    InvalidRegex { pattern: String, reason: String },
+    #[error("invalid regex `{pattern}`: {source}")]
+    InvalidRegex {
+        pattern: String,
+        #[source]
+        source: regex::Error,
+    },
 }
 
 pub fn validate_payload_conditions(conditions: &[PayloadCondition]) -> Result<(), ConditionError> {
@@ -185,9 +193,9 @@ fn evaluate_single(
             let Some(pattern) = condition.value.as_ref().and_then(Value::as_str) else {
                 return Ok(false);
             };
-            let compiled = Pattern::new(pattern).map_err(|err| ConditionError::InvalidGlob {
+            let compiled = Pattern::new(pattern).map_err(|source| ConditionError::InvalidGlob {
                 pattern: pattern.to_string(),
-                reason: err.to_string(),
+                source,
             })?;
             Ok(resolved
                 .and_then(Value::as_str)
@@ -210,9 +218,9 @@ fn evaluate_single(
             let Some(pattern) = condition.value.as_ref().and_then(Value::as_str) else {
                 return Ok(false);
             };
-            let compiled = Regex::new(pattern).map_err(|err| ConditionError::InvalidRegex {
+            let compiled = Regex::new(pattern).map_err(|source| ConditionError::InvalidRegex {
                 pattern: pattern.to_string(),
-                reason: err.to_string(),
+                source,
             })?;
             Ok(resolved
                 .and_then(Value::as_str)

@@ -63,7 +63,9 @@ struct MetadataFileGuard {
 impl RuntimeMetadata {
     pub fn discover() -> Result<Self, CliError> {
         let working_dir = std::env::current_dir()
-            .map_err(|err| CliError::internal(format!("failed to resolve current dir: {err}")))?
+            .map_err(|source| {
+                CliError::internal_with_source("failed to resolve current dir", source)
+            })?
             .display()
             .to_string();
 
@@ -175,20 +177,24 @@ pub fn inject_env_vars(command: &mut Command, env: &HookEnv) {
 }
 
 fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFileGuard, CliError> {
-    fs::create_dir_all(temp_root).map_err(|err| {
-        CliError::internal(format!(
-            "failed to create metadata temp directory {}: {err}",
-            temp_root.display()
-        ))
+    fs::create_dir_all(temp_root).map_err(|source| {
+        CliError::internal_with_source(
+            format!(
+                "failed to create metadata temp directory {}",
+                temp_root.display()
+            ),
+            source,
+        )
     })?;
 
-    let bytes = serde_json::to_vec(metadata)
-        .map_err(|err| CliError::internal(format!("failed to serialize metadata JSON: {err}")))?;
-    let mut file = NamedTempFile::new_in(temp_root).map_err(|err| {
-        CliError::internal(format!(
-            "failed to create metadata file in {}: {err}",
-            temp_root.display()
-        ))
+    let bytes = serde_json::to_vec(metadata).map_err(|source| {
+        CliError::internal_with_source("failed to serialize metadata JSON", source)
+    })?;
+    let mut file = NamedTempFile::new_in(temp_root).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed to create metadata file in {}", temp_root.display()),
+            source,
+        )
     })?;
     #[cfg(unix)]
     {
@@ -196,25 +202,25 @@ fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFil
 
         file.as_file()
             .set_permissions(fs::Permissions::from_mode(0o600))
-            .map_err(|err| {
-                CliError::internal(format!(
-                    "failed to secure metadata file {}: {err}",
-                    file.path().display()
-                ))
+            .map_err(|source| {
+                CliError::internal_with_source(
+                    format!("failed to secure metadata file {}", file.path().display()),
+                    source,
+                )
             })?;
     }
     use std::io::Write;
-    file.write_all(&bytes).map_err(|err| {
-        CliError::internal(format!(
-            "failed to write metadata file {}: {err}",
-            file.path().display()
-        ))
+    file.write_all(&bytes).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed to write metadata file {}", file.path().display()),
+            source,
+        )
     })?;
-    file.flush().map_err(|err| {
-        CliError::internal(format!(
-            "failed to flush metadata file {}: {err}",
-            file.path().display()
-        ))
+    file.flush().map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed to flush metadata file {}", file.path().display()),
+            source,
+        )
     })?;
 
     Ok(MetadataFileGuard {
@@ -252,8 +258,9 @@ fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
 }
 
 fn toml_value_to_json(value: &TomlValue) -> Result<Value, CliError> {
-    serde_json::to_value(value)
-        .map_err(|err| CliError::internal(format!("failed converting TOML value to JSON: {err}")))
+    serde_json::to_value(value).map_err(|source| {
+        CliError::internal_with_source("failed converting TOML value to JSON", source)
+    })
 }
 
 fn git_output(args: &[&str]) -> Option<String> {
