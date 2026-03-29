@@ -9,7 +9,10 @@ fn main() {
             "requires": {},
             "response_time": {"min_ms": 50, "max_ms": 250}
         });
-        println!("{}", serde_json::to_string(&manifest).expect("manifest should serialize"));
+        println!(
+            "{}",
+            serde_json::to_string(&manifest).expect("manifest should serialize")
+        );
         return;
     }
 
@@ -18,5 +21,8 @@ fn main() {
     let _ = std::io::stdin().read_to_string(&mut input);
 
     let result = serde_json::json!({"action":"proceed"});
-    println!("{}", serde_json::to_string(&result).expect("result should serialize"));
+    println!(
+        "{}",
+        serde_json::to_string(&result).expect("result should serialize")
+    );
 }
