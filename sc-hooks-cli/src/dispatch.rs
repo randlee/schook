@@ -60,6 +60,7 @@ pub fn execute_chain(
                     plugin: handler_name.clone(),
                     reason: "manifest long_running=true is only supported for sync handlers"
                         .to_string(),
+                    source: None,
                 },
             ));
         }
@@ -758,7 +759,8 @@ PostToolUse = ["notify"]
             err,
             CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
                 plugin,
-                reason
+                reason,
+                source: _
             })
                 if plugin == "notify" && reason.contains("long_running=true")
         ));

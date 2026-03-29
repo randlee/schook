@@ -55,10 +55,13 @@ impl HookError {
         }
     }
 
-    pub fn internal_with_source(message: impl Into<String>, source: impl Into<BoxedError>) -> Self {
+    pub fn internal_with_source(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
         Self::Internal {
             message: message.into(),
-            source: Some(source.into()),
+            source: Some(Box::new(source)),
         }
     }
 

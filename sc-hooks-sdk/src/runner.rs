@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use crate::result::{HookResult, error};
+use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
@@ -44,7 +44,7 @@ impl PluginRunner {
 
         let result = match handler.handle(input) {
             Ok(result) => result,
-            Err(message) => error(message.to_string()),
+            Err(error) => error_from_hook_error(&error),
         };
 
         write_result(&result)
@@ -65,7 +65,7 @@ impl PluginRunner {
 
         let result = match handler.handle_async(input) {
             Ok(result) => result.into_hook_result(),
-            Err(message) => error(message.to_string()),
+            Err(error) => error_from_hook_error(&error),
         };
 
         write_result(&result)
@@ -199,7 +199,12 @@ mod tests {
 
     #[test]
     fn hook_error_strings_render_for_result_conversion() {
-        let result = error(HookError::invalid_context("missing").to_string());
+        let result = error_from_hook_error(&HookError::invalid_context("missing"));
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Error);
+        assert_eq!(result.message, Some("invalid context: missing".to_string()));
+        assert_eq!(
+            result.additional_context,
+            Some("hook_error_kind=invalid_context".to_string())
+        );
     }
 }

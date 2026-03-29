@@ -11,14 +11,19 @@ pub enum ResolutionError {
     UnresolvedHandler { handler: String },
 
     #[error("plugin `{plugin}` manifest load failed")]
-    ManifestLoad {
+    ManifestLoadFailed {
         plugin: String,
         #[source]
         source: ManifestLoadError,
     },
 
-    #[error("plugin `{plugin}` was rejected during resolution: {reason}")]
-    HandlerRejected { plugin: String, reason: String },
+    #[error("handler `{plugin}` rejected for dispatch: {reason}")]
+    HandlerRejected {
+        plugin: String,
+        reason: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 }
 
 #[derive(Debug, Error)]

@@ -90,7 +90,7 @@ impl SyncHandler for SessionFoundationHandler {
             &resolved,
             resolved.transition.session_start_source.as_deref(),
         )?;
-        store.persist(&next_record)?;
+        let _persist = store.persist(&next_record)?;
 
         Ok(proceed())
     }

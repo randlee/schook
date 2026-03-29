@@ -278,9 +278,6 @@ Current status:
 - `Notification(idle_prompt)` remains part of the documented Claude surface, but
   is currently wired-but-unresolved in local Haiku capture
 
-Hook runtime crates remain planning targets until the post-capture BC design
-package is accepted and implementation begins.
-
 ### 9.2 Planned Harness Subsystem
 
 The planned hook harness owns:
@@ -302,7 +299,7 @@ Documented but deferred from the first harness pass:
 - Gemini
 - Cursor Agent
 
-### 9.3 Planned Hook Crate Targets
+### 9.3 Implemented Hook Runtime Targets In This Branch
 
 The current runtime-implementation path in this branch includes:
 
@@ -313,7 +310,7 @@ The current runtime-implementation path in this branch includes:
 
 All four hook-runtime targets now exist as current source crates in this branch.
 
-Planning rules for these targets:
+Current architecture guardrails for these targets in this branch:
 
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
@@ -328,11 +325,20 @@ Planning rules for these targets:
 - `ai_current_dir` is captured from each lifecycle payload `cwd`
 - canonical `session.json` updates use atomic write semantics and skip unchanged
   rewrites while still emitting hook logs
+- the internal in-process hook trait remains sealed in `sc-hooks-core`, while
+  the public executable-plugin traits in `sc-hooks-sdk::traits` remain
+  intentionally unsealed for sibling workspace crates; this deviation from the
+  original BC sealed-trait assumption is tracked in
+  `docs/implementation-gaps.md`
+- the earlier hook trait-freeze gate is treated as satisfied through the
+  executable-plugin JSON schema contract rather than Rust trait sealing at the
+  SDK boundary; see `SEAL-001` in `docs/implementation-gaps.md`
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority
-- no planned hook crate becomes current architecture until it lands with code,
-  tests, and the same-PR `docs/architecture.md` crate inventory update
+- every hook runtime crate listed above is current architecture in this branch
+  because it now lands with code, tests, and the same-PR
+  `docs/architecture.md` crate inventory update
 
 ### 9.4 Cursor Follow-On Boundary
 

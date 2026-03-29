@@ -68,7 +68,7 @@ Important planning rule:
 | Sprint 9 | S9-P5 | Completed | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
 | Sprint 9 | S9-HP3 | Implementation Complete | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
 | Sprint 9 | S9-HP4 | Implementation Complete | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
-| Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004` | S9-P5 | `atm-extension`, relay tests |
+| Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-P5 | `atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
 | Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |

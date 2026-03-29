@@ -142,10 +142,10 @@ fn load_agent_spawn_policy(project_root_dir: &Path) -> Result<AgentSpawnPolicy, 
         .map_err(|source| HookError::state_io(config_path.clone(), source))?;
     toml::from_str::<AtmTomlRoot>(&body)
         .map(|root| root.agent_spawn)
-        .map_err(|err| {
-            HookError::validation(
-                ".atm.toml",
-                format!("failed to parse {}: {err}", config_path.display()),
+        .map_err(|source| {
+            HookError::internal_with_source(
+                format!("failed to parse {}", config_path.display()),
+                source,
             )
         })
 }

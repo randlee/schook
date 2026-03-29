@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use sc_hooks_core::errors::HookError;
 pub use sc_hooks_core::results::{HookAction, HookResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -67,6 +68,24 @@ pub fn error(message: impl Into<String>) -> HookResult {
         reason: None,
         message: Some(message.into()),
         additional_context: None,
+        system_message: None,
+    }
+}
+
+pub fn error_from_hook_error(error: &HookError) -> HookResult {
+    let kind = match error {
+        HookError::InvalidPayload { .. } => "invalid_payload",
+        HookError::InvalidContext { .. } => "invalid_context",
+        HookError::StateIo { .. } => "state_io",
+        HookError::Validation { .. } => "validation",
+        HookError::Internal { .. } => "internal",
+    };
+
+    HookResult {
+        action: HookAction::Error,
+        reason: None,
+        message: Some(error.to_string()),
+        additional_context: Some(format!("hook_error_kind={kind}")),
         system_message: None,
     }
 }

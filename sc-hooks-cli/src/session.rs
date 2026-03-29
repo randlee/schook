@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use fs2::FileExt;
+use sc_hooks_core::session::utc_timestamp_now;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
@@ -125,34 +125,7 @@ pub fn state_path() -> Result<PathBuf, CliError> {
 }
 
 fn now_timestamp() -> String {
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or_default();
-    #[cfg(unix)]
-    {
-        let raw = seconds as nix::libc::time_t;
-        // SAFETY: `gmtime_r` writes to the provided `tm` struct for a valid `time_t` pointer.
-        unsafe {
-            let mut tm: nix::libc::tm = std::mem::zeroed();
-            if nix::libc::gmtime_r(&raw, &mut tm).is_null() {
-                return seconds.to_string();
-            }
-            format!(
-                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-                tm.tm_year + 1900,
-                tm.tm_mon + 1,
-                tm.tm_mday,
-                tm.tm_hour,
-                tm.tm_min,
-                tm.tm_sec
-            )
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        seconds.to_string()
-    }
+    utc_timestamp_now()
 }
 
 fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {
@@ -163,9 +136,6 @@ fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {
 fn acquire_lock(path: &Path, mode: LockMode) -> Result<FileLockGuard, CliError> {
     let lock_path = path.with_extension("lock");
     if let Some(parent) = lock_path.parent() {
-        // This CLI layer keeps the state path in the human-readable message
-        // string instead of adding a dedicated `StateIo` variant; the source
-        // chain is still preserved through `internal_with_source`.
         fs::create_dir_all(parent).map_err(|source| {
             CliError::internal_with_source(
                 format!("failed creating state lock directory {}", parent.display()),
@@ -206,9 +176,6 @@ fn read_store(path: &Path) -> Result<SessionStore, CliError> {
         return Ok(SessionStore::default());
     }
 
-    // This CLI layer keeps the state path in the human-readable message
-    // string instead of adding a dedicated `StateIo` variant; the source
-    // chain is still preserved through `internal_with_source`.
     let content = fs::read_to_string(path).map_err(|source| {
         CliError::internal_with_source(
             format!("failed reading session state {}", path.display()),
@@ -216,9 +183,6 @@ fn read_store(path: &Path) -> Result<SessionStore, CliError> {
         )
     })?;
 
-    // This CLI layer keeps the state path in the human-readable message
-    // string instead of adding a dedicated `StateIo` variant; the source
-    // chain is still preserved through `internal_with_source`.
     serde_json::from_str::<SessionStore>(&content).map_err(|source| {
         CliError::internal_with_source(
             format!("failed parsing session state {}", path.display()),
@@ -229,9 +193,6 @@ fn read_store(path: &Path) -> Result<SessionStore, CliError> {
 
 fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
     if let Some(parent) = path.parent() {
-        // This CLI layer keeps the state path in the human-readable message
-        // string instead of adding a dedicated `StateIo` variant; the source
-        // chain is still preserved through `internal_with_source`.
         fs::create_dir_all(parent).map_err(|source| {
             CliError::internal_with_source(
                 format!(
@@ -249,9 +210,6 @@ fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
     let parent = path.parent().ok_or_else(|| {
         CliError::internal("resolved disabled-plugin state file is missing parent directory")
     })?;
-    // This CLI layer keeps the state path in the human-readable message
-    // string instead of adding a dedicated `StateIo` variant; the source
-    // chain is still preserved through `internal_with_source`.
     let mut temp = NamedTempFile::new_in(parent).map_err(|source| {
         CliError::internal_with_source(
             format!("failed creating temp state file in {}", parent.display()),
@@ -259,18 +217,12 @@ fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
         )
     })?;
     use std::io::Write;
-    // This CLI layer keeps the state path in the human-readable message
-    // string instead of adding a dedicated `StateIo` variant; the source
-    // chain is still preserved through `internal_with_source`.
     temp.write_all(content.as_bytes()).map_err(|source| {
         CliError::internal_with_source(
             format!("failed writing temp state file {}", temp.path().display()),
             source,
         )
     })?;
-    // This CLI layer keeps the state path in the human-readable message
-    // string instead of adding a dedicated `StateIo` variant; the source
-    // chain is still preserved through `internal_with_source`.
     temp.flush().map_err(|source| {
         CliError::internal_with_source(
             format!("failed flushing temp state file {}", temp.path().display()),
