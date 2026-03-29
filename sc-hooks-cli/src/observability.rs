@@ -65,9 +65,12 @@ pub struct DispatchEventArgs<'a> {
     pub total_ms: u128,
     pub exit: i32,
     pub ai_notification: Option<&'a str>,
-    pub project_root: Option<&'a Path>,
+    pub project_root: &'a Path,
 }
 
+/// Callers must pass the real dispatch project root for every invocation.
+/// The logger root is cached process-wide, so falling back to `current_dir()`
+/// would reintroduce cwd-dependent nondeterminism after initialization.
 pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
@@ -150,17 +153,23 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
-fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
-    let resolved_project_root = resolve_project_root(project_root).map_err(|source| {
-        CliError::internal_with_source("failed to resolve observability project root", source)
-    })?;
-    let initialized_root = LOGGER_ROOT.get_or_init(|| resolved_project_root.clone());
-    if initialized_root != &resolved_project_root {
+fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
+    debug_assert!(
+        project_root.is_absolute(),
+        "dispatch callers must resolve a concrete project_root before init_observability"
+    );
+    #[cfg(test)]
+    let effective_root = crate::test_support::shared_observability_root();
+    #[cfg(not(test))]
+    let effective_root = project_root.to_path_buf();
+
+    let initialized_root = LOGGER_ROOT.get_or_init(|| effective_root.clone());
+    if initialized_root != &effective_root {
         return Err(CliError::internal_with_source(
             "observability logger project root mismatch",
             ObservabilityInitError::ProjectRootMismatch {
                 initialized: initialized_root.clone(),
-                requested: resolved_project_root,
+                requested: effective_root,
             },
         ));
     }
@@ -187,22 +196,6 @@ fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
         )
     })?;
     Ok(LOGGER.get_or_init(|| logger))
-}
-
-fn resolve_project_root(project_root: Option<&Path>) -> Result<PathBuf, CliError> {
-    #[cfg(test)]
-    {
-        let _ = project_root;
-        Ok(crate::test_support::shared_observability_root())
-    }
-
-    #[cfg(not(test))]
-    match project_root {
-        Some(root) => Ok(root.to_path_buf()),
-        None => std::env::current_dir().map_err(|source| {
-            CliError::internal_with_source("failed resolving current directory", source)
-        }),
-    }
 }
 
 fn default_logger_config(
@@ -305,7 +298,7 @@ mod tests {
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
-            project_root: Some(&root),
+            project_root: &root,
         })
         .expect("observability event should emit");
 

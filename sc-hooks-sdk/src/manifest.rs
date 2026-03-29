@@ -22,6 +22,12 @@ pub enum ManifestError {
         source: serde_json::Error,
     },
 
+    #[error("failed to serialize manifest JSON: {source}")]
+    Serialize {
+        #[source]
+        source: serde_json::Error,
+    },
+
     #[error("manifest field `name` must be non-empty")]
     EmptyName,
 
@@ -461,7 +467,8 @@ impl ManifestBuilder {
 
     pub fn build_json(self) -> Result<String, ManifestError> {
         let manifest = self.build()?;
-        serde_json::to_string_pretty(&manifest).map_err(|source| ManifestError::Parse { source })
+        serde_json::to_string_pretty(&manifest)
+            .map_err(|source| ManifestError::Serialize { source })
     }
 }
 
@@ -594,5 +601,15 @@ mod tests {
         .expect_err("non-object path collisions should not panic");
 
         assert!(matches!(err, ManifestError::PathCollision { path } if path == "team.name"));
+    }
+
+    #[test]
+    fn serialize_variant_mentions_manifest_json() {
+        let err = ManifestError::Serialize {
+            source: serde_json::from_str::<Value>("not-json")
+                .expect_err("fixture should produce a serde error"),
+        };
+
+        assert!(err.to_string().contains("serialize manifest JSON"));
     }
 }

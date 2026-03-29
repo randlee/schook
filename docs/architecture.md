@@ -51,7 +51,7 @@ Important boundary:
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
 - current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
-- `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current runtime-implementation crates in this branch, with direct tests
+- `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current runtime-implementation crates in this branch
 - the remaining source crates under `plugins/` stay scaffold/reference only in the current release baseline
 - planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
 

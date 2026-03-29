@@ -6,8 +6,15 @@ use crate::result::{HookResult, error};
 use crate::traits::{AsyncHandler, SyncHandler};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
+use thiserror::Error;
 
 pub struct PluginRunner;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum RunnerError {
+    #[error("unknown hook type `{name}`")]
+    UnknownHookType { name: String },
+}
 
 impl PluginRunner {
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
@@ -86,13 +93,13 @@ fn read_json_stdin() -> Result<serde_json::Value, String> {
 
 fn read_hook_context() -> Result<HookContext, String> {
     let raw_input = read_json_stdin()?;
-    let hook = resolve_hook_type(&raw_input)?;
+    let hook = resolve_hook_type(&raw_input).map_err(|err| err.to_string())?;
     let event = resolve_event(&raw_input);
     let metadata_path = std::env::var_os("SC_HOOK_METADATA").map(PathBuf::from);
     Ok(HookContext::new(hook, event, raw_input, metadata_path))
 }
 
-fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, String> {
+fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerError> {
     let hook_name = std::env::var("SC_HOOK_TYPE")
         .ok()
         .or_else(|| {
@@ -102,9 +109,13 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, String> 
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_string)
         })
-        .ok_or_else(|| "missing hook type in SC_HOOK_TYPE or input.hook.type".to_string())?;
+        .ok_or_else(|| RunnerError::UnknownHookType {
+            name: "<missing>".to_string(),
+        })?;
 
-    HookType::from_str(&hook_name).map_err(|_| format!("unknown hook type `{hook_name}`"))
+    HookType::from_str(&hook_name).map_err(|_err| RunnerError::UnknownHookType {
+        name: hook_name.clone(),
+    })
 }
 
 fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
@@ -162,6 +173,18 @@ mod tests {
     fn hook_type_resolution_accepts_known_value() {
         let hook = HookType::from_str("SessionStart").expect("hook type should parse");
         assert_eq!(hook, HookType::SessionStart);
+    }
+
+    #[test]
+    fn hook_type_resolution_returns_typed_error_for_unknown_hook() {
+        let err = resolve_hook_type(&serde_json::json!({"hook": {"type": "NotAHook"}}))
+            .expect_err("unknown hook should fail");
+        assert_eq!(
+            err,
+            RunnerError::UnknownHookType {
+                name: "NotAHook".to_string()
+            }
+        );
     }
 
     #[test]

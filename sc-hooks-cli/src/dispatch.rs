@@ -22,7 +22,7 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
-    project_root: Option<PathBuf>,
+    project_root: PathBuf,
 }
 
 pub fn execute_chain(
@@ -521,7 +521,7 @@ fn emit_dispatch_log(
         total_ms,
         exit,
         ai_notification,
-        project_root: base.project_root.as_deref(),
+        project_root: &base.project_root,
     })
 }
 
