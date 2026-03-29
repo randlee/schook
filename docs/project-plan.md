@@ -43,6 +43,12 @@ Explicit follow-up after the current file-sink contract work:
 - custom sink coverage and richer multi-hook monitoring remain follow-on work
   after console-sink behavior is frozen
 
+Explicit follow-up after the current hook-env evidence pass:
+- the next implementation sprint must align runtime root/state behavior with
+  the newly captured hook/env truth
+- the sprint after that should harden divergence handling and integration tests
+  so later Claude changes are detected immediately
+
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
 - therefore observability appears below as a completed baseline sprint, not as pending build work
@@ -71,6 +77,9 @@ Important planning rule:
 | Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-P5 | `atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
 | Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
+| Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/raw/` (env-backed captures), `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
+| Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
+| Sprint 11 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
@@ -848,8 +857,15 @@ Deliverables:
   - `session_id`
   - `active_pid`
   - `ai_root_dir`
-- `ai_root_dir` chaining from `CLAUDE_PROJECT_DIR`
-- `ai_current_dir` chaining from payload `cwd`
+- `ai_root_dir` established from the root-establishing `SessionStart` for the
+  runtime instance as immutable working directory
+- `ai_current_dir` chaining from payload `cwd` as current-directory context
+- required equality check between `ai_root_dir` and inbound
+  `CLAUDE_PROJECT_DIR` when present
+- prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
+  diverges from the persisted immutable root
+- normalized downstream project-root context for consumers even when Claude
+  varies raw env values across hook surfaces
 - `PreCompact` and `Stop` handling on the normalized `agent_state` path
 - `PreToolUse`, `PostToolUse`, and `PermissionRequest` explicitly deferred to
   `S9-HP4`
@@ -930,3 +946,96 @@ Current deferred items:
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
+
+### S9-ENV-CAPTURE: Hook Env Evidence Capture + Doc Reconciliation
+
+Status:
+- completed
+
+Focus:
+- capture the full hook-side environment for all Claude hook events using the
+  test harness (`--env-capture` flag)
+- establish known-truth for `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_ENTRYPOINT`,
+  `CLAUDE_ENV_FILE`, and ATM routing vars across all hook surfaces
+- reconcile control docs (`requirements.md`, `architecture.md`,
+  `claude-hook-api.md`, `project-plan.md`) against captured evidence
+- clarify `CLAUDE_PLUGIN_ROOT` as a plugin-context variable not part of the
+  generic hook-runtime baseline
+- plan S10-R1 and S10-R2 follow-on sprints to implement the immutable-root
+  semantics design derived from this evidence
+
+Deliverables:
+- `test-harness/hooks/claude/captures/raw/` — env-backed `.env.json` captures alongside payload `.json` files
+  for all observed hook surfaces
+- `test-harness/hooks/claude/reports/2026-03-29-hook-env-known-truth.md` —
+  authoritative known-truth table for root signals and ATM vars per surface
+- `docs/hook-api/claude-hook-api.md` — `CLAUDE_PLUGIN_ROOT` guidance updated;
+  immutable-root semantics design implications documented
+- `docs/requirements.md`, `docs/architecture.md` — stale Deferred statuses
+  corrected where evidence of implementation exists
+- `docs/project-plan.md` — S10-R1 and S10-R2 sprint specs added
+
+Key findings recorded in known-truth report:
+- `CLAUDE_PROJECT_DIR` is hook-only (not present in baseline shell), remains
+  pinned to startup root even when `cwd` drifts after `cd`
+- `SessionStart(source="startup")` `cwd` and `CLAUDE_PROJECT_DIR` align exactly
+- `CLAUDE_PLUGIN_ROOT` was not observed in any env capture
+- ATM vars (`ATM_IDENTITY`, `ATM_TEAM`) present in ATM-driven runs only
+
+### S10-R1: Root Semantics Implementation Alignment
+
+Status:
+- planned
+
+Focus:
+- align runtime session/root behavior with the captured hook/env truth before
+  any broader follow-on hook work
+
+Deliverables:
+- update `plugins/agent-session-foundation` so `ai_root_dir` is established
+  from the root-establishing `SessionStart` for the runtime instance
+- ensure later hook `cwd` values update only `ai_current_dir`
+- normalize downstream project-root context for consumers from the persisted
+  immutable root
+- make the implementation match the captured `startup`, `resume`, `compact`,
+  `clear`, and Bash-drift evidence
+- update direct unit/integration tests for the corrected root semantics
+
+Acceptance criteria:
+- runtime root identity no longer depends on later hook `cwd`
+- captured lifecycle sources (`startup`, `resume`, `compact`, `clear`) resolve
+  the same immutable root semantics described in the control docs
+- downstream consumers receive stable project-root context even after Bash
+  `cd` drift
+- no silent fallback or "close enough" root repair remains in the lifecycle
+  path
+
+### S10-R2: Root Divergence Logging + Contract Hardening
+
+Status:
+- planned
+
+Focus:
+- harden the corrected root semantics with explicit divergence handling and
+  harness-backed regression coverage
+
+Deliverables:
+- prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
+  diverges from the persisted immutable root
+- exact structured log/assertion coverage for divergence cases
+- integration tests covering:
+  - startup root establishment
+  - Bash `cd` drift
+  - `resume`
+  - `compact`
+  - `clear`
+  - missing or varied inbound `CLAUDE_PROJECT_DIR`
+- downstream-context tests proving normalized root export remains stable for
+  consumers
+
+Acceptance criteria:
+- divergence between immutable root and inbound `CLAUDE_PROJECT_DIR` is
+  visible immediately in observability output
+- integration coverage matches the committed known-truth harness evidence
+- future Claude changes that alter root/env behavior fail contract tests rather
+  than silently changing runtime state semantics

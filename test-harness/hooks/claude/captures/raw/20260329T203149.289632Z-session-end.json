@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture/test-harness/hooks/claude",
+  "hook_event_name": "SessionEnd",
+  "reason": "other",
+  "session_id": "2a70bf69-9af8-46cd-b121-afe8b603dc5d",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/2a70bf69-9af8-46cd-b121-afe8b603dc5d.jsonl"
+}
