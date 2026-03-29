@@ -41,17 +41,18 @@ The host does not:
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
-| `plugins/agent-session-foundation` | Scaffold/reference source crate for planned session lifecycle persistence keyed by `session_id` and normalized `agent_state` transitions |
-| `plugins/agent-spawn-gates` | Scaffold/reference source crate for planned `PreToolUse(Agent)` policy checks and subagent linkage writes |
-| `plugins/tool-output-gates` | Scaffold/reference source crate for planned `PostToolUse(Bash)` fenced-JSON validation and retryable block responses |
-| `plugins/atm-extension` | Scaffold/reference source crate for planned ATM-specific identity-file handling and relay enrichment |
+| `plugins/agent-session-foundation` | Runtime-implementation source crate for session lifecycle persistence keyed by `session_id` and normalized `agent_state` transitions |
+| `plugins/agent-spawn-gates` | Runtime-implementation source crate for `PreToolUse(Agent)` policy checks and subagent linkage writes |
+| `plugins/tool-output-gates` | Runtime-implementation source crate for `PostToolUse(Bash)` fenced-JSON validation and retryable block responses |
+| `plugins/atm-extension` | Runtime-implementation source crate for ATM-specific identity-file handling and relay enrichment |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
 - current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
-- all source crates under `plugins/`, including `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension`, remain scaffold/reference only in the current release baseline
+- `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current runtime-implementation crates in this branch, with direct tests
+- the remaining source crates under `plugins/` stay scaffold/reference only in the current release baseline
 - planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
 
 ## 3.1 Public Contract Vs Internal Typed Model

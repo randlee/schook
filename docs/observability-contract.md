@@ -75,6 +75,8 @@ Current behavior:
 - both sinks can be enabled at the same time
 - the file sink remains the canonical structured contract even when the console
   sink is enabled
+- the file sink can be intentionally disabled for an operator/debugging session
+  with `SC_HOOKS_ENABLE_FILE_SINK=0`
 
 ## 4. Event Shape
 
@@ -160,8 +162,8 @@ Current console sink line format:
 ## 8. Non-Goals
 
 Related deferred boundary:
-- no current requirement ID promotes configurable sink routing, traces, metrics,
-  or OTLP export into the release baseline
+- `OBS-009` promotes env-flag sink toggles only; config-file sink routing,
+  traces, metrics, and OTLP export remain outside the current release baseline
 
 Current `schook` observability does not yet provide:
 - configurable sink routing from `.sc-hooks/config.toml`

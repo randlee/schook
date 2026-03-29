@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use sc_observability::{Logger, LoggerConfig};
@@ -7,10 +7,38 @@ use sc_observability_types::{
 };
 use serde::Serialize;
 use serde_json::{Map, Value};
+use thiserror::Error;
 
 use crate::errors::CliError;
 const SERVICE_NAME: &str = "sc-hooks";
-static LOGGER_RESULT: OnceLock<Result<Logger, String>> = OnceLock::new();
+static LOGGER: OnceLock<Logger> = OnceLock::new();
+static LOGGER_ROOT: OnceLock<PathBuf> = OnceLock::new();
+
+#[derive(Debug, Error)]
+enum ObservabilityInitError {
+    #[error("invalid service name: {source}")]
+    InvalidServiceName {
+        #[source]
+        source: sc_observability_types::ValueValidationError,
+    },
+    #[error(
+        "project_root mismatch for cached logger: initialized at {initialized}, requested {requested}"
+    )]
+    ProjectRootMismatch {
+        initialized: PathBuf,
+        requested: PathBuf,
+    },
+    #[error("failed resolving observability root")]
+    ResolveRoot {
+        #[source]
+        source: CliError,
+    },
+    #[error("failed to initialize observability: {source}")]
+    LoggerInit {
+        #[source]
+        source: sc_observability_types::InitError,
+    },
+}
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct HandlerResultRecord {
@@ -123,38 +151,68 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
 }
 
 fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
-    let logger_result = LOGGER_RESULT.get_or_init(|| {
-        let service = match ServiceName::new(SERVICE_NAME) {
-            Ok(service) => service,
-            Err(source) => return Err(format!("invalid service name: {source}")),
-        };
-        match Logger::new(
-            default_logger_config(service, project_root).map_err(|err| err.to_string())?,
-        ) {
-            Ok(logger) => Ok(logger),
-            Err(source) => Err(format!("failed to initialize observability: {source}")),
-        }
-    });
-    match logger_result {
-        Ok(logger) => Ok(logger),
-        Err(message) => Err(CliError::internal(message.clone())),
+    let resolved_project_root = resolve_project_root(project_root).map_err(|source| {
+        CliError::internal_with_source("failed to resolve observability project root", source)
+    })?;
+    let initialized_root = LOGGER_ROOT.get_or_init(|| resolved_project_root.clone());
+    if initialized_root != &resolved_project_root {
+        return Err(CliError::internal_with_source(
+            "observability logger project root mismatch",
+            ObservabilityInitError::ProjectRootMismatch {
+                initialized: initialized_root.clone(),
+                requested: resolved_project_root,
+            },
+        ));
+    }
+    if let Some(logger) = LOGGER.get() {
+        return Ok(logger);
+    }
+
+    let service = ServiceName::new(SERVICE_NAME).map_err(|source| {
+        CliError::internal_with_source(
+            "failed to initialize observability logger",
+            ObservabilityInitError::InvalidServiceName { source },
+        )
+    })?;
+    let config = default_logger_config(service, initialized_root).map_err(|source| {
+        CliError::internal_with_source(
+            "failed to initialize observability logger",
+            ObservabilityInitError::ResolveRoot { source },
+        )
+    })?;
+    let logger = Logger::new(config).map_err(|source| {
+        CliError::internal_with_source(
+            "failed to initialize observability logger",
+            ObservabilityInitError::LoggerInit { source },
+        )
+    })?;
+    Ok(LOGGER.get_or_init(|| logger))
+}
+
+fn resolve_project_root(project_root: Option<&Path>) -> Result<PathBuf, CliError> {
+    #[cfg(test)]
+    {
+        let _ = project_root;
+        Ok(crate::test_support::shared_observability_root())
+    }
+
+    #[cfg(not(test))]
+    match project_root {
+        Some(root) => Ok(root.to_path_buf()),
+        None => std::env::current_dir().map_err(|source| {
+            CliError::internal_with_source("failed resolving current directory", source)
+        }),
     }
 }
 
 fn default_logger_config(
     service: ServiceName,
-    project_root: Option<&Path>,
+    project_root: &Path,
 ) -> Result<LoggerConfig, CliError> {
-    #[cfg(test)]
-    let _ = project_root;
-    #[cfg(test)]
-    let shared_root = crate::test_support::shared_observability_root();
-    #[cfg(test)]
-    let project_root = Some(shared_root.as_path());
-
-    let root = sc_hooks_core::storage::observability_root_for(project_root).map_err(|source| {
-        CliError::internal_with_source("failed resolving observability root", source)
-    })?;
+    let root =
+        sc_hooks_core::storage::observability_root_for(Some(project_root)).map_err(|source| {
+            CliError::internal_with_source("failed resolving observability root", source)
+        })?;
     let mut config = LoggerConfig::default_for(service, root);
     config.level = LevelFilter::Info;
     config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);

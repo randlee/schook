@@ -16,8 +16,11 @@ pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
 
 #[derive(Debug, Error)]
 pub enum ManifestError {
-    #[error("invalid manifest JSON: {0}")]
-    Parse(String),
+    #[error("invalid manifest JSON: {source}")]
+    Parse {
+        #[source]
+        source: serde_json::Error,
+    },
 
     #[error("manifest field `name` must be non-empty")]
     EmptyName,
@@ -60,8 +63,11 @@ pub enum ManifestError {
     #[error("metadata field `{field}` failed type check `{expected:?}")]
     TypeValidationFailed { field: String, expected: FieldType },
 
-    #[error("payload conditions invalid: {0}")]
-    PayloadConditions(String),
+    #[error("payload conditions invalid: {source}")]
+    PayloadConditions {
+        #[source]
+        source: crate::conditions::ConditionError,
+    },
 
     #[error("manifest field path `{path}` collides with a non-object value")]
     PathCollision { path: String },
@@ -88,7 +94,7 @@ pub enum ManifestLoadError {
 
 pub fn parse_manifest_str(input: &str) -> Result<Manifest, ManifestError> {
     let manifest = serde_json::from_str::<Manifest>(input)
-        .map_err(|err| ManifestError::Parse(err.to_string()))?;
+        .map_err(|source| ManifestError::Parse { source })?;
     validate_manifest(&manifest)?;
     Ok(manifest)
 }
@@ -161,7 +167,7 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), ManifestError> {
     validate_field_specs(&manifest.requires)?;
     validate_field_specs(&manifest.optional)?;
     crate::conditions::validate_payload_conditions(&manifest.payload_conditions)
-        .map_err(|err| ManifestError::PayloadConditions(err.to_string()))?;
+        .map_err(|source| ManifestError::PayloadConditions { source })?;
 
     Ok(())
 }
@@ -455,7 +461,7 @@ impl ManifestBuilder {
 
     pub fn build_json(self) -> Result<String, ManifestError> {
         let manifest = self.build()?;
-        serde_json::to_string_pretty(&manifest).map_err(|err| ManifestError::Parse(err.to_string()))
+        serde_json::to_string_pretty(&manifest).map_err(|source| ManifestError::Parse { source })
     }
 }
 

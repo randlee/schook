@@ -163,6 +163,9 @@ fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {
 fn acquire_lock(path: &Path, mode: LockMode) -> Result<FileLockGuard, CliError> {
     let lock_path = path.with_extension("lock");
     if let Some(parent) = lock_path.parent() {
+        // This CLI layer keeps the state path in the human-readable message
+        // string instead of adding a dedicated `StateIo` variant; the source
+        // chain is still preserved through `internal_with_source`.
         fs::create_dir_all(parent).map_err(|source| {
             CliError::internal_with_source(
                 format!("failed creating state lock directory {}", parent.display()),

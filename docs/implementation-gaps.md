@@ -33,20 +33,23 @@ This document tracks gaps between the current codebase and the release-standard 
 | HKR-011 | tracked | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
 | HKR-012 | tracked | global html-report skill + schema-drift callers | report-producing work continues to depend on the QA-approved global HTML reporting stack | none until the skill is shipped and stable |
 | HKR-013 | tracked | ATM relay pipeline docs, `plugins/atm-extension` | relay handling retains distinct raw-request, validated-request, decision, and result stages with direct tests around the typed boundary | none |
+| SEAL-001 | tracked | `sc-hooks-core`, `sc-hooks-sdk`, docs | BC design, architecture, and the SDK trait docs agree that the sealed internal runtime trait and intentionally unsealed executable-plugin SDK traits are distinct boundaries | none until the plugin-executable model changes |
 
 ## Resolved In This Pass
 
 - Sprint 8 RBP follow-up closed the last documented best-practices review residue by deleting dead condition-validation code in `sc-hooks-sdk/src/conditions.rs`, promoting the already-implemented audit findings `AUD-005` and `AUD-009` into the requirements/traceability set, and documenting the dispatch stderr fallback when observability emission fails.
 - `GAP-001` resolved by expanding `sc-hooks-test` with shared host-dispatch contract scenarios and proving them through the actual `sc-hooks-cli` binary in `sc-hooks-cli/tests/compliance_host.rs`.
 - `GAP-002` resolved by making `long_running` a sync-only manifest/runtime contract, aligning timeout handling and handler discovery with that rule, and keeping SDK runner defaults explicitly non-normative.
-- `GAP-003` resolved by freezing every current `plugins/` source crate as scaffold/reference only in release-facing docs and plugin Cargo metadata.
+- `GAP-003` resolved by freezing the legacy `plugins/` source crates as scaffold/reference only in release-facing docs and plugin Cargo metadata until a later sprint promotes specific crates with runtime proof.
 - `GAP-004` resolved by checking in `examples/runtime-layout/.sc-hooks/`, documenting it as the canonical contributor setup path, and proving it with `sc-hooks-cli/tests/runtime_layout_example.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `GAP-010` resolved by adding `sc-hooks-cli/tests/observability_contract.rs`, which drives the real `sc-hooks-cli` binary through success, block, invalid-json error, and timeout dispatches, then asserts the emitted `sc-observability` JSONL contract and file-sink path.
-- `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
+- `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, `OBS-008`, and `OBS-009`, with the migration closures recorded under `GAP-005` and `GAP-007`.
+- `OBS-009` promotes the current env-flag sink toggles (`SC_HOOKS_ENABLE_CONSOLE_SINK`, `SC_HOOKS_ENABLE_FILE_SINK`) into the release-facing observability contract, while config-file sink routing remains deferred under `DEF-006` and `GAP-009`.
 - Task `#370` was a Sprint 6 merge-review tracker, not a release-facing requirement or gap ID. It was retired by freeze commit `cdce7b1` when `docs/project-plan.md` replaced the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` with `none; release-facing blocker and important gaps are closed for the chosen scope`, and replaced the Sprint 6 driver text `task #370, final QA/PR review` with `final reviewer/QA handoff`.
 - Hook-extension planning currently uses the package name `sc-hooks-session-foundation` in docs while the source crate remains `plugins/agent-session-foundation`; this mismatch is intentional until packaging/install naming is finalized, and both names must stay cross-referenced in docs until then.
+- `SEAL-001` acknowledges the intentional BC-design deviation where `sc-hooks-core` keeps the internal in-process hook trait sealed while `sc-hooks-sdk::traits::{ManifestProvider, SyncHandler, AsyncHandler}` remain intentionally unsealed for sibling workspace crates at the executable-plugin boundary.
 
 ## Resolved Gaps
 
@@ -102,7 +105,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - Source crates under `plugins/` respond to `--manifest`, read stdin, and return `{\"action\":\"proceed\"}`.
   - Runtime plugin discovery does not read from `plugins/`; it reads from `.sc-hooks/plugins/`.
-  - README, architecture, requirements, and plugin `Cargo.toml` metadata now mark every current source crate as scaffold/reference only and explicitly not shipped runtime functionality.
+  - README, architecture, requirements, and plugin `Cargo.toml` metadata now mark the legacy source crates as scaffold/reference only and explicitly not shipped runtime functionality, while separately classifying the Sprint 9 hook-runtime crates as source implementations rather than bundled installed plugins.
 - Expected behavior:
   - The docs must describe these crates as scaffolds or reference implementations until they ship real behavior, installation guidance, and direct tests.
 - Verification method:
@@ -224,7 +227,7 @@ This document tracks gaps between the current codebase and the release-standard 
   - docs, `sc-hooks-cli`
 - Current behavior:
   - the CLI no longer supports a `[logging]` section in `.sc-hooks/config.toml`
-  - observability output is routed through the fixed `sc-observability` CLI boundary instead of config-driven sink wiring
+  - observability output is routed through the `sc-observability` CLI boundary with the limited `OBS-009` env-flag sink toggles instead of config-driven sink wiring
 - Expected behavior:
   - the docs should state explicitly that `[logging]` config was intentionally removed from the current release baseline during the `sc-observability` migration
 - Verification method:
