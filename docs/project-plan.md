@@ -77,6 +77,7 @@ Important planning rule:
 | Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-P5 | `atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
 | Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
+| Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/env/`, `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
 | Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
 | Sprint 11 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
@@ -945,6 +946,41 @@ Current deferred items:
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
+
+### S9-ENV-CAPTURE: Hook Env Evidence Capture + Doc Reconciliation
+
+Status:
+- completed
+
+Focus:
+- capture the full hook-side environment for all Claude hook events using the
+  test harness (`--env-capture` flag)
+- establish known-truth for `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_ENTRYPOINT`,
+  `CLAUDE_ENV_FILE`, and ATM routing vars across all hook surfaces
+- reconcile control docs (`requirements.md`, `architecture.md`,
+  `claude-hook-api.md`, `project-plan.md`) against captured evidence
+- clarify `CLAUDE_PLUGIN_ROOT` as a plugin-context variable not part of the
+  generic hook-runtime baseline
+- plan S10-R1 and S10-R2 follow-on sprints to implement the immutable-root
+  semantics design derived from this evidence
+
+Deliverables:
+- `test-harness/hooks/claude/captures/env/` — env-backed `.env.json` captures
+  for all observed hook surfaces
+- `test-harness/hooks/claude/reports/2026-03-29-hook-env-known-truth.md` —
+  authoritative known-truth table for root signals and ATM vars per surface
+- `docs/hook-api/claude-hook-api.md` — `CLAUDE_PLUGIN_ROOT` guidance updated;
+  immutable-root semantics design implications documented
+- `docs/requirements.md`, `docs/architecture.md` — stale Deferred statuses
+  corrected where evidence of implementation exists
+- `docs/project-plan.md` — S10-R1 and S10-R2 sprint specs added
+
+Key findings recorded in known-truth report:
+- `CLAUDE_PROJECT_DIR` is hook-only (not present in baseline shell), remains
+  pinned to startup root even when `cwd` drifts after `cd`
+- `SessionStart(source="startup")` `cwd` and `CLAUDE_PROJECT_DIR` align exactly
+- `CLAUDE_PLUGIN_ROOT` was not observed in any env capture
+- ATM vars (`ATM_IDENTITY`, `ATM_TEAM`) present in ATM-driven runs only
 
 ### S10-R1: Root Semantics Implementation Alignment
 
