@@ -28,7 +28,7 @@ This document tracks gaps between the current codebase and the release-standard 
 | HKR-006 | tracked | provider docs | non-Claude provider docs remain reference-only and do not block Claude-first work | none until later-provider implementation starts |
 | HKR-007 | tracked | Cursor reference docs | Cursor remains documentation-only during the first Claude runtime pass | none until Cursor capture/implementation starts |
 | HKR-008 | tracked | `plugins/agent-session-foundation`, session store | canonical session-state keeps the verified identity tuple and chains `ai_root_dir` from `CLAUDE_PROJECT_DIR` | none |
-| HKR-009 | tracked | session store, observability path | same-directory temp-plus-rename writes, no-op rewrite skipping, and per-invocation hook logging stay verified together | none |
+| HKR-009 | tracked | session store, observability path, hook trait boundary docs | same-directory temp-plus-rename writes, no-op rewrite skipping, per-invocation hook logging, and the explicit `SEAL-001` trait-freeze closure note stay verified together | none |
 | HKR-010 | tracked | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` | fenced JSON gate behavior and exact retryable block responses remain covered by direct tests | none |
 | HKR-011 | tracked | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
 | HKR-012 | tracked | global html-report skill + schema-drift callers | report-producing work continues to depend on the QA-approved global HTML reporting stack | none until the skill is shipped and stable |
@@ -52,7 +52,9 @@ This document tracks gaps between the current codebase and the release-standard 
   `sc-hooks-core` keeps the internal in-process hook trait sealed while
   `sc-hooks-sdk::traits::{ManifestProvider, SyncHandler, AsyncHandler}` remain
   intentionally unsealed for sibling workspace crates at the executable-plugin
-  boundary.
+  boundary. This is also the formal closure record for the earlier HKR-009
+  trait-freeze planning gate: the JSON schema contract is the effective
+  interface freeze for executable plugins.
 
 ## Resolved Gaps
 

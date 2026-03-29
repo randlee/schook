@@ -24,6 +24,9 @@ Current source plugin inventory in `plugins/`:
 
 | Crate | Release posture |
 | --- | --- |
+| `agent-session-foundation` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
+| `agent-spawn-gates` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
+| `atm-extension` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
 | `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
 | `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
 | `event-relay` | scaffold/reference only; not a shipped runtime plugin |
@@ -33,6 +36,7 @@ Current source plugin inventory in `plugins/`:
 | `policy-enforcer` | scaffold/reference only; not a shipped runtime plugin |
 | `save-context` | scaffold/reference only; not a shipped runtime plugin |
 | `template-source` | scaffold/reference only; not a shipped runtime plugin |
+| `tool-output-gates` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
 
 ## Current Shape
 
@@ -43,7 +47,7 @@ Important current realities:
 - The runtime resolves plugin executables from `.sc-hooks/plugins/`.
 - The runtime emits service-scoped observability events at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`.
 - A checked example runtime layout lives at `examples/runtime-layout/.sc-hooks/`.
-- The source crates under `plugins/` are reference implementations and scaffolds; none is currently described as shipped runtime functionality.
+- The source crates under `plugins/` include four current runtime-implementation crates under active development plus nine legacy scaffold/reference crates; none is currently described as a shipped preinstalled runtime plugin.
 - The docs in `docs/` are the source of truth for release scope and known implementation gaps.
 - Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.
 - SDK runner helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.

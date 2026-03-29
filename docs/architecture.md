@@ -318,6 +318,9 @@ Current architecture guardrails for these targets in this branch:
   intentionally unsealed for sibling workspace crates; this deviation from the
   original BC sealed-trait assumption is tracked in
   `docs/implementation-gaps.md`
+- the earlier hook trait-freeze gate is treated as satisfied through the
+  executable-plugin JSON schema contract rather than Rust trait sealing at the
+  SDK boundary; see `SEAL-001` in `docs/implementation-gaps.md`
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority
