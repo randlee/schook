@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 static CWD_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static OBSERVABILITY_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn cwd_lock() -> &'static Mutex<()> {
     CWD_LOCK.get_or_init(|| Mutex::new(()))
@@ -30,4 +31,14 @@ impl Drop for CurrentDirGuard {
             panic!("cwd should restore: {err}");
         }
     }
+}
+
+pub fn shared_observability_root() -> PathBuf {
+    let root = OBSERVABILITY_ROOT
+        .get_or_init(|| {
+            std::env::temp_dir().join(format!("schook-observability-{}", std::process::id()))
+        })
+        .clone();
+    std::fs::create_dir_all(&root).expect("shared observability root should be creatable");
+    root
 }

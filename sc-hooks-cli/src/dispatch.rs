@@ -22,7 +22,7 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
-    project_root: Option<PathBuf>,
+    project_root: PathBuf,
 }
 
 pub fn execute_chain(
@@ -522,7 +522,7 @@ fn emit_dispatch_log(
         total_ms,
         exit,
         ai_notification,
-        project_root: base.project_root.as_deref(),
+        project_root: &base.project_root,
     })
 }
 
@@ -768,8 +768,8 @@ PostToolUse = ["notify"]
 
     #[test]
     fn integration_dispatch_writes_structured_log_entry() {
-        let temp = tempfile::tempdir().expect("tempdir should create");
-        let _cwd = test_support::scoped_current_dir(temp.path());
+        let root = test_support::shared_observability_root();
+        let _cwd = test_support::scoped_current_dir(&root);
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -811,7 +811,7 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
         assert!(matches!(outcome, DispatchOutcome::Proceed));
 
-        let log_path = Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let log_path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
         let rendered = fs::read_to_string(log_path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");

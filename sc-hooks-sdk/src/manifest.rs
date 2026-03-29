@@ -22,7 +22,7 @@ pub enum ManifestError {
         source: serde_json::Error,
     },
 
-    #[error("failed to serialize manifest: {source}")]
+    #[error("failed to serialize manifest JSON: {source}")]
     Serialize {
         #[source]
         source: serde_json::Error,
@@ -601,5 +601,15 @@ mod tests {
         .expect_err("non-object path collisions should not panic");
 
         assert!(matches!(err, ManifestError::PathCollision { path } if path == "team.name"));
+    }
+
+    #[test]
+    fn serialize_variant_mentions_manifest_json() {
+        let err = ManifestError::Serialize {
+            source: serde_json::from_str::<Value>("not-json")
+                .expect_err("fixture should produce a serde error"),
+        };
+
+        assert!(err.to_string().contains("serialize manifest JSON"));
     }
 }

@@ -101,6 +101,15 @@ fn session_disables_plugin_for_reason(root: &Path, plugin: &str, reason: &str) -
     })
 }
 
+fn console_lines(output: &Output) -> Vec<String> {
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
 #[test]
 fn success_dispatch_emits_file_sink_log_event() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -188,6 +197,7 @@ fn blocked_dispatch_emits_warn_log_event() {
     assert!(!fields.contains_key("ai_notification"));
 }
 
+#[cfg(unix)]
 #[test]
 fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -238,6 +248,7 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     ));
 }
 
+#[cfg(unix)]
 #[test]
 fn timeout_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -286,4 +297,148 @@ printf '%s\n' '{"action":"proceed"}'
         "probe-plugin",
         "runtime-error"
     ));
+}
+
+#[test]
+fn success_dispatch_emits_console_sink_line() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_ENABLE_CONSOLE_SINK", "1")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let lines = console_lines(&output);
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    assert!(line.contains("INFO"));
+    assert!(line.contains("hook"));
+    assert!(line.contains("dispatch.complete"));
+    assert!(line.contains("mode=sync"));
+    assert!(line.contains("outcome=proceed"));
+}
+
+#[test]
+fn blocked_dispatch_emits_console_sink_line() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"block","reason":"blocked by policy"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_ENABLE_CONSOLE_SINK", "1")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::BLOCKED)
+    );
+    let lines = console_lines(&output);
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    assert!(line.contains("WARN"));
+    assert!(line.contains("dispatch.complete"));
+    assert!(line.contains("mode=sync"));
+    assert!(line.contains("outcome=block"));
+}
+
+#[cfg(unix)]
+#[test]
+fn invalid_json_dispatch_emits_console_sink_line() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    let state_root = temp.path().join(".sc-hooks/state");
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin_script(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        "cat >/dev/null\nprintf '%s' 'not-json'\n",
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        Some("session-invalid-json-console"),
+        &[
+            ("SC_HOOKS_ENABLE_CONSOLE_SINK", "1"),
+            (
+                "SC_HOOKS_STATE_DIR",
+                state_root.to_str().expect("state root should be utf8"),
+            ),
+        ],
+    );
+
+    let lines = console_lines(&output);
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    assert!(line.contains("ERROR"));
+    assert!(line.contains("dispatch.complete"));
+    assert!(line.contains("mode=sync"));
+    assert!(line.contains("outcome=error"));
+}
+
+#[cfg(unix)]
+#[test]
+fn timeout_dispatch_emits_console_sink_line() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    let state_root = temp.path().join(".sc-hooks/state");
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin_script(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"timeout_ms":50,"requires":{}}"#,
+        r#"cat >/dev/null
+sleep 1
+printf '%s\n' '{"action":"proceed"}'
+"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        Some("session-timeout-console"),
+        &[
+            ("SC_HOOKS_ENABLE_CONSOLE_SINK", "1"),
+            (
+                "SC_HOOKS_STATE_DIR",
+                state_root.to_str().expect("state root should be utf8"),
+            ),
+        ],
+    );
+
+    let lines = console_lines(&output);
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    assert!(line.contains("ERROR"));
+    assert!(line.contains("dispatch.complete"));
+    assert!(line.contains("mode=sync"));
+    assert!(line.contains("outcome=error"));
 }

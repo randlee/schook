@@ -26,7 +26,6 @@ Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
 - `DEF-004`
-- `DEF-008`
 
 ## 3. Current Snapshot
 
@@ -71,6 +70,7 @@ Important planning rule:
 | Sprint 9 | S9-HP4 | Implementation Complete | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
 | Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-P5 | `atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
+| Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
@@ -156,7 +156,7 @@ Acceptance criteria:
 ### Deferred Follow-Up: DEF-008 Console-Sink Coverage
 
 Status:
-- deferred, next planned observability expansion
+- partially complete — console-sink delivered; custom sinks + multi-hook correlation deferred
 
 Focus:
 - prove console-sink output under real `sc-hooks-cli` dispatch
@@ -170,6 +170,7 @@ Write scope:
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
 - `docs/implementation-gaps.md`
+- `docs/traceability.md`
 
 Deliverables:
 - real-dispatch tests for console-sink emission on:
@@ -832,6 +833,10 @@ Acceptance criteria:
 
 ### S9-HP3: Hook Phase 3: Session Foundation
 
+Status:
+- implemented out of sequence
+- planned HP3 test inventory is complete on the current branch
+
 Focus:
 - implement the Claude lifecycle pair first
 
@@ -861,6 +866,10 @@ Acceptance criteria:
 
 ### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
 
+Status:
+- implemented out of sequence
+- planned HP4 test inventory is complete on the current branch
+
 Focus:
 - implement the spawn gate and structured tool-output gate from the clean BC design
 
@@ -881,6 +890,10 @@ Acceptance criteria:
 - spawn policy outcomes are tested for named-agent and background-agent paths
 
 ### S9-HP5: Hook Phase 5: Relay Hooks
+
+Status:
+- implemented out of sequence
+- planned HP5 test inventory is complete on the current branch
 
 Focus:
 - implement the notification/permission/stop relays

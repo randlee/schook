@@ -6,8 +6,27 @@ use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
+use thiserror::Error;
 
 pub struct PluginRunner;
+
+#[derive(Debug, Error)]
+pub enum RunnerError {
+    #[error("unknown hook type `{name}`")]
+    UnknownHookType { name: String },
+
+    #[error("failed to read stdin: {source}")]
+    StdinRead {
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("invalid JSON on stdin: {source}")]
+    StdinParse {
+        #[source]
+        source: serde_json::Error,
+    },
+}
 
 impl PluginRunner {
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
@@ -17,8 +36,8 @@ impl PluginRunner {
 
         let input = match read_hook_context() {
             Ok(value) => value,
-            Err(message) => {
-                eprintln!("{message}");
+            Err(err) => {
+                eprintln!("{err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
         };
@@ -38,8 +57,8 @@ impl PluginRunner {
 
         let input = match read_hook_context() {
             Ok(value) => value,
-            Err(message) => {
-                eprintln!("{message}");
+            Err(err) => {
+                eprintln!("{err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
         };
@@ -70,21 +89,21 @@ fn print_manifest(manifest: &sc_hooks_core::manifest::Manifest) -> i32 {
     }
 }
 
-fn read_json_stdin() -> Result<serde_json::Value, String> {
+fn read_json_stdin() -> Result<serde_json::Value, RunnerError> {
     let mut input = String::new();
     std::io::stdin()
         .read_to_string(&mut input)
-        .map_err(|err| format!("failed to read stdin: {err}"))?;
+        .map_err(|source| RunnerError::StdinRead { source })?;
 
     if input.trim().is_empty() {
         return Ok(serde_json::json!({}));
     }
 
     serde_json::from_str::<serde_json::Value>(&input)
-        .map_err(|err| format!("invalid JSON on stdin: {err}"))
+        .map_err(|source| RunnerError::StdinParse { source })
 }
 
-fn read_hook_context() -> Result<HookContext, String> {
+fn read_hook_context() -> Result<HookContext, RunnerError> {
     let raw_input = read_json_stdin()?;
     let hook = resolve_hook_type(&raw_input)?;
     let event = resolve_event(&raw_input);
@@ -92,7 +111,7 @@ fn read_hook_context() -> Result<HookContext, String> {
     Ok(HookContext::new(hook, event, raw_input, metadata_path))
 }
 
-fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, String> {
+fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerError> {
     let hook_name = std::env::var("SC_HOOK_TYPE")
         .ok()
         .or_else(|| {
@@ -102,9 +121,13 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, String> 
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_string)
         })
-        .ok_or_else(|| "missing hook type in SC_HOOK_TYPE or input.hook.type".to_string())?;
+        .ok_or_else(|| RunnerError::UnknownHookType {
+            name: "<missing>".to_string(),
+        })?;
 
-    HookType::from_str(&hook_name).map_err(|_err| format!("unknown hook type `{hook_name}`"))
+    HookType::from_str(&hook_name).map_err(|_err| RunnerError::UnknownHookType {
+        name: hook_name.clone(),
+    })
 }
 
 fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
@@ -162,6 +185,16 @@ mod tests {
     fn hook_type_resolution_accepts_known_value() {
         let hook = HookType::from_str("SessionStart").expect("hook type should parse");
         assert_eq!(hook, HookType::SessionStart);
+    }
+
+    #[test]
+    fn hook_type_resolution_returns_typed_error_for_unknown_hook() {
+        let err = resolve_hook_type(&serde_json::json!({"hook": {"type": "NotAHook"}}))
+            .expect_err("unknown hook should fail");
+        assert!(matches!(
+            err,
+            RunnerError::UnknownHookType { name } if name == "NotAHook"
+        ));
     }
 
     #[test]

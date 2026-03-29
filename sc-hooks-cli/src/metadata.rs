@@ -49,7 +49,7 @@ pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
     pub session_id: Option<String>,
-    pub project_root: Option<PathBuf>,
+    pub project_root: PathBuf,
     // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
 }
@@ -108,7 +108,11 @@ pub fn prepare_with_runtime(
         metadata,
         env,
         session_id: runtime.session_id.clone(),
-        project_root: runtime.repo_path.as_ref().map(PathBuf::from),
+        project_root: runtime
+            .repo_path
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(&runtime.working_dir)),
         _metadata_file: metadata_file,
     })
 }

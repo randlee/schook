@@ -31,6 +31,8 @@ impl CliBinaryProbe {
     }
 }
 
+impl sc_hooks_test::compliance::private::Sealed for CliBinaryProbe {}
+
 impl HostDispatchProbe for CliBinaryProbe {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
         let temp = tempfile::tempdir().map_err(|err| err.to_string())?;
@@ -191,8 +193,6 @@ printf '%s\n' '{"action":"proceed"}'
         })
     }
 }
-
-impl sc_hooks_test::compliance::private::Sealed for CliBinaryProbe {}
 
 fn read_last_line(path: &Path) -> Option<String> {
     let rendered = fs::read_to_string(path).ok()?;

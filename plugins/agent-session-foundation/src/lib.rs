@@ -129,11 +129,11 @@ fn resolve_runtime(
     lifecycle_event: LifecycleEvent,
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<ResolvedRuntime, HookError> {
-    let session_id = session_id_from_context(context, lifecycle_event)?;
+    let transition = resolve_transition(context, lifecycle_event)?;
+    let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
     let ai_root_dir = resolve_ai_root_dir(lifecycle_event, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
-    let transition = resolve_transition(context, lifecycle_event, &session_id)?;
 
     Ok(ResolvedRuntime {
         session_id,
@@ -197,16 +197,11 @@ fn build_next_record(
         ));
     }
 
-    record.agent_state = resolved.transition.agent_state;
     record.last_hook_event = event_name;
     record.last_hook_event_at = now.clone();
     record.updated_at = now;
     record.state_reason = resolved.transition.state_reason.clone();
     record.ended_at = resolved.transition.ended_at.clone();
-
-    if lifecycle_event == LifecycleEvent::SessionStart && record.created_at.is_empty() {
-        record.created_at = utc_timestamp_now();
-    }
 
     Ok(record)
 }
@@ -214,7 +209,6 @@ fn build_next_record(
 fn resolve_transition(
     context: &HookContext,
     lifecycle_event: LifecycleEvent,
-    session_id: &SessionId,
 ) -> Result<SessionTransition, HookError> {
     match lifecycle_event {
         LifecycleEvent::SessionStart => {
@@ -260,40 +254,6 @@ fn resolve_transition(
             })
         }
     }
-    .and_then(|transition| {
-        if &transition.session_id == session_id {
-            Ok(transition)
-        } else {
-            Err(HookError::validation(
-                "session_id",
-                "resolved session id does not match payload session id",
-            ))
-        }
-    })
-}
-
-fn session_id_from_context(
-    context: &HookContext,
-    lifecycle_event: LifecycleEvent,
-) -> Result<SessionId, HookError> {
-    match lifecycle_event {
-        LifecycleEvent::SessionStart => {
-            let payload: SessionStartPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::SessionEnd => {
-            let payload: SessionEndPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::PreCompact => {
-            let payload: PreCompactPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::Stop => {
-            let payload: StopPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-    }
 }
 
 fn resolve_ai_root_dir(
@@ -301,9 +261,9 @@ fn resolve_ai_root_dir(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<AiRootDir, HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart {
-        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|err| {
+        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|env_err| {
             HookError::invalid_context(format!(
-                "CLAUDE_PROJECT_DIR is required on SessionStart: {err}"
+                "CLAUDE_PROJECT_DIR is required on SessionStart: {env_err}"
             ))
         })?;
         return AiRootDir::new(env_root);
@@ -332,10 +292,10 @@ fn resolve_active_pid(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<ActivePid, HookError> {
     if let Ok(raw) = std::env::var("SC_HOOK_AGENT_PID") {
-        let parsed = raw.parse::<u32>().map_err(|err| {
+        let parsed = raw.parse::<u32>().map_err(|parse_err| {
             HookError::validation(
                 "SC_HOOK_AGENT_PID",
-                format!("must parse as positive integer: {err}"),
+                format!("must parse as positive integer: {parse_err}"),
             )
         })?;
         return ActivePid::new(parsed);
@@ -367,7 +327,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::SessionStart,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("start transition")
             .agent_state,
@@ -382,7 +341,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::PreCompact,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("compact transition")
             .agent_state,
@@ -397,7 +355,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::Stop,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("stop transition")
             .agent_state,
@@ -412,7 +369,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::SessionEnd,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("end transition")
             .agent_state,

@@ -229,6 +229,9 @@ fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
             source,
         )
     })?;
+    // This CLI layer keeps the state path in the human-readable message
+    // string instead of adding a dedicated `StateIo` variant; the source
+    // chain is still preserved through `internal_with_source`.
     temp.persist(path).map_err(|err| {
         CliError::internal_with_source(
             format!("failed persisting state file {}", path.display()),
