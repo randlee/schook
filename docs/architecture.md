@@ -41,18 +41,17 @@ The host does not:
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
-| `plugins/agent-session-foundation` | Session lifecycle persistence keyed by `session_id`, normalized `agent_state` transitions, atomic state writes, and per-invocation lifecycle logging |
-| `plugins/agent-spawn-gates` | `PreToolUse(Agent)` policy checks, named-agent versus background-agent enforcement, `.atm.toml` project policy lookup, and subagent linkage writes into canonical session state |
-| `plugins/tool-output-gates` | `PostToolUse(Bash)` fenced-JSON extraction, schema validation, and exact retryable block responses for invalid structured output |
-| `plugins/atm-extension` | ATM-specific Bash identity-file handling, relay event emission, teammate-idle mapping, and ATM enrichment layered onto the canonical session-state record |
+| `plugins/agent-session-foundation` | Scaffold/reference source crate for planned session lifecycle persistence keyed by `session_id` and normalized `agent_state` transitions |
+| `plugins/agent-spawn-gates` | Scaffold/reference source crate for planned `PreToolUse(Agent)` policy checks and subagent linkage writes |
+| `plugins/tool-output-gates` | Scaffold/reference source crate for planned `PostToolUse(Bash)` fenced-JSON validation and retryable block responses |
+| `plugins/atm-extension` | Scaffold/reference source crate for planned ATM-specific identity-file handling and relay enrichment |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
 - current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
-- the legacy crates (`audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`) remain scaffold/reference only
-- `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current source plugin crates on the runtime-implementation path in this branch; they have direct behavior tests, but are still delivered as source code rather than preinstalled runtime plugins
+- all source crates under `plugins/`, including `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension`, remain scaffold/reference only in the current release baseline
 - planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
 
 ## 3.1 Public Contract Vs Internal Typed Model
@@ -187,6 +186,18 @@ Current observability ownership follows the intended boundary directly:
 - the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
 - there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
+
+The OBS-007/OBS-008 violation corrected in this pass was:
+- `default_logger_config()` and env-flag sink routing had drifted into
+  `sc-hooks-core`
+- `plugins/agent-session-foundation` had picked up direct
+  `sc-observability` dependencies and its own logger creation path
+
+Current restored boundary:
+- logger config and sink lifecycle live in `sc-hooks-cli`
+- `sc-hooks-core` keeps only shared path-resolution helpers/constants used for
+  agreement on file locations
+- scaffold/reference plugin crates do not depend on `sc-observability`
 
 Current post-file-sink expansion status:
 

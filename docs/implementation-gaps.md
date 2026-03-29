@@ -163,13 +163,18 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - the current release baseline proves the file-sink `LogEvent` contract under
     real dispatch for success, block, invalid-json error, and timeout paths
-  - `sc-hooks-core` currently exports `OBSERVABILITY_ROOT` and
-    `OBSERVABILITY_LOG_PATH` as shared path literals for agreement between the
-    CLI, tests, and docs; this is an accepted OBS-007 boundary tension because
-    the constants do not own sink wiring, logger lifecycle, or event emission
   - the release baseline now also proves console-sink behavior under
     `sc-observability` for success, block, invalid-json error, and timeout
     dispatches through the real `sc-hooks-cli` binary
+  - the OBS-007/OBS-008 violation corrected in this pass was broader than path
+    literals: `default_logger_config()`, env-flag sink routing, and direct
+    `sc-observability` dependencies had drifted into `sc-hooks-core`, and the
+    scaffold/reference `agent-session-foundation` crate had picked up its own
+    logger-construction path
+  - after the fix, `sc-hooks-cli` owns logger config, sink routing, emission,
+    flush, and shutdown; `sc-hooks-core` keeps only shared path-resolution
+    helpers/constants and the scaffold/reference plugin crates no longer depend
+    on `sc-observability`
   - the remaining deferred observability work is:
     - custom sink registration paths
     - multi-hook sequence correlation / exactly-once smoke monitoring across a

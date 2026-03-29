@@ -1,8 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sc_observability::LoggerConfig;
-use sc_observability_types::{LevelFilter, ServiceName};
 use tempfile::NamedTempFile;
 
 use crate::context::HookContext;
@@ -124,27 +122,6 @@ pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, Ho
         })?,
     };
     Ok(base.join(crate::OBSERVABILITY_ROOT))
-}
-
-pub fn default_logger_config(
-    service: ServiceName,
-    project_root: Option<&Path>,
-) -> Result<LoggerConfig, HookError> {
-    let root = observability_root_for(project_root)?;
-    let mut config = LoggerConfig::default_for(service, root);
-    config.level = LevelFilter::Info;
-    config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
-    config.enable_file_sink = env_flag("SC_HOOKS_ENABLE_FILE_SINK").unwrap_or(true);
-    Ok(config)
-}
-
-fn env_flag(key: &str) -> Option<bool> {
-    let value = std::env::var(key).ok()?;
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
 }
 
 #[cfg(test)]

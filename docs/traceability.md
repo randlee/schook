@@ -59,7 +59,7 @@ This table maps the most important documented requirements to current implementa
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | implemented | `plugins/*/Cargo.toml`, README, architecture docs | release-facing docs and plugin metadata agree that no current `plugins/` source crate is shipped runtime functionality, so no unsupported shipped-plugin claim remains | |
 | OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
-| OBS-007 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests plus code inspection of crate boundaries | |
+| OBS-007 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-core/Cargo.toml`, `plugins/agent-session-foundation/Cargo.toml` | observability tests plus code inspection confirming logger config and sink routing now live only at the CLI boundary | |
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
 | DEF-008 | partially implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | remaining deferred work is custom sinks and multi-hook monitoring correlation |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

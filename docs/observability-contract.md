@@ -33,12 +33,19 @@ Implements:
 - the implementation uses `sc-observability` and `sc-observability-types`
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` do not own logger state
 
-Current OBS-007 boundary tension:
-- `sc-hooks-core` exports `OBSERVABILITY_ROOT` and `OBSERVABILITY_LOG_PATH` so the
-  CLI, contract tests, and related docs can share the same resolved file-sink
-  path without re-encoding literals in multiple places
-- this is a narrow path-coordination exception only; logger configuration,
-  sink lifecycle, and event emission remain owned by `sc-hooks-cli`
+The OBS-007/OBS-008 violation corrected in this pass was:
+- `default_logger_config()` and env-flag sink routing had drifted into
+  `sc-hooks-core`
+- the scaffold/reference `agent-session-foundation` crate had gained direct
+  `sc-observability` dependencies and its own logger construction path
+
+Current restored boundary:
+- `sc-hooks-cli` owns logger config, sink routing, event emission, flush, and
+  shutdown
+- `sc-hooks-core` exports `OBSERVABILITY_ROOT` and `OBSERVABILITY_LOG_PATH` only
+  as shared path literals so the CLI, contract tests, and related docs agree on
+  file locations without re-encoding them in multiple places
+- scaffold/reference plugin crates do not own `sc-observability`
 
 ## 3. File Layout
 

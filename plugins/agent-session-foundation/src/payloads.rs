@@ -5,10 +5,16 @@ pub struct SessionStartPayload {
     pub session_id: String,
     #[serde(rename = "cwd")]
     pub _cwd: String,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub transcript_path: Option<String>,
     pub source: String,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub model: Option<String>,
 }
 
@@ -17,7 +23,10 @@ pub struct SessionEndPayload {
     pub session_id: String,
     #[serde(rename = "cwd")]
     pub _cwd: String,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub transcript_path: Option<String>,
     pub reason: Option<String>,
 }
@@ -27,11 +36,20 @@ pub struct PreCompactPayload {
     pub session_id: String,
     #[serde(rename = "cwd")]
     pub _cwd: String,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub transcript_path: Option<String>,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub trigger: Option<String>,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub custom_instructions: Option<String>,
 }
 
@@ -40,12 +58,24 @@ pub struct StopPayload {
     pub session_id: String,
     #[serde(rename = "cwd")]
     pub _cwd: String,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub transcript_path: Option<String>,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub stop_hook_active: bool,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub permission_mode: Option<String>,
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "captured provider payload keeps this field even when the scaffold does not read it yet"
+    )]
     pub last_assistant_message: Option<String>,
 }
