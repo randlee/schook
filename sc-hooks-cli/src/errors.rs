@@ -1,14 +1,22 @@
 use thiserror::Error;
 
 use crate::config::ConfigError;
+use sc_hooks_sdk::manifest::ManifestLoadError;
 
 #[derive(Debug, Error)]
 pub enum ResolutionError {
     #[error("handler `{handler}` could not be resolved")]
     UnresolvedHandler { handler: String },
 
-    #[error("plugin `{plugin}` manifest load failed: {reason}")]
-    ManifestLoad { plugin: String, reason: String },
+    #[error("plugin `{plugin}` manifest load failed")]
+    ManifestLoad {
+        plugin: String,
+        #[source]
+        source: ManifestLoadError,
+    },
+
+    #[error("plugin `{plugin}` was rejected during resolution: {reason}")]
+    HandlerRejected { plugin: String, reason: String },
 }
 
 #[derive(Debug, Error)]

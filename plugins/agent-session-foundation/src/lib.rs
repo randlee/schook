@@ -172,7 +172,6 @@ fn build_next_record(
             record.active_pid = resolved.active_pid;
             record.ai_root_dir = resolved.ai_root_dir.clone();
             record.ai_current_dir = resolved.ai_current_dir.clone();
-            record.agent_state = resolved.transition.agent_state;
             record.session_start_source = next_source.to_string();
             record.state_revision += 1;
             record

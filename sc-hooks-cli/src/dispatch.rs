@@ -56,7 +56,7 @@ pub fn execute_chain(
         let handler_name = &handler.name;
         if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
             return Err(CliError::Resolution(
-                crate::errors::ResolutionError::ManifestLoad {
+                crate::errors::ResolutionError::HandlerRejected {
                     plugin: handler_name.clone(),
                     reason: "manifest long_running=true is only supported for sync handlers"
                         .to_string(),
@@ -755,7 +755,10 @@ PostToolUse = ["notify"]
 
         assert!(matches!(
             err,
-            CliError::Resolution(crate::errors::ResolutionError::ManifestLoad { plugin, reason })
+            CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
+                plugin,
+                reason
+            })
                 if plugin == "notify" && reason.contains("long_running=true")
         ));
     }

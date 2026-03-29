@@ -46,9 +46,9 @@ pub fn resolve_chain(
             cached.clone()
         } else {
             let loaded = sc_hooks_sdk::manifest::load_manifest_from_executable(&executable)
-                .map_err(|err| ResolutionError::ManifestLoad {
+                .map_err(|source| ResolutionError::ManifestLoad {
                     plugin: handler_name.clone(),
-                    reason: err.to_string(),
+                    source,
                 })?;
             manifest_cache.insert(executable.clone(), loaded.clone());
             loaded
@@ -71,7 +71,7 @@ pub fn resolve_chain(
 
         let taxonomy = events::validate_matchers_for_hook(hook, &manifest.matchers);
         if !taxonomy.errors.is_empty() {
-            return Err(ResolutionError::ManifestLoad {
+            return Err(ResolutionError::HandlerRejected {
                 plugin: handler_name.clone(),
                 reason: taxonomy.errors.join("; "),
             });
@@ -85,7 +85,7 @@ pub fn resolve_chain(
             &manifest.payload_conditions,
             payload,
         )
-        .map_err(|err| ResolutionError::ManifestLoad {
+        .map_err(|err| ResolutionError::HandlerRejected {
             plugin: handler_name.clone(),
             reason: err.to_string(),
         })?;
