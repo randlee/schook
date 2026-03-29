@@ -261,8 +261,10 @@ fn resolve_ai_root_dir(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<AiRootDir, HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart {
-        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|_| {
-            HookError::invalid_context("CLAUDE_PROJECT_DIR is required on SessionStart")
+        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|env_err| {
+            HookError::invalid_context(format!(
+                "CLAUDE_PROJECT_DIR is required on SessionStart: {env_err}"
+            ))
         })?;
         return AiRootDir::new(env_root);
     }
@@ -290,8 +292,11 @@ fn resolve_active_pid(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<ActivePid, HookError> {
     if let Ok(raw) = std::env::var("SC_HOOK_AGENT_PID") {
-        let parsed = raw.parse::<u32>().map_err(|_| {
-            HookError::validation("SC_HOOK_AGENT_PID", "must parse as positive integer")
+        let parsed = raw.parse::<u32>().map_err(|parse_err| {
+            HookError::validation(
+                "SC_HOOK_AGENT_PID",
+                format!("must parse as positive integer: {parse_err}"),
+            )
         })?;
         return ActivePid::new(parsed);
     }

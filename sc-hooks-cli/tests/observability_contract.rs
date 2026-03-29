@@ -197,6 +197,7 @@ fn blocked_dispatch_emits_warn_log_event() {
     assert!(!fields.contains_key("ai_notification"));
 }
 
+#[cfg(unix)]
 #[test]
 fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -247,6 +248,7 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     ));
 }
 
+#[cfg(unix)]
 #[test]
 fn timeout_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -364,6 +366,7 @@ fn blocked_dispatch_emits_console_sink_line() {
     assert!(line.contains("outcome=block"));
 }
 
+#[cfg(unix)]
 #[test]
 fn invalid_json_dispatch_emits_console_sink_line() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -400,6 +403,7 @@ fn invalid_json_dispatch_emits_console_sink_line() {
     assert!(line.contains("outcome=error"));
 }
 
+#[cfg(unix)]
 #[test]
 fn timeout_dispatch_emits_console_sink_line() {
     let temp = tempfile::tempdir().expect("tempdir should create");

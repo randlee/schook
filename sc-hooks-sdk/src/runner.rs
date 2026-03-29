@@ -10,10 +10,22 @@ use thiserror::Error;
 
 pub struct PluginRunner;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum RunnerError {
     #[error("unknown hook type `{name}`")]
     UnknownHookType { name: String },
+
+    #[error("failed to read stdin: {source}")]
+    StdinRead {
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("invalid JSON on stdin: {source}")]
+    StdinParse {
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 impl PluginRunner {
@@ -24,8 +36,8 @@ impl PluginRunner {
 
         let input = match read_hook_context() {
             Ok(value) => value,
-            Err(message) => {
-                eprintln!("{message}");
+            Err(err) => {
+                eprintln!("{err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
         };
@@ -45,8 +57,8 @@ impl PluginRunner {
 
         let input = match read_hook_context() {
             Ok(value) => value,
-            Err(message) => {
-                eprintln!("{message}");
+            Err(err) => {
+                eprintln!("{err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
         };
@@ -77,23 +89,23 @@ fn print_manifest(manifest: &sc_hooks_core::manifest::Manifest) -> i32 {
     }
 }
 
-fn read_json_stdin() -> Result<serde_json::Value, String> {
+fn read_json_stdin() -> Result<serde_json::Value, RunnerError> {
     let mut input = String::new();
     std::io::stdin()
         .read_to_string(&mut input)
-        .map_err(|err| format!("failed to read stdin: {err}"))?;
+        .map_err(|source| RunnerError::StdinRead { source })?;
 
     if input.trim().is_empty() {
         return Ok(serde_json::json!({}));
     }
 
     serde_json::from_str::<serde_json::Value>(&input)
-        .map_err(|err| format!("invalid JSON on stdin: {err}"))
+        .map_err(|source| RunnerError::StdinParse { source })
 }
 
-fn read_hook_context() -> Result<HookContext, String> {
+fn read_hook_context() -> Result<HookContext, RunnerError> {
     let raw_input = read_json_stdin()?;
-    let hook = resolve_hook_type(&raw_input).map_err(|err| err.to_string())?;
+    let hook = resolve_hook_type(&raw_input)?;
     let event = resolve_event(&raw_input);
     let metadata_path = std::env::var_os("SC_HOOK_METADATA").map(PathBuf::from);
     Ok(HookContext::new(hook, event, raw_input, metadata_path))
@@ -179,12 +191,10 @@ mod tests {
     fn hook_type_resolution_returns_typed_error_for_unknown_hook() {
         let err = resolve_hook_type(&serde_json::json!({"hook": {"type": "NotAHook"}}))
             .expect_err("unknown hook should fail");
-        assert_eq!(
+        assert!(matches!(
             err,
-            RunnerError::UnknownHookType {
-                name: "NotAHook".to_string()
-            }
-        );
+            RunnerError::UnknownHookType { name } if name == "NotAHook"
+        ));
     }
 
     #[test]
