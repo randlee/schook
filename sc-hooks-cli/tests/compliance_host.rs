@@ -31,6 +31,8 @@ impl CliBinaryProbe {
     }
 }
 
+impl sc_hooks_test::compliance::private::Sealed for CliBinaryProbe {}
+
 impl HostDispatchProbe for CliBinaryProbe {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
         let temp = tempfile::tempdir().map_err(|err| err.to_string())?;

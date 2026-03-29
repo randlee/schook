@@ -129,11 +129,11 @@ fn resolve_runtime(
     lifecycle_event: LifecycleEvent,
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<ResolvedRuntime, HookError> {
-    let session_id = session_id_from_context(context, lifecycle_event)?;
+    let transition = resolve_transition(context, lifecycle_event)?;
+    let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
     let ai_root_dir = resolve_ai_root_dir(lifecycle_event, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
-    let transition = resolve_transition(context, lifecycle_event, &session_id)?;
 
     Ok(ResolvedRuntime {
         session_id,
@@ -214,7 +214,6 @@ fn build_next_record(
 fn resolve_transition(
     context: &HookContext,
     lifecycle_event: LifecycleEvent,
-    session_id: &SessionId,
 ) -> Result<SessionTransition, HookError> {
     match lifecycle_event {
         LifecycleEvent::SessionStart => {
@@ -258,40 +257,6 @@ fn resolve_transition(
                 state_reason: "turn_completed".to_string(),
                 ended_at: None,
             })
-        }
-    }
-    .and_then(|transition| {
-        if &transition.session_id == session_id {
-            Ok(transition)
-        } else {
-            Err(HookError::validation(
-                "session_id",
-                "resolved session id does not match payload session id",
-            ))
-        }
-    })
-}
-
-fn session_id_from_context(
-    context: &HookContext,
-    lifecycle_event: LifecycleEvent,
-) -> Result<SessionId, HookError> {
-    match lifecycle_event {
-        LifecycleEvent::SessionStart => {
-            let payload: SessionStartPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::SessionEnd => {
-            let payload: SessionEndPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::PreCompact => {
-            let payload: PreCompactPayload = context.payload()?;
-            SessionId::new(payload.session_id)
-        }
-        LifecycleEvent::Stop => {
-            let payload: StopPayload = context.payload()?;
-            SessionId::new(payload.session_id)
         }
     }
 }
@@ -362,7 +327,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::SessionStart,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("start transition")
             .agent_state,
@@ -377,7 +341,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::PreCompact,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("compact transition")
             .agent_state,
@@ -392,7 +355,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::Stop,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("stop transition")
             .agent_state,
@@ -407,7 +369,6 @@ mod tests {
                     None,
                 ),
                 LifecycleEvent::SessionEnd,
-                &SessionId::new("s1").expect("session id"),
             )
             .expect("end transition")
             .agent_state,
