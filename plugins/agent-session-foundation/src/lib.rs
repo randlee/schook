@@ -204,10 +204,6 @@ fn build_next_record(
     record.state_reason = resolved.transition.state_reason.clone();
     record.ended_at = resolved.transition.ended_at.clone();
 
-    if lifecycle_event == LifecycleEvent::SessionStart && record.created_at.is_empty() {
-        record.created_at = utc_timestamp_now();
-    }
-
     Ok(record)
 }
 
