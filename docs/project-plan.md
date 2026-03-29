@@ -26,6 +26,7 @@ Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
 - `DEF-004`
+- `DEF-008`
 
 ## 3. Current Snapshot
 
@@ -35,6 +36,13 @@ Already implemented and not future sprint work:
 - observability output documented in `docs/observability-contract.md`
 - removal of the old ad hoc logging path and builtin `log` handler path
 - release-doc alignment for requirements, architecture, traceability, and gaps
+
+Explicit follow-up after the current file-sink contract work:
+- console-sink coverage is the first planned observability expansion because it
+  is the most useful next surface for debugging live multi-agent interactions
+  and background-agent monitoring
+- custom sink coverage and richer multi-hook monitoring remain follow-on work
+  after console-sink behavior is frozen
 
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
