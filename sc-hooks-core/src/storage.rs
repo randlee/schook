@@ -62,8 +62,8 @@ impl SessionStore {
                 .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
         }
 
-        let rendered = serde_json::to_string_pretty(record).map_err(|err| {
-            HookError::internal(format!("failed to serialize session record: {err}"))
+        let rendered = serde_json::to_string_pretty(record).map_err(|source| {
+            HookError::internal_with_source("failed to serialize session record", source)
         })?;
         if let Ok(existing) = fs::read_to_string(&path)
             && existing == rendered
@@ -105,9 +105,7 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
         None => dirs::home_dir()
             .map(|home| home.join(".sc-hooks").join("state").join("sessions"))
             .ok_or_else(|| {
-                HookError::invalid_context(
-                    "unable to resolve SC_HOOKS_STATE_DIR or home directory",
-                )
+                HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
             }),
     }
 }

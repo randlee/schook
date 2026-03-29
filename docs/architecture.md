@@ -266,9 +266,6 @@ Current status:
 - `Notification(idle_prompt)` remains part of the documented Claude surface, but
   is currently wired-but-unresolved in local Haiku capture
 
-Hook runtime crates remain planning targets until the post-capture BC design
-package is accepted and implementation begins.
-
 ### 9.2 Planned Harness Subsystem
 
 The planned hook harness owns:

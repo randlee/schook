@@ -86,7 +86,8 @@ printf '%s\n' '{"action":"proceed"}'
         output.status.code(),
         Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
     );
-    assert!(stderr.contains("long_running=true"));
+    assert!(stderr.contains("manifest load failed"));
+    assert!(stderr.contains("notify"));
 
     let handlers = Command::new(cli_binary())
         .current_dir(root)
