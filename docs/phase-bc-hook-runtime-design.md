@@ -308,7 +308,7 @@ planning names, not the clean BC authority.
 
 ## Trait Boundary
 
-The canonical trait lives in `sc-hooks-core` and is sealed:
+The canonical in-process runtime trait lives in `sc-hooks-core` and is sealed:
 
 ```rust
 mod private {
@@ -324,6 +324,11 @@ pub trait HookHandler: private::Sealed {
 
 External plugin executables do not implement the trait directly. They
 communicate with the runtime through normalized JSON contracts.
+
+The public executable-plugin SDK surface in `sc-hooks-sdk::traits` is
+intentionally unsealed. Sibling workspace crates implement those traits at the
+host/plugin process boundary, so the BC sealed-trait rule applies to the
+internal runtime trait only, not to the public SDK traits.
 
 ## Identity Types
 

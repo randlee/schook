@@ -56,10 +56,11 @@ pub fn execute_chain(
         let handler_name = &handler.name;
         if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
             return Err(CliError::Resolution(
-                crate::errors::ResolutionError::ManifestLoad {
+                crate::errors::ResolutionError::HandlerRejected {
                     plugin: handler_name.clone(),
                     reason: "manifest long_running=true is only supported for sync handlers"
                         .to_string(),
+                    source: None,
                 },
             ));
         }
@@ -496,10 +497,11 @@ fn disable_plugin_for_session(
     session_id: Option<&str>,
     handler_name: &str,
 ) -> Result<(), CliError> {
-    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|err| {
-        CliError::internal(format!(
-            "failed persisting disabled state for `{handler_name}`: {err}"
-        ))
+    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed persisting disabled state for `{handler_name}`"),
+            source,
+        )
     })
 }
 
@@ -755,7 +757,11 @@ PostToolUse = ["notify"]
 
         assert!(matches!(
             err,
-            CliError::Resolution(crate::errors::ResolutionError::ManifestLoad { plugin, reason })
+            CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
+                plugin,
+                reason,
+                source: _
+            })
                 if plugin == "notify" && reason.contains("long_running=true")
         ));
     }

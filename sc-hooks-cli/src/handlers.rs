@@ -74,20 +74,23 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(plugin_dir).map_err(|err| {
-        CliError::internal(format!(
-            "failed reading plugins directory {}: {err}",
-            plugin_dir.display()
-        ))
+    let entries = fs::read_dir(plugin_dir).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed reading plugins directory {}", plugin_dir.display()),
+            source,
+        )
     })?;
 
     let mut plugins = Vec::new();
     for entry in entries {
-        let entry = entry.map_err(|err| {
-            CliError::internal(format!(
-                "failed reading plugin directory entry in {}: {err}",
-                plugin_dir.display()
-            ))
+        let entry = entry.map_err(|source| {
+            CliError::internal_with_source(
+                format!(
+                    "failed reading plugin directory entry in {}",
+                    plugin_dir.display()
+                ),
+                source,
+            )
         })?;
         let path = entry.path();
         if !is_plugin_executable(&path) {

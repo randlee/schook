@@ -203,7 +203,7 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 }
 
 #[test]
-fn emits_hook_log_for_state_changes_and_noop_writes() {
+fn noop_session_start_keeps_single_persisted_record() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
@@ -235,16 +235,14 @@ fn emits_hook_log_for_state_changes_and_noop_writes() {
         ))
         .expect("second identical invocation should be allowed");
 
-    let log_path = project_root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH);
-    let rendered = fs::read_to_string(log_path).expect("hook log should exist");
-    let lines: Vec<_> = rendered.lines().collect();
-    assert_eq!(lines.len(), 2);
-    let first: serde_json::Value =
-        serde_json::from_str(lines[0]).expect("first log line should parse");
-    let second: serde_json::Value =
-        serde_json::from_str(lines[1]).expect("second log line should parse");
-    assert_eq!(first["fields"]["persist_outcome"], "created");
-    assert_eq!(second["fields"]["persist_outcome"], "unchanged");
+    let state_file = temp
+        .path()
+        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+    let rendered = fs::read_to_string(state_file).expect("state file should exist");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&rendered).expect("session state should parse");
+    assert_eq!(parsed["state_revision"], 1);
+    assert_eq!(parsed["last_hook_event"], "SessionStart");
 }
 
 #[test]

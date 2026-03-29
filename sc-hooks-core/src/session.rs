@@ -137,7 +137,10 @@ pub struct CanonicalSessionRecord {
 }
 
 impl CanonicalSessionRecord {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "canonical session construction keeps the persisted identity tuple explicit"
+    )]
     pub fn new(
         provider: impl Into<String>,
         session_id: SessionId,

@@ -26,6 +26,18 @@ It does not define:
 - CLI human-readable output
 - future observability sinks beyond the current file sink
 
+## 1.1 Environment Controls
+
+- `SC_HOOKS_ENABLE_CONSOLE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: off
+  - enables console-sink emission for operator/debugging workflows
+- `SC_HOOKS_ENABLE_FILE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: on
+  - controls durable JSONL file emission beneath the resolved observability root
+- when both are enabled, console and file sinks emit the same dispatch semantics while differing only in presentation/rendering
+
 Important current reality:
 - the current implementation does not emit the old ad hoc `DispatchLogEntry`
   record shape

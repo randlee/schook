@@ -1,4 +1,3 @@
-mod logging;
 mod payloads;
 
 use std::collections::BTreeMap;
@@ -91,8 +90,7 @@ impl SyncHandler for SessionFoundationHandler {
             &resolved,
             resolved.transition.session_start_source.as_deref(),
         )?;
-        let persist = store.persist(&next_record)?;
-        logging::emit_session_log(&next_record, persist, lifecycle_event.as_str())?;
+        let _persist = store.persist(&next_record)?;
 
         Ok(proceed())
     }
@@ -303,8 +301,10 @@ fn resolve_ai_root_dir(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<AiRootDir, HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart {
-        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|_| {
-            HookError::invalid_context("CLAUDE_PROJECT_DIR is required on SessionStart")
+        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|err| {
+            HookError::invalid_context(format!(
+                "CLAUDE_PROJECT_DIR is required on SessionStart: {err}"
+            ))
         })?;
         return AiRootDir::new(env_root);
     }
@@ -332,8 +332,11 @@ fn resolve_active_pid(
     existing: Option<&CanonicalSessionRecord>,
 ) -> Result<ActivePid, HookError> {
     if let Ok(raw) = std::env::var("SC_HOOK_AGENT_PID") {
-        let parsed = raw.parse::<u32>().map_err(|_| {
-            HookError::validation("SC_HOOK_AGENT_PID", "must parse as positive integer")
+        let parsed = raw.parse::<u32>().map_err(|err| {
+            HookError::validation(
+                "SC_HOOK_AGENT_PID",
+                format!("must parse as positive integer: {err}"),
+            )
         })?;
         return ActivePid::new(parsed);
     }

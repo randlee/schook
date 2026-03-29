@@ -8,8 +8,6 @@ version = "0.1.0"
 dependencies = [
  "sc-hooks-core",
  "sc-hooks-sdk",
- "sc-observability",
- "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",
@@ -107,6 +105,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "audit-logger"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -171,6 +176,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "conditional-source"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -215,6 +227,13 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys",
+]
+
+[[package]]
+name = "event-relay"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -270,6 +289,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
+name = "guard-paths"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -295,6 +321,13 @@ name = "id-arena"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d3067d79b975e8844ca9eb072e16b31c3c1c36928edf9c6789548c524d0d954"
+
+[[package]]
+name = "identity-state"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "indexmap"
@@ -372,6 +405,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "notify"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,6 +434,13 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "policy-enforcer"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "powerfmt"
@@ -489,6 +536,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "save-context"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "sc-hooks-cli"
 version = "0.1.0"
 dependencies = [
@@ -512,8 +566,6 @@ name = "sc-hooks-core"
 version = "0.1.0"
 dependencies = [
  "dirs",
- "sc-observability",
- "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",
@@ -654,6 +706,13 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys",
+]
+
+[[package]]
+name = "template-source"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

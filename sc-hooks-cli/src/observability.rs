@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use sc_observability::Logger;
+use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
-    ActionName, Level, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
 };
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -40,22 +40,15 @@ pub struct DispatchEventArgs<'a> {
 
 pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
-        .map_err(|err| CliError::internal(format!("invalid service name: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
     let target = TargetCategory::new("hook")
-        .map_err(|err| CliError::internal(format!("invalid log target: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid log target", source))?;
     let action = ActionName::new("dispatch.complete")
-        .map_err(|err| CliError::internal(format!("invalid log action: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("invalid log action", source))?;
 
-    let logger = Logger::new(
-        sc_hooks_core::storage::default_logger_config(service.clone(), args.project_root).map_err(
-            |err| {
-                CliError::internal(format!(
-                    "failed building observability logger config: {err}"
-                ))
-            },
-        )?,
-    )
-    .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
+    let logger = Logger::new(default_logger_config(service.clone(), args.project_root)?).map_err(
+        |source| CliError::internal_with_source("failed to initialize observability", source),
+    )?;
 
     let mut fields = Map::new();
     fields.insert("hook".to_string(), Value::String(args.hook.to_string()));
@@ -72,13 +65,15 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     );
     fields.insert(
         "handlers".to_string(),
-        serde_json::to_value(args.handler_chain)
-            .map_err(|err| CliError::internal(format!("failed to serialize handlers: {err}")))?,
+        serde_json::to_value(args.handler_chain).map_err(|source| {
+            CliError::internal_with_source("failed to serialize handlers", source)
+        })?,
     );
     fields.insert(
         "results".to_string(),
-        serde_json::to_value(args.results)
-            .map_err(|err| CliError::internal(format!("failed to serialize results: {err}")))?,
+        serde_json::to_value(args.results).map_err(|source| {
+            CliError::internal_with_source("failed to serialize results", source)
+        })?,
     );
     fields.insert("total_ms".to_string(), Value::from(args.total_ms as u64));
     fields.insert("exit".to_string(), Value::from(args.exit));
@@ -116,16 +111,39 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         fields,
     };
 
-    logger
-        .emit(event)
-        .map_err(|err| CliError::internal(format!("failed emitting observability event: {err}")))?;
-    logger
-        .flush()
-        .map_err(|err| CliError::internal(format!("failed flushing observability event: {err}")))?;
-    logger.shutdown().map_err(|err| {
-        CliError::internal(format!("failed shutting down observability logger: {err}"))
+    logger.emit(event).map_err(|source| {
+        CliError::internal_with_source("failed emitting observability event", source)
+    })?;
+    logger.flush().map_err(|source| {
+        CliError::internal_with_source("failed flushing observability event", source)
+    })?;
+    logger.shutdown().map_err(|source| {
+        CliError::internal_with_source("failed shutting down observability logger", source)
     })?;
     Ok(())
+}
+
+fn default_logger_config(
+    service: ServiceName,
+    project_root: Option<&Path>,
+) -> Result<LoggerConfig, CliError> {
+    let root = sc_hooks_core::storage::observability_root_for(project_root).map_err(|source| {
+        CliError::internal_with_source("failed resolving observability root", source)
+    })?;
+    let mut config = LoggerConfig::default_for(service, root);
+    config.level = LevelFilter::Info;
+    config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
+    config.enable_file_sink = env_flag("SC_HOOKS_ENABLE_FILE_SINK").unwrap_or(true);
+    Ok(config)
+}
+
+fn env_flag(key: &str) -> Option<bool> {
+    let value = std::env::var(key).ok()?;
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
 }
 
 fn dispatch_level(

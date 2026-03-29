@@ -61,7 +61,6 @@ struct RelayContext {
 #[derive(Debug)]
 struct RelayDecision<T> {
     request: ValidatedRequest<T>,
-    event_name: &'static str,
     state_update: RecordUpdate,
     event_body: Value,
     cleanup_identity_file: bool,
@@ -84,6 +83,18 @@ struct SuggestionType(String);
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuleContent(String);
 
+impl SuggestionType {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl RuleContent {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PermissionSuggestionRule {
     tool_name: ToolName,
@@ -101,15 +112,15 @@ struct PermissionSuggestion {
 
 #[derive(Debug)]
 struct ValidatedPermissionRequest {
-    session_id: String,
-    tool_name: String,
+    session_id: SessionId,
+    tool_name: ToolName,
     tool_input: Value,
     permission_suggestions: Vec<PermissionSuggestion>,
 }
 
 #[derive(Debug)]
 struct ValidatedStopRequest {
-    session_id: String,
+    session_id: SessionId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -313,7 +324,7 @@ fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
             process_id: record.active_pid.get(),
         },
     };
-    let validated = validate_stop_request(raw_request);
+    let validated = validate_stop_request(raw_request)?;
     let decision = stop_relay_decision(validated);
     let _result = execute_relay(&store, record, decision)?;
 
@@ -524,6 +535,8 @@ fn persist_atm_update(
 fn validate_permission_request(
     raw: RawRequest<PermissionRequestPayload>,
 ) -> Result<ValidatedRequest<ValidatedPermissionRequest>, HookError> {
+    let session_id = SessionId::new(raw.raw_payload.session_id)?;
+    let tool_name = ToolName::new(raw.raw_payload.tool_name)?;
     let permission_suggestions = raw
         .raw_payload
         .permission_suggestions
@@ -534,8 +547,8 @@ fn validate_permission_request(
 
     Ok(ValidatedRequest {
         validated: ValidatedPermissionRequest {
-            session_id: raw.raw_payload.session_id,
-            tool_name: raw.raw_payload.tool_name,
+            session_id,
+            tool_name,
             tool_input: raw.raw_payload.tool_input,
             permission_suggestions,
         },
@@ -543,13 +556,15 @@ fn validate_permission_request(
     })
 }
 
-fn validate_stop_request(raw: RawRequest<StopPayload>) -> ValidatedRequest<ValidatedStopRequest> {
-    ValidatedRequest {
+fn validate_stop_request(
+    raw: RawRequest<StopPayload>,
+) -> Result<ValidatedRequest<ValidatedStopRequest>, HookError> {
+    Ok(ValidatedRequest {
         validated: ValidatedStopRequest {
-            session_id: raw.raw_payload.session_id,
+            session_id: SessionId::new(raw.raw_payload.session_id)?,
         },
         relay: raw.relay,
-    }
+    })
 }
 
 fn permission_relay_decision(
@@ -562,14 +577,13 @@ fn permission_relay_decision(
         "process_id": process_id,
         "agent": request.relay.routing.identity,
         "team": request.relay.routing.team,
-        "tool_name": request.validated.tool_name,
+        "tool_name": request.validated.tool_name.as_str(),
         "tool_input": request.validated.tool_input,
         "permission_suggestions": render_permission_suggestions(&request.validated.permission_suggestions),
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
         request,
-        event_name: "PermissionRequest",
         state_update: RecordUpdate {
             hook_event: "PermissionRequest",
             state_reason: "permission_requested",
@@ -594,7 +608,6 @@ fn stop_relay_decision(
     });
     RelayDecision {
         request,
-        event_name: "Stop",
         state_update: RecordUpdate {
             hook_event: "Stop",
             state_reason: "relay_stop",
@@ -628,7 +641,6 @@ fn execute_relay<T>(
             );
         }
     }
-    let _ = decision.event_name;
     Ok(RelayResult::Applied)
 }
 
@@ -714,7 +726,10 @@ fn delete_identity_file(path: &Path) -> std::io::Result<()> {
 }
 
 fn is_atm_invocation(command: &str) -> bool {
-    let tokens = shell_words::split(command).unwrap_or_else(|_| {
+    let tokens = shell_words::split(command).unwrap_or_else(|err| {
+        eprintln!(
+            "[atm-extension] shell_words parse error for command {command:?}: {err}; falling back to whitespace split"
+        );
         command
             .split_whitespace()
             .map(str::to_string)
@@ -878,7 +893,8 @@ impl RuleContent {
 
 fn parse_tool_name(value: String, field: String) -> Result<ToolName, HookError> {
     let value = new_nonempty_string(value, field.clone())?;
-    ToolName::new(value).map_err(|_| HookError::validation(field, "must be a non-empty string"))
+    ToolName::new(value)
+        .map_err(|err| HookError::validation(field, format!("must be a non-empty string: {err}")))
 }
 
 fn new_nonempty_string(value: String, field: String) -> Result<String, HookError> {
@@ -894,14 +910,14 @@ fn render_permission_suggestions(suggestions: &[PermissionSuggestion]) -> Value 
             .iter()
             .map(|suggestion| {
                 json!({
-                    "type": suggestion.suggestion_type.0,
+                    "type": suggestion.suggestion_type.as_str(),
                     "behavior": suggestion.behavior,
                     "destination": suggestion.destination,
                     "mode": suggestion.mode,
                     "rules": suggestion.rules.iter().map(|rule| {
                         json!({
                             "toolName": rule.tool_name.as_str(),
-                            "ruleContent": rule.rule_content.0,
+                            "ruleContent": rule.rule_content.as_str(),
                         })
                     }).collect::<Vec<_>>(),
                 })

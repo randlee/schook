@@ -1,14 +1,29 @@
 use thiserror::Error;
 
 use crate::config::ConfigError;
+use sc_hooks_sdk::manifest::ManifestLoadError;
+
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug, Error)]
 pub enum ResolutionError {
     #[error("handler `{handler}` could not be resolved")]
     UnresolvedHandler { handler: String },
 
-    #[error("plugin `{plugin}` manifest load failed: {reason}")]
-    ManifestLoad { plugin: String, reason: String },
+    #[error("plugin `{plugin}` manifest load failed")]
+    ManifestLoadFailed {
+        plugin: String,
+        #[source]
+        source: ManifestLoadError,
+    },
+
+    #[error("handler `{plugin}` rejected for dispatch: {reason}")]
+    HandlerRejected {
+        plugin: String,
+        reason: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -48,13 +63,25 @@ pub enum CliError {
     AuditFailure { message: String },
 
     #[error("{message}")]
-    Internal { message: String },
+    Internal {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 }
 
 impl CliError {
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn internal_with_source(message: impl Into<String>, source: impl Into<BoxedError>) -> Self {
+        Self::Internal {
+            message: message.into(),
+            source: Some(source.into()),
         }
     }
 

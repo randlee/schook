@@ -9,7 +9,10 @@ fn main() {
             "requires": {},
             "timeout_ms": 5000
         });
-        println!("{}", serde_json::to_string(&manifest).expect("manifest should serialize"));
+        println!(
+            "{}",
+            serde_json::to_string(&manifest).expect("manifest should serialize")
+        );
         return;
     }
 
@@ -18,5 +21,8 @@ fn main() {
     let _ = std::io::stdin().read_to_string(&mut input);
 
     let result = serde_json::json!({"action":"proceed"});
-    println!("{}", serde_json::to_string(&result).expect("result should serialize"));
+    println!(
+        "{}",
+        serde_json::to_string(&result).expect("result should serialize")
+    );
 }
