@@ -82,10 +82,8 @@ impl SessionStore {
         temp.flush()
             .map_err(|source| HookError::state_io(temp.path().to_path_buf(), source))?;
         let existed = path.exists();
-        temp.persist(&path).map_err(|err| {
-            let source = std::io::Error::new(err.error.kind(), err.error.to_string());
-            HookError::state_io(path.clone(), source)
-        })?;
+        temp.persist(&path)
+            .map_err(|err| HookError::state_io(path.clone(), err.error))?;
 
         Ok(if existed {
             PersistOutcome::Updated

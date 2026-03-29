@@ -46,7 +46,7 @@ pub fn resolve_chain(
             cached.clone()
         } else {
             let loaded = sc_hooks_sdk::manifest::load_manifest_from_executable(&executable)
-                .map_err(|err| ResolutionError::ManifestLoad {
+                .map_err(|err| ResolutionError::ManifestLoadFailed {
                     plugin: handler_name.clone(),
                     source: err,
                 })?;
@@ -74,6 +74,7 @@ pub fn resolve_chain(
             return Err(ResolutionError::HandlerRejected {
                 plugin: handler_name.clone(),
                 reason: taxonomy.errors.join("; "),
+                source: None,
             });
         }
 
@@ -87,7 +88,8 @@ pub fn resolve_chain(
         )
         .map_err(|err| ResolutionError::HandlerRejected {
             plugin: handler_name.clone(),
-            reason: err.to_string(),
+            reason: "payload conditions rejected this handler".to_string(),
+            source: Some(Box::new(err)),
         })?;
 
         if !payload_matches {

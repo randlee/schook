@@ -112,6 +112,17 @@ Implements:
 
 ## 7. Non-Goals
 
+Environment controls:
+- `SC_HOOKS_ENABLE_CONSOLE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: off
+  - purpose: enable the operator-facing console sink in addition to the file sink
+- `SC_HOOKS_ENABLE_FILE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: on
+  - purpose: control durable JSONL file emission under the resolved observability root
+- both flags are evaluated by `sc-hooks-cli` at logger initialization time and use the same resolved observability root configuration
+
 Related deferred boundary:
 - no current requirement ID promotes configurable sink routing, traces, metrics,
   or OTLP export into the release baseline

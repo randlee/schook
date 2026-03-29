@@ -1155,6 +1155,7 @@ Deliverables:
 Verified field inputs allowed in HP5:
 
 - `PermissionRequest`
+  - `session_id`
   - `tool_name`
   - `tool_input`
   - `permission_mode` (optional)
