@@ -12,7 +12,9 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
 | GAP-008 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release | none until the product intentionally restores builtins |
 | GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
+| GAP-010 | resolved in this pass | `sc-hooks-cli`, docs | host-level observability contract tests prove success, block, invalid-json error, timeout, and file-sink path behavior through the real `sc-hooks-cli` binary | broader sink/monitoring coverage remains tracked under `DEF-008` |
 | DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
+| DEF-008 | deferred | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps keep richer observability validation beyond the current file-sink dispatch contract explicitly planned but not release-blocking, with console-sink coverage named as the first follow-up | none until console/custom sink coverage and multi-hook smoke correlation are intentionally promoted |
 
 ## Hook Extension Requirement Tracker
 
@@ -41,6 +43,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - `GAP-004` resolved by checking in `examples/runtime-layout/.sc-hooks/`, documenting it as the canonical contributor setup path, and proving it with `sc-hooks-cli/tests/runtime_layout_example.rs`.
 - `GAP-005` resolved by removing the mixed ad hoc logger surfaces and emitting one `sc-observability` `LogEvent` shape only.
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
+- `GAP-010` resolved by adding `sc-hooks-cli/tests/observability_contract.rs`, which drives the real `sc-hooks-cli` binary through success, block, invalid-json error, and timeout dispatches, then asserts the emitted `sc-observability` JSONL contract and file-sink path.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 - Task `#370` was a Sprint 6 merge-review tracker, not a release-facing requirement or gap ID. It was retired by freeze commit `cdce7b1` when `docs/project-plan.md` replaced the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` with `none; release-facing blocker and important gaps are closed for the chosen scope`, and replaced the Sprint 6 driver text `task #370, final QA/PR review` with `final reviewer/QA handoff`.
 - Hook-extension planning currently uses the package name `sc-hooks-session-foundation` in docs while the source crate remains `plugins/agent-session-foundation`; this mismatch is intentional until packaging/install naming is finalized, and both names must stay cross-referenced in docs until then.
@@ -154,6 +157,29 @@ This document tracks gaps between the current codebase and the release-standard 
   - code may accept operators beyond the `PLC-002` set, but those extra operators are not part of the release-facing contract
 - Exit condition:
   - requirements, protocol docs, and tests are updated together for the expanded operator set
+
+### DEF-008: Broader Observability Monitoring Coverage Stays Deferred
+
+- Current behavior:
+  - the current release baseline proves the file-sink `LogEvent` contract under
+    real dispatch for success, block, invalid-json error, and timeout paths
+  - `sc-hooks-core` currently exports `OBSERVABILITY_ROOT` and
+    `OBSERVABILITY_LOG_PATH` as shared path literals for agreement between the
+    CLI, tests, and docs; this is an accepted OBS-007 boundary tension because
+    the constants do not own sink wiring, logger lifecycle, or event emission
+  - the next planned observability follow-up is console-sink coverage under
+    real dispatch because console logs are the most useful immediate debugging
+    surface for live/background-agent interaction tracing
+  - the baseline does not yet prove:
+    - console-sink behavior under `sc-observability`
+    - custom sink registration paths
+    - multi-hook sequence correlation / exactly-once smoke monitoring across a
+      longer lifecycle
+    - operator-facing monitoring flows such as background-agent log watching
+- Exit condition:
+  - requirements, architecture, observability docs, and tests intentionally
+    promote richer monitoring coverage, starting with console-sink behavior and
+    then extending to custom sinks and multi-hook smoke correlation
 
 ## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
 
