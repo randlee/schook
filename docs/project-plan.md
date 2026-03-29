@@ -79,7 +79,7 @@ Important planning rule:
 | Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
 | Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/raw/` (env-backed captures), `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
 | Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
-| Sprint 11 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
+| Sprint 10 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
