@@ -726,7 +726,10 @@ fn delete_identity_file(path: &Path) -> std::io::Result<()> {
 }
 
 fn is_atm_invocation(command: &str) -> bool {
-    let tokens = shell_words::split(command).unwrap_or_else(|_| {
+    let tokens = shell_words::split(command).unwrap_or_else(|err| {
+        eprintln!(
+            "warning: failed to parse atm command with shell_words: {err}; falling back to whitespace split"
+        );
         command
             .split_whitespace()
             .map(str::to_string)

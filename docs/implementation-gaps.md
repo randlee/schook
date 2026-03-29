@@ -33,6 +33,7 @@ This document tracks gaps between the current codebase and the release-standard 
 | HKR-011 | tracked | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
 | HKR-012 | tracked | global html-report skill + schema-drift callers | report-producing work continues to depend on the QA-approved global HTML reporting stack | none until the skill is shipped and stable |
 | HKR-013 | tracked | ATM relay pipeline docs, `plugins/atm-extension` | relay handling retains distinct raw-request, validated-request, decision, and result stages with direct tests around the typed boundary | none |
+| SEAL-001 | tracked | `sc-hooks-core`, `sc-hooks-sdk`, docs | BC design, architecture, and the SDK trait docs agree that the sealed internal runtime trait and intentionally unsealed executable-plugin SDK traits are distinct boundaries | none until the plugin-executable model changes |
 
 ## Resolved In This Pass
 
@@ -47,6 +48,11 @@ This document tracks gaps between the current codebase and the release-standard 
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 - Task `#370` was a Sprint 6 merge-review tracker, not a release-facing requirement or gap ID. It was retired by freeze commit `cdce7b1` when `docs/project-plan.md` replaced the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` with `none; release-facing blocker and important gaps are closed for the chosen scope`, and replaced the Sprint 6 driver text `task #370, final QA/PR review` with `final reviewer/QA handoff`.
 - Hook-extension planning currently uses the package name `sc-hooks-session-foundation` in docs while the source crate remains `plugins/agent-session-foundation`; this mismatch is intentional until packaging/install naming is finalized, and both names must stay cross-referenced in docs until then.
+- `SEAL-001` acknowledges the intentional BC-design deviation where
+  `sc-hooks-core` keeps the internal in-process hook trait sealed while
+  `sc-hooks-sdk::traits::{ManifestProvider, SyncHandler, AsyncHandler}` remain
+  intentionally unsealed for sibling workspace crates at the executable-plugin
+  boundary.
 
 ## Resolved Gaps
 

@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use fs2::FileExt;
+use sc_hooks_core::session::utc_timestamp_now;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
@@ -125,34 +125,7 @@ pub fn state_path() -> Result<PathBuf, CliError> {
 }
 
 fn now_timestamp() -> String {
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or_default();
-    #[cfg(unix)]
-    {
-        let raw = seconds as nix::libc::time_t;
-        // SAFETY: `gmtime_r` writes to the provided `tm` struct for a valid `time_t` pointer.
-        unsafe {
-            let mut tm: nix::libc::tm = std::mem::zeroed();
-            if nix::libc::gmtime_r(&raw, &mut tm).is_null() {
-                return seconds.to_string();
-            }
-            format!(
-                "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-                tm.tm_year + 1900,
-                tm.tm_mon + 1,
-                tm.tm_mday,
-                tm.tm_hour,
-                tm.tm_min,
-                tm.tm_sec
-            )
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        seconds.to_string()
-    }
+    utc_timestamp_now()
 }
 
 fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {

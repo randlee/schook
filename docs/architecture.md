@@ -313,11 +313,17 @@ Current architecture guardrails for these targets in this branch:
 - `ai_current_dir` is captured from each lifecycle payload `cwd`
 - canonical `session.json` updates use atomic write semantics and skip unchanged
   rewrites while still emitting hook logs
+- the internal in-process hook trait remains sealed in `sc-hooks-core`, while
+  the public executable-plugin traits in `sc-hooks-sdk::traits` remain
+  intentionally unsealed for sibling workspace crates; this deviation from the
+  original BC sealed-trait assumption is tracked in
+  `docs/implementation-gaps.md`
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority
-- no hook runtime crate becomes current architecture until it lands with code,
-  tests, and the same-PR `docs/architecture.md` crate inventory update
+- every hook runtime crate listed above is current architecture in this branch
+  because it now lands with code, tests, and the same-PR
+  `docs/architecture.md` crate inventory update
 
 ### 9.4 Cursor Follow-On Boundary
 
