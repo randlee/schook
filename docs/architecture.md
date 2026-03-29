@@ -285,7 +285,7 @@ The current runtime-implementation path in this branch includes:
 - `sc-hooks-session-foundation` via `plugins/agent-session-foundation`
 - `sc-hooks-agent-spawn-gates` via `plugins/agent-spawn-gates`
 - `sc-hooks-tool-output-gates` via `plugins/tool-output-gates`
-- `sc-hooks-atm-extension`
+- `sc-hooks-atm-extension` via `plugins/atm-extension`
 
 All four hook-runtime targets now exist as current source crates in this branch.
 
