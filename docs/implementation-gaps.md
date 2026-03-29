@@ -30,9 +30,9 @@ This document tracks gaps between the current codebase and the release-standard 
 | HKR-008 | tracked | `plugins/agent-session-foundation`, session store | canonical session-state keeps the verified identity tuple and chains `ai_root_dir` from `CLAUDE_PROJECT_DIR` | none |
 | HKR-009 | resolved | session store, observability path, hook trait boundary docs | same-directory temp-plus-rename writes, no-op rewrite skipping, per-invocation hook logging, and the explicit `SEAL-001` trait-freeze closure note stay verified together | none |
 | HKR-010 | tracked | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` | fenced JSON gate behavior and exact retryable block responses remain covered by direct tests | none |
-| HKR-011 | tracked | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
+| HKR-011 | resolved | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
 | HKR-012 | tracked | global html-report skill + schema-drift callers | report-producing work continues to depend on the QA-approved global HTML reporting stack | none until the skill is shipped and stable |
-| HKR-013 | tracked | ATM relay pipeline docs, `plugins/atm-extension` | relay handling retains distinct raw-request, validated-request, decision, and result stages with direct tests around the typed boundary | none |
+| HKR-013 | resolved | ATM relay pipeline docs, `plugins/atm-extension` | relay handling retains distinct raw-request, validated-request, decision, and result stages with direct tests around the typed boundary | none |
 | SEAL-001 | resolved | `sc-hooks-core`, `sc-hooks-sdk`, docs | BC design, architecture, and the SDK trait docs agree that the sealed internal runtime trait and intentionally unsealed executable-plugin SDK traits are distinct boundaries | none until the plugin-executable model changes |
 
 ## Resolved In This Pass

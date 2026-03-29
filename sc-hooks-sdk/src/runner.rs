@@ -104,7 +104,7 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, String> 
         })
         .ok_or_else(|| "missing hook type in SC_HOOK_TYPE or input.hook.type".to_string())?;
 
-    HookType::from_str(&hook_name).map_err(|_| format!("unknown hook type `{hook_name}`"))
+    HookType::from_str(&hook_name).map_err(|_err| format!("unknown hook type `{hook_name}`"))
 }
 
 fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
