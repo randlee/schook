@@ -53,3 +53,9 @@ Start by clearly stating what you're reviewing. For each high-confidence issue, 
 Group issues by severity (Critical vs Important). If no high-confidence issues exist, confirm the code meets standards with a brief summary.
 
 Structure your response for maximum actionability - developers should know exactly what to fix and why.
+
+## Zero Tolerance for Pre-Existing Issues
+
+Do NOT dismiss violations as "pre-existing" or "not introduced by this change."
+Every violation found anywhere in the codebase is a finding regardless of when it was introduced.
+The pre-existing/new distinction is informational only — it does not change severity or whether to report.
