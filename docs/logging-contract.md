@@ -60,6 +60,21 @@ Current write model:
 - each line is one complete dispatch log record
 - if no handlers execute, no line is written
 
+## 2.1 Sink Routing Environment Variables
+
+The current host supports these sink-routing toggles:
+
+| Variable | Default | Accepted true values | Accepted false values | Effect |
+| --- | --- | --- | --- | --- |
+| `SC_HOOKS_ENABLE_CONSOLE_SINK` | `false` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the human-readable console sink alongside normal dispatch execution |
+| `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the JSONL file sink at the contract path above |
+
+Current rules:
+- both sinks may be enabled simultaneously
+- the file sink remains the canonical structured logging surface
+- invalid values fall back to the documented default and emit a warning to
+  `stderr`
+
 ## 3. Top-Level Record Envelope
 
 Implements:

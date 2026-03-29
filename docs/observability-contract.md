@@ -60,6 +60,22 @@ Current default file sink path:
 
 This path comes from `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`.
 
+## 3.1 Sink Routing Environment Variables
+
+The host currently supports two observability sink toggles:
+
+| Variable | Default | Accepted true values | Accepted false values | Purpose |
+| --- | --- | --- | --- | --- |
+| `SC_HOOKS_ENABLE_CONSOLE_SINK` | `false` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the human-readable console sink for live operator/debugging output |
+| `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the durable JSONL file sink |
+
+Current behavior:
+- unrecognized values are ignored
+- the host emits a warning to `stderr` describing the accepted values
+- both sinks can be enabled at the same time
+- the file sink remains the canonical structured contract even when the console
+  sink is enabled
+
 ## 4. Event Shape
 
 Implements:

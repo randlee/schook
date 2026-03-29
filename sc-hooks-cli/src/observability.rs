@@ -74,7 +74,10 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
             CliError::internal_with_source("failed to serialize results", source)
         })?,
     );
-    fields.insert("total_ms".to_string(), Value::from(args.total_ms as u64));
+    fields.insert(
+        "total_ms".to_string(),
+        Value::from(args.total_ms.min(u64::MAX as u128) as u64),
+    );
     fields.insert("exit".to_string(), Value::from(args.exit));
     if let Some(ai_notification) = args.ai_notification {
         fields.insert(
@@ -120,19 +123,12 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
 }
 
 fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
-    if let Some(logger) = LOGGER.get() {
-        return Ok(logger);
-    }
-
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
     let logger = Logger::new(default_logger_config(service, project_root)?).map_err(|source| {
         CliError::internal_with_source("failed to initialize observability", source)
     })?;
-    let _ = LOGGER.set(logger);
-    Ok(LOGGER
-        .get()
-        .expect("observability logger must be initialized before use"))
+    Ok(LOGGER.get_or_init(|| logger))
 }
 
 fn default_logger_config(
@@ -161,7 +157,12 @@ fn env_flag(key: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
         "1" | "true" | "yes" | "on" => Some(true),
         "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
+        _ => {
+            eprintln!(
+                "warning: unrecognized value for {key}: {value:?} (expected 1/true/yes/on or 0/false/no/off)"
+            );
+            None
+        }
     }
 }
 

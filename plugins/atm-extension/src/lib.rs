@@ -101,15 +101,15 @@ struct PermissionSuggestion {
 
 #[derive(Debug)]
 struct ValidatedPermissionRequest {
-    session_id: String,
-    tool_name: String,
+    session_id: SessionId,
+    tool_name: ToolName,
     tool_input: Value,
     permission_suggestions: Vec<PermissionSuggestion>,
 }
 
 #[derive(Debug)]
 struct ValidatedStopRequest {
-    session_id: String,
+    session_id: SessionId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -313,7 +313,7 @@ fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
             process_id: record.active_pid.get(),
         },
     };
-    let validated = validate_stop_request(raw_request);
+    let validated = validate_stop_request(raw_request)?;
     let decision = stop_relay_decision(validated);
     let _result = execute_relay(&store, record, decision)?;
 
@@ -524,6 +524,9 @@ fn persist_atm_update(
 fn validate_permission_request(
     raw: RawRequest<PermissionRequestPayload>,
 ) -> Result<ValidatedRequest<ValidatedPermissionRequest>, HookError> {
+    let session_id = SessionId::new(raw.raw_payload.session_id)
+        .map_err(|_| HookError::validation("session_id", "must be a non-empty string"))?;
+    let tool_name = parse_tool_name(raw.raw_payload.tool_name, "tool_name".to_string())?;
     let permission_suggestions = raw
         .raw_payload
         .permission_suggestions
@@ -534,8 +537,8 @@ fn validate_permission_request(
 
     Ok(ValidatedRequest {
         validated: ValidatedPermissionRequest {
-            session_id: raw.raw_payload.session_id,
-            tool_name: raw.raw_payload.tool_name,
+            session_id,
+            tool_name,
             tool_input: raw.raw_payload.tool_input,
             permission_suggestions,
         },
@@ -543,13 +546,15 @@ fn validate_permission_request(
     })
 }
 
-fn validate_stop_request(raw: RawRequest<StopPayload>) -> ValidatedRequest<ValidatedStopRequest> {
-    ValidatedRequest {
-        validated: ValidatedStopRequest {
-            session_id: raw.raw_payload.session_id,
-        },
+fn validate_stop_request(
+    raw: RawRequest<StopPayload>,
+) -> Result<ValidatedRequest<ValidatedStopRequest>, HookError> {
+    let session_id = SessionId::new(raw.raw_payload.session_id)
+        .map_err(|_| HookError::validation("session_id", "must be a non-empty string"))?;
+    Ok(ValidatedRequest {
+        validated: ValidatedStopRequest { session_id },
         relay: raw.relay,
-    }
+    })
 }
 
 fn permission_relay_decision(
@@ -562,7 +567,7 @@ fn permission_relay_decision(
         "process_id": process_id,
         "agent": request.relay.routing.identity,
         "team": request.relay.routing.team,
-        "tool_name": request.validated.tool_name,
+        "tool_name": request.validated.tool_name.as_str(),
         "tool_input": request.validated.tool_input,
         "permission_suggestions": render_permission_suggestions(&request.validated.permission_suggestions),
         "source": {"kind": "claude_hook"},

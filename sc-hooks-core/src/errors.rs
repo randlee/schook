@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+
 #[derive(Debug, Error)]
 pub enum HookError {
     #[error("invalid payload near {input_excerpt}")]
@@ -25,7 +27,11 @@ pub enum HookError {
     Validation { field: String, message: String },
 
     #[error("internal hook error: {message}")]
-    Internal { message: String },
+    Internal {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 }
 
 impl HookError {
@@ -45,6 +51,14 @@ impl HookError {
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn internal_with_source(message: impl Into<String>, source: impl Into<BoxedError>) -> Self {
+        Self::Internal {
+            message: message.into(),
+            source: Some(source.into()),
         }
     }
 

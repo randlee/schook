@@ -62,8 +62,8 @@ impl SessionStore {
                 .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
         }
 
-        let rendered = serde_json::to_string_pretty(record).map_err(|err| {
-            HookError::internal(format!("failed to serialize session record: {err}"))
+        let rendered = serde_json::to_string_pretty(record).map_err(|source| {
+            HookError::internal_with_source("failed to serialize session record", source)
         })?;
         if let Ok(existing) = fs::read_to_string(&path)
             && existing == rendered
@@ -82,10 +82,8 @@ impl SessionStore {
         temp.flush()
             .map_err(|source| HookError::state_io(temp.path().to_path_buf(), source))?;
         let existed = path.exists();
-        temp.persist(&path).map_err(|err| {
-            let source = std::io::Error::new(err.error.kind(), err.error.to_string());
-            HookError::state_io(path.clone(), source)
-        })?;
+        temp.persist(&path)
+            .map_err(|err| HookError::state_io(path.clone(), err.error))?;
 
         Ok(if existed {
             PersistOutcome::Updated
