@@ -79,13 +79,11 @@ fn session_disables_plugin_for_reason(root: &Path, plugin: &str, reason: &str) -
     let state_path = root.join(".sc-hooks/state/session.json");
     let rendered = fs::read_to_string(state_path).expect("session state should exist");
     let parsed: Value = serde_json::from_str(&rendered).expect("session state should parse");
-    parsed["sessions"]
-        .as_object()
-        .is_some_and(|sessions| {
-            sessions.values().any(|session| {
-                session["disabled_plugins"][plugin]["reason"].as_str() == Some(reason)
-            })
-        })
+    parsed["sessions"].as_object().is_some_and(|sessions| {
+        sessions
+            .values()
+            .any(|session| session["disabled_plugins"][plugin]["reason"].as_str() == Some(reason))
+    })
 }
 
 #[test]
@@ -107,7 +105,10 @@ fn success_dispatch_emits_file_sink_log_event() {
         None,
     );
 
-    assert_eq!(output.status.code(), Some(sc_hooks_core::exit_codes::SUCCESS));
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
     let log = read_last_log(root);
     assert_eq!(log["service"], "sc-hooks");
     assert_eq!(log["target"], "hook");
@@ -144,7 +145,10 @@ fn blocked_dispatch_emits_warn_log_event() {
         None,
     );
 
-    assert_eq!(output.status.code(), Some(sc_hooks_core::exit_codes::BLOCKED));
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::BLOCKED)
+    );
     let log = read_last_log(root);
     assert_eq!(log["outcome"], "block");
     assert_eq!(log["level"], "Warn");
@@ -187,9 +191,11 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     assert_eq!(log["fields"]["results"][0]["action"], "error");
     assert_eq!(log["fields"]["results"][0]["error_type"], "invalid_json");
     assert_eq!(log["fields"]["results"][0]["disabled"], true);
-    assert!(log["fields"]["ai_notification"]
-        .as_str()
-        .is_some_and(|message| message.contains("invalid JSON")));
+    assert!(
+        log["fields"]["ai_notification"]
+            .as_str()
+            .is_some_and(|message| message.contains("invalid JSON"))
+    );
     assert!(session_disables_plugin_for_reason(
         root,
         "probe-plugin",
@@ -219,7 +225,10 @@ printf '%s\n' '{"action":"proceed"}'
         Some("session-timeout"),
     );
 
-    assert_eq!(output.status.code(), Some(sc_hooks_core::exit_codes::TIMEOUT));
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::TIMEOUT)
+    );
     let log = read_last_log(root);
     assert_eq!(log["outcome"], "error");
     assert_eq!(log["level"], "Error");
@@ -227,9 +236,11 @@ printf '%s\n' '{"action":"proceed"}'
     assert_eq!(log["fields"]["results"][0]["action"], "error");
     assert_eq!(log["fields"]["results"][0]["error_type"], "timeout");
     assert_eq!(log["fields"]["results"][0]["disabled"], true);
-    assert!(log["fields"]["ai_notification"]
-        .as_str()
-        .is_some_and(|message| message.contains("timed out after 50ms")));
+    assert!(
+        log["fields"]["ai_notification"]
+            .as_str()
+            .is_some_and(|message| message.contains("timed out after 50ms"))
+    );
     assert!(session_disables_plugin_for_reason(
         root,
         "probe-plugin",
