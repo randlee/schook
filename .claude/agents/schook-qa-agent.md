@@ -139,9 +139,3 @@ Gate policy:
 - `FAIL` if required inputs are missing/invalid.
 - `FAIL` if baseline docs cannot be read.
 - `PASS` only when no Blocking findings exist and no unresolved cross-document conflicts remain.
-
-## Zero Tolerance for Pre-Existing Issues
-
-Do NOT dismiss violations as "pre-existing" or "not introduced by this sprint."
-Every violation found anywhere in the codebase is a finding regardless of when it was introduced.
-The pre-existing/new distinction is informational only — it does not change severity or blocking status.
