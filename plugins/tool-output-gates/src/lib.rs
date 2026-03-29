@@ -18,6 +18,8 @@ use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::Value;
 
+/// Sync gate handler for `PostToolUse(Bash)` fenced-JSON extraction and schema
+/// validation.
 #[derive(Debug, Default)]
 pub struct ToolOutputGatesHandler;
 

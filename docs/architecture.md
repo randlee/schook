@@ -53,6 +53,7 @@ Important boundary:
 - current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
 - the legacy crates (`audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`) remain scaffold/reference only
 - `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current source plugin crates on the runtime-implementation path in this branch; they have direct behavior tests, but are still delivered as source code rather than preinstalled runtime plugins
+- planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
 
 ## 3.1 Public Contract Vs Internal Typed Model
 

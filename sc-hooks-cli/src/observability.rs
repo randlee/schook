@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
@@ -35,6 +35,7 @@ pub struct DispatchEventArgs<'a> {
     pub total_ms: u128,
     pub exit: i32,
     pub ai_notification: Option<&'a str>,
+    pub project_root: Option<&'a Path>,
 }
 
 pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
@@ -45,7 +46,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     let action = ActionName::new("dispatch.complete")
         .map_err(|err| CliError::internal(format!("invalid log action: {err}")))?;
 
-    let logger = Logger::new(default_logger_config(service.clone()))
+    let logger = Logger::new(default_logger_config(service.clone(), args.project_root)?)
         .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
 
     let mut fields = Map::new();
@@ -119,13 +120,21 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
-fn default_logger_config(service: ServiceName) -> LoggerConfig {
-    let mut config =
-        LoggerConfig::default_for(service, PathBuf::from(sc_hooks_core::OBSERVABILITY_ROOT));
+fn default_logger_config(
+    service: ServiceName,
+    project_root: Option<&Path>,
+) -> Result<LoggerConfig, CliError> {
+    let root = match project_root {
+        Some(root) => sc_hooks_core::storage::observability_root_for(root),
+        None => std::env::current_dir()
+            .map_err(|err| CliError::internal(format!("failed resolving current dir: {err}")))?
+            .join(sc_hooks_core::OBSERVABILITY_ROOT),
+    };
+    let mut config = LoggerConfig::default_for(service, root);
     config.level = LevelFilter::Info;
     config.enable_console_sink = false;
     config.enable_file_sink = true;
-    config
+    Ok(config)
 }
 
 fn dispatch_level(
@@ -199,6 +208,7 @@ mod tests {
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
+            project_root: Some(temp.path()),
         })
         .expect("observability event should emit");
 

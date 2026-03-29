@@ -235,3 +235,31 @@ fn emits_hook_log_for_state_changes_and_noop_writes() {
     assert_eq!(first["fields"]["persist_outcome"], "created");
     assert_eq!(second["fields"]["persist_outcome"], "unchanged");
 }
+
+#[test]
+fn session_start_requires_injected_agent_pid() {
+    let _lock = test_lock().lock().expect("test lock");
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    fs::create_dir_all(&project_root).expect("project root");
+    let _env = EnvGuard::set(&[
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
+        (
+            "CLAUDE_PROJECT_DIR",
+            project_root.to_str().expect("project root utf8"),
+        ),
+    ]);
+    let handler = SessionFoundationHandler;
+
+    let err = handler
+        .handle(hook_context(
+            HookType::SessionStart,
+            None,
+            "session-start-startup.json",
+        ))
+        .expect_err("session start should fail without injected agent pid");
+    assert!(err.to_string().contains("SC_HOOK_AGENT_PID"));
+}

@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::path::PathBuf;
 use std::time::Instant;
 
 use crate::config::ScHooksConfig;
@@ -21,6 +22,7 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
+    project_root: Option<PathBuf>,
 }
 
 pub fn execute_chain(
@@ -43,6 +45,7 @@ pub fn execute_chain(
         matcher: event.unwrap_or("*"),
         mode,
         handler_chain: &handler_chain,
+        project_root: prepared.project_root.clone(),
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -517,6 +520,7 @@ fn emit_dispatch_log(
         total_ms,
         exit,
         ai_notification,
+        project_root: base.project_root.as_deref(),
     })
 }
 

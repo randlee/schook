@@ -20,6 +20,8 @@ use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+/// Sync gate handler for `PreToolUse(Agent)` policy checks and subagent
+/// linkage writes.
 #[derive(Debug, Default)]
 pub struct AgentSpawnGatesHandler;
 

@@ -159,6 +159,7 @@ printf '%s\n' '{"action":"proceed"}'
         if let Some(session_id) = session_id {
             command.env("SC_HOOK_SESSION_ID", session_id);
         }
+        command.env("SC_HOOKS_STATE_DIR", root.join(".sc-hooks/state"));
 
         let output = if let Some(payload) = payload {
             let mut child = command

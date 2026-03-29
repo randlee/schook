@@ -1,5 +1,19 @@
 //! ATM-specific relay and identity-file handling layered on top of the generic
 //! session foundation and gate plugins.
+//!
+//! This crate owns the ATM-only portions of the hook runtime:
+//! - Bash identity-file writes for `atm` command execution
+//! - permission-request relay parsing and validation
+//! - stop / teammate-idle relay event emission
+//! - identity-file cleanup on stop paths
+//! - ATM metadata enrichment on top of the canonical session record
+//!
+//! Relay handling follows a four-stage pipeline so parsing, validation, routing,
+//! and side effects stay explicit and testable:
+//! - `RawRequest<T>` captures the raw payload plus resolved ATM routing
+//! - `ValidatedRequest<T>` carries a payload that passed shape/content checks
+//! - `RelayDecision<T>` describes the relay event, state update, and cleanup work
+//! - `RelayResult` records the side-effect application outcome
 
 use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
@@ -15,24 +29,31 @@ use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{AgentState, CanonicalSessionRecord, SessionId, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
+use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
+/// Sync hook handler that layers ATM relay behavior onto the generic hook
+/// runtime without redefining canonical session ownership.
 #[derive(Debug, Default)]
 pub struct AtmExtensionHandler;
 
 #[derive(Debug)]
 struct RawRequest<T> {
-    payload: T,
-    routing: AtmRouting,
-    process_id: u32,
+    raw_payload: T,
+    relay: RelayContext,
 }
 
 #[derive(Debug)]
 struct ValidatedRequest<T> {
-    payload: T,
+    validated: T,
+    relay: RelayContext,
+}
+
+#[derive(Debug)]
+struct RelayContext {
     routing: AtmRouting,
     process_id: u32,
 }
@@ -59,9 +80,6 @@ struct AtmRouting {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SuggestionType(String);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ToolName(String);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuleContent(String);
@@ -265,9 +283,11 @@ fn handle_permission_request(context: HookContext) -> Result<HookResult, HookErr
     };
 
     let raw_request = RawRequest {
-        payload,
-        routing,
-        process_id: record.active_pid.get(),
+        raw_payload: payload,
+        relay: RelayContext {
+            routing,
+            process_id: record.active_pid.get(),
+        },
     };
     let validated = validate_permission_request(raw_request)?;
     let decision = permission_relay_decision(validated);
@@ -287,9 +307,11 @@ fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
     };
 
     let raw_request = RawRequest {
-        payload,
-        routing,
-        process_id: record.active_pid.get(),
+        raw_payload: payload,
+        relay: RelayContext {
+            routing,
+            process_id: record.active_pid.get(),
+        },
     };
     let validated = validate_stop_request(raw_request);
     let decision = stop_relay_decision(validated);
@@ -503,7 +525,7 @@ fn validate_permission_request(
     raw: RawRequest<PermissionRequestPayload>,
 ) -> Result<ValidatedRequest<ValidatedPermissionRequest>, HookError> {
     let permission_suggestions = raw
-        .payload
+        .raw_payload
         .permission_suggestions
         .as_ref()
         .map(parse_permission_suggestions)
@@ -511,40 +533,38 @@ fn validate_permission_request(
         .unwrap_or_default();
 
     Ok(ValidatedRequest {
-        payload: ValidatedPermissionRequest {
-            session_id: raw.payload.session_id,
-            tool_name: raw.payload.tool_name,
-            tool_input: raw.payload.tool_input,
+        validated: ValidatedPermissionRequest {
+            session_id: raw.raw_payload.session_id,
+            tool_name: raw.raw_payload.tool_name,
+            tool_input: raw.raw_payload.tool_input,
             permission_suggestions,
         },
-        routing: raw.routing,
-        process_id: raw.process_id,
+        relay: raw.relay,
     })
 }
 
 fn validate_stop_request(raw: RawRequest<StopPayload>) -> ValidatedRequest<ValidatedStopRequest> {
     ValidatedRequest {
-        payload: ValidatedStopRequest {
-            session_id: raw.payload.session_id,
+        validated: ValidatedStopRequest {
+            session_id: raw.raw_payload.session_id,
         },
-        routing: raw.routing,
-        process_id: raw.process_id,
+        relay: raw.relay,
     }
 }
 
 fn permission_relay_decision(
     request: ValidatedRequest<ValidatedPermissionRequest>,
 ) -> RelayDecision<ValidatedPermissionRequest> {
-    let process_id = request.process_id;
+    let process_id = request.relay.process_id;
     let body = json!({
         "event": "permission_request",
-        "session_id": request.payload.session_id,
+        "session_id": request.validated.session_id,
         "process_id": process_id,
-        "agent": request.routing.identity,
-        "team": request.routing.team,
-        "tool_name": request.payload.tool_name,
-        "tool_input": request.payload.tool_input,
-        "permission_suggestions": render_permission_suggestions(&request.payload.permission_suggestions),
+        "agent": request.relay.routing.identity,
+        "team": request.relay.routing.team,
+        "tool_name": request.validated.tool_name,
+        "tool_input": request.validated.tool_input,
+        "permission_suggestions": render_permission_suggestions(&request.validated.permission_suggestions),
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
@@ -563,13 +583,13 @@ fn permission_relay_decision(
 fn stop_relay_decision(
     request: ValidatedRequest<ValidatedStopRequest>,
 ) -> RelayDecision<ValidatedStopRequest> {
-    let process_id = request.process_id;
+    let process_id = request.relay.process_id;
     let body = json!({
         "event": "stop",
-        "session_id": request.payload.session_id,
+        "session_id": request.validated.session_id,
         "process_id": process_id,
-        "agent": request.routing.identity,
-        "team": request.routing.team,
+        "agent": request.relay.routing.identity,
+        "team": request.relay.routing.team,
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
@@ -593,14 +613,14 @@ fn execute_relay<T>(
     persist_atm_update(
         store,
         record,
-        &decision.request.routing,
+        &decision.request.relay.routing,
         decision.state_update,
     )?;
 
     append_relay_event(relay_event_root(), decision.event_body);
 
     if decision.cleanup_identity_file {
-        let identity_file = identity_file_path(decision.request.process_id);
+        let identity_file = identity_file_path(decision.request.relay.process_id);
         if let Err(err) = delete_identity_file(&identity_file) {
             eprintln!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
@@ -770,7 +790,7 @@ fn parse_permission_rules(
                 "must be an object",
             )
         })?;
-        let tool_name = ToolName::new(
+        let tool_name = parse_tool_name(
             required_rule_string_field(rule_object, suggestion_index, rule_index, "toolName")?,
             format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].toolName"),
         )?;
@@ -850,16 +870,15 @@ impl SuggestionType {
     }
 }
 
-impl ToolName {
+impl RuleContent {
     fn new(value: String, field: String) -> Result<Self, HookError> {
         new_nonempty_string(value, field).map(Self)
     }
 }
 
-impl RuleContent {
-    fn new(value: String, field: String) -> Result<Self, HookError> {
-        new_nonempty_string(value, field).map(Self)
-    }
+fn parse_tool_name(value: String, field: String) -> Result<ToolName, HookError> {
+    let value = new_nonempty_string(value, field.clone())?;
+    ToolName::new(value).map_err(|_| HookError::validation(field, "must be a non-empty string"))
 }
 
 fn new_nonempty_string(value: String, field: String) -> Result<String, HookError> {
@@ -881,7 +900,7 @@ fn render_permission_suggestions(suggestions: &[PermissionSuggestion]) -> Value 
                     "mode": suggestion.mode,
                     "rules": suggestion.rules.iter().map(|rule| {
                         json!({
-                            "toolName": rule.tool_name.0,
+                            "toolName": rule.tool_name.as_str(),
                             "ruleContent": rule.rule_content.0,
                         })
                     }).collect::<Vec<_>>(),

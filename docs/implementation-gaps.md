@@ -14,6 +14,24 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
 | DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
 
+## Hook Extension Requirement Tracker
+
+| Gap | Severity | Owner area | Verification method | Early retire / replace candidates |
+| --- | --- | --- | --- | --- |
+| HKR-001 | tracked | hook docs, ATM extension docs | `docs/hook-api/claude-hook-api.md` and `docs/hook-api/atm-hook-extension.md` remain the Claude-first baseline and ATM overlay references | none until a second provider is promoted into the first implementation path |
+| HKR-002 | resolved | test harness, approved fixtures | harness captures and validated fixtures remain checked in before hook-runtime implementation expands | none |
+| HKR-003 | resolved | plan docs, hook API docs | `docs/plugin-plan-s9.md` and provider hook docs continue to derive implementation planning from captured evidence | none |
+| HKR-004 | tracked | hook runtime crates, requirements, project plan | implementation/runtime inventory stays scoped to the documented Claude ATM baseline while `Notification(idle_prompt)` remains unresolved | none until scope is explicitly expanded |
+| HKR-005 | tracked | schema-drift tooling, capture artifacts | manual drift tooling preserves raw evidence and reports additive/removal/type changes without auto-fixing models | none |
+| HKR-006 | tracked | provider docs | non-Claude provider docs remain reference-only and do not block Claude-first work | none until later-provider implementation starts |
+| HKR-007 | tracked | Cursor reference docs | Cursor remains documentation-only during the first Claude runtime pass | none until Cursor capture/implementation starts |
+| HKR-008 | tracked | `plugins/agent-session-foundation`, session store | canonical session-state keeps the verified identity tuple and chains `ai_root_dir` from `CLAUDE_PROJECT_DIR` | none |
+| HKR-009 | tracked | session store, observability path | same-directory temp-plus-rename writes, no-op rewrite skipping, and per-invocation hook logging stay verified together | none |
+| HKR-010 | tracked | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` | fenced JSON gate behavior and exact retryable block responses remain covered by direct tests | none |
+| HKR-011 | tracked | `plugins/atm-extension` | ATM extension fields stay layered on the canonical record without redefining the generic session model | none |
+| HKR-012 | tracked | global html-report skill + schema-drift callers | report-producing work continues to depend on the QA-approved global HTML reporting stack | none until the skill is shipped and stable |
+| HKR-013 | tracked | ATM relay pipeline docs, `plugins/atm-extension` | relay handling retains distinct raw-request, validated-request, decision, and result stages with direct tests around the typed boundary | none |
+
 ## Resolved In This Pass
 
 - Sprint 8 RBP follow-up closed the last documented best-practices review residue by deleting dead condition-validation code in `sc-hooks-sdk/src/conditions.rs`, promoting the already-implemented audit findings `AUD-005` and `AUD-009` into the requirements/traceability set, and documenting the dispatch stderr fallback when observability emission fails.
@@ -25,6 +43,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - `GAP-007` resolved by adopting the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...` and making that boundary current architecture.
 - `OBS-003` and `OBS-004` are retired requirement IDs from earlier ad hoc logging drafts; the current observability contract is represented by `OBS-001`, `OBS-002`, `OBS-005`, `OBS-006`, `OBS-007`, and `OBS-008`, with the migration closures recorded under `GAP-005` and `GAP-007`.
 - Task `#370` was a Sprint 6 merge-review tracker, not a release-facing requirement or gap ID. It was retired by freeze commit `cdce7b1` when `docs/project-plan.md` replaced the specific stale text `Current open release-relevant drivers are: merge-time review residue tracked under task #370` with `none; release-facing blocker and important gaps are closed for the chosen scope`, and replaced the Sprint 6 driver text `task #370, final QA/PR review` with `final reviewer/QA handoff`.
+- Hook-extension planning currently uses the package name `sc-hooks-session-foundation` in docs while the source crate remains `plugins/agent-session-foundation`; this mismatch is intentional until packaging/install naming is finalized, and both names must stay cross-referenced in docs until then.
 
 ## Resolved Gaps
 

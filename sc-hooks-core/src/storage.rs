@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tempfile::NamedTempFile;
 
@@ -112,6 +112,10 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
     } else {
         Ok(root.join(".sc-hooks").join("state").join("sessions"))
     }
+}
+
+pub fn observability_root_for(project_root: &Path) -> PathBuf {
+    project_root.join(crate::OBSERVABILITY_ROOT)
 }
 
 #[cfg(test)]

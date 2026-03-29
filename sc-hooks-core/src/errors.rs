@@ -21,7 +21,7 @@ pub enum HookError {
         source: std::io::Error,
     },
 
-    #[error("validation failed for {field}")]
+    #[error("validation failed for {field}: {message}")]
     Validation { field: String, message: String },
 
     #[error("internal hook error: {message}")]

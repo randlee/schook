@@ -912,7 +912,7 @@ split from `docs/project-plan.md`:
 #### S9-HP3: Hook Phase 3: Session Foundation
 
 Status:
-- Planned
+- Implementation Complete
 
 Depends on:
 
@@ -1030,7 +1030,7 @@ Done when:
 #### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
 
 Status:
-- Planned
+- Implementation Complete
 
 Depends on:
 
