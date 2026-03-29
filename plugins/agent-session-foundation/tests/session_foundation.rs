@@ -126,10 +126,7 @@ fn persists_session_record_by_session_id() {
     assert_eq!(parsed["session_id"], "a760f75c-055a-46f9-bcbb-447c47a22f3c");
     assert_eq!(parsed["active_pid"], 777);
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
-    assert_eq!(
-        parsed["ai_current_dir"],
-        "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing"
-    );
+    assert_eq!(parsed["ai_current_dir"], "/synthetic/test/session-start");
     assert_eq!(parsed["agent_state"], "starting");
 }
 

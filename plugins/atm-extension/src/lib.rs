@@ -23,10 +23,75 @@ use serde_json::{Map, Value, json};
 #[derive(Debug, Default)]
 pub struct AtmExtensionHandler;
 
+#[derive(Debug)]
+struct RawRequest<T> {
+    payload: T,
+    routing: AtmRouting,
+    process_id: u32,
+}
+
+#[derive(Debug)]
+struct ValidatedRequest<T> {
+    payload: T,
+    routing: AtmRouting,
+    process_id: u32,
+}
+
+#[derive(Debug)]
+struct RelayDecision<T> {
+    request: ValidatedRequest<T>,
+    event_name: &'static str,
+    state_update: RecordUpdate,
+    event_body: Value,
+    cleanup_identity_file: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RelayResult {
+    Applied,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AtmRouting {
     team: String,
     identity: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SuggestionType(String);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ToolName(String);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuleContent(String);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PermissionSuggestionRule {
+    tool_name: ToolName,
+    rule_content: RuleContent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PermissionSuggestion {
+    suggestion_type: SuggestionType,
+    behavior: Option<String>,
+    destination: Option<String>,
+    mode: Option<String>,
+    rules: Vec<PermissionSuggestionRule>,
+}
+
+#[derive(Debug)]
+struct ValidatedPermissionRequest {
+    session_id: String,
+    tool_name: String,
+    tool_input: Value,
+    permission_suggestions: Vec<PermissionSuggestion>,
+}
+
+#[derive(Debug)]
+struct ValidatedStopRequest {
+    session_id: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -92,7 +157,7 @@ impl ManifestProvider for AtmExtensionHandler {
             optional: BTreeMap::new(),
             sandbox: None,
             description: Some(
-                "Layers ATM routing, relay events, and identity-file handling onto the canonical session state."
+                "Layers ATM routing, relay events, and identity-file handling onto the canonical session state. Notification remains deferred until a verified payload is captured."
                     .to_string(),
             ),
         }
@@ -191,10 +256,6 @@ fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
 
 fn handle_permission_request(context: HookContext) -> Result<HookResult, HookError> {
     let payload: PermissionRequestPayload = context.payload()?;
-    if let Some(suggestions) = payload.permission_suggestions.as_ref() {
-        validate_permission_suggestions(suggestions)?;
-    }
-
     let Some((store, record)) = load_record_for_context(&context)? else {
         return Ok(proceed());
     };
@@ -203,30 +264,14 @@ fn handle_permission_request(context: HookContext) -> Result<HookResult, HookErr
         return Ok(proceed());
     };
 
-    let process_id = record.active_pid.get();
-    persist_atm_update(
-        &store,
-        record,
-        &routing,
-        RecordUpdate {
-            hook_event: "PermissionRequest",
-            state_reason: "permission_requested",
-            agent_state: Some(AgentState::AwaitingPermission),
-        },
-    )?;
-    append_relay_event(
-        relay_event_root(),
-        json!({
-            "event": "permission_request",
-            "session_id": payload.session_id,
-            "process_id": process_id,
-            "agent": routing.identity,
-            "team": routing.team,
-            "tool_name": payload.tool_name,
-            "tool_input": payload.tool_input,
-            "source": {"kind": "claude_hook"},
-        }),
-    );
+    let raw_request = RawRequest {
+        payload,
+        routing,
+        process_id: record.active_pid.get(),
+    };
+    let validated = validate_permission_request(raw_request)?;
+    let decision = permission_relay_decision(validated);
+    let _result = execute_relay(&store, record, decision)?;
 
     Ok(proceed())
 }
@@ -241,28 +286,14 @@ fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
         return Ok(proceed());
     };
 
-    let process_id = record.active_pid.get();
-    persist_atm_update(
-        &store,
-        record,
-        &routing,
-        RecordUpdate {
-            hook_event: "Stop",
-            state_reason: "relay_stop",
-            agent_state: Some(AgentState::Idle),
-        },
-    )?;
-    append_relay_event(
-        relay_event_root(),
-        json!({
-            "event": "stop",
-            "session_id": payload.session_id,
-            "process_id": process_id,
-            "agent": routing.identity,
-            "team": routing.team,
-            "source": {"kind": "claude_hook"},
-        }),
-    );
+    let raw_request = RawRequest {
+        payload,
+        routing,
+        process_id: record.active_pid.get(),
+    };
+    let validated = validate_stop_request(raw_request);
+    let decision = stop_relay_decision(validated);
+    let _result = execute_relay(&store, record, decision)?;
 
     Ok(proceed())
 }
@@ -468,6 +499,119 @@ fn persist_atm_update(
     Ok(())
 }
 
+fn validate_permission_request(
+    raw: RawRequest<PermissionRequestPayload>,
+) -> Result<ValidatedRequest<ValidatedPermissionRequest>, HookError> {
+    let permission_suggestions = raw
+        .payload
+        .permission_suggestions
+        .as_ref()
+        .map(parse_permission_suggestions)
+        .transpose()?
+        .unwrap_or_default();
+
+    Ok(ValidatedRequest {
+        payload: ValidatedPermissionRequest {
+            session_id: raw.payload.session_id,
+            tool_name: raw.payload.tool_name,
+            tool_input: raw.payload.tool_input,
+            permission_suggestions,
+        },
+        routing: raw.routing,
+        process_id: raw.process_id,
+    })
+}
+
+fn validate_stop_request(raw: RawRequest<StopPayload>) -> ValidatedRequest<ValidatedStopRequest> {
+    ValidatedRequest {
+        payload: ValidatedStopRequest {
+            session_id: raw.payload.session_id,
+        },
+        routing: raw.routing,
+        process_id: raw.process_id,
+    }
+}
+
+fn permission_relay_decision(
+    request: ValidatedRequest<ValidatedPermissionRequest>,
+) -> RelayDecision<ValidatedPermissionRequest> {
+    let process_id = request.process_id;
+    let body = json!({
+        "event": "permission_request",
+        "session_id": request.payload.session_id,
+        "process_id": process_id,
+        "agent": request.routing.identity,
+        "team": request.routing.team,
+        "tool_name": request.payload.tool_name,
+        "tool_input": request.payload.tool_input,
+        "permission_suggestions": render_permission_suggestions(&request.payload.permission_suggestions),
+        "source": {"kind": "claude_hook"},
+    });
+    RelayDecision {
+        request,
+        event_name: "PermissionRequest",
+        state_update: RecordUpdate {
+            hook_event: "PermissionRequest",
+            state_reason: "permission_requested",
+            agent_state: Some(AgentState::AwaitingPermission),
+        },
+        event_body: body,
+        cleanup_identity_file: false,
+    }
+}
+
+fn stop_relay_decision(
+    request: ValidatedRequest<ValidatedStopRequest>,
+) -> RelayDecision<ValidatedStopRequest> {
+    let process_id = request.process_id;
+    let body = json!({
+        "event": "stop",
+        "session_id": request.payload.session_id,
+        "process_id": process_id,
+        "agent": request.routing.identity,
+        "team": request.routing.team,
+        "source": {"kind": "claude_hook"},
+    });
+    RelayDecision {
+        request,
+        event_name: "Stop",
+        state_update: RecordUpdate {
+            hook_event: "Stop",
+            state_reason: "relay_stop",
+            agent_state: Some(AgentState::Idle),
+        },
+        event_body: body,
+        cleanup_identity_file: true,
+    }
+}
+
+fn execute_relay<T>(
+    store: &SessionStore,
+    record: CanonicalSessionRecord,
+    decision: RelayDecision<T>,
+) -> Result<RelayResult, HookError> {
+    persist_atm_update(
+        store,
+        record,
+        &decision.request.routing,
+        decision.state_update,
+    )?;
+
+    append_relay_event(relay_event_root(), decision.event_body);
+
+    if decision.cleanup_identity_file {
+        let identity_file = identity_file_path(decision.request.process_id);
+        if let Err(err) = delete_identity_file(&identity_file) {
+            eprintln!(
+                "atm-extension: failed to delete ATM identity file {}: {err}",
+                identity_file.display()
+            );
+        }
+    }
+    let _ = decision.event_name;
+    Ok(RelayResult::Applied)
+}
+
 fn relay_event_root() -> Option<PathBuf> {
     std::env::var_os("ATM_HOME")
         .map(PathBuf::from)
@@ -567,10 +711,11 @@ fn resolve_process_id_from_env() -> Option<u32> {
         .filter(|value| *value > 0)
 }
 
-fn validate_permission_suggestions(value: &Value) -> Result<(), HookError> {
+fn parse_permission_suggestions(value: &Value) -> Result<Vec<PermissionSuggestion>, HookError> {
     let suggestions = value.as_array().ok_or_else(|| {
         HookError::validation("permission_suggestions", "must be an array when present")
     })?;
+    let mut parsed = Vec::with_capacity(suggestions.len());
     for (index, suggestion) in suggestions.iter().enumerate() {
         let suggestion_object = suggestion.as_object().ok_or_else(|| {
             HookError::validation(
@@ -578,66 +723,164 @@ fn validate_permission_suggestions(value: &Value) -> Result<(), HookError> {
                 "must be an object",
             )
         })?;
-        validate_optional_string_field(suggestion_object, index, "type")?;
-        validate_optional_string_field(suggestion_object, index, "destination")?;
-        validate_optional_string_field(suggestion_object, index, "mode")?;
-        validate_optional_string_field(suggestion_object, index, "behavior")?;
+        let suggestion_type = SuggestionType::new(
+            required_string_field(suggestion_object, index, "type")?,
+            format!("permission_suggestions[{index}].type"),
+        )?;
+        let destination = optional_string_field(suggestion_object, index, "destination")?;
+        let mode = optional_string_field(suggestion_object, index, "mode")?;
+        let behavior = optional_string_field(suggestion_object, index, "behavior")?;
+        let rules = parse_permission_rules(suggestion_object, index)?;
 
-        if let Some(rules) = suggestion_object.get("rules") {
-            let rules = rules.as_array().ok_or_else(|| {
-                HookError::validation(
-                    format!("permission_suggestions[{index}].rules"),
-                    "must be an array",
-                )
-            })?;
-            for (rule_index, rule) in rules.iter().enumerate() {
-                let rule_object = rule.as_object().ok_or_else(|| {
-                    HookError::validation(
-                        format!("permission_suggestions[{index}].rules[{rule_index}]"),
-                        "must be an object",
-                    )
-                })?;
-                validate_required_string_field(rule_object, index, rule_index, "toolName")?;
-                validate_required_string_field(rule_object, index, rule_index, "ruleContent")?;
-            }
-        }
+        parsed.push(PermissionSuggestion {
+            suggestion_type,
+            behavior,
+            destination,
+            mode,
+            rules,
+        });
     }
-    Ok(())
+    Ok(parsed)
 }
 
-fn validate_optional_string_field(
+fn parse_permission_rules(
+    suggestion_object: &Map<String, Value>,
+    suggestion_index: usize,
+) -> Result<Vec<PermissionSuggestionRule>, HookError> {
+    let Some(rules) = suggestion_object.get("rules") else {
+        return Ok(Vec::new());
+    };
+    let rules = rules.as_array().ok_or_else(|| {
+        HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].rules"),
+            "must be an array",
+        )
+    })?;
+    let mut parsed = Vec::with_capacity(rules.len());
+    for (rule_index, rule) in rules.iter().enumerate() {
+        let rule_object = rule.as_object().ok_or_else(|| {
+            HookError::validation(
+                format!("permission_suggestions[{suggestion_index}].rules[{rule_index}]"),
+                "must be an object",
+            )
+        })?;
+        let tool_name = ToolName::new(
+            required_rule_string_field(rule_object, suggestion_index, rule_index, "toolName")?,
+            format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].toolName"),
+        )?;
+        let rule_content = RuleContent::new(
+            required_rule_string_field(rule_object, suggestion_index, rule_index, "ruleContent")?,
+            format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].ruleContent"),
+        )?;
+        parsed.push(PermissionSuggestionRule {
+            tool_name,
+            rule_content,
+        });
+    }
+    Ok(parsed)
+}
+
+fn optional_string_field(
     suggestion_object: &Map<String, Value>,
     suggestion_index: usize,
     field_name: &str,
-) -> Result<(), HookError> {
-    if let Some(value) = suggestion_object.get(field_name)
-        && !value.is_string()
-    {
+) -> Result<Option<String>, HookError> {
+    let Some(value) = suggestion_object.get(field_name) else {
+        return Ok(None);
+    };
+    let Some(value) = value.as_str() else {
         return Err(HookError::validation(
             format!("permission_suggestions[{suggestion_index}].{field_name}"),
             "must be a string",
         ));
-    }
-    Ok(())
+    };
+    Ok(Some(value.to_string()))
 }
 
-fn validate_required_string_field(
-    rule_object: &Map<String, Value>,
+fn required_string_field(
+    object: &Map<String, Value>,
+    suggestion_index: usize,
+    field_name: &str,
+) -> Result<String, HookError> {
+    let Some(value) = object.get(field_name) else {
+        return Err(HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].{field_name}"),
+            "is required",
+        ));
+    };
+    let Some(value) = value.as_str() else {
+        return Err(HookError::validation(
+            format!("permission_suggestions[{suggestion_index}].{field_name}"),
+            "must be a string",
+        ));
+    };
+    Ok(value.to_string())
+}
+
+fn required_rule_string_field(
+    object: &Map<String, Value>,
     suggestion_index: usize,
     rule_index: usize,
     field_name: &str,
-) -> Result<(), HookError> {
-    let Some(value) = rule_object.get(field_name) else {
+) -> Result<String, HookError> {
+    let Some(value) = object.get(field_name) else {
         return Err(HookError::validation(
             format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].{field_name}"),
             "is required",
         ));
     };
-    if !value.is_string() {
+    let Some(value) = value.as_str() else {
         return Err(HookError::validation(
             format!("permission_suggestions[{suggestion_index}].rules[{rule_index}].{field_name}"),
             "must be a string",
         ));
+    };
+    Ok(value.to_string())
+}
+
+impl SuggestionType {
+    fn new(value: String, field: String) -> Result<Self, HookError> {
+        new_nonempty_string(value, field).map(Self)
     }
-    Ok(())
+}
+
+impl ToolName {
+    fn new(value: String, field: String) -> Result<Self, HookError> {
+        new_nonempty_string(value, field).map(Self)
+    }
+}
+
+impl RuleContent {
+    fn new(value: String, field: String) -> Result<Self, HookError> {
+        new_nonempty_string(value, field).map(Self)
+    }
+}
+
+fn new_nonempty_string(value: String, field: String) -> Result<String, HookError> {
+    if value.trim().is_empty() {
+        return Err(HookError::validation(field, "must be a non-empty string"));
+    }
+    Ok(value)
+}
+
+fn render_permission_suggestions(suggestions: &[PermissionSuggestion]) -> Value {
+    Value::Array(
+        suggestions
+            .iter()
+            .map(|suggestion| {
+                json!({
+                    "type": suggestion.suggestion_type.0,
+                    "behavior": suggestion.behavior,
+                    "destination": suggestion.destination,
+                    "mode": suggestion.mode,
+                    "rules": suggestion.rules.iter().map(|rule| {
+                        json!({
+                            "toolName": rule.tool_name.0,
+                            "ruleContent": rule.rule_content.0,
+                        })
+                    }).collect::<Vec<_>>(),
+                })
+            })
+            .collect(),
+    )
 }

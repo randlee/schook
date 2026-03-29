@@ -275,14 +275,19 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
     let repo_root = temp.path().join("repo");
     let state_root = temp.path().join("state");
     let atm_home = temp.path().join("atm-home");
+    let tmp_root = temp.path().join("tmp");
     fs::create_dir_all(&repo_root).expect("repo root");
     fs::create_dir_all(&atm_home).expect("atm home");
+    fs::create_dir_all(&tmp_root).expect("tmp root");
     write_atm_toml(&repo_root, "atm-dev", "arch-hook");
     write_session_record(&state_root, &repo_root, "sess-3", 9005);
+    let identity_file = tmp_root.join("atm-hook-9005.json");
+    fs::write(&identity_file, "{}").expect("identity file should pre-exist");
 
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
         ("ATM_HOME", atm_home.to_str().expect("utf8")),
+        ("TMPDIR", tmp_root.to_str().expect("utf8")),
         ("ATM_TEAM", ""),
         ("ATM_IDENTITY", ""),
     ]);
@@ -326,6 +331,7 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
     assert_eq!(stop_event["event"], "stop");
     assert_eq!(teammate_event["event"], "teammate_idle");
     assert!(teammate_event["received_at"].is_string());
+    assert!(!identity_file.exists());
 }
 
 #[test]
