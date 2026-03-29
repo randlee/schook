@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 
 use crate::errors::CliError;
 const SERVICE_NAME: &str = "sc-hooks";
-static LOGGER: OnceLock<Logger> = OnceLock::new();
+static LOGGER_RESULT: OnceLock<Result<Logger, String>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct HandlerResultRecord {
@@ -123,12 +123,22 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
 }
 
 fn logger(project_root: Option<&Path>) -> Result<&'static Logger, CliError> {
-    let service = ServiceName::new(SERVICE_NAME)
-        .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
-    let logger = Logger::new(default_logger_config(service, project_root)?).map_err(|source| {
-        CliError::internal_with_source("failed to initialize observability", source)
-    })?;
-    Ok(LOGGER.get_or_init(|| logger))
+    let logger_result = LOGGER_RESULT.get_or_init(|| {
+        let service = match ServiceName::new(SERVICE_NAME) {
+            Ok(service) => service,
+            Err(source) => return Err(format!("invalid service name: {source}")),
+        };
+        match Logger::new(
+            default_logger_config(service, project_root).map_err(|err| err.to_string())?,
+        ) {
+            Ok(logger) => Ok(logger),
+            Err(source) => Err(format!("failed to initialize observability: {source}")),
+        }
+    });
+    match logger_result {
+        Ok(logger) => Ok(logger),
+        Err(message) => Err(CliError::internal(message.clone())),
+    }
 }
 
 fn default_logger_config(

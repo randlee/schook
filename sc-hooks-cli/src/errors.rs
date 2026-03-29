@@ -73,13 +73,10 @@ impl CliError {
         }
     }
 
-    pub fn internal_with_source(
-        message: impl Into<String>,
-        source: impl std::error::Error + Send + Sync + 'static,
-    ) -> Self {
+    pub fn internal_with_source(message: impl Into<String>, source: impl Into<BoxedError>) -> Self {
         Self::Internal {
             message: message.into(),
-            source: Some(Box::new(source)),
+            source: Some(source.into()),
         }
     }
 

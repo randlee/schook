@@ -272,7 +272,7 @@ fn read_optional_payload_from_stdin() -> Result<Option<serde_json::Value>, CliEr
     let mut input = String::new();
     std::io::stdin()
         .read_to_string(&mut input)
-        .map_err(|err| CliError::internal(format!("failed reading stdin payload: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("failed reading stdin payload", source))?;
 
     if input.trim().is_empty() {
         return Ok(None);

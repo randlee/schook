@@ -24,7 +24,7 @@ pub struct ScHooksConfig {
 impl ScHooksConfig {
     pub fn to_pretty_toml(&self) -> Result<String, ConfigError> {
         toml::to_string_pretty(self).map_err(|source| ConfigError::Format {
-            message: source.to_string(),
+            source: Box::new(source),
         })
     }
 
@@ -64,8 +64,12 @@ pub enum ConfigError {
         source: std::io::Error,
     },
 
-    #[error("invalid TOML in {location}: {message}")]
-    TomlParse { location: String, message: String },
+    #[error("invalid TOML in {location}: {source}")]
+    TomlParse {
+        location: String,
+        #[source]
+        source: Box<toml::de::Error>,
+    },
 
     #[error("config in {location} must be a TOML table at the top level")]
     RootNotTable { location: String },
@@ -85,11 +89,18 @@ pub enum ConfigError {
     #[error("config in {location} has non-integer [meta].version")]
     NonIntegerVersion { location: String },
 
-    #[error("invalid config structure in {location}: {message}")]
-    InvalidStructure { location: String, message: String },
+    #[error("invalid config structure in {location}: {source}")]
+    InvalidStructure {
+        location: String,
+        #[source]
+        source: Box<toml::de::Error>,
+    },
 
-    #[error("failed to format resolved config: {message}")]
-    Format { message: String },
+    #[error("failed to format resolved config: {source}")]
+    Format {
+        #[source]
+        source: Box<toml::ser::Error>,
+    },
 }
 
 pub fn load_default_config() -> Result<ScHooksConfig, ConfigError> {
@@ -107,26 +118,26 @@ pub fn load_config(path: &Path) -> Result<ScHooksConfig, ConfigError> {
 
 pub fn parse_config_str(
     input: &str,
-    source: impl Into<String>,
+    source_location: impl Into<String>,
 ) -> Result<ScHooksConfig, ConfigError> {
-    let source = source.into();
-    let value: Value = toml::from_str(input).map_err(|err| ConfigError::TomlParse {
-        location: source.clone(),
-        message: err.to_string(),
+    let source_location = source_location.into();
+    let value: Value = toml::from_str(input).map_err(|source| ConfigError::TomlParse {
+        location: source_location.clone(),
+        source: Box::new(source),
     })?;
 
     let root = value.as_table().ok_or_else(|| ConfigError::RootNotTable {
-        location: source.clone(),
+        location: source_location.clone(),
     })?;
 
-    validate_sections(root, &source)?;
-    validate_version(root, &source)?;
+    validate_sections(root, &source_location)?;
+    validate_version(root, &source_location)?;
 
     let raw: RawConfig = value
         .try_into()
-        .map_err(|err| ConfigError::InvalidStructure {
-            location: source.clone(),
-            message: err.to_string(),
+        .map_err(|source| ConfigError::InvalidStructure {
+            location: source_location.clone(),
+            source: Box::new(source),
         })?;
 
     Ok(ScHooksConfig {

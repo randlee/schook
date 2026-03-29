@@ -111,9 +111,8 @@ pub fn resolve_state_root() -> Result<PathBuf, HookError> {
 pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, HookError> {
     let base = match project_root {
         Some(root) => root.to_path_buf(),
-        None => std::env::current_dir().map_err(|err| {
-            HookError::invalid_context(format!("failed resolving current dir: {err}"))
-        })?,
+        None => std::env::current_dir()
+            .map_err(|source| HookError::state_io(PathBuf::from("<current_dir>"), source))?,
     };
     Ok(base.join(crate::OBSERVABILITY_ROOT))
 }

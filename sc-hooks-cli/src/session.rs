@@ -103,17 +103,17 @@ pub fn clear_all_sessions() -> Result<(), CliError> {
         return Ok(());
     }
 
-    fs::remove_file(&path).map_err(|err| {
-        CliError::internal(format!(
-            "failed removing session state {}: {err}",
-            path.display()
-        ))
+    fs::remove_file(&path).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed removing session state {}", path.display()),
+            source,
+        )
     })
 }
 
 pub fn state_path() -> Result<PathBuf, CliError> {
     let state_root = sc_hooks_core::storage::resolve_state_root()
-        .map_err(|err| CliError::internal(format!("failed resolving state root: {err}")))?;
+        .map_err(|source| CliError::internal_with_source("failed resolving state root", source))?;
     if std::env::var_os("SC_HOOKS_STATE_DIR").is_some() {
         Ok(state_root.join(STATE_FILE_NAME))
     } else {
@@ -163,11 +163,11 @@ fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {
 fn acquire_lock(path: &Path, mode: LockMode) -> Result<FileLockGuard, CliError> {
     let lock_path = path.with_extension("lock");
     if let Some(parent) = lock_path.parent() {
-        fs::create_dir_all(parent).map_err(|err| {
-            CliError::internal(format!(
-                "failed creating state lock directory {}: {err}",
-                parent.display()
-            ))
+        fs::create_dir_all(parent).map_err(|source| {
+            CliError::internal_with_source(
+                format!("failed creating state lock directory {}", parent.display()),
+                source,
+            )
         })?;
     }
 
@@ -177,22 +177,22 @@ fn acquire_lock(path: &Path, mode: LockMode) -> Result<FileLockGuard, CliError> 
         .write(true)
         .truncate(false)
         .open(&lock_path)
-        .map_err(|err| {
-            CliError::internal(format!(
-                "failed opening state lock {}: {err}",
-                lock_path.display()
-            ))
+        .map_err(|source| {
+            CliError::internal_with_source(
+                format!("failed opening state lock {}", lock_path.display()),
+                source,
+            )
         })?;
 
     match mode {
         LockMode::Shared => FileExt::lock_shared(&file),
         LockMode::Exclusive => FileExt::lock_exclusive(&file),
     }
-    .map_err(|err| {
-        CliError::internal(format!(
-            "failed acquiring state lock {}: {err}",
-            lock_path.display()
-        ))
+    .map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed acquiring state lock {}", lock_path.display()),
+            source,
+        )
     })?;
 
     Ok(FileLockGuard { file })
@@ -203,61 +203,64 @@ fn read_store(path: &Path) -> Result<SessionStore, CliError> {
         return Ok(SessionStore::default());
     }
 
-    let content = fs::read_to_string(path).map_err(|err| {
-        CliError::internal(format!(
-            "failed reading session state {}: {err}",
-            path.display()
-        ))
+    let content = fs::read_to_string(path).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed reading session state {}", path.display()),
+            source,
+        )
     })?;
 
-    serde_json::from_str::<SessionStore>(&content).map_err(|err| {
-        CliError::internal(format!(
-            "failed parsing session state {}: {err}",
-            path.display()
-        ))
+    serde_json::from_str::<SessionStore>(&content).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed parsing session state {}", path.display()),
+            source,
+        )
     })
 }
 
 fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| {
-            CliError::internal(format!(
-                "failed creating session state directory {}: {err}",
-                parent.display()
-            ))
+        fs::create_dir_all(parent).map_err(|source| {
+            CliError::internal_with_source(
+                format!(
+                    "failed creating session state directory {}",
+                    parent.display()
+                ),
+                source,
+            )
         })?;
     }
 
-    let content = serde_json::to_string_pretty(store)
-        .map_err(|err| CliError::internal(format!("failed serializing session state: {err}")))?;
+    let content = serde_json::to_string_pretty(store).map_err(|source| {
+        CliError::internal_with_source("failed serializing session state", source)
+    })?;
     let parent = path.parent().ok_or_else(|| {
         CliError::internal("resolved disabled-plugin state file is missing parent directory")
     })?;
-    let mut temp = NamedTempFile::new_in(parent).map_err(|err| {
-        CliError::internal(format!(
-            "failed creating temp state file in {}: {err}",
-            parent.display()
-        ))
+    let mut temp = NamedTempFile::new_in(parent).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed creating temp state file in {}", parent.display()),
+            source,
+        )
     })?;
     use std::io::Write;
-    temp.write_all(content.as_bytes()).map_err(|err| {
-        CliError::internal(format!(
-            "failed writing temp state file {}: {err}",
-            temp.path().display()
-        ))
+    temp.write_all(content.as_bytes()).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed writing temp state file {}", temp.path().display()),
+            source,
+        )
     })?;
-    temp.flush().map_err(|err| {
-        CliError::internal(format!(
-            "failed flushing temp state file {}: {err}",
-            temp.path().display()
-        ))
+    temp.flush().map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed flushing temp state file {}", temp.path().display()),
+            source,
+        )
     })?;
     temp.persist(path).map_err(|err| {
-        CliError::internal(format!(
-            "failed persisting state file {}: {}",
-            path.display(),
-            err.error
-        ))
+        CliError::internal_with_source(
+            format!("failed persisting state file {}", path.display()),
+            err.error,
+        )
     })?;
     Ok(())
 }

@@ -524,8 +524,7 @@ fn persist_atm_update(
 fn validate_permission_request(
     raw: RawRequest<PermissionRequestPayload>,
 ) -> Result<ValidatedRequest<ValidatedPermissionRequest>, HookError> {
-    let session_id = SessionId::new(raw.raw_payload.session_id)
-        .map_err(|_| HookError::validation("session_id", "must be a non-empty string"))?;
+    let session_id = SessionId::new(raw.raw_payload.session_id)?;
     let tool_name = parse_tool_name(raw.raw_payload.tool_name, "tool_name".to_string())?;
     let permission_suggestions = raw
         .raw_payload
@@ -549,8 +548,7 @@ fn validate_permission_request(
 fn validate_stop_request(
     raw: RawRequest<StopPayload>,
 ) -> Result<ValidatedRequest<ValidatedStopRequest>, HookError> {
-    let session_id = SessionId::new(raw.raw_payload.session_id)
-        .map_err(|_| HookError::validation("session_id", "must be a non-empty string"))?;
+    let session_id = SessionId::new(raw.raw_payload.session_id)?;
     Ok(ValidatedRequest {
         validated: ValidatedStopRequest { session_id },
         relay: raw.relay,
@@ -882,8 +880,8 @@ impl RuleContent {
 }
 
 fn parse_tool_name(value: String, field: String) -> Result<ToolName, HookError> {
-    let value = new_nonempty_string(value, field.clone())?;
-    ToolName::new(value).map_err(|_| HookError::validation(field, "must be a non-empty string"))
+    let value = new_nonempty_string(value, field)?;
+    ToolName::new(value)
 }
 
 fn new_nonempty_string(value: String, field: String) -> Result<String, HookError> {
