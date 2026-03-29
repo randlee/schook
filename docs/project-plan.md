@@ -1001,6 +1001,13 @@ Deliverables:
   `clear`, and Bash-drift evidence
 - update direct unit/integration tests for the corrected root semantics
 
+Design constraint:
+- `ai_root_dir` immutability is enforced at the type level: the field must be
+  a newtype or typestate barrier that can only be set once at
+  `SessionStart(source="startup")` construction and is not writable by any
+  later hook handler; a plain mutable `String` or `PathBuf` field is not
+  acceptable (BP-001)
+
 Acceptance criteria:
 - runtime root identity no longer depends on later hook `cwd`
 - captured lifecycle sources (`startup`, `resume`, `compact`, `clear`) resolve
@@ -1020,6 +1027,13 @@ Focus:
   harness-backed regression coverage
 
 Deliverables:
+- define and implement a `RootDivergence` error variant (or equivalent named
+  type) with the following cause-chain fields (BP-002):
+  - `immutable_root: PathBuf` — the value established at startup
+  - `observed: PathBuf` — the inbound `CLAUDE_PROJECT_DIR` value that differed
+  - `hook_event: String` — the hook surface where the divergence was detected
+  - recovery step: log at error level and continue with the immutable root;
+    never silently substitute the inbound value
 - prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
   diverges from the persisted immutable root
 - exact structured log/assertion coverage for divergence cases
