@@ -118,6 +118,12 @@ fn success_dispatch_emits_file_sink_log_event() {
     assert_eq!(log["fields"]["hook"], "PreToolUse");
     assert_eq!(log["fields"]["event"], "Write");
     assert_eq!(log["fields"]["matcher"], "Write");
+    assert_eq!(log["fields"]["mode"], "sync");
+    assert_eq!(
+        log["fields"]["handlers"],
+        serde_json::json!(["probe-plugin"])
+    );
+    assert!(log["fields"]["total_ms"].as_u64().is_some());
     assert_eq!(log["fields"]["exit"], sc_hooks_core::exit_codes::SUCCESS);
     assert_eq!(log["fields"]["results"][0]["action"], "proceed");
     assert_eq!(
@@ -152,6 +158,12 @@ fn blocked_dispatch_emits_warn_log_event() {
     let log = read_last_log(root);
     assert_eq!(log["outcome"], "block");
     assert_eq!(log["level"], "Warn");
+    assert_eq!(log["fields"]["mode"], "sync");
+    assert_eq!(
+        log["fields"]["handlers"],
+        serde_json::json!(["probe-plugin"])
+    );
+    assert!(log["fields"]["total_ms"].as_u64().is_some());
     assert_eq!(log["fields"]["exit"], sc_hooks_core::exit_codes::BLOCKED);
     assert_eq!(log["fields"]["results"][0]["action"], "block");
     assert_eq!(log["fields"]["results"][0]["disabled"], Value::Null);

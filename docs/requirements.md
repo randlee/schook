@@ -164,6 +164,7 @@ Retired observability IDs:
 | DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
 | DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 | DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
+| DEF-008 | Should | The first observability expansion after file-sink contract coverage shall add console-sink dispatch tests through the real `sc-hooks-cli` path, proving success, block, error, and timeout emission without weakening the current file-sink contract. | A follow-up sprint adds real-dispatch console-sink tests plus docs updates that explicitly describe file-sink and console-sink coverage boundaries. |
 
 ## 7. Post-Release Hook Extension Track
 
