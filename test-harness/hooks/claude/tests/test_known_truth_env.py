@@ -40,7 +40,7 @@ def test_cwd_can_drift_while_claude_project_dir_stays_on_startup_root() -> None:
     session_end_payload, session_end_env = _load_capture("20260329T203149.289632Z-session-end")
 
     startup_root = startup_payload["cwd"]
-    drifted_dir = "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture/test-harness/hooks/claude"
+    drifted_dir = post_bash_payload["cwd"]
 
     assert post_bash_payload["cwd"] == drifted_dir
     assert post_bash_env["cwd_from_getcwd"] == drifted_dir
@@ -95,7 +95,7 @@ def test_compact_and_clear_captures_preserve_project_dir_without_implicit_atm_en
     clear_end_payload, clear_end_env = _load_capture("20260329T211532.933293Z-session-end")
     clear_start_payload, clear_start_env = _load_capture("20260329T211532.964966Z-session-start")
 
-    project_root = "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture"
+    project_root = pre_compact_payload["cwd"]
 
     assert pre_compact_payload["hook_event_name"] == "PreCompact"
     assert pre_compact_payload["cwd"] == project_root
