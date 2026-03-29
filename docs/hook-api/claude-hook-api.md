@@ -30,8 +30,15 @@ The source-of-truth inputs for this document are:
 
 - hook working directory is not a stable identity signal
 - `CLAUDE_PROJECT_DIR` is the correct project-root anchor when available
-- `CLAUDE_PLUGIN_ROOT` is available in hook context, not in ordinary Bash tool
-  execution
+- `CLAUDE_PLUGIN_ROOT` is not part of the current generic hook-runtime
+  baseline; treat it as a likely plugin-context variable used for plugin-local
+  path resolution when Claude executes an installed plugin
+- do not set `CLAUDE_PLUGIN_ROOT` globally and do not treat it as a generic
+  project-root signal
+- if `schook` extensions are later distributed as Claude plugins,
+  `CLAUDE_PLUGIN_ROOT` may become useful for locating plugin-local scripts and
+  assets, but that usage should be documented from a dedicated plugin-context
+  capture rather than assumption
 - relative hook paths are not reliable because Claude may change the current
   directory during a session
 
@@ -202,3 +209,5 @@ Adjacent but not part of the current eight-hook baseline:
 - hook env var availability differs sharply between hook execution and ordinary
   Bash tool execution, so plugins must not assume hook-only env vars in
   non-hook code paths
+- `CLAUDE_PLUGIN_ROOT` remains unverified in the current harness capture set
+  and should stay plugin-specific guidance, not generic runtime contract
