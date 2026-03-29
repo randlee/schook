@@ -848,8 +848,15 @@ Deliverables:
   - `session_id`
   - `active_pid`
   - `ai_root_dir`
-- `ai_root_dir` chaining from `CLAUDE_PROJECT_DIR`
-- `ai_current_dir` chaining from payload `cwd`
+- `ai_root_dir` established from the root-establishing `SessionStart` for the
+  runtime instance as immutable working directory
+- `ai_current_dir` chaining from payload `cwd` as current-directory context
+- required equality check between `ai_root_dir` and inbound
+  `CLAUDE_PROJECT_DIR` when present
+- prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
+  diverges from the persisted immutable root
+- normalized downstream project-root context for consumers even when Claude
+  varies raw env values across hook surfaces
 - `PreCompact` and `Stop` handling on the normalized `agent_state` path
 - `PreToolUse`, `PostToolUse`, and `PermissionRequest` explicitly deferred to
   `S9-HP4`

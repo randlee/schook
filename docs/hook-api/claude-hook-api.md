@@ -28,8 +28,19 @@ The source-of-truth inputs for this document are:
 
 ## Path And Environment Rules
 
-- hook working directory is not a stable identity signal
-- `CLAUDE_PROJECT_DIR` is the correct project-root anchor when available
+- the harness now captures both raw hook payloads and companion hook-process
+  env snapshots under `test-harness/hooks/claude/captures/raw/`
+- raw hook `cwd` means the literal `cwd` field in the hook payload
+- `CLAUDE_PROJECT_DIR` means the project-root env var observed in a hook-process
+  env snapshot
+- in the current captured `SessionStart(source="startup")`,
+  `SessionStart(source="compact")`, `SessionStart(source="resume")`, and
+  `SessionStart(source="clear")` hooks, raw hook `cwd` and
+  `CLAUDE_PROJECT_DIR` matched exactly
+- in the current captured drift scenario, raw hook `cwd` changed after Claude
+  `cd` while `CLAUDE_PROJECT_DIR` remained pinned to the session root
+- this document uses `ai_root_dir` only for the runtime-normalized immutable
+  session root; it is not a Claude payload field
 - `CLAUDE_PLUGIN_ROOT` is not part of the current generic hook-runtime
   baseline; treat it as a likely plugin-context variable used for plugin-local
   path resolution when Claude executes an installed plugin
@@ -82,6 +93,11 @@ What is not verified today:
   all launches
 - parent/subagent/session lineage fields in Claude hook payloads
 - a live `Notification` payload in this harness environment
+- whether `CLAUDE_PLUGIN_ROOT` appears in a dedicated plugin-context capture
+- whether a resumed Claude session launched from a different directory should
+  establish a different immutable runtime root
+- whether `CLAUDE_PROJECT_DIR` is present inside ordinary Bash tool subprocesses
+  rather than hook-process env
 
 What is verified by the committed Sprint 9 Phase 3 schema/tooling:
 
@@ -112,14 +128,40 @@ Claude hook calls should treat identity and context as separate concerns.
 Current verified anchor:
 
 1. SessionStart-captured `session_id`
-2. `CLAUDE_PROJECT_DIR` as the source-backed project-root anchor when the hook
-   environment provides it
-3. `ATM_TEAM` + `ATM_IDENTITY` only as routing labels, not as a unique instance
-   key
+2. the root-establishing `SessionStart` launch directory for the runtime
+   instance (`startup` in the current fresh-session captures)
+3. `CLAUDE_PROJECT_DIR` in the current hook env snapshots, which matched the
+   root-establishing `SessionStart` directory in every captured lifecycle
+   source (`startup`, `compact`, `resume`, `clear`) and remained pinned to that
+   value in the captured drift scenario
+4. `ATM_TEAM` + `ATM_IDENTITY` only as routing labels when inherited, not as a
+   unique instance key
+
+Observed facts from the current harness:
+
+- `SessionStart(source="startup")` captured `cwd ==
+  CLAUDE_PROJECT_DIR == /Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture`
+- `PreCompact`, `SessionStart(source="compact")`, `SessionEnd(reason="clear")`,
+  and `SessionStart(source="clear")` also captured the same
+  `CLAUDE_PROJECT_DIR` value in hook env
+- the current `resume` capture kept the same `session_id` and the same
+  `cwd`/`CLAUDE_PROJECT_DIR` value as the immediately preceding startup run
+- after a Claude `cd` into `test-harness/hooks/claude`, the captured
+  `PostToolUse(Bash)`, `Stop`, and `SessionEnd` hooks reported the drifted raw
+  hook `cwd`, while `CLAUDE_PROJECT_DIR` stayed pinned to the startup root
+
+Runtime rule for `schook`:
+
+- `ai_root_dir` is the immutable working directory for the runtime instance
+- `ai_root_dir` must match `CLAUDE_PROJECT_DIR` whenever that env var is present
+- if inbound `CLAUDE_PROJECT_DIR` diverges from `ai_root_dir`, the runtime must
+  emit a prominent error of the form:
+  - `divergence in CLAUDE_PROJECT_DIR from <ai-root-dir> to <current-claude-project-dir>`
 
 Rules:
 
 - directory changes do not change identity
+- later raw hook `cwd` values are current-directory context only
 - compaction does not change `session_id`
 - a fresh Claude process creates a new `session_id`
 - `/clear` ends the prior session and starts a new `session_id`
@@ -141,7 +183,13 @@ future `schook` base record must stay identical.
 Implementation-facing reading for `schook`:
 
 - `session_id` is the verified Claude lifecycle anchor
-- `ai_root_dir` is chained from `CLAUDE_PROJECT_DIR`, not cwd
+- `ai_root_dir` is the immutable runtime root established from the
+  root-establishing `SessionStart`
+- later raw hook `cwd` values map to `ai_current_dir`, not root identity
+- inbound `CLAUDE_PROJECT_DIR` is a required equality check against
+  `ai_root_dir`, not a silent fallback
+- downstream consumers should receive normalized project-root context even if
+  Claude later omits or varies the raw env surface
 - `active_pid` remains part of the planned runtime identity tuple, but is a
   runtime-managed field rather than a Claude payload contract claim
 - `Notification(idle_prompt)` stays outside the verified identity/state model
@@ -207,7 +255,11 @@ Adjacent but not part of the current eight-hook baseline:
 - `CLAUDE_SESSION_ID` is stable in the parent Claude process but is not
   directly available to bash subprocesses; `SessionStart` capture is required
 - hook env var availability differs sharply between hook execution and ordinary
-  Bash tool execution, so plugins must not assume hook-only env vars in
-  non-hook code paths
+  Bash tool execution; this document records hook-process captures only and
+  does not claim those same vars are present inside ordinary tool subprocesses
 - `CLAUDE_PLUGIN_ROOT` remains unverified in the current harness capture set
   and should stay plugin-specific guidance, not generic runtime contract
+- `Notification(idle_prompt)` remained uncaptured in the local harness even
+  after a bounded idle probe with `matcher = ""`; the current local fact is
+  "wired but not firing in this harness pass," not a verified vendor timing
+  guarantee
