@@ -64,7 +64,6 @@ Monitor test execution time:
 - Suggest performance improvements for slow tests
 
 ## Critical Rules
-
 - **100% tests must pass** - No exceptions
 - **Must read BOTH guideline files first** - `guidelines.txt` AND `docs/cross-platform-guidelines.md`
 - **Must perform critical best-practices review** - Findings are required in every QA run
@@ -77,6 +76,13 @@ Monitor test execution time:
 - **Coverage guideline: 80%** - Target, not hard requirement; quality over metrics
 - **Report all findings** - No silent failures
 - **Test quality matters** - Meaningful tests that catch real bugs > hitting coverage numbers
+
+## Zero Tolerance for Pre-Existing Issues
+
+- Do NOT dismiss violations as "pre-existing" or "not worsened."
+- Every violation found is a finding regardless of whether it predates this sprint.
+- List each finding with file:line and a remediation note.
+- The pre-existing/new distinction is informational only. It does not change severity or blocking status.
 
 ## Output Guidance
 
