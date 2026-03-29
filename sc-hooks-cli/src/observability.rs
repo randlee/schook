@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use sc_observability::{Logger, LoggerConfig};
+use sc_observability::Logger;
 use sc_observability_types::{
-    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+    ActionName, Level, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
 };
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -46,8 +46,16 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     let action = ActionName::new("dispatch.complete")
         .map_err(|err| CliError::internal(format!("invalid log action: {err}")))?;
 
-    let logger = Logger::new(default_logger_config(service.clone(), args.project_root)?)
-        .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
+    let logger = Logger::new(
+        sc_hooks_core::storage::default_logger_config(service.clone(), args.project_root).map_err(
+            |err| {
+                CliError::internal(format!(
+                    "failed building observability logger config: {err}"
+                ))
+            },
+        )?,
+    )
+    .map_err(|err| CliError::internal(format!("failed to initialize observability: {err}")))?;
 
     let mut fields = Map::new();
     fields.insert("hook".to_string(), Value::String(args.hook.to_string()));
@@ -118,23 +126,6 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         CliError::internal(format!("failed shutting down observability logger: {err}"))
     })?;
     Ok(())
-}
-
-fn default_logger_config(
-    service: ServiceName,
-    project_root: Option<&Path>,
-) -> Result<LoggerConfig, CliError> {
-    let root = match project_root {
-        Some(root) => sc_hooks_core::storage::observability_root_for(root),
-        None => std::env::current_dir()
-            .map_err(|err| CliError::internal(format!("failed resolving current dir: {err}")))?
-            .join(sc_hooks_core::OBSERVABILITY_ROOT),
-    };
-    let mut config = LoggerConfig::default_for(service, root);
-    config.level = LevelFilter::Info;
-    config.enable_console_sink = false;
-    config.enable_file_sink = true;
-    Ok(config)
 }
 
 fn dispatch_level(

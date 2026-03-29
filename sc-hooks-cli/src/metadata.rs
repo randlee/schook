@@ -194,12 +194,14 @@ fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFil
     {
         use std::os::unix::fs::PermissionsExt;
 
-        fs::set_permissions(file.path(), fs::Permissions::from_mode(0o600)).map_err(|err| {
-            CliError::internal(format!(
-                "failed to secure metadata file {}: {err}",
-                file.path().display()
-            ))
-        })?;
+        file.as_file()
+            .set_permissions(fs::Permissions::from_mode(0o600))
+            .map_err(|err| {
+                CliError::internal(format!(
+                    "failed to secure metadata file {}: {err}",
+                    file.path().display()
+                ))
+            })?;
     }
     use std::io::Write;
     file.write_all(&bytes).map_err(|err| {

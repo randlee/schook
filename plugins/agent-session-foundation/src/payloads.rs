@@ -1,10 +1,10 @@
 use serde::Deserialize;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionStartPayload {
     pub session_id: String,
-    pub cwd: String,
+    #[serde(rename = "cwd")]
+    pub _cwd: String,
     #[allow(dead_code)]
     pub transcript_path: Option<String>,
     pub source: String,
@@ -12,21 +12,21 @@ pub struct SessionStartPayload {
     pub model: Option<String>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionEndPayload {
     pub session_id: String,
-    pub cwd: String,
+    #[serde(rename = "cwd")]
+    pub _cwd: String,
     #[allow(dead_code)]
     pub transcript_path: Option<String>,
     pub reason: Option<String>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct PreCompactPayload {
     pub session_id: String,
-    pub cwd: String,
+    #[serde(rename = "cwd")]
+    pub _cwd: String,
     #[allow(dead_code)]
     pub transcript_path: Option<String>,
     #[allow(dead_code)]
@@ -35,33 +35,11 @@ pub struct PreCompactPayload {
     pub custom_instructions: Option<String>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
-pub struct PreToolUsePayload {
-    pub session_id: String,
-    pub cwd: String,
-    #[allow(dead_code)]
-    pub transcript_path: Option<String>,
-    #[allow(dead_code)]
-    pub permission_mode: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
-pub struct PermissionRequestPayload {
-    pub session_id: String,
-    pub cwd: String,
-    #[allow(dead_code)]
-    pub transcript_path: Option<String>,
-    #[allow(dead_code)]
-    pub permission_mode: Option<String>,
-}
-
-#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct StopPayload {
     pub session_id: String,
-    pub cwd: String,
+    #[serde(rename = "cwd")]
+    pub _cwd: String,
     #[allow(dead_code)]
     pub transcript_path: Option<String>,
     #[allow(dead_code)]

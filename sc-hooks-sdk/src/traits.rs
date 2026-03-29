@@ -4,19 +4,26 @@ use sc_hooks_core::manifest::Manifest;
 
 use crate::result::{AsyncResult, HookResult};
 
-// These traits remain intentionally unsealed because runtime handler
-// implementations live in sibling plugin crates across the workspace rather than
-// inside sc-hooks-sdk itself.
+/// Public manifest provider surface used by runtime plugin crates.
+///
+/// This trait remains intentionally unsealed because handler implementations
+/// live in sibling workspace crates rather than inside `sc-hooks-sdk` itself.
 pub trait ManifestProvider {
     fn manifest(&self) -> Manifest;
 }
 
-// Intentionally unsealed for cross-crate plugin implementations.
+/// Sync handler contract for runtime plugin crates.
+///
+/// This trait remains intentionally unsealed so sibling workspace crates can
+/// implement the host-facing trait surface.
 pub trait SyncHandler: ManifestProvider {
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
 }
 
-// Intentionally unsealed for cross-crate plugin implementations.
+/// Async handler contract for runtime plugin crates.
+///
+/// This trait remains intentionally unsealed so sibling workspace crates can
+/// implement the host-facing trait surface.
 pub trait AsyncHandler: ManifestProvider {
     fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
 }
