@@ -126,10 +126,7 @@ fn success_dispatch_emits_file_sink_log_event() {
     assert!(log["fields"]["total_ms"].as_u64().is_some());
     assert_eq!(log["fields"]["exit"], sc_hooks_core::exit_codes::SUCCESS);
     assert_eq!(log["fields"]["results"][0]["action"], "proceed");
-    assert_eq!(
-        root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH),
-        root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl")
-    );
+    assert!(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
 }
 
 #[test]
@@ -165,9 +162,15 @@ fn blocked_dispatch_emits_warn_log_event() {
     );
     assert!(log["fields"]["total_ms"].as_u64().is_some());
     assert_eq!(log["fields"]["exit"], sc_hooks_core::exit_codes::BLOCKED);
-    assert_eq!(log["fields"]["results"][0]["action"], "block");
-    assert_eq!(log["fields"]["results"][0]["disabled"], Value::Null);
-    assert_eq!(log["fields"]["ai_notification"], Value::Null);
+    let fields = log["fields"]
+        .as_object()
+        .expect("fields should be an object");
+    let result = log["fields"]["results"][0]
+        .as_object()
+        .expect("result should be an object");
+    assert_eq!(result["action"], "block");
+    assert!(!result.contains_key("disabled"));
+    assert!(!fields.contains_key("ai_notification"));
 }
 
 #[test]

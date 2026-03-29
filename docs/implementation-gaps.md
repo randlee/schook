@@ -144,6 +144,10 @@ This document tracks gaps between the current codebase and the release-standard 
 - Current behavior:
   - the current release baseline proves the file-sink `LogEvent` contract under
     real dispatch for success, block, invalid-json error, and timeout paths
+  - `sc-hooks-core` currently exports `OBSERVABILITY_ROOT` and
+    `OBSERVABILITY_LOG_PATH` as shared path literals for agreement between the
+    CLI, tests, and docs; this is an accepted OBS-007 boundary tension because
+    the constants do not own sink wiring, logger lifecycle, or event emission
   - the next planned observability follow-up is console-sink coverage under
     real dispatch because console logs are the most useful immediate debugging
     surface for live/background-agent interaction tracing
