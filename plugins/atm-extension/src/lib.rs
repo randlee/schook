@@ -893,7 +893,8 @@ impl RuleContent {
 
 fn parse_tool_name(value: String, field: String) -> Result<ToolName, HookError> {
     let value = new_nonempty_string(value, field.clone())?;
-    ToolName::new(value).map_err(|_| HookError::validation(field, "must be a non-empty string"))
+    ToolName::new(value)
+        .map_err(|err| HookError::validation(field, format!("must be a non-empty string: {err}")))
 }
 
 fn new_nonempty_string(value: String, field: String) -> Result<String, HookError> {
