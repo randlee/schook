@@ -148,6 +148,55 @@ Acceptance criteria:
 - `GAP-005` and `GAP-007` are closed
 - `cargo fmt --check --all` and `cargo test --workspace` pass
 
+### Deferred Follow-Up: DEF-008 Console-Sink Coverage
+
+Status:
+- deferred, next planned observability expansion
+
+Focus:
+- prove console-sink output under real `sc-hooks-cli` dispatch
+- keep file-sink contract coverage intact while adding an operator-facing
+  debugging surface
+
+Write scope:
+- `sc-hooks-cli/tests/`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/observability-contract.md`
+- `docs/logging-contract.md`
+- `docs/implementation-gaps.md`
+
+Deliverables:
+- real-dispatch tests for console-sink emission on:
+  - success
+  - block
+  - error
+  - timeout
+- docs that state the intended relationship between:
+  - file sink as baseline durable contract
+  - console sink as operator/debugging surface
+- explicit note on whether console and file sinks are expected to emit the same
+  dispatch semantics or intentionally differ in rendered fields
+
+Test plan:
+- run the real `sc-hooks-cli` binary in isolated temp dirs
+- enable console sink in a controlled test harness
+- capture console output and assert:
+  - one emitted line per qualifying dispatch
+  - correct action/outcome/level rendering for success, block, error, timeout
+- keep the existing file-sink contract tests running in the same suite so the
+  console work cannot regress the JSONL baseline
+
+Acceptance criteria:
+- at least one integration test proves console-sink emission for a successful
+  dispatch
+- at least one integration test proves console-sink emission for a blocked or
+  errored dispatch
+- docs name console-sink coverage as the first post-file-sink observability
+  expansion
+- `DEF-008` remains open only for work beyond console-sink coverage, such as
+  custom sinks and multi-hook monitoring correlation
+
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
 Status:
