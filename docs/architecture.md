@@ -290,7 +290,7 @@ Documented but deferred from the first harness pass:
 - Gemini
 - Cursor Agent
 
-### 9.3 Planned Hook Crate Targets
+### 9.3 Implemented Hook Runtime Targets In This Branch
 
 The current runtime-implementation path in this branch includes:
 
@@ -301,7 +301,7 @@ The current runtime-implementation path in this branch includes:
 
 All four hook-runtime targets now exist as current source crates in this branch.
 
-Planning rules for these targets:
+Current architecture guardrails for these targets in this branch:
 
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
@@ -319,7 +319,7 @@ Planning rules for these targets:
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority
-- no planned hook crate becomes current architecture until it lands with code,
+- no hook runtime crate becomes current architecture until it lands with code,
   tests, and the same-PR `docs/architecture.md` crate inventory update
 
 ### 9.4 Cursor Follow-On Boundary

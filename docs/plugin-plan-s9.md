@@ -1143,6 +1143,8 @@ Deliverables:
   - `PermissionRequest`
   - `Stop`
   - teammate-idle
+- `Stop` deletes the ATM Bash identity file after the relay event is emitted;
+  later ATM Bash activity recreates the file as needed
 - `Notification(idle_prompt)` remains explicitly deferred unless it is captured
   live later
 - relay traits stay sealed inside `plugins/atm-extension`; downstream crates
@@ -1179,7 +1181,8 @@ Write scope:
 Required tests:
 
 - tests for ATM identity-file create/delete behavior around `atm` Bash commands
-- tests for `PermissionRequest`, `Stop`, and teammate-idle relay behavior
+- tests for `PermissionRequest`, `Stop`, and teammate-idle relay behavior,
+  including Stop-driven ATM identity-file cleanup
 - tests proving a malformed `permission_suggestions` entry returns a structured
   `HookError` with the failing suggestion index and offending field name
 - tests proving ATM extension fields layer onto the canonical session record

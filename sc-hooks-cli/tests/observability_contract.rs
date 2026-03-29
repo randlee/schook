@@ -36,6 +36,18 @@ impl DispatchHarness {
         payload: Option<Value>,
         session_id: Option<&str>,
     ) -> Output {
+        self.run_sync_with_env(root, hook, event, payload, session_id, &[])
+    }
+
+    fn run_sync_with_env(
+        &self,
+        root: &Path,
+        hook: &str,
+        event: Option<&str>,
+        payload: Option<Value>,
+        session_id: Option<&str>,
+        extra_env: &[(&str, &str)],
+    ) -> Output {
         let mut command = Command::new(&self.binary);
         command.current_dir(root).arg("run").arg(hook).arg("--sync");
         if let Some(event) = event {
@@ -43,6 +55,9 @@ impl DispatchHarness {
         }
         if let Some(session_id) = session_id {
             command.env("SC_HOOK_SESSION_ID", session_id);
+        }
+        for (key, value) in extra_env {
+            command.env(key, value);
         }
 
         if let Some(payload) = payload {
@@ -177,6 +192,7 @@ fn blocked_dispatch_emits_warn_log_event() {
 fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();
+    let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
         &fixtures::plugin_path(root, "probe-plugin"),
@@ -184,12 +200,16 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
         "cat >/dev/null\nprintf '%s' 'not-json'\n",
     );
 
-    let output = DispatchHarness::new().run_sync(
+    let output = DispatchHarness::new().run_sync_with_env(
         root,
         "PreToolUse",
         Some("Write"),
         Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
         Some("session-invalid-json"),
+        &[(
+            "SC_HOOKS_STATE_DIR",
+            state_root.to_str().expect("state root should be utf8"),
+        )],
     );
 
     assert_eq!(
@@ -222,6 +242,7 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
 fn timeout_dispatch_emits_error_log_and_disables_plugin() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();
+    let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
         &fixtures::plugin_path(root, "probe-plugin"),
@@ -232,12 +253,16 @@ printf '%s\n' '{"action":"proceed"}'
 "#,
     );
 
-    let output = DispatchHarness::new().run_sync(
+    let output = DispatchHarness::new().run_sync_with_env(
         root,
         "PreToolUse",
         Some("Write"),
         Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
         Some("session-timeout"),
+        &[(
+            "SC_HOOKS_STATE_DIR",
+            state_root.to_str().expect("state root should be utf8"),
+        )],
     );
 
     assert_eq!(
