@@ -281,7 +281,6 @@ fn build_next_record(
                     resolved.transition.state_reason.clone(),
                     resolved.transition.ended_at.clone(),
                 )?;
-                record.validate()?;
                 Ok(record)
             }
         }
