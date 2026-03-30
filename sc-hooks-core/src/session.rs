@@ -50,6 +50,34 @@ impl ActivePid {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Provider {
+    Claude,
+}
+
+impl Provider {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SchemaVersion {
+    V1,
+}
+
+impl SchemaVersion {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::V1 => "v1",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AiRootDir(PathBuf);
@@ -94,6 +122,55 @@ impl fmt::Display for AiCurrentDir {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct StateRoot(PathBuf);
+
+impl StateRoot {
+    pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
+        let path = path.into();
+        validate_nonblank_path("state_root", &path)?;
+        Ok(Self(path))
+    }
+
+    pub fn as_path(&self) -> &Path {
+        &self.0
+    }
+
+    pub fn join(&self, path: impl AsRef<Path>) -> PathBuf {
+        self.0.join(path)
+    }
+
+    pub fn parent(&self) -> Option<&Path> {
+        self.0.parent()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct UtcTimestamp(String);
+
+impl UtcTimestamp {
+    pub fn from_field(field: &str, value: impl Into<String>) -> Result<Self, HookError> {
+        let value = value.into();
+        validate_nonblank_text(field, &value)?;
+        OffsetDateTime::parse(&value, &Rfc3339).map_err(|source| {
+            HookError::validation_with_source(field, "must be a valid RFC 3339 timestamp", source)
+        })?;
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for UtcTimestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentState {
@@ -122,8 +199,8 @@ impl SessionStartSource {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalSessionRecord {
-    pub schema_version: String,
-    pub provider: String,
+    schema_version: SchemaVersion,
+    provider: Provider,
     pub session_id: SessionId,
     pub active_pid: ActivePid,
     #[serde(default)]
@@ -135,13 +212,13 @@ pub struct CanonicalSessionRecord {
     pub ai_current_dir: AiCurrentDir,
     pub session_start_source: SessionStartSource,
     pub agent_state: AgentState,
-    pub state_revision: u64,
-    pub created_at: String,
-    pub updated_at: String,
+    state_revision: u64,
+    created_at: UtcTimestamp,
+    updated_at: UtcTimestamp,
     #[serde(default)]
-    pub ended_at: Option<String>,
+    ended_at: Option<UtcTimestamp>,
     pub last_hook_event: String,
-    pub last_hook_event_at: String,
+    last_hook_event_at: UtcTimestamp,
     pub state_reason: String,
     #[serde(default)]
     pub extensions: BTreeMap<String, Value>,
@@ -153,7 +230,7 @@ impl CanonicalSessionRecord {
         reason = "canonical session construction keeps the persisted identity tuple explicit"
     )]
     pub fn new(
-        provider: impl Into<String>,
+        provider: Provider,
         session_id: SessionId,
         active_pid: ActivePid,
         ai_root_dir: AiRootDir,
@@ -171,8 +248,8 @@ impl CanonicalSessionRecord {
         }
         let now = utc_timestamp_now();
         let record = Self {
-            schema_version: "v1".to_string(),
-            provider: provider.into(),
+            schema_version: SchemaVersion::V1,
+            provider,
             session_id,
             active_pid,
             parent_session_id: None,
@@ -198,6 +275,34 @@ impl CanonicalSessionRecord {
         &self.ai_root_dir
     }
 
+    pub fn schema_version(&self) -> SchemaVersion {
+        self.schema_version
+    }
+
+    pub fn provider(&self) -> Provider {
+        self.provider
+    }
+
+    pub fn state_revision(&self) -> u64 {
+        self.state_revision
+    }
+
+    pub fn created_at(&self) -> &UtcTimestamp {
+        &self.created_at
+    }
+
+    pub fn updated_at(&self) -> &UtcTimestamp {
+        &self.updated_at
+    }
+
+    pub fn ended_at(&self) -> Option<&UtcTimestamp> {
+        self.ended_at.as_ref()
+    }
+
+    pub fn last_hook_event_at(&self) -> &UtcTimestamp {
+        &self.last_hook_event_at
+    }
+
     #[expect(
         clippy::too_many_arguments,
         reason = "root-change rebuild preserves canonical identity and timestamps under one validated constructor path"
@@ -211,14 +316,14 @@ impl CanonicalSessionRecord {
         agent_state: AgentState,
         last_hook_event: impl Into<String>,
         state_reason: impl Into<String>,
-        ended_at: Option<String>,
-        updated_at: String,
+        ended_at: Option<UtcTimestamp>,
+        updated_at: UtcTimestamp,
     ) -> Result<Self, HookError> {
         let last_hook_event = last_hook_event.into();
         let state_reason = state_reason.into();
         let record = Self {
-            schema_version: self.schema_version.clone(),
-            provider: self.provider.clone(),
+            schema_version: self.schema_version,
+            provider: self.provider,
             session_id: self.session_id.clone(),
             active_pid,
             parent_session_id: self.parent_session_id.clone(),
@@ -240,27 +345,43 @@ impl CanonicalSessionRecord {
         Ok(record)
     }
 
+    pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
+        self.state_revision += 1;
+        self.updated_at = updated_at;
+        self.validate()
+    }
+
+    pub fn apply_hook_update(
+        &mut self,
+        updated_at: UtcTimestamp,
+        last_hook_event: impl Into<String>,
+        state_reason: impl Into<String>,
+        ended_at: Option<UtcTimestamp>,
+    ) -> Result<(), HookError> {
+        self.state_revision += 1;
+        self.updated_at = updated_at.clone();
+        self.last_hook_event = last_hook_event.into();
+        self.last_hook_event_at = updated_at;
+        self.state_reason = state_reason.into();
+        self.ended_at = ended_at;
+        self.validate()
+    }
+
     pub fn validate(&self) -> Result<(), HookError> {
-        if self.schema_version.trim().is_empty() {
-            return Err(HookError::validation("schema_version", "must be non-empty"));
-        }
-        if self.provider.trim().is_empty() {
-            return Err(HookError::validation("provider", "must be non-empty"));
-        }
         if self.state_revision == 0 {
             return Err(HookError::validation("state_revision", "must be >= 1"));
         }
-        validate_nonblank_text("created_at", &self.created_at)?;
-        validate_nonblank_text("updated_at", &self.updated_at)?;
+        validate_timestamp("created_at", &self.created_at)?;
+        validate_timestamp("updated_at", &self.updated_at)?;
         validate_nonblank_text("last_hook_event", &self.last_hook_event)?;
-        validate_nonblank_text("last_hook_event_at", &self.last_hook_event_at)?;
+        validate_timestamp("last_hook_event_at", &self.last_hook_event_at)?;
         validate_nonblank_text("state_reason", &self.state_reason)?;
         match self.agent_state {
             AgentState::Ended => {
-                let ended_at = self.ended_at.as_deref().ok_or_else(|| {
+                let ended_at = self.ended_at.as_ref().ok_or_else(|| {
                     HookError::validation("ended_at", "must be present when agent_state is ended")
                 })?;
-                validate_nonblank_text("ended_at", ended_at)?;
+                validate_timestamp("ended_at", ended_at)?;
             }
             _ if self.ended_at.is_some() => {
                 return Err(HookError::validation(
@@ -279,6 +400,9 @@ fn validate_nonblank_path(field: &str, path: &Path) -> Result<(), HookError> {
     if rendered.trim().is_empty() {
         return Err(HookError::validation(field, "must be non-empty"));
     }
+    if !path.is_absolute() {
+        return Err(HookError::validation(field, "must be an absolute path"));
+    }
     Ok(())
 }
 
@@ -289,12 +413,16 @@ fn validate_nonblank_text(field: &str, value: &str) -> Result<(), HookError> {
     Ok(())
 }
 
-pub fn utc_timestamp_now() -> String {
+fn validate_timestamp(field: &str, value: &UtcTimestamp) -> Result<(), HookError> {
+    UtcTimestamp::from_field(field, value.as_str()).map(|_| ())
+}
+
+pub fn utc_timestamp_now() -> UtcTimestamp {
     let now = OffsetDateTime::now_utc();
-    match now.format(&Rfc3339) {
-        Ok(rendered) => rendered,
-        Err(_) => "1970-01-01T00:00:00Z".to_string(),
-    }
+    let rendered = now
+        .format(&Rfc3339)
+        .expect("RFC 3339 formatting for UTC timestamps should be infallible");
+    UtcTimestamp(rendered)
 }
 
 #[cfg(test)]
@@ -319,7 +447,7 @@ mod tests {
         let repo_root = temp.path().join("repo");
         let repo_subdir = repo_root.join("subdir");
         let record = CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             SessionId::new("session-1").expect("session id"),
             ActivePid::new(42).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
@@ -339,12 +467,14 @@ mod tests {
     fn ai_root_dir_rejects_empty_and_whitespace_only_paths() {
         assert!(AiRootDir::new("").is_err());
         assert!(AiRootDir::new("   ").is_err());
+        assert!(AiRootDir::new("relative/path").is_err());
     }
 
     #[test]
     fn ai_current_dir_rejects_empty_and_whitespace_only_paths() {
         assert!(AiCurrentDir::new("").is_err());
         assert!(AiCurrentDir::new("   ").is_err());
+        assert!(AiCurrentDir::new("relative/path").is_err());
     }
 
     #[test]
@@ -353,7 +483,7 @@ mod tests {
         let repo_root = temp.path().join("repo");
         let repo_subdir = repo_root.join("subdir");
         let record = CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             SessionId::new("session-2").expect("session id"),
             ActivePid::new(7).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
@@ -374,7 +504,7 @@ mod tests {
         let repo_root = temp.path().join("repo");
         let repo_subdir = repo_root.join("subdir");
         let err = CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             SessionId::new("session-3").expect("session id"),
             ActivePid::new(9).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
@@ -386,5 +516,20 @@ mod tests {
         )
         .expect_err("ended state should require ended_at");
         assert!(err.to_string().contains("AgentState::Ended"));
+    }
+
+    #[test]
+    fn session_start_source_roundtrips_all_variants() {
+        for source in [
+            SessionStartSource::Startup,
+            SessionStartSource::Resume,
+            SessionStartSource::Compact,
+            SessionStartSource::Clear,
+        ] {
+            let rendered = serde_json::to_string(&source).expect("source should serialize");
+            let reparsed: SessionStartSource =
+                serde_json::from_str(&rendered).expect("source should deserialize");
+            assert_eq!(reparsed, source);
+        }
     }
 }

@@ -1,11 +1,11 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use tempfile::NamedTempFile;
 
 use crate::context::HookContext;
 use crate::errors::HookError;
-use crate::session::{CanonicalSessionRecord, SessionId};
+use crate::session::{AiRootDir, CanonicalSessionRecord, SessionId, StateRoot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistOutcome {
@@ -16,11 +16,11 @@ pub enum PersistOutcome {
 
 #[derive(Debug, Clone)]
 pub struct SessionStore {
-    root: PathBuf,
+    root: StateRoot,
 }
 
 impl SessionStore {
-    pub fn new(root: PathBuf) -> Self {
+    pub fn new(root: StateRoot) -> Self {
         Self { root }
     }
 
@@ -98,20 +98,20 @@ impl SessionStore {
     }
 }
 
-pub fn resolve_state_root() -> Result<PathBuf, HookError> {
+pub fn resolve_state_root() -> Result<StateRoot, HookError> {
     match std::env::var_os("SC_HOOKS_STATE_DIR") {
-        Some(dir) => Ok(PathBuf::from(dir)),
+        Some(dir) => StateRoot::new(PathBuf::from(dir)),
         None => dirs::home_dir()
-            .map(|home| home.join(".sc-hooks").join("state").join("sessions"))
+            .map(|home| StateRoot::new(home.join(".sc-hooks").join("state").join("sessions")))
             .ok_or_else(|| {
                 HookError::invalid_context("unable to resolve SC_HOOKS_STATE_DIR or home directory")
-            }),
+            })?,
     }
 }
 
-pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, HookError> {
+pub fn observability_root_for(project_root: Option<&AiRootDir>) -> Result<PathBuf, HookError> {
     let base = match project_root {
-        Some(root) => root.to_path_buf(),
+        Some(root) => root.as_path().to_path_buf(),
         None => std::env::current_dir().map_err(|source| {
             HookError::internal_with_source("failed resolving current dir", source)
         })?,
@@ -131,11 +131,11 @@ mod tests {
     #[test]
     fn unchanged_records_do_not_rewrite() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let store = SessionStore::new(temp.path().to_path_buf());
+        let store = SessionStore::new(StateRoot::new(temp.path()).expect("state root"));
         let repo_root = temp.path().join("repo");
         let repo_subdir = repo_root.join("subdir");
         let record = CanonicalSessionRecord::new(
-            "claude",
+            crate::session::Provider::Claude,
             SessionId::new("session-1").expect("session"),
             ActivePid::new(11).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
@@ -171,15 +171,15 @@ mod tests {
     #[test]
     fn observability_root_uses_project_root_when_present() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let project_root = temp.path().join("repo");
-        let path = observability_root_for(Some(project_root.as_path())).expect("root");
-        assert_eq!(path, project_root.join(crate::OBSERVABILITY_ROOT));
+        let project_root = AiRootDir::new(temp.path().join("repo")).expect("project root");
+        let path = observability_root_for(Some(&project_root)).expect("root");
+        assert_eq!(path, project_root.as_path().join(crate::OBSERVABILITY_ROOT));
     }
 
     #[test]
     fn load_rejects_zero_state_revision() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let store = SessionStore::new(temp.path().to_path_buf());
+        let store = SessionStore::new(StateRoot::new(temp.path()).expect("state root"));
         let session_id = SessionId::new("session-invalid").expect("session id");
         let state_path = store.path_for(&session_id);
         fs::write(
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn load_rejects_empty_created_at() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let store = SessionStore::new(temp.path().to_path_buf());
+        let store = SessionStore::new(StateRoot::new(temp.path()).expect("state root"));
         let session_id = SessionId::new("session-invalid-created").expect("session id");
         let state_path = store.path_for(&session_id);
         fs::write(

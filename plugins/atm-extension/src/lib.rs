@@ -15,12 +15,6 @@
 //! - `RelayDecision<T>` describes the relay event, state update, and cleanup work
 //! - `RelayResult` records the side-effect application outcome
 
-use std::collections::BTreeMap;
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
@@ -34,6 +28,10 @@ use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 /// Sync hook handler that layers ATM relay behavior onto the generic hook
 /// runtime without redefining canonical session ownership.
@@ -537,10 +535,9 @@ fn persist_atm_update(
         return Ok(());
     }
 
-    record.state_revision += 1;
     let now = utc_timestamp_now();
-    record.updated_at = now.clone();
-    record.last_hook_event_at = now;
+    let ended_at = record.ended_at().cloned();
+    record.apply_hook_update(now, update.hook_event, update.state_reason, ended_at)?;
     store.persist(&record)?;
 
     Ok(())
@@ -711,16 +708,13 @@ fn write_identity_file(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let created_at = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs_f64())
-        .unwrap_or(0.0);
+    let created_at = utc_timestamp_now();
     let rendered = serde_json::to_string(&json!({
         "pid": record.active_pid.get(),
         "session_id": record.session_id.as_str(),
         "agent_name": routing.identity,
         "team_name": routing.team,
-        "created_at": created_at,
+        "created_at": created_at.as_str(),
     }))?;
     fs::write(path, rendered)?;
     #[cfg(unix)]
@@ -756,6 +750,7 @@ fn is_atm_invocation(command: &str) -> bool {
             || token.ends_with("\\atm")
             || token == "atm.exe"
             || token.ends_with("/atm.exe")
+            || token.ends_with("\\atm.exe")
     })
 }
 

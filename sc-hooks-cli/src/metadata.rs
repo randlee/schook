@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
+use sc_hooks_core::session::SessionId;
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
 use toml::Value as TomlValue;
@@ -21,7 +22,7 @@ const ENV_SESSION_ID: &str = "SC_HOOK_SESSION_ID";
 pub struct RuntimeMetadata {
     pub agent_pid: u32,
     pub agent_type: Option<String>,
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     pub repo_path: Option<String>,
     pub repo_branch: Option<String>,
     pub working_dir: String,
@@ -48,7 +49,7 @@ impl HookEnv {
 pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     pub project_root: PathBuf,
     // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
@@ -72,7 +73,16 @@ impl RuntimeMetadata {
         Ok(Self {
             agent_pid: std::process::id(),
             agent_type: std::env::var(ENV_AGENT_TYPE).ok(),
-            session_id: std::env::var(ENV_SESSION_ID).ok(),
+            session_id: std::env::var(ENV_SESSION_ID)
+                .ok()
+                .map(SessionId::new)
+                .transpose()
+                .map_err(|source| {
+                    CliError::internal_with_source(
+                        "SC_HOOK_SESSION_ID must be a valid non-empty session id",
+                        source,
+                    )
+                })?,
             repo_path: git_output(&["rev-parse", "--show-toplevel"]),
             repo_branch: git_output(&["rev-parse", "--abbrev-ref", "HEAD"]),
             working_dir,
@@ -117,8 +127,10 @@ pub fn prepare_with_runtime(
     })
 }
 
-pub fn current_session_id() -> Option<String> {
-    std::env::var(ENV_SESSION_ID).ok()
+pub fn current_session_id() -> Option<SessionId> {
+    std::env::var(ENV_SESSION_ID)
+        .ok()
+        .and_then(|value| SessionId::new(value).ok())
 }
 
 pub fn assemble_metadata(
@@ -136,7 +148,10 @@ pub fn assemble_metadata(
         agent.insert("type".to_string(), Value::String(agent_type.clone()));
     }
     if let Some(session_id) = runtime.session_id.as_ref() {
-        agent.insert("session_id".to_string(), Value::String(session_id.clone()));
+        agent.insert(
+            "session_id".to_string(),
+            Value::String(session_id.as_str().to_string()),
+        );
     }
     root.insert("agent".to_string(), Value::Object(agent));
 
@@ -310,7 +325,7 @@ mod tests {
         let runtime = RuntimeMetadata {
             agent_pid: 42,
             agent_type: Some("codex".to_string()),
-            session_id: Some("abc123".to_string()),
+            session_id: Some(SessionId::new("abc123").expect("session id")),
             repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
             working_dir: repo_subdir_str.clone(),
@@ -388,7 +403,7 @@ PreToolUse = ["guard-paths"]
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: Some("codex".to_string()),
-            session_id: Some("session-1".to_string()),
+            session_id: Some(SessionId::new("session-1").expect("session id")),
             repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
             working_dir: repo_root_str,

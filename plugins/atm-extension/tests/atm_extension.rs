@@ -6,8 +6,8 @@ use atm_extension::AtmExtensionHandler;
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::session::{
-    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-    SessionStartSource,
+    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
+    SessionStartSource, StateRoot, UtcTimestamp,
 };
 use sc_hooks_core::storage::SessionStore;
 use sc_hooks_sdk::traits::SyncHandler;
@@ -71,9 +71,9 @@ fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookCont
 }
 
 fn write_session_record(state_root: &Path, ai_root_dir: &Path, session_id: &str, active_pid: u32) {
-    let store = SessionStore::new(state_root.to_path_buf());
+    let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
     let record = CanonicalSessionRecord::new(
-        "claude",
+        Provider::Claude,
         SessionId::new(session_id.to_string()).expect("session id"),
         ActivePid::new(active_pid).expect("pid"),
         AiRootDir::new(ai_root_dir).expect("ai root dir"),
@@ -95,9 +95,9 @@ fn write_ended_session_record(
     session_id: &str,
     active_pid: u32,
 ) {
-    let store = SessionStore::new(state_root.to_path_buf());
+    let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
     let mut record = CanonicalSessionRecord::new(
-        "claude",
+        Provider::Claude,
         SessionId::new(session_id.to_string()).expect("session id"),
         ActivePid::new(active_pid).expect("pid"),
         AiRootDir::new(ai_root_dir).expect("ai root dir"),
@@ -109,7 +109,18 @@ fn write_ended_session_record(
     )
     .expect("session record should construct");
     record.agent_state = AgentState::Ended;
-    record.ended_at = Some("2026-03-30T00:00:00Z".to_string());
+    record
+        .apply_hook_update(
+            UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z")
+                .expect("timestamp"),
+            "SessionEnd",
+            "session_ended",
+            Some(
+                UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z")
+                    .expect("timestamp"),
+            ),
+        )
+        .expect("ended session update should validate");
     store
         .persist(&record)
         .expect("ended session record should persist");
@@ -426,7 +437,7 @@ fn malformed_permission_suggestions_report_index_and_field() {
         .expect_err("malformed permission_suggestions should fail");
 
     match err {
-        sc_hooks_core::errors::HookError::Validation { field, message } => {
+        sc_hooks_core::errors::HookError::Validation { field, message, .. } => {
             assert_eq!(field, "permission_suggestions[0].rules[0].toolName");
             assert_eq!(message, "must be a string");
         }
