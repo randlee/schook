@@ -205,9 +205,9 @@ impl SyncHandler for AtmExtensionHandler {
             | HookType::SessionStart
             | HookType::SessionEnd => Ok(proceed()),
             _ => {
-                eprintln!(
-                    "sc-hooks-atm-extension: unknown hook type {}; proceeding without ATM handling",
-                    context.hook.as_str()
+                log::warn!(
+                    "sc-hooks atm-extension: unhandled hook type {:?}, proceeding",
+                    context.hook
                 );
                 Ok(proceed())
             }
