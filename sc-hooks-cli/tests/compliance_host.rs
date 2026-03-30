@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use sc_hooks_test::compliance::{
-    ContractScenario, ContractScenarioResult, HostDispatchProbe, run_contract_behavior_suite,
+    ContractScenario, ContractScenarioResult, FnHostDispatchProbe, run_contract_behavior_suite,
 };
 use sc_hooks_test::fixtures;
 
@@ -31,9 +31,7 @@ impl CliBinaryProbe {
     }
 }
 
-impl sc_hooks_test::compliance::private::Sealed for CliBinaryProbe {}
-
-impl HostDispatchProbe for CliBinaryProbe {
+impl CliBinaryProbe {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
         let temp = tempfile::tempdir().map_err(|err| err.to_string())?;
         let root = temp.path();
@@ -202,7 +200,8 @@ fn read_last_line(path: &Path) -> Option<String> {
 #[test]
 fn shared_compliance_suite_exercises_actual_host_dispatch_path() {
     let probe = CliBinaryProbe::new();
-    let checks = run_contract_behavior_suite(&probe);
+    let adapter = FnHostDispatchProbe::new(|scenario| probe.run_scenario(scenario));
+    let checks = run_contract_behavior_suite(&adapter);
 
     for check in &checks {
         assert!(check.passed, "{}: {:?}", check.name, check.detail);

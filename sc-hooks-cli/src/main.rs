@@ -149,7 +149,11 @@ fn run() -> Result<(), CliError> {
             let payload = read_optional_payload_from_stdin()?;
             let mode = args.mode();
             let session_id = metadata::current_session_id();
-            let disabled_plugins = session::load_disabled_plugins(session_id.as_deref())?;
+            let disabled_plugins = session::load_disabled_plugins(
+                session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+            )?;
             let is_session_end = args.hook == "SessionEnd";
 
             let run_result = (|| -> Result<(), CliError> {
@@ -176,14 +180,16 @@ fn run() -> Result<(), CliError> {
                     payload.as_ref(),
                 )? {
                     dispatch::DispatchOutcome::Proceed => Ok(()),
-                    dispatch::DispatchOutcome::Blocked { reason } => {
-                        Err(CliError::Blocked { reason })
-                    }
+                    dispatch::DispatchOutcome::Blocked { reason } => Err(CliError::blocked(reason)),
                 }
             })();
 
             if is_session_end {
-                session::clear_session(session_id.as_deref())?;
+                session::clear_session(
+                    session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                )?;
             }
             run_result?;
         }
@@ -203,20 +209,16 @@ fn run() -> Result<(), CliError> {
             let rendered = audit::render(&report);
             println!("{rendered}");
             if report.has_errors() {
-                return Err(CliError::AuditFailure {
-                    message: format!(
-                        "audit found {} error(s). see report output above.",
-                        report.errors.len()
-                    ),
-                });
+                return Err(CliError::audit_failure(format!(
+                    "audit found {} error(s). see report output above.",
+                    report.errors.len()
+                )));
             }
         }
         Commands::Fire(args) => {
             let payload = match args.payload.as_ref() {
                 Some(raw) => Some(serde_json::from_str::<serde_json::Value>(raw).map_err(
-                    |err| CliError::PluginError {
-                        message: format!("invalid --payload JSON: {err}"),
-                    },
+                    |err| CliError::plugin_error_with_source("invalid --payload JSON", err),
                 )?),
                 None => Some(serde_json::json!({"synthetic": true, "source": "fire"})),
             };
@@ -253,9 +255,10 @@ fn run() -> Result<(), CliError> {
             let report = testing::run_plugin_compliance(&args.plugin)?;
             println!("{}", report.render_text());
             if !report.passed() {
-                return Err(CliError::AuditFailure {
-                    message: format!("plugin {} failed compliance checks", args.plugin),
-                });
+                return Err(CliError::audit_failure(format!(
+                    "plugin {} failed compliance checks",
+                    args.plugin
+                )));
             }
         }
         Commands::ExitCodes => {
@@ -278,10 +281,8 @@ fn read_optional_payload_from_stdin() -> Result<Option<serde_json::Value>, CliEr
         return Ok(None);
     }
 
-    let parsed =
-        serde_json::from_str::<serde_json::Value>(&input).map_err(|err| CliError::PluginError {
-            message: format!("invalid JSON payload on stdin: {err}"),
-        })?;
+    let parsed = serde_json::from_str::<serde_json::Value>(&input)
+        .map_err(|err| CliError::plugin_error_with_source("invalid JSON payload on stdin", err))?;
 
     Ok(Some(parsed))
 }

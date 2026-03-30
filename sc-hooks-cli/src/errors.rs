@@ -51,16 +51,32 @@ pub enum CliError {
     Validation(#[from] ValidationError),
 
     #[error("action blocked: {reason}")]
-    Blocked { reason: String },
+    Blocked {
+        reason: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("plugin error: {message}")]
-    PluginError { message: String },
+    PluginError {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("operation timed out: {message}")]
-    Timeout { message: String },
+    Timeout {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("audit failed: {message}")]
-    AuditFailure { message: String },
+    AuditFailure {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("{message}")]
     Internal {
@@ -82,6 +98,44 @@ impl CliError {
         Self::Internal {
             message: message.into(),
             source: Some(source.into()),
+        }
+    }
+
+    pub fn blocked(reason: impl Into<String>) -> Self {
+        Self::Blocked {
+            reason: reason.into(),
+            source: None,
+        }
+    }
+
+    pub fn plugin_error(message: impl Into<String>) -> Self {
+        Self::PluginError {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn plugin_error_with_source(
+        message: impl Into<String>,
+        source: impl Into<BoxedError>,
+    ) -> Self {
+        Self::PluginError {
+            message: message.into(),
+            source: Some(source.into()),
+        }
+    }
+
+    pub fn timeout(message: impl Into<String>) -> Self {
+        Self::Timeout {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn audit_failure(message: impl Into<String>) -> Self {
+        Self::AuditFailure {
+            message: message.into(),
+            source: None,
         }
     }
 

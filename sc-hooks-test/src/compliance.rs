@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
-pub mod private {
+pub(crate) mod private {
     pub trait Sealed {}
 }
 
@@ -52,6 +52,27 @@ pub struct ContractScenarioResult {
 /// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>`.
 pub trait HostDispatchProbe: private::Sealed {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
+}
+
+pub struct FnHostDispatchProbe<F> {
+    run: F,
+}
+
+impl<F> FnHostDispatchProbe<F> {
+    pub fn new(run: F) -> Self {
+        Self { run }
+    }
+}
+
+impl<F> private::Sealed for FnHostDispatchProbe<F> {}
+
+impl<F> HostDispatchProbe for FnHostDispatchProbe<F>
+where
+    F: Fn(ContractScenario) -> Result<ContractScenarioResult, String>,
+{
+    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
+        (self.run)(scenario)
+    }
 }
 
 pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {

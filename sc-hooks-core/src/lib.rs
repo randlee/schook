@@ -11,6 +11,8 @@ pub mod storage;
 pub mod tools;
 pub mod validation;
 
+pub use session::SessionStartSource;
+
 pub const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";
 pub const OBSERVABILITY_LOG_PATH: &str = ".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl";
 

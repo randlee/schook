@@ -10,8 +10,8 @@ use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
-    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-    utc_timestamp_now,
+    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
+    SessionStartSource, UtcTimestamp, utc_timestamp_now,
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
@@ -34,18 +34,79 @@ enum LifecycleEvent {
 struct SessionTransition {
     session_id: SessionId,
     agent_state: AgentState,
-    session_start_source: Option<String>,
+    session_start_source: Option<SessionStartSource>,
     state_reason: String,
-    ended_at: Option<String>,
+    ended_at: Option<UtcTimestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ResolvedRuntime {
     session_id: SessionId,
     active_pid: ActivePid,
-    ai_root_dir: AiRootDir,
+    ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
     transition: SessionTransition,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EstablishedRoot(AiRootDir);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PersistedRoot(AiRootDir);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RootBinding {
+    Established(EstablishedRoot),
+    Persisted(PersistedRoot),
+}
+
+impl EstablishedRoot {
+    fn from_root_establishing_session_start(context: &HookContext) -> Result<Self, HookError> {
+        let cwd = context
+            .payload_value()?
+            .get("cwd")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
+        let root = AiRootDir::new(cwd)?;
+        verify_project_root_env_matches(context.hook.as_str(), root.as_path())?;
+        Ok(Self(root))
+    }
+
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        &self.0
+    }
+}
+
+impl PersistedRoot {
+    fn from_record(record: &CanonicalSessionRecord) -> Self {
+        Self(record.ai_root_dir().clone())
+    }
+
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        &self.0
+    }
+}
+
+impl RootBinding {
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        match self {
+            Self::Established(root) => root.as_ai_root_dir(),
+            Self::Persisted(root) => root.as_ai_root_dir(),
+        }
+    }
+
+    fn replaces_existing_root(&self) -> bool {
+        matches!(self, Self::Established(_))
+    }
+
+    fn into_new_record_root(self) -> Result<AiRootDir, HookError> {
+        match self {
+            Self::Established(root) => Ok(root.0),
+            Self::Persisted(_) => Err(HookError::invalid_context(
+                "ai_root_dir unavailable before a root-establishing SessionStart",
+            )),
+        }
+    }
 }
 
 impl ManifestProvider for SessionFoundationHandler {
@@ -88,7 +149,7 @@ impl SyncHandler for SessionFoundationHandler {
             &context,
             existing,
             &resolved,
-            resolved.transition.session_start_source.as_deref(),
+            resolved.transition.session_start_source,
         )?;
         let _persist = store.persist(&next_record)?;
 
@@ -105,9 +166,17 @@ impl TryFrom<HookType> for LifecycleEvent {
             HookType::SessionEnd => Ok(Self::SessionEnd),
             HookType::PreCompact => Ok(Self::PreCompact),
             HookType::Stop => Ok(Self::Stop),
-            _ => Err(HookError::invalid_context(format!(
+            HookType::PreToolUse
+            | HookType::PostToolUse
+            | HookType::PostCompact
+            | HookType::Notification
+            | HookType::TeammateIdle
+            | HookType::PermissionRequest => Err(HookError::invalid_context(format!(
                 "unsupported hook for session foundation: {}",
                 value.as_str()
+            ))),
+            _ => Err(HookError::invalid_context(format!(
+                "unsupported future hook for session foundation: {value:?}"
             ))),
         }
     }
@@ -132,7 +201,7 @@ fn resolve_runtime(
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
-    let ai_root_dir = resolve_ai_root_dir(lifecycle_event, existing)?;
+    let ai_root_dir = resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
 
     Ok(ResolvedRuntime {
@@ -149,61 +218,79 @@ fn build_next_record(
     _context: &HookContext,
     existing: Option<CanonicalSessionRecord>,
     resolved: &ResolvedRuntime,
-    session_start_source: Option<&str>,
+    session_start_source: Option<SessionStartSource>,
 ) -> Result<CanonicalSessionRecord, HookError> {
     let event_name = lifecycle_event.as_str().to_string();
     let now = utc_timestamp_now();
 
-    let mut record = match existing {
+    match existing {
         Some(mut record) => {
-            let next_source = session_start_source.unwrap_or(record.session_start_source.as_str());
-            let material_changed = record.active_pid != resolved.active_pid
-                || record.ai_root_dir != resolved.ai_root_dir
-                || record.ai_current_dir != resolved.ai_current_dir
-                || record.agent_state != resolved.transition.agent_state
-                || record.session_start_source != next_source
-                || record.last_hook_event != event_name
-                || record.state_reason != resolved.transition.state_reason
-                || record.ended_at != resolved.transition.ended_at;
+            if record.agent_state() == AgentState::Ended {
+                return Err(HookError::invalid_context(
+                    "session foundation cannot modify a record in terminal Ended state",
+                ));
+            }
+            let next_source = session_start_source.unwrap_or(record.session_start_source());
+            let next_root = resolved.ai_root_dir.as_ai_root_dir();
+            let root_changed =
+                resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
+            let material_changed = record.active_pid() != resolved.active_pid
+                || root_changed
+                || record.ai_current_dir() != &resolved.ai_current_dir
+                || record.agent_state() != resolved.transition.agent_state
+                || record.session_start_source() != next_source
+                || record.last_hook_event() != event_name
+                || record.state_reason() != resolved.transition.state_reason
+                || record.ended_at().cloned() != resolved.transition.ended_at;
+            if record.session_id() != &resolved.session_id {
+                return Err(HookError::validation(
+                    "session_id",
+                    "existing record does not match resolved session id",
+                ));
+            }
             if !material_changed {
                 return Ok(record);
             }
 
-            record.active_pid = resolved.active_pid;
-            record.ai_root_dir = resolved.ai_root_dir.clone();
-            record.ai_current_dir = resolved.ai_current_dir.clone();
-            record.agent_state = resolved.transition.agent_state;
-            record.session_start_source = next_source.to_string();
-            record.state_revision += 1;
-            record
+            if root_changed {
+                record.rebuild_with_root_change(
+                    resolved.active_pid,
+                    next_root.clone(),
+                    resolved.ai_current_dir.clone(),
+                    next_source,
+                    resolved.transition.agent_state,
+                    event_name.clone(),
+                    resolved.transition.state_reason.clone(),
+                    resolved.transition.ended_at.clone(),
+                    now.clone(),
+                )
+            } else {
+                record.apply_hook_update(
+                    resolved.active_pid,
+                    resolved.ai_current_dir.clone(),
+                    next_source,
+                    resolved.transition.agent_state,
+                    now,
+                    event_name,
+                    resolved.transition.state_reason.clone(),
+                    resolved.transition.ended_at.clone(),
+                )?;
+                record.validate()?;
+                Ok(record)
+            }
         }
         None => CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             resolved.session_id.clone(),
             resolved.active_pid,
-            resolved.ai_root_dir.clone(),
+            resolved.ai_root_dir.clone().into_new_record_root()?,
             resolved.ai_current_dir.clone(),
-            session_start_source.unwrap_or("startup"),
+            session_start_source.unwrap_or(SessionStartSource::Startup),
             resolved.transition.agent_state,
             event_name.clone(),
             resolved.transition.state_reason.clone(),
         ),
-    };
-
-    if record.session_id != resolved.session_id {
-        return Err(HookError::validation(
-            "session_id",
-            "existing record does not match resolved session id",
-        ));
     }
-
-    record.last_hook_event = event_name;
-    record.last_hook_event_at = now.clone();
-    record.updated_at = now;
-    record.state_reason = resolved.transition.state_reason.clone();
-    record.ended_at = resolved.transition.ended_at.clone();
-
-    Ok(record)
 }
 
 fn resolve_transition(
@@ -214,7 +301,7 @@ fn resolve_transition(
         LifecycleEvent::SessionStart => {
             let payload: SessionStartPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Starting,
                 session_start_source: Some(payload.source),
                 state_reason: "session_started".to_string(),
@@ -224,7 +311,7 @@ fn resolve_transition(
         LifecycleEvent::SessionEnd => {
             let payload: SessionEndPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Ended,
                 session_start_source: None,
                 state_reason: payload
@@ -236,7 +323,7 @@ fn resolve_transition(
         LifecycleEvent::PreCompact => {
             let payload: PreCompactPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Compacting,
                 session_start_source: None,
                 state_reason: "compaction_started".to_string(),
@@ -246,7 +333,7 @@ fn resolve_transition(
         LifecycleEvent::Stop => {
             let payload: StopPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Idle,
                 session_start_source: None,
                 state_reason: "turn_completed".to_string(),
@@ -257,25 +344,28 @@ fn resolve_transition(
 }
 
 fn resolve_ai_root_dir(
+    context: &HookContext,
     lifecycle_event: LifecycleEvent,
+    transition: &SessionTransition,
     existing: Option<&CanonicalSessionRecord>,
-) -> Result<AiRootDir, HookError> {
-    if lifecycle_event == LifecycleEvent::SessionStart {
-        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|env_err| {
-            HookError::invalid_context(format!(
-                "CLAUDE_PROJECT_DIR is required on SessionStart: {env_err}"
-            ))
-        })?;
-        return AiRootDir::new(env_root);
+) -> Result<RootBinding, HookError> {
+    if lifecycle_event == LifecycleEvent::SessionStart
+        && transition
+            .session_start_source
+            .is_some_and(SessionStartSource::establishes_root)
+    {
+        return Ok(RootBinding::Established(
+            EstablishedRoot::from_root_establishing_session_start(context)?,
+        ));
     }
 
-    existing
-        .map(|record| record.ai_root_dir.clone())
-        .ok_or_else(|| {
-            HookError::invalid_context(
-                "ai_root_dir unavailable before SessionStart established canonical state",
-            )
-        })
+    let existing = existing.ok_or_else(|| {
+        HookError::invalid_context(
+            "ai_root_dir unavailable before a root-establishing SessionStart established canonical state",
+        )
+    })?;
+    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir().as_path())?;
+    Ok(RootBinding::Persisted(PersistedRoot::from_record(existing)))
 }
 
 fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookError> {
@@ -285,6 +375,27 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
     AiCurrentDir::new(cwd)
+}
+
+fn verify_project_root_env_matches(
+    hook_name: &str,
+    expected_root: &std::path::Path,
+) -> Result<(), HookError> {
+    let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
+        return Ok(());
+    };
+    let observed = std::path::PathBuf::from(observed);
+    if observed != expected_root {
+        return Err(HookError::validation(
+            "CLAUDE_PROJECT_DIR",
+            format!(
+                "must match immutable root on {hook_name}: expected {} but observed {}",
+                expected_root.display(),
+                observed.display()
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn resolve_active_pid(
@@ -308,7 +419,7 @@ fn resolve_active_pid(
     }
 
     existing
-        .map(|record| record.active_pid)
+        .map(CanonicalSessionRecord::active_pid)
         .ok_or_else(|| HookError::invalid_context("active_pid unavailable before SessionStart"))
 }
 
@@ -316,14 +427,23 @@ fn resolve_active_pid(
 mod tests {
     use super::*;
 
+    fn portable_test_path() -> String {
+        std::env::temp_dir()
+            .join("projects")
+            .join("agent")
+            .display()
+            .to_string()
+    }
+
     #[test]
     fn supports_all_normalized_state_transitions() {
+        let path = portable_test_path();
         assert_eq!(
             resolve_transition(
                 &HookContext::new(
                     HookType::SessionStart,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","source":"startup"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"source":"startup"}}),
                     None,
                 ),
                 LifecycleEvent::SessionStart,
@@ -337,7 +457,7 @@ mod tests {
                 &HookContext::new(
                     HookType::PreCompact,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::PreCompact,
@@ -351,7 +471,7 @@ mod tests {
                 &HookContext::new(
                     HookType::Stop,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","stop_hook_active":false}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"stop_hook_active":false}}),
                     None,
                 ),
                 LifecycleEvent::Stop,
@@ -365,7 +485,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionEnd,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::SessionEnd,

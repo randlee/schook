@@ -6,7 +6,8 @@ use atm_extension::AtmExtensionHandler;
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::session::{
-    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
+    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
+    SessionStartSource, StateRoot, UtcTimestamp,
 };
 use sc_hooks_core::storage::SessionStore;
 use sc_hooks_sdk::traits::SyncHandler;
@@ -70,21 +71,58 @@ fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookCont
 }
 
 fn write_session_record(state_root: &Path, ai_root_dir: &Path, session_id: &str, active_pid: u32) {
-    let store = SessionStore::new(state_root.to_path_buf());
+    let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
     let record = CanonicalSessionRecord::new(
-        "claude",
+        Provider::Claude,
         SessionId::new(session_id.to_string()).expect("session id"),
         ActivePid::new(active_pid).expect("pid"),
         AiRootDir::new(ai_root_dir).expect("ai root dir"),
         AiCurrentDir::new(ai_root_dir.join("subdir")).expect("ai current dir"),
-        "startup",
+        SessionStartSource::Startup,
         AgentState::Starting,
         "SessionStart",
         "session_started",
-    );
+    )
+    .expect("session record should construct");
     store
         .persist(&record)
         .expect("session record should persist");
+}
+
+fn write_ended_session_record(
+    state_root: &Path,
+    ai_root_dir: &Path,
+    session_id: &str,
+    active_pid: u32,
+) {
+    let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
+    let mut record = CanonicalSessionRecord::new(
+        Provider::Claude,
+        SessionId::new(session_id.to_string()).expect("session id"),
+        ActivePid::new(active_pid).expect("pid"),
+        AiRootDir::new(ai_root_dir).expect("ai root dir"),
+        AiCurrentDir::new(ai_root_dir.join("subdir")).expect("ai current dir"),
+        SessionStartSource::Startup,
+        AgentState::Starting,
+        "SessionStart",
+        "session_started",
+    )
+    .expect("session record should construct");
+    record
+        .apply_hook_update(
+            record.active_pid(),
+            record.ai_current_dir().clone(),
+            record.session_start_source(),
+            AgentState::Ended,
+            UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z").expect("timestamp"),
+            "SessionEnd",
+            "session_ended",
+            Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z").expect("timestamp")),
+        )
+        .expect("ended session update should validate");
+    store
+        .persist(&record)
+        .expect("ended session record should persist");
 }
 
 fn load_record(state_root: &Path, session_id: &str) -> serde_json::Value {
@@ -335,6 +373,38 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
 }
 
 #[test]
+fn stop_does_not_revive_ended_record() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let repo_root = temp.path().join("repo");
+    let state_root = temp.path().join("state");
+    fs::create_dir_all(&repo_root).expect("repo root");
+    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
+    write_ended_session_record(&state_root, &repo_root, "sess-ended", 9007);
+
+    let _env = EnvGuard::set(&[
+        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
+        ("ATM_TEAM", "atm-dev"),
+        ("ATM_IDENTITY", "arch-hook"),
+    ]);
+
+    let result = AtmExtensionHandler
+        .handle(hook_context(
+            HookType::Stop,
+            None,
+            serde_json::json!({
+                "session_id": "sess-ended",
+                "cwd": repo_root,
+            }),
+        ))
+        .expect("ended sessions should be ignored");
+    assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+
+    let record = load_record(&state_root, "sess-ended");
+    assert_eq!(record["agent_state"], "ended");
+    assert_eq!(record["last_hook_event"], "SessionEnd");
+}
+
+#[test]
 fn malformed_permission_suggestions_report_index_and_field() {
     let temp = tempfile::tempdir().expect("tempdir");
     let repo_root = temp.path().join("repo");
@@ -370,7 +440,7 @@ fn malformed_permission_suggestions_report_index_and_field() {
         .expect_err("malformed permission_suggestions should fail");
 
     match err {
-        sc_hooks_core::errors::HookError::Validation { field, message } => {
+        sc_hooks_core::errors::HookError::Validation { field, message, .. } => {
             assert_eq!(field, "permission_suggestions[0].rules[0].toolName");
             assert_eq!(message, "must be a string");
         }
