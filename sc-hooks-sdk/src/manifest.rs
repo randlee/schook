@@ -210,13 +210,13 @@ pub fn build_plugin_input(
         })?;
 
         validate_field_value(field, value, spec)?;
-        set_value_by_path(&mut root, field, value.clone())?;
+        set_value_by_path(&mut root, field, value)?;
     }
 
     for (field, spec) in &manifest.optional {
         if let Some(value) = get_value_by_path(metadata, field) {
             validate_field_value(field, value, spec)?;
-            set_value_by_path(&mut root, field, value.clone())?;
+            set_value_by_path(&mut root, field, value)?;
         }
     }
 
@@ -348,14 +348,14 @@ fn get_value_by_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
 fn set_value_by_path(
     root: &mut Map<String, Value>,
     path: &str,
-    value: Value,
+    value: &Value,
 ) -> Result<(), ManifestError> {
     let mut segments = path.split('.').peekable();
     let mut current = root;
 
     while let Some(segment) = segments.next() {
         if segments.peek().is_none() {
-            current.insert(segment.to_string(), value);
+            current.insert(segment.to_string(), value.clone());
             return Ok(());
         }
 
@@ -596,7 +596,7 @@ mod tests {
         let err = set_value_by_path(
             &mut root,
             "team.name",
-            Value::String("calibration".to_string()),
+            &Value::String("calibration".to_string()),
         )
         .expect_err("non-object path collisions should not panic");
 

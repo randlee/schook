@@ -57,7 +57,7 @@ impl SessionStore {
     }
 
     pub fn persist(&self, record: &CanonicalSessionRecord) -> Result<PersistOutcome, HookError> {
-        let path = self.path_for(&record.session_id);
+        let path = self.path_for(record.session_id());
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .map_err(|source| HookError::state_io(parent.to_path_buf(), source))?;
@@ -208,7 +208,13 @@ mod tests {
         let err = store
             .load(&session_id)
             .expect_err("invalid revision should fail");
-        assert!(err.to_string().contains("state_revision"));
+        match err {
+            HookError::InvalidPayload {
+                source: Some(source),
+                ..
+            } => assert!(source.to_string().contains("state_revision")),
+            other => panic!("unexpected error: {other}"),
+        }
     }
 
     #[test]
@@ -243,7 +249,13 @@ mod tests {
         let err = store
             .load(&session_id)
             .expect_err("blank created_at should fail");
-        assert!(err.to_string().contains("created_at"));
+        match err {
+            HookError::InvalidPayload {
+                source: Some(source),
+                ..
+            } => assert!(source.to_string().contains("created_at")),
+            other => panic!("unexpected error: {other}"),
+        }
     }
 
     struct CurrentDirGuard {

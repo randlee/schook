@@ -108,17 +108,16 @@ fn write_ended_session_record(
         "session_started",
     )
     .expect("session record should construct");
-    record.agent_state = AgentState::Ended;
     record
         .apply_hook_update(
-            UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z")
-                .expect("timestamp"),
+            record.active_pid(),
+            record.ai_current_dir().clone(),
+            record.session_start_source(),
+            AgentState::Ended,
+            UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z").expect("timestamp"),
             "SessionEnd",
             "session_ended",
-            Some(
-                UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z")
-                    .expect("timestamp"),
-            ),
+            Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z").expect("timestamp")),
         )
         .expect("ended session update should validate");
     store

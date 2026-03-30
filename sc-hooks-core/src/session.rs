@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
@@ -197,31 +197,32 @@ impl SessionStartSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CanonicalSessionRecord {
     schema_version: SchemaVersion,
     provider: Provider,
-    pub session_id: SessionId,
-    pub active_pid: ActivePid,
+    session_id: SessionId,
     #[serde(default)]
-    pub parent_session_id: Option<SessionId>,
+    active_pid: ActivePid,
     #[serde(default)]
-    pub parent_active_pid: Option<ActivePid>,
+    parent_session_id: Option<SessionId>,
+    #[serde(default)]
+    parent_active_pid: Option<ActivePid>,
     #[serde(alias = "project_root_dir")]
     ai_root_dir: AiRootDir,
-    pub ai_current_dir: AiCurrentDir,
-    pub session_start_source: SessionStartSource,
-    pub agent_state: AgentState,
+    ai_current_dir: AiCurrentDir,
+    session_start_source: SessionStartSource,
+    agent_state: AgentState,
     state_revision: u64,
     created_at: UtcTimestamp,
     updated_at: UtcTimestamp,
     #[serde(default)]
     ended_at: Option<UtcTimestamp>,
-    pub last_hook_event: String,
+    last_hook_event: String,
     last_hook_event_at: UtcTimestamp,
-    pub state_reason: String,
+    state_reason: String,
     #[serde(default)]
-    pub extensions: BTreeMap<String, Value>,
+    extensions: BTreeMap<String, Value>,
 }
 
 impl CanonicalSessionRecord {
@@ -275,6 +276,34 @@ impl CanonicalSessionRecord {
         &self.ai_root_dir
     }
 
+    pub fn session_id(&self) -> &SessionId {
+        &self.session_id
+    }
+
+    pub fn active_pid(&self) -> ActivePid {
+        self.active_pid
+    }
+
+    pub fn parent_session_id(&self) -> Option<&SessionId> {
+        self.parent_session_id.as_ref()
+    }
+
+    pub fn parent_active_pid(&self) -> Option<ActivePid> {
+        self.parent_active_pid
+    }
+
+    pub fn ai_current_dir(&self) -> &AiCurrentDir {
+        &self.ai_current_dir
+    }
+
+    pub fn session_start_source(&self) -> SessionStartSource {
+        self.session_start_source
+    }
+
+    pub fn agent_state(&self) -> AgentState {
+        self.agent_state
+    }
+
     pub fn schema_version(&self) -> SchemaVersion {
         self.schema_version
     }
@@ -299,8 +328,33 @@ impl CanonicalSessionRecord {
         self.ended_at.as_ref()
     }
 
+    pub fn last_hook_event(&self) -> &str {
+        &self.last_hook_event
+    }
+
     pub fn last_hook_event_at(&self) -> &UtcTimestamp {
         &self.last_hook_event_at
+    }
+
+    pub fn state_reason(&self) -> &str {
+        &self.state_reason
+    }
+
+    pub fn extensions(&self) -> &BTreeMap<String, Value> {
+        &self.extensions
+    }
+
+    pub fn extension(&self, key: &str) -> Option<&Value> {
+        self.extensions.get(key)
+    }
+
+    pub fn set_extension(&mut self, key: impl Into<String>, value: Value) -> bool {
+        let key = key.into();
+        if self.extensions.get(&key) == Some(&value) {
+            return false;
+        }
+        self.extensions.insert(key, value);
+        true
     }
 
     #[expect(
@@ -351,14 +405,26 @@ impl CanonicalSessionRecord {
         self.validate()
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "hook-state updates need to carry the full validated canonical mutation set"
+    )]
     pub fn apply_hook_update(
         &mut self,
+        active_pid: ActivePid,
+        ai_current_dir: AiCurrentDir,
+        session_start_source: SessionStartSource,
+        agent_state: AgentState,
         updated_at: UtcTimestamp,
         last_hook_event: impl Into<String>,
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
     ) -> Result<(), HookError> {
         self.state_revision += 1;
+        self.active_pid = active_pid;
+        self.ai_current_dir = ai_current_dir;
+        self.session_start_source = session_start_source;
+        self.agent_state = agent_state;
         self.updated_at = updated_at.clone();
         self.last_hook_event = last_hook_event.into();
         self.last_hook_event_at = updated_at;
@@ -423,6 +489,64 @@ pub fn utc_timestamp_now() -> UtcTimestamp {
         .format(&Rfc3339)
         .expect("RFC 3339 formatting for UTC timestamps should be infallible");
     UtcTimestamp(rendered)
+}
+
+#[derive(Debug, Deserialize)]
+struct CanonicalSessionRecordWire {
+    schema_version: SchemaVersion,
+    provider: Provider,
+    session_id: SessionId,
+    active_pid: ActivePid,
+    #[serde(default)]
+    parent_session_id: Option<SessionId>,
+    #[serde(default)]
+    parent_active_pid: Option<ActivePid>,
+    #[serde(alias = "project_root_dir")]
+    ai_root_dir: AiRootDir,
+    ai_current_dir: AiCurrentDir,
+    session_start_source: SessionStartSource,
+    agent_state: AgentState,
+    state_revision: u64,
+    created_at: UtcTimestamp,
+    updated_at: UtcTimestamp,
+    #[serde(default)]
+    ended_at: Option<UtcTimestamp>,
+    last_hook_event: String,
+    last_hook_event_at: UtcTimestamp,
+    state_reason: String,
+    #[serde(default)]
+    extensions: BTreeMap<String, Value>,
+}
+
+impl<'de> Deserialize<'de> for CanonicalSessionRecord {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = CanonicalSessionRecordWire::deserialize(deserializer)?;
+        let record = Self {
+            schema_version: wire.schema_version,
+            provider: wire.provider,
+            session_id: wire.session_id,
+            active_pid: wire.active_pid,
+            parent_session_id: wire.parent_session_id,
+            parent_active_pid: wire.parent_active_pid,
+            ai_root_dir: wire.ai_root_dir,
+            ai_current_dir: wire.ai_current_dir,
+            session_start_source: wire.session_start_source,
+            agent_state: wire.agent_state,
+            state_revision: wire.state_revision,
+            created_at: wire.created_at,
+            updated_at: wire.updated_at,
+            ended_at: wire.ended_at,
+            last_hook_event: wire.last_hook_event,
+            last_hook_event_at: wire.last_hook_event_at,
+            state_reason: wire.state_reason,
+            extensions: wire.extensions,
+        };
+        record.validate().map_err(serde::de::Error::custom)?;
+        Ok(record)
+    }
 }
 
 #[cfg(test)]

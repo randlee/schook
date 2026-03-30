@@ -113,11 +113,9 @@ impl SyncHandler for AgentSpawnGatesHandler {
         }
 
         let next_extension = spawn_extension(&record, &payload, spawn_kind);
-        let changed = record.extensions.get("spawn_gate") != Some(&next_extension);
+        let changed = record.extension("spawn_gate") != Some(&next_extension);
         if changed {
-            record
-                .extensions
-                .insert("spawn_gate".to_string(), next_extension);
+            record.set_extension("spawn_gate", next_extension);
             record.mark_material_change(utc_timestamp_now())?;
         }
         let persist = store.persist(&record)?;
@@ -158,8 +156,8 @@ fn spawn_extension(
         "last_requested_spawn": {
             "tool_use_id": payload.tool_use_id,
             "spawn_kind": spawn_kind.as_str(),
-            "parent_session_id": record.session_id.as_str(),
-            "parent_active_pid": record.active_pid.get(),
+            "parent_session_id": record.session_id().as_str(),
+            "parent_active_pid": record.active_pid().get(),
             "prompt_excerpt": excerpt(&payload.tool_input.prompt),
             "description": payload.tool_input.description,
             "run_in_background": payload.tool_input.run_in_background.unwrap_or(false),
@@ -305,7 +303,7 @@ mod tests {
             .load(&session_id)
             .expect("load")
             .expect("record should exist");
-        let linkage = &updated.extensions["spawn_gate"]["last_requested_spawn"];
+        let linkage = &updated.extensions()["spawn_gate"]["last_requested_spawn"];
         assert_eq!(linkage["spawn_kind"], "background_agent");
         assert_eq!(linkage["parent_session_id"], "session-1");
         assert_eq!(linkage["parent_active_pid"], 4242);
