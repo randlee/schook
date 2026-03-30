@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -12,8 +13,8 @@ pub struct PluginRunner;
 
 #[derive(Debug, Error)]
 pub enum RunnerError {
-    #[error("unknown hook type `{name}`")]
-    UnknownHookType { name: String },
+    #[error("unknown hook type `{name}`: {reason}")]
+    UnknownHookType { name: String, reason: String },
 
     #[error("failed to read stdin: {source}")]
     StdinRead {
@@ -114,19 +115,22 @@ fn read_hook_context() -> Result<HookContext, RunnerError> {
 fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerError> {
     let hook_name = std::env::var("SC_HOOK_TYPE")
         .ok()
+        .map(Cow::Owned)
         .or_else(|| {
             raw_input
                 .get("hook")
                 .and_then(|hook| hook.get("type"))
                 .and_then(serde_json::Value::as_str)
-                .map(str::to_string)
+                .map(Cow::Borrowed)
         })
         .ok_or_else(|| RunnerError::UnknownHookType {
             name: "<missing>".to_string(),
+            reason: "missing from SC_HOOK_TYPE and payload".to_string(),
         })?;
 
-    HookType::from_str(&hook_name).map_err(|_err| RunnerError::UnknownHookType {
-        name: hook_name.clone(),
+    HookType::from_str(hook_name.as_ref()).map_err(|err| RunnerError::UnknownHookType {
+        name: hook_name.into_owned(),
+        reason: err.to_string(),
     })
 }
 
@@ -136,7 +140,7 @@ fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
             .get("hook")
             .and_then(|hook| hook.get("event"))
             .and_then(serde_json::Value::as_str)
-            .map(str::to_string)
+            .map(str::to_owned)
     })
 }
 
@@ -193,7 +197,7 @@ mod tests {
             .expect_err("unknown hook should fail");
         assert!(matches!(
             err,
-            RunnerError::UnknownHookType { name } if name == "NotAHook"
+            RunnerError::UnknownHookType { name, .. } if name == "NotAHook"
         ));
     }
 

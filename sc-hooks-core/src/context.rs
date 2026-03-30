@@ -47,7 +47,7 @@ impl HookContext {
 fn excerpt(value: &Value) -> String {
     let rendered = match serde_json::to_string(value) {
         Ok(body) => body,
-        Err(_) => "<unrenderable>".to_string(),
+        Err(err) => format!("<unrenderable: {err}>"),
     };
     rendered.chars().take(120).collect()
 }

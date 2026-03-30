@@ -237,6 +237,11 @@ fn build_next_record(
 
     match existing {
         Some(mut record) => {
+            if record.agent_state() == AgentState::Ended {
+                return Err(HookError::invalid_context(
+                    "session foundation cannot modify a record in terminal Ended state",
+                ));
+            }
             let next_source = session_start_source.unwrap_or(record.session_start_source());
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =

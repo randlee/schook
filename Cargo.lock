@@ -97,6 +97,7 @@ name = "atm-extension"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "log",
  "sc-hooks-core",
  "sc-hooks-sdk",
  "serde",

@@ -445,7 +445,7 @@ fn stop_does_not_revive_ended_record() {
         ("ATM_IDENTITY", "arch-hook"),
     ]);
 
-    let err = AtmExtensionHandler
+    let result = AtmExtensionHandler
         .handle(hook_context(
             HookType::Stop,
             None,
@@ -454,8 +454,12 @@ fn stop_does_not_revive_ended_record() {
                 "cwd": repo_root,
             }),
         ))
-        .expect_err("ended sessions must not be revived");
-    assert!(err.to_string().contains("ended canonical session"));
+        .expect("ended sessions should be ignored");
+    assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+
+    let record = load_record(&state_root, "sess-ended");
+    assert_eq!(record["agent_state"], "ended");
+    assert_eq!(record["last_hook_event"], "SessionEnd");
 }
 
 #[test]
