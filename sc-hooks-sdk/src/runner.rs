@@ -5,28 +5,10 @@ use std::str::FromStr;
 use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
 use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use thiserror::Error;
 
 pub struct PluginRunner;
-
-#[derive(Debug, Error)]
-pub enum RunnerError {
-    #[error("unknown hook type `{name}`")]
-    UnknownHookType { name: String },
-
-    #[error("failed to read stdin: {source}")]
-    StdinRead {
-        #[source]
-        source: std::io::Error,
-    },
-
-    #[error("invalid JSON on stdin: {source}")]
-    StdinParse {
-        #[source]
-        source: serde_json::Error,
-    },
-}
 
 impl PluginRunner {
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
@@ -37,8 +19,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&err));
             }
         };
 
@@ -58,8 +39,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&err));
             }
         };
 
@@ -89,21 +69,23 @@ fn print_manifest(manifest: &sc_hooks_core::manifest::Manifest) -> i32 {
     }
 }
 
-fn read_json_stdin() -> Result<serde_json::Value, RunnerError> {
+fn read_json_stdin() -> Result<serde_json::Value, HookError> {
     let mut input = String::new();
     std::io::stdin()
         .read_to_string(&mut input)
-        .map_err(|source| RunnerError::StdinRead { source })?;
+        .map_err(|source| HookError::internal_with_source("failed to read stdin", source))?;
 
     if input.trim().is_empty() {
         return Ok(serde_json::json!({}));
     }
 
-    serde_json::from_str::<serde_json::Value>(&input)
-        .map_err(|source| RunnerError::StdinParse { source })
+    serde_json::from_str::<serde_json::Value>(&input).map_err(|source| HookError::InvalidPayload {
+        input_excerpt: input.chars().take(120).collect(),
+        source: Some(source),
+    })
 }
 
-fn read_hook_context() -> Result<HookContext, RunnerError> {
+fn read_hook_context() -> Result<HookContext, HookError> {
     let raw_input = read_json_stdin()?;
     let hook = resolve_hook_type(&raw_input)?;
     let event = resolve_event(&raw_input);
@@ -111,7 +93,7 @@ fn read_hook_context() -> Result<HookContext, RunnerError> {
     Ok(HookContext::new(hook, event, raw_input, metadata_path))
 }
 
-fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerError> {
+fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, HookError> {
     let hook_name = std::env::var("SC_HOOK_TYPE")
         .ok()
         .or_else(|| {
@@ -121,13 +103,12 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerEr
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_string)
         })
-        .ok_or_else(|| RunnerError::UnknownHookType {
-            name: "<missing>".to_string(),
+        .ok_or_else(|| {
+            HookError::invalid_context("missing hook type in SC_HOOK_TYPE and payload")
         })?;
 
-    HookType::from_str(&hook_name).map_err(|_err| RunnerError::UnknownHookType {
-        name: hook_name.clone(),
-    })
+    HookType::from_str(&hook_name)
+        .map_err(|_err| HookError::invalid_context(format!("unknown hook type `{hook_name}`")))
 }
 
 fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
@@ -191,10 +172,10 @@ mod tests {
     fn hook_type_resolution_returns_typed_error_for_unknown_hook() {
         let err = resolve_hook_type(&serde_json::json!({"hook": {"type": "NotAHook"}}))
             .expect_err("unknown hook should fail");
-        assert!(matches!(
-            err,
-            RunnerError::UnknownHookType { name } if name == "NotAHook"
-        ));
+        assert_eq!(
+            err.to_string(),
+            "invalid context: unknown hook type `NotAHook`"
+        );
     }
 
     #[test]
