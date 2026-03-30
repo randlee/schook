@@ -153,10 +153,7 @@ pub struct UtcTimestamp(String);
 impl UtcTimestamp {
     pub fn from_field(field: &str, value: impl Into<String>) -> Result<Self, HookError> {
         let value = value.into();
-        validate_nonblank_text(field, &value)?;
-        OffsetDateTime::parse(&value, &Rfc3339).map_err(|source| {
-            HookError::validation_with_source(field, "must be a valid RFC 3339 timestamp", source)
-        })?;
+        validate_rfc3339_timestamp(field, &value)?;
         Ok(Self(value))
     }
 
@@ -480,7 +477,15 @@ fn validate_nonblank_text(field: &str, value: &str) -> Result<(), HookError> {
 }
 
 fn validate_timestamp(field: &str, value: &UtcTimestamp) -> Result<(), HookError> {
-    UtcTimestamp::from_field(field, value.as_str()).map(|_| ())
+    validate_rfc3339_timestamp(field, value.as_str())
+}
+
+fn validate_rfc3339_timestamp(field: &str, value: &str) -> Result<(), HookError> {
+    validate_nonblank_text(field, value)?;
+    OffsetDateTime::parse(value, &Rfc3339).map_err(|source| {
+        HookError::validation_with_source(field, "must be a valid RFC 3339 timestamp", source)
+    })?;
+    Ok(())
 }
 
 pub fn utc_timestamp_now() -> UtcTimestamp {

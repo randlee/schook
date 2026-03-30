@@ -3,6 +3,10 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
+mod private {
+    pub trait Sealed {}
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceCheck {
     pub name: String,
@@ -46,8 +50,29 @@ pub struct ContractScenarioResult {
 /// the shared compliance scenarios without exposing arbitrary external probe
 /// implementations. Implementors must provide
 /// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>`.
-pub trait HostDispatchProbe {
+pub trait HostDispatchProbe: private::Sealed {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
+}
+
+pub struct FnHostDispatchProbe<F> {
+    run: F,
+}
+
+impl<F> FnHostDispatchProbe<F> {
+    pub fn new(run: F) -> Self {
+        Self { run }
+    }
+}
+
+impl<F> private::Sealed for FnHostDispatchProbe<F> {}
+
+impl<F> HostDispatchProbe for FnHostDispatchProbe<F>
+where
+    F: Fn(ContractScenario) -> Result<ContractScenarioResult, String>,
+{
+    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
+        (self.run)(scenario)
+    }
 }
 
 pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {

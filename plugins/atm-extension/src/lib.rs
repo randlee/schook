@@ -243,7 +243,7 @@ fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     if is_atm_invocation(&payload.tool_input.command) {
         let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = write_identity_file(&identity_file, &record, &routing) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to write ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -281,7 +281,7 @@ fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     if is_atm_invocation(&payload.tool_input.command) {
         let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = delete_identity_file(&identity_file) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -500,13 +500,9 @@ fn persist_atm_update(
     routing: &AtmRouting,
     update: RecordUpdate,
 ) -> Result<(), HookError> {
-    if record.agent_state() == AgentState::Ended
-        && update
-            .agent_state
-            .is_some_and(|state| state != AgentState::Ended)
-    {
+    if record.agent_state() == AgentState::Ended {
         return Err(HookError::invalid_context(
-            "ATM relay cannot transition an ended canonical session back to a live state",
+            "ATM relay cannot modify an ended canonical session",
         ));
     }
 
@@ -655,7 +651,7 @@ fn execute_relay<T>(
     if decision.cleanup_identity_file {
         let identity_file = identity_file_path(decision.request.relay.process_id);
         if let Err(err) = delete_identity_file(&identity_file) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -692,7 +688,7 @@ fn append_relay_event(root: Option<PathBuf>, event: Value) {
     })();
 
     if let Err(err) = result {
-        eprintln!(
+        log::error!(
             "atm-extension: failed to append relay event {}: {err}",
             events_path.display()
         );
@@ -744,7 +740,7 @@ fn delete_identity_file(path: &Path) -> std::io::Result<()> {
 
 fn is_atm_invocation(command: &str) -> bool {
     let tokens = shell_words::split(command).unwrap_or_else(|err| {
-        eprintln!(
+        log::warn!(
             "[atm-extension] shell_words parse error for command {command:?}: {err}; falling back to whitespace split"
         );
         command
