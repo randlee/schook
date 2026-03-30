@@ -71,7 +71,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Check rustdoc warnings
-        run: RUSTDOCFLAGS="-Dwarnings" cargo doc --no-deps --workspace
+        run: RUSTDOCFLAGS="-Dwarnings -Wmissing-docs" cargo doc --no-deps --workspace
 
   build:
     name: build (${{ matrix.os }})
