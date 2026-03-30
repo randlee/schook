@@ -290,6 +290,11 @@ mod tests {
 
     #[test]
     fn assembles_metadata_with_injected_runtime_and_context() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let repo_root = temp.path().join("repo");
+        let repo_subdir = repo_root.join("subdir");
+        let repo_root_str = repo_root.to_string_lossy().to_string();
+        let repo_subdir_str = repo_subdir.to_string_lossy().to_string();
         let mut context = BTreeMap::new();
         let mut team = toml::map::Map::new();
         team.insert(
@@ -306,9 +311,9 @@ mod tests {
             agent_pid: 42,
             agent_type: Some("codex".to_string()),
             session_id: Some("abc123".to_string()),
-            repo_path: Some("/repo".to_string()),
+            repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
-            working_dir: "/repo/subdir".to_string(),
+            working_dir: repo_subdir_str.clone(),
         };
         let payload = serde_json::json!({"tool_input":{"command":"Write"}} );
         let metadata = assemble_metadata(
@@ -329,14 +334,14 @@ mod tests {
             metadata["agent"]["session_id"],
             Value::String("abc123".to_string())
         );
-        assert_eq!(metadata["repo"]["path"], Value::String("/repo".to_string()));
+        assert_eq!(metadata["repo"]["path"], Value::String(repo_root_str));
         assert_eq!(
             metadata["repo"]["branch"],
             Value::String("feature/s2".to_string())
         );
         assert_eq!(
             metadata["repo"]["working_dir"],
-            Value::String("/repo/subdir".to_string())
+            Value::String(repo_subdir_str)
         );
         assert_eq!(
             metadata["team"]["name"],
@@ -377,14 +382,16 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
+        let repo_root_str = repo_root.to_string_lossy().to_string();
 
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: Some("codex".to_string()),
             session_id: Some("session-1".to_string()),
-            repo_path: Some("/repo".to_string()),
+            repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root_str,
         };
 
         let prepared = prepare_with_runtime(
@@ -432,13 +439,14 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: None,
             session_id: None,
             repo_path: None,
             repo_branch: None,
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root.to_string_lossy().to_string(),
         };
 
         let prepared =
@@ -478,13 +486,14 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: None,
             session_id: None,
             repo_path: None,
             repo_branch: None,
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root.to_string_lossy().to_string(),
         };
 
         let prepared =

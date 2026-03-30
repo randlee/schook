@@ -2,7 +2,9 @@ mod payloads;
 
 use std::collections::BTreeMap;
 
-use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
+use payloads::{
+    PreCompactPayload, SessionEndPayload, SessionStartPayload, SessionStartSource, StopPayload,
+};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
@@ -34,7 +36,7 @@ enum LifecycleEvent {
 struct SessionTransition {
     session_id: SessionId,
     agent_state: AgentState,
-    session_start_source: Option<String>,
+    session_start_source: Option<SessionStartSource>,
     state_reason: String,
     ended_at: Option<String>,
 }
@@ -43,9 +45,70 @@ struct SessionTransition {
 struct ResolvedRuntime {
     session_id: SessionId,
     active_pid: ActivePid,
-    ai_root_dir: AiRootDir,
+    ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
     transition: SessionTransition,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EstablishedRoot(AiRootDir);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PersistedRoot(AiRootDir);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RootBinding {
+    Established(EstablishedRoot),
+    Persisted(PersistedRoot),
+}
+
+impl EstablishedRoot {
+    fn from_root_establishing_session_start(context: &HookContext) -> Result<Self, HookError> {
+        let cwd = context
+            .payload_value()?
+            .get("cwd")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
+        let root = AiRootDir::new(cwd)?;
+        verify_project_root_env_matches(context.hook.as_str(), root.as_path())?;
+        Ok(Self(root))
+    }
+
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        &self.0
+    }
+}
+
+impl PersistedRoot {
+    fn from_record(record: &CanonicalSessionRecord) -> Self {
+        Self(record.ai_root_dir.clone())
+    }
+
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        &self.0
+    }
+}
+
+impl RootBinding {
+    fn as_ai_root_dir(&self) -> &AiRootDir {
+        match self {
+            Self::Established(root) => root.as_ai_root_dir(),
+            Self::Persisted(root) => root.as_ai_root_dir(),
+        }
+    }
+
+    fn replaces_existing_root(&self) -> bool {
+        matches!(self, Self::Established(_))
+    }
+
+    fn into_new_record_root(self) -> Result<AiRootDir, HookError> {
+        match self {
+            Self::Established(root) => Ok(root.0),
+            Self::Persisted(_) => Err(HookError::invalid_context(
+                "ai_root_dir unavailable before a root-establishing SessionStart",
+            )),
+        }
+    }
 }
 
 impl ManifestProvider for SessionFoundationHandler {
@@ -88,7 +151,7 @@ impl SyncHandler for SessionFoundationHandler {
             &context,
             existing,
             &resolved,
-            resolved.transition.session_start_source.as_deref(),
+            resolved.transition.session_start_source,
         )?;
         let _persist = store.persist(&next_record)?;
 
@@ -132,7 +195,7 @@ fn resolve_runtime(
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
-    let ai_root_dir = resolve_ai_root_dir(lifecycle_event, existing)?;
+    let ai_root_dir = resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
 
     Ok(ResolvedRuntime {
@@ -149,16 +212,21 @@ fn build_next_record(
     _context: &HookContext,
     existing: Option<CanonicalSessionRecord>,
     resolved: &ResolvedRuntime,
-    session_start_source: Option<&str>,
+    session_start_source: Option<SessionStartSource>,
 ) -> Result<CanonicalSessionRecord, HookError> {
     let event_name = lifecycle_event.as_str().to_string();
     let now = utc_timestamp_now();
 
     let mut record = match existing {
         Some(mut record) => {
-            let next_source = session_start_source.unwrap_or(record.session_start_source.as_str());
+            let next_source = session_start_source
+                .map(SessionStartSource::as_str)
+                .unwrap_or(record.session_start_source.as_str());
+            let next_root = resolved.ai_root_dir.as_ai_root_dir();
+            let root_changed =
+                resolved.ai_root_dir.replaces_existing_root() && &record.ai_root_dir != next_root;
             let material_changed = record.active_pid != resolved.active_pid
-                || record.ai_root_dir != resolved.ai_root_dir
+                || root_changed
                 || record.ai_current_dir != resolved.ai_current_dir
                 || record.agent_state != resolved.transition.agent_state
                 || record.session_start_source != next_source
@@ -170,7 +238,9 @@ fn build_next_record(
             }
 
             record.active_pid = resolved.active_pid;
-            record.ai_root_dir = resolved.ai_root_dir.clone();
+            if resolved.ai_root_dir.replaces_existing_root() {
+                record.ai_root_dir = next_root.clone();
+            }
             record.ai_current_dir = resolved.ai_current_dir.clone();
             record.agent_state = resolved.transition.agent_state;
             record.session_start_source = next_source.to_string();
@@ -181,9 +251,11 @@ fn build_next_record(
             "claude",
             resolved.session_id.clone(),
             resolved.active_pid,
-            resolved.ai_root_dir.clone(),
+            resolved.ai_root_dir.clone().into_new_record_root()?,
             resolved.ai_current_dir.clone(),
-            session_start_source.unwrap_or("startup"),
+            session_start_source
+                .map(SessionStartSource::as_str)
+                .unwrap_or("startup"),
             resolved.transition.agent_state,
             event_name.clone(),
             resolved.transition.state_reason.clone(),
@@ -257,25 +329,28 @@ fn resolve_transition(
 }
 
 fn resolve_ai_root_dir(
+    context: &HookContext,
     lifecycle_event: LifecycleEvent,
+    transition: &SessionTransition,
     existing: Option<&CanonicalSessionRecord>,
-) -> Result<AiRootDir, HookError> {
-    if lifecycle_event == LifecycleEvent::SessionStart {
-        let env_root = std::env::var("CLAUDE_PROJECT_DIR").map_err(|env_err| {
-            HookError::invalid_context(format!(
-                "CLAUDE_PROJECT_DIR is required on SessionStart: {env_err}"
-            ))
-        })?;
-        return AiRootDir::new(env_root);
+) -> Result<RootBinding, HookError> {
+    if lifecycle_event == LifecycleEvent::SessionStart
+        && transition
+            .session_start_source
+            .is_some_and(SessionStartSource::establishes_root)
+    {
+        return Ok(RootBinding::Established(
+            EstablishedRoot::from_root_establishing_session_start(context)?,
+        ));
     }
 
-    existing
-        .map(|record| record.ai_root_dir.clone())
-        .ok_or_else(|| {
-            HookError::invalid_context(
-                "ai_root_dir unavailable before SessionStart established canonical state",
-            )
-        })
+    let existing = existing.ok_or_else(|| {
+        HookError::invalid_context(
+            "ai_root_dir unavailable before a root-establishing SessionStart established canonical state",
+        )
+    })?;
+    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir.as_path())?;
+    Ok(RootBinding::Persisted(PersistedRoot::from_record(existing)))
 }
 
 fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookError> {
@@ -285,6 +360,27 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
     AiCurrentDir::new(cwd)
+}
+
+fn verify_project_root_env_matches(
+    hook_name: &str,
+    expected_root: &std::path::Path,
+) -> Result<(), HookError> {
+    let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
+        return Ok(());
+    };
+    let observed = std::path::PathBuf::from(observed);
+    if observed != expected_root {
+        return Err(HookError::validation(
+            "CLAUDE_PROJECT_DIR",
+            format!(
+                "must match immutable root on {hook_name}: expected {} but observed {}",
+                expected_root.display(),
+                observed.display()
+            ),
+        ));
+    }
+    Ok(())
 }
 
 fn resolve_active_pid(

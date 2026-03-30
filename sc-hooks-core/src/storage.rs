@@ -128,12 +128,14 @@ mod tests {
     fn unchanged_records_do_not_rewrite() {
         let temp = tempfile::tempdir().expect("tempdir");
         let store = SessionStore::new(temp.path().to_path_buf());
+        let repo_root = temp.path().join("repo");
+        let repo_subdir = repo_root.join("subdir");
         let record = CanonicalSessionRecord::new(
             "claude",
             SessionId::new("session-1").expect("session"),
             ActivePid::new(11).expect("pid"),
-            AiRootDir::new("/repo").expect("root"),
-            AiCurrentDir::new("/repo/subdir").expect("current"),
+            AiRootDir::new(&repo_root).expect("root"),
+            AiCurrentDir::new(&repo_subdir).expect("current"),
             "startup",
             AgentState::Starting,
             "SessionStart",

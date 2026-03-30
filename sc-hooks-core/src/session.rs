@@ -200,12 +200,15 @@ mod tests {
 
     #[test]
     fn canonical_record_uses_lowercase_agent_state_strings() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let repo_root = temp.path().join("repo");
+        let repo_subdir = repo_root.join("subdir");
         let record = CanonicalSessionRecord::new(
             "claude",
             SessionId::new("session-1").expect("session id"),
             ActivePid::new(42).expect("pid"),
-            AiRootDir::new("/repo").expect("root"),
-            AiCurrentDir::new("/repo/subdir").expect("current"),
+            AiRootDir::new(&repo_root).expect("root"),
+            AiCurrentDir::new(&repo_subdir).expect("current"),
             "startup",
             AgentState::AwaitingPermission,
             "PermissionRequest",
