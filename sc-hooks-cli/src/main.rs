@@ -1,3 +1,5 @@
+//! Command-line entrypoint for the `sc-hooks` host runtime.
+
 mod audit;
 mod config;
 mod dispatch;

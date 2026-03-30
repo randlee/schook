@@ -11,9 +11,11 @@ use crate::errors::HookError;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// Stable identifier for a canonical Claude session record.
 pub struct SessionId(String);
 
 impl SessionId {
+    /// Creates a validated session identifier.
     pub fn new(value: impl Into<String>) -> Result<Self, HookError> {
         let value = value.into();
         if value.trim().is_empty() {
@@ -22,6 +24,7 @@ impl SessionId {
         Ok(Self(value))
     }
 
+    /// Returns the session identifier as a borrowed string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -35,9 +38,11 @@ impl fmt::Display for SessionId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// Positive process identifier for the currently active Claude process.
 pub struct ActivePid(u32);
 
 impl ActivePid {
+    /// Creates a validated non-zero PID wrapper.
     pub fn new(value: u32) -> Result<Self, HookError> {
         if value == 0 {
             return Err(HookError::validation("active_pid", "must be > 0"));
@@ -45,6 +50,7 @@ impl ActivePid {
         Ok(Self(value))
     }
 
+    /// Returns the wrapped PID value.
     pub fn get(self) -> u32 {
         self.0
     }
@@ -52,11 +58,14 @@ impl ActivePid {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Supported hook payload providers.
 pub enum Provider {
+    /// Anthropic Claude Code.
     Claude,
 }
 
 impl Provider {
+    /// Returns the serialized provider name.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
@@ -66,11 +75,14 @@ impl Provider {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Version tag for the canonical session record schema.
 pub enum SchemaVersion {
+    /// First canonical schema version.
     V1,
 }
 
 impl SchemaVersion {
+    /// Returns the serialized schema version.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::V1 => "v1",
@@ -80,15 +92,18 @@ impl SchemaVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// Immutable project root established for a runtime instance.
 pub struct AiRootDir(PathBuf);
 
 impl AiRootDir {
+    /// Creates a validated absolute root path.
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
         let path = path.into();
         validate_nonblank_path("ai_root_dir", &path)?;
         Ok(Self(path))
     }
 
+    /// Borrows the wrapped filesystem path.
     pub fn as_path(&self) -> &Path {
         &self.0
     }
@@ -102,15 +117,18 @@ impl fmt::Display for AiRootDir {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// Current working directory observed for the latest hook fire.
 pub struct AiCurrentDir(PathBuf);
 
 impl AiCurrentDir {
+    /// Creates a validated absolute current-directory path.
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
         let path = path.into();
         validate_nonblank_path("ai_current_dir", &path)?;
         Ok(Self(path))
     }
 
+    /// Borrows the wrapped filesystem path.
     pub fn as_path(&self) -> &Path {
         &self.0
     }
@@ -124,23 +142,28 @@ impl fmt::Display for AiCurrentDir {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// Base directory that owns canonical session-state files.
 pub struct StateRoot(PathBuf);
 
 impl StateRoot {
+    /// Creates a validated absolute state-root path.
     pub fn new(path: impl Into<PathBuf>) -> Result<Self, HookError> {
         let path = path.into();
         validate_nonblank_path("state_root", &path)?;
         Ok(Self(path))
     }
 
+    /// Borrows the wrapped filesystem path.
     pub fn as_path(&self) -> &Path {
         &self.0
     }
 
+    /// Joins a child path under the state root.
     pub fn join(&self, path: impl AsRef<Path>) -> PathBuf {
         self.0.join(path)
     }
 
+    /// Returns the parent directory of the state root, when one exists.
     pub fn parent(&self) -> Option<&Path> {
         self.0.parent()
     }
@@ -148,15 +171,18 @@ impl StateRoot {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
+/// RFC 3339 timestamp used throughout canonical session state.
 pub struct UtcTimestamp(String);
 
 impl UtcTimestamp {
+    /// Creates a validated timestamp from a named serialized field.
     pub fn from_field(field: &str, value: impl Into<String>) -> Result<Self, HookError> {
         let value = value.into();
         validate_rfc3339_timestamp(field, &value)?;
         Ok(Self(value))
     }
 
+    /// Returns the timestamp as a borrowed string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -170,31 +196,45 @@ impl fmt::Display for UtcTimestamp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Normalized agent state tracked across hook events.
 pub enum AgentState {
+    /// The session has started but is not yet ready for general dispatch.
     Starting,
+    /// The agent is currently executing work.
     Busy,
+    /// The agent is blocked on a permission request.
     AwaitingPermission,
+    /// The agent is compacting its context.
     Compacting,
+    /// The agent is idle and ready for more input.
     Idle,
+    /// The runtime instance has ended.
     Ended,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Source value reported by a `SessionStart` hook payload.
 pub enum SessionStartSource {
+    /// A fresh session startup.
     Startup,
+    /// A resumed Claude session.
     Resume,
+    /// A compact-triggered replacement session.
     Compact,
+    /// A clear-triggered replacement session.
     Clear,
 }
 
 impl SessionStartSource {
+    /// Returns whether this source establishes a fresh immutable root.
     pub fn establishes_root(self) -> bool {
         matches!(self, Self::Startup | Self::Resume | Self::Clear)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+/// Persisted canonical session record used by hook utilities and extensions.
 pub struct CanonicalSessionRecord {
     schema_version: SchemaVersion,
     provider: Provider,
@@ -227,6 +267,7 @@ impl CanonicalSessionRecord {
         clippy::too_many_arguments,
         reason = "canonical session construction keeps the persisted identity tuple explicit"
     )]
+    /// Creates a new canonical session record at revision `1`.
     pub fn new(
         provider: Provider,
         session_id: SessionId,
@@ -269,82 +310,102 @@ impl CanonicalSessionRecord {
         Ok(record)
     }
 
+    /// Returns the immutable root directory for the runtime instance.
     pub fn ai_root_dir(&self) -> &AiRootDir {
         &self.ai_root_dir
     }
 
+    /// Returns the canonical session identifier.
     pub fn session_id(&self) -> &SessionId {
         &self.session_id
     }
 
+    /// Returns the current active PID.
     pub fn active_pid(&self) -> ActivePid {
         self.active_pid
     }
 
+    /// Returns the parent session identifier for subagent sessions, when present.
     pub fn parent_session_id(&self) -> Option<&SessionId> {
         self.parent_session_id.as_ref()
     }
 
+    /// Returns the parent active PID for subagent sessions, when present.
     pub fn parent_active_pid(&self) -> Option<ActivePid> {
         self.parent_active_pid
     }
 
+    /// Returns the latest observed current working directory.
     pub fn ai_current_dir(&self) -> &AiCurrentDir {
         &self.ai_current_dir
     }
 
+    /// Returns the `SessionStart.source` that established the current record shape.
     pub fn session_start_source(&self) -> SessionStartSource {
         self.session_start_source
     }
 
+    /// Returns the normalized agent state.
     pub fn agent_state(&self) -> AgentState {
         self.agent_state
     }
 
+    /// Returns the schema version for the serialized record.
     pub fn schema_version(&self) -> SchemaVersion {
         self.schema_version
     }
 
+    /// Returns the upstream provider name.
     pub fn provider(&self) -> Provider {
         self.provider
     }
 
+    /// Returns the monotonic state revision.
     pub fn state_revision(&self) -> u64 {
         self.state_revision
     }
 
+    /// Returns the original creation timestamp.
     pub fn created_at(&self) -> &UtcTimestamp {
         &self.created_at
     }
 
+    /// Returns the timestamp of the latest state mutation.
     pub fn updated_at(&self) -> &UtcTimestamp {
         &self.updated_at
     }
 
+    /// Returns the ended timestamp when the session has terminated.
     pub fn ended_at(&self) -> Option<&UtcTimestamp> {
         self.ended_at.as_ref()
     }
 
+    /// Returns the hook event name that produced the latest mutation.
     pub fn last_hook_event(&self) -> &str {
         &self.last_hook_event
     }
 
+    /// Returns the timestamp of the latest hook event recorded in state.
     pub fn last_hook_event_at(&self) -> &UtcTimestamp {
         &self.last_hook_event_at
     }
 
+    /// Returns the human-readable reason associated with the latest state mutation.
     pub fn state_reason(&self) -> &str {
         &self.state_reason
     }
 
+    /// Returns the extension map attached to the record.
     pub fn extensions(&self) -> &BTreeMap<String, Value> {
         &self.extensions
     }
 
+    /// Returns a single extension value by key.
     pub fn extension(&self, key: &str) -> Option<&Value> {
         self.extensions.get(key)
     }
 
+    /// Sets or replaces an extension value and reports whether the record changed.
     pub fn set_extension(&mut self, key: impl Into<String>, value: Value) -> bool {
         let key = key.into();
         if self.extensions.get(&key) == Some(&value) {
@@ -358,6 +419,7 @@ impl CanonicalSessionRecord {
         clippy::too_many_arguments,
         reason = "root-change rebuild preserves canonical identity and timestamps under one validated constructor path"
     )]
+    /// Rebuilds the record after a root-establishing transition such as resume or clear.
     pub fn rebuild_with_root_change(
         &self,
         active_pid: ActivePid,
@@ -396,6 +458,7 @@ impl CanonicalSessionRecord {
         Ok(record)
     }
 
+    /// Bumps the record revision and updates the mutation timestamp without changing semantic fields.
     pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
         let mut next = self.clone();
         next.state_revision += 1;
@@ -409,6 +472,7 @@ impl CanonicalSessionRecord {
         clippy::too_many_arguments,
         reason = "hook-state updates need to carry the full validated canonical mutation set"
     )]
+    /// Applies a validated hook-driven mutation to the canonical record.
     pub fn apply_hook_update(
         &mut self,
         active_pid: ActivePid,
@@ -436,6 +500,7 @@ impl CanonicalSessionRecord {
         Ok(())
     }
 
+    /// Validates record invariants prior to persistence.
     pub fn validate(&self) -> Result<(), HookError> {
         if self.state_revision == 0 {
             return Err(HookError::validation("state_revision", "must be >= 1"));
@@ -494,6 +559,7 @@ fn validate_rfc3339_timestamp(field: &str, value: &str) -> Result<(), HookError>
     Ok(())
 }
 
+/// Returns the current UTC timestamp in RFC 3339 format.
 pub fn utc_timestamp_now() -> UtcTimestamp {
     let now = OffsetDateTime::now_utc();
     let rendered = now

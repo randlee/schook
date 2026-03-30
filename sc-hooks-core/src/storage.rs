@@ -7,39 +7,50 @@ use crate::context::HookContext;
 use crate::errors::HookError;
 use crate::session::{AiRootDir, CanonicalSessionRecord, SessionId, StateRoot};
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Derived root directory used for observability file output.
 pub struct ObservabilityRoot(PathBuf);
 
 impl ObservabilityRoot {
+    /// Wraps an already-resolved observability root path.
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self(path.into())
     }
 
+    /// Borrows the wrapped path.
     pub fn as_path(&self) -> &std::path::Path {
         &self.0
     }
 
+    /// Unwraps the owned path buffer.
     pub fn into_path_buf(self) -> PathBuf {
         self.0
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Result of a persist attempt against canonical session storage.
 pub enum PersistOutcome {
+    /// A new state file was created.
     Created,
+    /// An existing state file was rewritten.
     Updated,
+    /// The rendered state was unchanged, so no write occurred.
     Unchanged,
 }
 
 #[derive(Debug, Clone)]
+/// Atomic filesystem-backed store for canonical session records.
 pub struct SessionStore {
     root: StateRoot,
 }
 
 impl SessionStore {
+    /// Creates a session store rooted at the provided state directory.
     pub fn new(root: StateRoot) -> Self {
         Self { root }
     }
 
+    /// Loads a canonical record using the `session_id` present in hook payload JSON.
     pub fn load_by_hook_context(
         &self,
         context: &HookContext,
@@ -52,6 +63,7 @@ impl SessionStore {
         self.load(&SessionId::new(session_id.to_string())?)
     }
 
+    /// Loads a canonical record by session identifier.
     pub fn load(
         &self,
         session_id: &SessionId,
@@ -72,6 +84,7 @@ impl SessionStore {
         Ok(Some(record))
     }
 
+    /// Persists a canonical session record atomically.
     pub fn persist(&self, record: &CanonicalSessionRecord) -> Result<PersistOutcome, HookError> {
         let path = self.path_for(record.session_id());
         if let Some(parent) = path.parent() {
@@ -109,11 +122,13 @@ impl SessionStore {
         })
     }
 
+    /// Returns the state-file path for the provided session identifier.
     pub fn path_for(&self, session_id: &SessionId) -> PathBuf {
         self.root.join(format!("{session_id}.json"))
     }
 }
 
+/// Resolves the canonical session-state root from `SC_HOOKS_STATE_DIR` or the home directory.
 pub fn resolve_state_root() -> Result<StateRoot, HookError> {
     match std::env::var_os("SC_HOOKS_STATE_DIR") {
         Some(dir) => StateRoot::new(PathBuf::from(dir)),
@@ -125,6 +140,7 @@ pub fn resolve_state_root() -> Result<StateRoot, HookError> {
     }
 }
 
+/// Resolves the observability root from an immutable project root or current directory.
 pub fn observability_root_for(
     project_root: Option<&AiRootDir>,
 ) -> Result<ObservabilityRoot, HookError> {

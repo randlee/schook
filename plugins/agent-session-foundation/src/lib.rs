@@ -1,3 +1,5 @@
+//! Canonical session-state lifecycle handler for the Claude hook baseline.
+
 mod payloads;
 
 use std::collections::BTreeMap;

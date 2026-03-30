@@ -8,14 +8,19 @@ use crate::errors::HookError;
 use crate::events::HookType;
 
 #[derive(Debug, Clone, PartialEq)]
+/// Raw hook context passed from the host to a Rust plugin handler.
 pub struct HookContext {
+    /// Canonical hook name.
     pub hook: HookType,
+    /// Optional matcher/event name.
     pub event: Option<Cow<'static, str>>,
     raw_input: Value,
+    /// Optional path to the temp metadata file exported by the host.
     pub metadata_path: Option<PathBuf>,
 }
 
 impl HookContext {
+    /// Creates a hook context from parsed host input.
     pub fn new(
         hook: HookType,
         event: Option<Cow<'static, str>>,
@@ -30,12 +35,14 @@ impl HookContext {
         }
     }
 
+    /// Returns the raw `payload` object from the host input.
     pub fn payload_value(&self) -> Result<&Value, HookError> {
         self.raw_input
             .get("payload")
             .ok_or_else(|| HookError::validation("payload", "missing payload object"))
     }
 
+    /// Deserializes the raw `payload` object into a typed payload struct.
     pub fn payload<T: DeserializeOwned>(&self) -> Result<T, HookError> {
         let payload = self.payload_value()?;
         serde_json::from_value(payload.clone()).map_err(|source| HookError::InvalidPayload {
