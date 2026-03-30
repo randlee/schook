@@ -2,9 +2,7 @@ mod payloads;
 
 use std::collections::BTreeMap;
 
-use payloads::{
-    PreCompactPayload, SessionEndPayload, SessionStartPayload, SessionStartSource, StopPayload,
-};
+use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
@@ -13,7 +11,7 @@ use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-    utc_timestamp_now,
+    SessionStartSource, utc_timestamp_now,
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
@@ -219,9 +217,7 @@ fn build_next_record(
 
     let mut record = match existing {
         Some(mut record) => {
-            let next_source = session_start_source
-                .map(SessionStartSource::as_str)
-                .unwrap_or(record.session_start_source.as_str());
+            let next_source = session_start_source.unwrap_or(record.session_start_source);
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =
                 resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
@@ -263,7 +259,7 @@ fn build_next_record(
                 record.active_pid = resolved.active_pid;
                 record.ai_current_dir = resolved.ai_current_dir.clone();
                 record.agent_state = resolved.transition.agent_state;
-                record.session_start_source = next_source.to_string();
+                record.session_start_source = next_source;
                 record.state_revision += 1;
             }
             record
@@ -274,9 +270,7 @@ fn build_next_record(
             resolved.active_pid,
             resolved.ai_root_dir.clone().into_new_record_root()?,
             resolved.ai_current_dir.clone(),
-            session_start_source
-                .map(SessionStartSource::as_str)
-                .unwrap_or("startup"),
+            session_start_source.unwrap_or(SessionStartSource::Startup),
             resolved.transition.agent_state,
             event_name.clone(),
             resolved.transition.state_reason.clone(),

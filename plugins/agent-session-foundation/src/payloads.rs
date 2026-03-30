@@ -1,28 +1,5 @@
+use sc_hooks_core::session::SessionStartSource;
 use serde::Deserialize;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SessionStartSource {
-    Startup,
-    Resume,
-    Compact,
-    Clear,
-}
-
-impl SessionStartSource {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Startup => "startup",
-            Self::Resume => "resume",
-            Self::Compact => "compact",
-            Self::Clear => "clear",
-        }
-    }
-
-    pub fn establishes_root(self) -> bool {
-        matches!(self, Self::Startup | Self::Resume | Self::Clear)
-    }
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionStartPayload {

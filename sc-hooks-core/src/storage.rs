@@ -121,7 +121,9 @@ pub fn observability_root_for(project_root: Option<&Path>) -> Result<PathBuf, Ho
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::{ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord};
+    use crate::session::{
+        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionStartSource,
+    };
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -136,7 +138,7 @@ mod tests {
             ActivePid::new(11).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
             AiCurrentDir::new(&repo_subdir).expect("current"),
-            "startup",
+            SessionStartSource::Startup,
             AgentState::Starting,
             "SessionStart",
             "session_started",

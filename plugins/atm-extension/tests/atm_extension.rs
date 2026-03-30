@@ -7,6 +7,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
+    SessionStartSource,
 };
 use sc_hooks_core::storage::SessionStore;
 use sc_hooks_sdk::traits::SyncHandler;
@@ -77,7 +78,7 @@ fn write_session_record(state_root: &Path, ai_root_dir: &Path, session_id: &str,
         ActivePid::new(active_pid).expect("pid"),
         AiRootDir::new(ai_root_dir).expect("ai root dir"),
         AiCurrentDir::new(ai_root_dir.join("subdir")).expect("ai current dir"),
-        "startup",
+        SessionStartSource::Startup,
         AgentState::Starting,
         "SessionStart",
         "session_started",

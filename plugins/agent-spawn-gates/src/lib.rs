@@ -177,6 +177,7 @@ mod tests {
     use super::*;
     use sc_hooks_core::session::{
         ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
+        SessionStartSource,
     };
     use std::sync::{Mutex, OnceLock};
 
@@ -220,7 +221,7 @@ mod tests {
             ActivePid::new(4242).expect("pid"),
             AiRootDir::new(project_root).expect("root"),
             AiCurrentDir::new(project_root.join("agents")).expect("current"),
-            "startup",
+            SessionStartSource::Startup,
             AgentState::Busy,
             "PreToolUse",
             "tool_invocation_started",

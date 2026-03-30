@@ -109,6 +109,21 @@ pub enum AgentState {
     Ended,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionStartSource {
+    Startup,
+    Resume,
+    Compact,
+    Clear,
+}
+
+impl SessionStartSource {
+    pub fn establishes_root(self) -> bool {
+        matches!(self, Self::Startup | Self::Resume | Self::Clear)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CanonicalSessionRecord {
     pub schema_version: String,
@@ -122,7 +137,7 @@ pub struct CanonicalSessionRecord {
     #[serde(alias = "project_root_dir")]
     ai_root_dir: AiRootDir,
     pub ai_current_dir: AiCurrentDir,
-    pub session_start_source: String,
+    pub session_start_source: SessionStartSource,
     pub agent_state: AgentState,
     pub state_revision: u64,
     pub created_at: String,
@@ -147,7 +162,7 @@ impl CanonicalSessionRecord {
         active_pid: ActivePid,
         ai_root_dir: AiRootDir,
         ai_current_dir: AiCurrentDir,
-        session_start_source: impl Into<String>,
+        session_start_source: SessionStartSource,
         agent_state: AgentState,
         last_hook_event: impl Into<String>,
         state_reason: impl Into<String>,
@@ -162,7 +177,7 @@ impl CanonicalSessionRecord {
             parent_active_pid: None,
             ai_root_dir,
             ai_current_dir,
-            session_start_source: session_start_source.into(),
+            session_start_source,
             agent_state,
             state_revision: 1,
             created_at: now.clone(),
@@ -181,9 +196,11 @@ impl CanonicalSessionRecord {
 }
 
 pub fn utc_timestamp_now() -> String {
-    OffsetDateTime::now_utc()
-        .format(&Rfc3339)
-        .expect("Rfc3339 formatting should succeed")
+    let now = OffsetDateTime::now_utc();
+    match now.format(&Rfc3339) {
+        Ok(rendered) => rendered,
+        Err(_) => "1970-01-01T00:00:00Z".to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -213,7 +230,7 @@ mod tests {
             ActivePid::new(42).expect("pid"),
             AiRootDir::new(&repo_root).expect("root"),
             AiCurrentDir::new(&repo_subdir).expect("current"),
-            "startup",
+            SessionStartSource::Startup,
             AgentState::AwaitingPermission,
             "PermissionRequest",
             "permission_requested",
