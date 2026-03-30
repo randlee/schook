@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use log::warn;
 use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
@@ -275,7 +276,7 @@ fn default_logger_config(
         sc_hooks_core::storage::observability_root_for(Some(&project_root)).map_err(|source| {
             CliError::internal_with_source("failed resolving observability root", source)
         })?;
-    let mut config = LoggerConfig::default_for(service, root);
+    let mut config = LoggerConfig::default_for(service, root.into_path_buf());
     config.level = LevelFilter::Info;
     config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
     config.enable_file_sink = env_flag("SC_HOOKS_ENABLE_FILE_SINK").unwrap_or(true);
@@ -288,7 +289,7 @@ fn env_flag(key: &str) -> Option<bool> {
         "1" | "true" | "yes" | "on" => Some(true),
         "0" | "false" | "no" | "off" => Some(false),
         _ => {
-            eprintln!(
+            warn!(
                 "warning: unrecognized value for {key}: {value:?} (expected 1/true/yes/on or 0/false/no/off)"
             );
             None

@@ -7,6 +7,23 @@ use crate::context::HookContext;
 use crate::errors::HookError;
 use crate::session::{AiRootDir, CanonicalSessionRecord, SessionId, StateRoot};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObservabilityRoot(PathBuf);
+
+impl ObservabilityRoot {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self(path.into())
+    }
+
+    pub fn as_path(&self) -> &std::path::Path {
+        &self.0
+    }
+
+    pub fn into_path_buf(self) -> PathBuf {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistOutcome {
     Created,
@@ -109,14 +126,16 @@ pub fn resolve_state_root() -> Result<StateRoot, HookError> {
     }
 }
 
-pub fn observability_root_for(project_root: Option<&AiRootDir>) -> Result<PathBuf, HookError> {
+pub fn observability_root_for(
+    project_root: Option<&AiRootDir>,
+) -> Result<ObservabilityRoot, HookError> {
     let base = match project_root {
         Some(root) => root.as_path().to_path_buf(),
         None => std::env::current_dir().map_err(|source| {
             HookError::internal_with_source("failed resolving current dir", source)
         })?,
     };
-    Ok(base.join(crate::OBSERVABILITY_ROOT))
+    Ok(ObservabilityRoot::new(base.join(crate::OBSERVABILITY_ROOT)))
 }
 
 #[cfg(test)]
@@ -165,7 +184,7 @@ mod tests {
             .expect("current dir after switch")
             .join(crate::OBSERVABILITY_ROOT);
         let path = observability_root_for(None).expect("root");
-        assert_eq!(path, expected);
+        assert_eq!(path.as_path(), expected);
     }
 
     #[test]
@@ -173,7 +192,10 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let project_root = AiRootDir::new(temp.path().join("repo")).expect("project root");
         let path = observability_root_for(Some(&project_root)).expect("root");
-        assert_eq!(path, project_root.as_path().join(crate::OBSERVABILITY_ROOT));
+        assert_eq!(
+            path.as_path(),
+            project_root.as_path().join(crate::OBSERVABILITY_ROOT)
+        );
     }
 
     #[test]

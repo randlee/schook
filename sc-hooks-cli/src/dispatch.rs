@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 use thiserror::Error;
 
@@ -10,6 +10,7 @@ use crate::observability::{self, HandlerResultRecord};
 use crate::resolution::ResolvedHandler;
 use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
+use log::error;
 use sc_hooks_core::errors::RootDivergenceNotice;
 use std::borrow::Cow;
 
@@ -25,7 +26,7 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
-    project_root: PathBuf,
+    project_root: &'a Path,
 }
 
 #[derive(Debug, Error)]
@@ -84,7 +85,7 @@ pub fn execute_chain(
         matcher: event.unwrap_or("*"),
         mode,
         handler_chain: &handler_chain,
-        project_root: prepared.project_root.clone(),
+        project_root: &prepared.project_root,
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -362,7 +363,8 @@ pub fn execute_chain(
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
-        let stderr_text = String::from_utf8_lossy(&stderr).to_string();
+        let stderr_text =
+            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
 
         if !status.success() {
             disable_plugin_for_session(
@@ -381,7 +383,7 @@ pub fn execute_chain(
                 handler_name,
                 handler_started.elapsed().as_millis(),
                 "non_zero_exit",
-                Some(stderr_text),
+                stderr_text.clone(),
                 Some(true),
             ));
             emit_dispatch_log_with_fallback(
@@ -414,7 +416,10 @@ pub fn execute_chain(
                     handler_name,
                     handler_started.elapsed().as_millis(),
                     "invalid_json",
-                    Some(format!("stdout={stdout_text}; stderr={stderr_text}; {err}")),
+                    Some(format!(
+                        "stdout={stdout_text}; stderr={}; {err}",
+                        stderr_text.as_deref().unwrap_or("")
+                    )),
                     Some(true),
                 ));
                 emit_dispatch_log_with_fallback(
@@ -438,7 +443,7 @@ pub fn execute_chain(
                 .map(RootDivergenceNotice::warning_message),
         );
         if let Some(notice) = root_divergence.as_ref() {
-            emit_root_divergence_log_with_fallback(&log_base.project_root, notice);
+            emit_root_divergence_log_with_fallback(log_base.project_root, notice);
         }
 
         match parsed.action {
@@ -448,11 +453,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("proceed"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: if stderr_text.is_empty() {
-                        None
-                    } else {
-                        Some(stderr_text)
-                    },
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
@@ -484,11 +485,7 @@ pub fn execute_chain(
                         handler_name,
                         handler_started.elapsed().as_millis(),
                         "async_block",
-                        if stderr_text.is_empty() {
-                            None
-                        } else {
-                            Some(stderr_text)
-                        },
+                        stderr_text.clone(),
                         Some(true),
                     ));
                     emit_dispatch_log_with_fallback(
@@ -510,11 +507,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("block"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: if stderr_text.is_empty() {
-                        None
-                    } else {
-                        Some(stderr_text)
-                    },
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
@@ -622,7 +615,7 @@ fn emit_dispatch_log(
         total_ms,
         exit,
         ai_notification,
-        project_root: &base.project_root,
+        project_root: base.project_root,
     })
 }
 
@@ -655,7 +648,7 @@ fn emit_root_divergence_log_with_fallback(project_root: &Path, notice: &RootDive
 }
 
 fn emit_observability_stderr_fallback(err: &CliError) {
-    eprintln!("sc-hooks: failed emitting dispatch observability event: {err}");
+    error!("sc-hooks: failed emitting dispatch observability event: {err}");
 }
 
 fn split_root_divergence_context(

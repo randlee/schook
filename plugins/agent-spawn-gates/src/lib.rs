@@ -234,7 +234,7 @@ mod tests {
     fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext {
         HookContext::new(
             HookType::PreToolUse,
-            Some(tool_name.to_string()),
+            Some(std::borrow::Cow::Owned(tool_name.to_string())),
             json!({
                 "payload": {
                     "session_id": "session-1",

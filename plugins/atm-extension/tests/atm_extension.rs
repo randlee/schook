@@ -61,7 +61,7 @@ impl Drop for EnvGuard {
 fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookContext {
     HookContext::new(
         hook,
-        event.map(str::to_string),
+        event.map(|value| std::borrow::Cow::Owned(value.to_string())),
         serde_json::json!({
             "hook": { "type": hook.as_str(), "event": event },
             "payload": payload,

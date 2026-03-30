@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
+use log::error;
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
@@ -110,7 +111,7 @@ fn print_manifest(manifest: &sc_hooks_core::manifest::Manifest) -> i32 {
             sc_hooks_core::exit_codes::SUCCESS
         }
         Err(err) => {
-            eprintln!("failed to serialize manifest: {err}");
+            error!("failed to serialize manifest: {err}");
             sc_hooks_core::exit_codes::PLUGIN_ERROR
         }
     }
@@ -159,14 +160,17 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerEr
     })
 }
 
-fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
-    std::env::var("SC_HOOK_EVENT").ok().or_else(|| {
-        raw_input
-            .get("hook")
-            .and_then(|hook| hook.get("event"))
-            .and_then(serde_json::Value::as_str)
-            .map(str::to_owned)
-    })
+fn resolve_event(raw_input: &serde_json::Value) -> Option<Cow<'static, str>> {
+    std::env::var("SC_HOOK_EVENT")
+        .ok()
+        .or_else(|| {
+            raw_input
+                .get("hook")
+                .and_then(|hook| hook.get("event"))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .map(Cow::Owned)
 }
 
 fn write_result(result: &HookResult) -> i32 {
@@ -174,17 +178,17 @@ fn write_result(result: &HookResult) -> i32 {
     match serde_json::to_vec(result) {
         Ok(body) => {
             if let Err(err) = stdout.write_all(&body) {
-                eprintln!("failed to write stdout: {err}");
+                error!("failed to write stdout: {err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
             if let Err(err) = stdout.write_all(b"\n") {
-                eprintln!("failed to flush newline: {err}");
+                error!("failed to flush newline: {err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
             sc_hooks_core::exit_codes::SUCCESS
         }
         Err(err) => {
-            eprintln!("failed to serialize result: {err}");
+            error!("failed to serialize result: {err}");
             sc_hooks_core::exit_codes::PLUGIN_ERROR
         }
     }
