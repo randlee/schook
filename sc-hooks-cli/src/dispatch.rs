@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::fmt;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -24,6 +25,35 @@ struct DispatchLogBase<'a> {
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
     project_root: PathBuf,
+}
+
+#[derive(Debug)]
+enum HookResultParseError {
+    EmptyStdout,
+    MalformedFirstJson(serde_json::Error),
+    InvalidHookResult(serde_json::Error),
+    InvalidTrailingJson(serde_json::Error),
+}
+
+impl fmt::Display for HookResultParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EmptyStdout => write!(f, "plugin produced empty stdout"),
+            Self::MalformedFirstJson(err) => {
+                write!(f, "plugin produced malformed JSON on stdout: {err}")
+            }
+            Self::InvalidHookResult(err) => {
+                write!(
+                    f,
+                    "plugin produced JSON that did not match HookResult: {err}"
+                )
+            }
+            Self::InvalidTrailingJson(err) => write!(
+                f,
+                "plugin produced invalid trailing stdout after first JSON object: {err}"
+            ),
+        }
+    }
 }
 
 pub fn execute_chain(
@@ -584,25 +614,21 @@ fn emit_dispatch_log_with_fallback(
 
 fn parse_first_hook_result(
     stdout_text: &str,
-) -> Result<(sc_hooks_core::results::HookResult, Option<String>), String> {
+) -> Result<(sc_hooks_core::results::HookResult, Option<String>), HookResultParseError> {
     let mut stream =
         serde_json::Deserializer::from_str(stdout_text).into_iter::<serde_json::Value>();
     let Some(first) = stream.next() else {
-        return Err("plugin produced empty stdout".to_string());
+        return Err(HookResultParseError::EmptyStdout);
     };
-    let first = first.map_err(|err| err.to_string())?;
+    let first = first.map_err(HookResultParseError::MalformedFirstJson)?;
     let parsed = serde_json::from_value::<sc_hooks_core::results::HookResult>(first)
-        .map_err(|err| err.to_string())?;
+        .map_err(HookResultParseError::InvalidHookResult)?;
 
     let warning = match stream.next() {
         Some(Ok(_)) => {
             Some("plugin produced multiple JSON objects; only first object was used".to_string())
         }
-        Some(Err(err)) => {
-            return Err(format!(
-                "plugin produced invalid trailing stdout after first JSON object: {err}"
-            ));
-        }
+        Some(Err(err)) => return Err(HookResultParseError::InvalidTrailingJson(err)),
         None => None,
     };
 
@@ -736,7 +762,7 @@ PreToolUse = ["guard-paths"]
         let err = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
             .expect_err("trailing garbage should be rejected");
         assert!(
-            err.contains("invalid trailing stdout"),
+            err.to_string().contains("invalid trailing stdout"),
             "unexpected error: {err}"
         );
     }

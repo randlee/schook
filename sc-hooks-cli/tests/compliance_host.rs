@@ -3,8 +3,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use sc_hooks_test::compliance::{
-    ComplianceSealed, ContractScenario, ContractScenarioResult, HostDispatchProbe,
-    run_contract_behavior_suite,
+    ContractScenario, ContractScenarioResult, HostDispatchProbe, run_contract_behavior_suite,
 };
 use sc_hooks_test::fixtures;
 
@@ -31,8 +30,6 @@ impl CliBinaryProbe {
         }
     }
 }
-
-impl ComplianceSealed for CliBinaryProbe {}
 
 impl HostDispatchProbe for CliBinaryProbe {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {

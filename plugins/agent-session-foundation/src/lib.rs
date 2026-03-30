@@ -237,19 +237,19 @@ fn build_next_record(
 
     match existing {
         Some(mut record) => {
-            let next_source = session_start_source.unwrap_or(record.session_start_source);
+            let next_source = session_start_source.unwrap_or(record.session_start_source());
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =
                 resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
-            let material_changed = record.active_pid != resolved.active_pid
+            let material_changed = record.active_pid() != resolved.active_pid
                 || root_changed
-                || record.ai_current_dir != resolved.ai_current_dir
-                || record.agent_state != resolved.transition.agent_state
-                || record.session_start_source != next_source
-                || record.last_hook_event != event_name
-                || record.state_reason != resolved.transition.state_reason
+                || record.ai_current_dir() != &resolved.ai_current_dir
+                || record.agent_state() != resolved.transition.agent_state
+                || record.session_start_source() != next_source
+                || record.last_hook_event() != event_name
+                || record.state_reason() != resolved.transition.state_reason
                 || record.ended_at().cloned() != resolved.transition.ended_at;
-            if record.session_id != resolved.session_id {
+            if record.session_id() != &resolved.session_id {
                 return Err(HookError::validation(
                     "session_id",
                     "existing record does not match resolved session id",
@@ -272,11 +272,11 @@ fn build_next_record(
                     now.clone(),
                 )
             } else {
-                record.active_pid = resolved.active_pid;
-                record.ai_current_dir = resolved.ai_current_dir.clone();
-                record.agent_state = resolved.transition.agent_state;
-                record.session_start_source = next_source;
                 record.apply_hook_update(
+                    resolved.active_pid,
+                    resolved.ai_current_dir.clone(),
+                    next_source,
+                    resolved.transition.agent_state,
                     now,
                     event_name,
                     resolved.transition.state_reason.clone(),
@@ -527,7 +527,7 @@ fn resolve_active_pid(
     }
 
     existing
-        .map(|record| record.active_pid)
+        .map(CanonicalSessionRecord::active_pid)
         .ok_or_else(|| HookError::invalid_context("active_pid unavailable before SessionStart"))
 }
 
