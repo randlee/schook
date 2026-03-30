@@ -6,7 +6,6 @@ use tempfile::NamedTempFile;
 use crate::context::HookContext;
 use crate::errors::HookError;
 use crate::session::{AiRootDir, CanonicalSessionRecord, SessionId, StateRoot};
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObservabilityRoot(PathBuf);
 

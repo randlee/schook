@@ -83,7 +83,6 @@ pub enum HookError {
         #[source]
         source: Option<BoxedError>,
     },
-
     /// Added in S10-R2 to represent a mismatch between immutable
     /// `ai_root_dir` and inbound `CLAUDE_PROJECT_DIR`. The runtime continues
     /// with the immutable root, but dispatch must emit a prominent structured

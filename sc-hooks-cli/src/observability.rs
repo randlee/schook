@@ -218,7 +218,6 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     })?;
     Ok(())
 }
-
 fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
     if !project_root.is_absolute() {
         return Err(CliError::internal(
