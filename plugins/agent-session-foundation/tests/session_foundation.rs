@@ -85,7 +85,7 @@ impl Drop for EnvGuard {
 }
 
 #[test]
-fn persists_session_record_by_session_id() {
+fn startup_establishes_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
@@ -126,7 +126,7 @@ fn persists_session_record_by_session_id() {
 }
 
 #[test]
-fn later_lifecycle_events_correlate_across_directory_changes() {
+fn bash_cd_drift_updates_current_dir_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let other_dir = temp.path().join("repo-b");
@@ -253,7 +253,7 @@ fn session_start_requires_injected_agent_pid() {
 }
 
 #[test]
-fn resume_reestablishes_immutable_root_for_the_runtime_instance() {
+fn resume_establishes_new_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let startup_root = temp.path().join("repo-start");
     let resumed_root = temp.path().join("repo-resumed");
@@ -318,7 +318,7 @@ fn resume_reestablishes_immutable_root_for_the_runtime_instance() {
 }
 
 #[test]
-fn compact_preserves_immutable_root_even_when_current_dir_has_drifted() {
+fn compact_preserves_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let drift_dir = temp.path().join("repo-a/subdir");
@@ -385,7 +385,7 @@ fn compact_preserves_immutable_root_even_when_current_dir_has_drifted() {
 }
 
 #[test]
-fn clear_establishes_a_new_root_for_the_new_session() {
+fn clear_establishes_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let old_root = temp.path().join("repo-old");
     let new_root = temp.path().join("repo-new");
@@ -451,7 +451,7 @@ fn clear_establishes_a_new_root_for_the_new_session() {
 }
 
 #[test]
-fn rejects_mismatched_claude_project_dir_on_lifecycle_updates() {
+fn mismatched_project_dir_is_rejected() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let drift_dir = temp.path().join("repo-a/subdir");

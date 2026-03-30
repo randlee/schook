@@ -120,7 +120,7 @@ pub struct CanonicalSessionRecord {
     #[serde(default)]
     pub parent_active_pid: Option<ActivePid>,
     #[serde(alias = "project_root_dir")]
-    pub ai_root_dir: AiRootDir,
+    ai_root_dir: AiRootDir,
     pub ai_current_dir: AiCurrentDir,
     pub session_start_source: String,
     pub agent_state: AgentState,
@@ -173,6 +173,10 @@ impl CanonicalSessionRecord {
             state_reason: state_reason.into(),
             extensions: BTreeMap::new(),
         }
+    }
+
+    pub fn ai_root_dir(&self) -> &AiRootDir {
+        &self.ai_root_dir
     }
 }
 

@@ -105,7 +105,7 @@ impl SyncHandler for AgentSpawnGatesHandler {
             SpawnKind::NamedAgent
         };
 
-        let policy = load_agent_spawn_policy(record.ai_root_dir.as_path())?;
+        let policy = load_agent_spawn_policy(record.ai_root_dir().as_path())?;
         if policy.background_only && spawn_kind == SpawnKind::NamedAgent {
             return Ok(block(
                 "Agent spawn blocked: this project requires background agents. Retry with `tool_input.run_in_background=true`.",

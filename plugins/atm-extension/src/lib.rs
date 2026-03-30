@@ -401,7 +401,7 @@ fn resolve_atm_routing(
     let payload_tool_input = payload.get("tool_input").and_then(Value::as_object);
     let existing = record.and_then(existing_atm_extension);
     let config =
-        record.and_then(|existing_record| load_atm_config(existing_record.ai_root_dir.as_path()));
+        record.and_then(|existing_record| load_atm_config(existing_record.ai_root_dir().as_path()));
 
     let team = first_nonempty([
         string_field(payload, "team_name"),

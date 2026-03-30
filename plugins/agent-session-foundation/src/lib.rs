@@ -81,7 +81,7 @@ impl EstablishedRoot {
 
 impl PersistedRoot {
     fn from_record(record: &CanonicalSessionRecord) -> Self {
-        Self(record.ai_root_dir.clone())
+        Self(record.ai_root_dir().clone())
     }
 
     fn as_ai_root_dir(&self) -> &AiRootDir {
@@ -224,7 +224,7 @@ fn build_next_record(
                 .unwrap_or(record.session_start_source.as_str());
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =
-                resolved.ai_root_dir.replaces_existing_root() && &record.ai_root_dir != next_root;
+                resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
             let material_changed = record.active_pid != resolved.active_pid
                 || root_changed
                 || record.ai_current_dir != resolved.ai_current_dir
@@ -237,14 +237,35 @@ fn build_next_record(
                 return Ok(record);
             }
 
-            record.active_pid = resolved.active_pid;
-            if resolved.ai_root_dir.replaces_existing_root() {
-                record.ai_root_dir = next_root.clone();
+            if root_changed {
+                let mut rebuilt = CanonicalSessionRecord::new(
+                    record.provider.clone(),
+                    record.session_id.clone(),
+                    resolved.active_pid,
+                    next_root.clone(),
+                    resolved.ai_current_dir.clone(),
+                    next_source,
+                    resolved.transition.agent_state,
+                    event_name.clone(),
+                    resolved.transition.state_reason.clone(),
+                );
+                rebuilt.schema_version = record.schema_version;
+                rebuilt.parent_session_id = record.parent_session_id.clone();
+                rebuilt.parent_active_pid = record.parent_active_pid;
+                rebuilt.state_revision = record.state_revision + 1;
+                rebuilt.created_at = record.created_at;
+                rebuilt.updated_at = record.updated_at;
+                rebuilt.ended_at = record.ended_at.clone();
+                rebuilt.last_hook_event_at = record.last_hook_event_at;
+                rebuilt.extensions = record.extensions.clone();
+                record = rebuilt;
+            } else {
+                record.active_pid = resolved.active_pid;
+                record.ai_current_dir = resolved.ai_current_dir.clone();
+                record.agent_state = resolved.transition.agent_state;
+                record.session_start_source = next_source.to_string();
+                record.state_revision += 1;
             }
-            record.ai_current_dir = resolved.ai_current_dir.clone();
-            record.agent_state = resolved.transition.agent_state;
-            record.session_start_source = next_source.to_string();
-            record.state_revision += 1;
             record
         }
         None => CanonicalSessionRecord::new(
@@ -349,7 +370,7 @@ fn resolve_ai_root_dir(
             "ai_root_dir unavailable before a root-establishing SessionStart established canonical state",
         )
     })?;
-    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir.as_path())?;
+    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir().as_path())?;
     Ok(RootBinding::Persisted(PersistedRoot::from_record(existing)))
 }
 
