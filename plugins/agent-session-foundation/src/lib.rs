@@ -232,36 +232,36 @@ fn build_next_record(
     let now = utc_timestamp_now();
 
     match existing {
-        Some(mut record) => {
-            if record.agent_state() == AgentState::Ended {
-                return Err(HookError::invalid_context(
+        Some(record) => {
+            let active = record.try_into_active().map_err(|_| {
+                HookError::invalid_context(
                     "session foundation cannot modify a record in terminal Ended state",
-                ));
-            }
-            let next_source = session_start_source.unwrap_or(record.session_start_source());
+                )
+            })?;
+            let next_source = session_start_source.unwrap_or(active.session_start_source());
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =
-                resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
-            let material_changed = record.active_pid() != resolved.active_pid
+                resolved.ai_root_dir.replaces_existing_root() && active.ai_root_dir() != next_root;
+            let material_changed = active.active_pid() != resolved.active_pid
                 || root_changed
-                || record.ai_current_dir() != &resolved.ai_current_dir
-                || record.agent_state() != resolved.transition.agent_state
-                || record.session_start_source() != next_source
-                || record.last_hook_event() != event_name
-                || record.state_reason() != resolved.transition.state_reason
-                || record.ended_at().cloned() != resolved.transition.ended_at;
-            if record.session_id() != &resolved.session_id {
+                || active.ai_current_dir() != &resolved.ai_current_dir
+                || active.agent_state() != resolved.transition.agent_state
+                || active.session_start_source() != next_source
+                || active.last_hook_event() != event_name
+                || active.state_reason() != resolved.transition.state_reason
+                || active.ended_at().cloned() != resolved.transition.ended_at;
+            if active.session_id() != &resolved.session_id {
                 return Err(HookError::validation(
                     "session_id",
                     "existing record does not match resolved session id",
                 ));
             }
             if !material_changed {
-                return Ok(record);
+                return Ok(active.into());
             }
 
             if root_changed {
-                record.rebuild_with_root_change(
+                active.rebuild_with_root_change(
                     resolved.active_pid,
                     next_root.clone(),
                     resolved.ai_current_dir.clone(),
@@ -273,7 +273,7 @@ fn build_next_record(
                     now.clone(),
                 )
             } else {
-                record.apply_hook_update(
+                active.apply_hook_update(
                     resolved.active_pid,
                     resolved.ai_current_dir.clone(),
                     next_source,
@@ -282,9 +282,7 @@ fn build_next_record(
                     event_name,
                     resolved.transition.state_reason.clone(),
                     resolved.transition.ended_at.clone(),
-                )?;
-                record.validate()?;
-                Ok(record)
+                )
             }
         }
         None => CanonicalSessionRecord::new(

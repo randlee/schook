@@ -10,6 +10,7 @@ use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
 /// Highest manifest contract version understood by the current host.
 pub const HOST_CONTRACT_VERSION: u32 = 1;
+const STDERR_EXCERPT_LIMIT: usize = 4096;
 
 /// Returns whether a plugin contract version is compatible with the host.
 pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
@@ -138,11 +139,31 @@ pub enum ManifestLoadError {
 
     /// The executable returned non-zero from `--manifest`.
     #[error("plugin `{path}` returned non-zero on --manifest: status={status}, stderr={stderr}")]
-    NonZero {
+    NonZeroExit {
         /// Plugin executable path.
         path: String,
-        /// Exit status code, or `-1` when unavailable.
+        /// Exit status code.
         status: i32,
+        /// Captured stderr output.
+        stderr: String,
+    },
+
+    /// The executable terminated from a signal while serving `--manifest`.
+    #[error("plugin `{path}` terminated by signal {signal} on --manifest: stderr={stderr}")]
+    TerminatedBySignal {
+        /// Plugin executable path.
+        path: String,
+        /// Signal number reported by the operating system.
+        signal: i32,
+        /// Captured stderr output.
+        stderr: String,
+    },
+
+    /// The executable terminated without an exit code while serving `--manifest`.
+    #[error("plugin `{path}` terminated without an exit status on --manifest: stderr={stderr}")]
+    Terminated {
+        /// Plugin executable path.
+        path: String,
         /// Captured stderr output.
         stderr: String,
     },
@@ -171,15 +192,41 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
         })?;
 
     if !output.status.success() {
-        return Err(ManifestLoadError::NonZero {
-            path: path.display().to_string(),
-            status: output.status.code().unwrap_or(-1),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
+        let path = path.display().to_string();
+        let stderr = capped_stderr(&output.stderr);
+        if let Some(status) = output.status.code() {
+            return Err(ManifestLoadError::NonZeroExit {
+                path,
+                status,
+                stderr,
+            });
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+
+            if let Some(signal) = output.status.signal() {
+                return Err(ManifestLoadError::TerminatedBySignal {
+                    path,
+                    signal,
+                    stderr,
+                });
+            }
+        }
+        return Err(ManifestLoadError::Terminated { path, stderr });
     }
 
     parse_manifest_str(&String::from_utf8_lossy(&output.stdout))
         .map_err(ManifestLoadError::Manifest)
+}
+
+fn capped_stderr(stderr: &[u8]) -> String {
+    let rendered = String::from_utf8_lossy(stderr);
+    let mut excerpt: String = rendered.chars().take(STDERR_EXCERPT_LIMIT).collect();
+    if rendered.chars().count() > STDERR_EXCERPT_LIMIT {
+        excerpt.push_str("…[truncated]");
+    }
+    excerpt
 }
 
 /// Validates manifest invariants required by the current host contract.

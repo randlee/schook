@@ -118,8 +118,12 @@ impl SyncHandler for AgentSpawnGatesHandler {
         let next_extension = spawn_extension(&record, &payload, spawn_kind);
         let changed = record.extension("spawn_gate") != Some(&next_extension);
         if changed {
-            record.set_extension("spawn_gate", next_extension);
-            record.mark_material_change(utc_timestamp_now())?;
+            let mut active = record
+                .try_into_active()
+                .map_err(|_| HookError::invalid_context("cannot mutate ended session record"))?;
+            active.set_extension("spawn_gate", next_extension)?;
+            active.mark_material_change(utc_timestamp_now())?;
+            record = active.into();
         }
         let persist = store.persist(&record)?;
         debug_assert!(matches!(

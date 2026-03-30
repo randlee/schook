@@ -38,6 +38,7 @@ fn prepend_path(dir: &Path) -> std::ffi::OsString {
     std::env::join_paths(paths).expect("joined PATH should be valid")
 }
 
+#[cfg(unix)]
 #[test]
 fn codex_shim_exports_contract_and_maps_pre_edit() {
     let temp = tempfile::tempdir().expect("tempdir should be creatable");
@@ -60,6 +61,7 @@ fn codex_shim_exports_contract_and_maps_pre_edit() {
     assert!(captured.contains("run PreToolUse Write"));
 }
 
+#[cfg(unix)]
 #[test]
 fn gemini_shim_exports_contract_and_maps_pre_tool() {
     let temp = tempfile::tempdir().expect("tempdir should be creatable");

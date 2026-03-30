@@ -169,7 +169,7 @@ impl StateRoot {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(transparent)]
 /// RFC 3339 timestamp used throughout canonical session state.
 pub struct UtcTimestamp(String);
@@ -194,6 +194,16 @@ impl fmt::Display for UtcTimestamp {
     }
 }
 
+impl<'de> Deserialize<'de> for UtcTimestamp {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        UtcTimestamp::from_field("utc_timestamp", value).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 /// Normalized agent state tracked across hook events.
@@ -214,6 +224,7 @@ pub enum AgentState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 /// Source value reported by a `SessionStart` hook payload.
 pub enum SessionStartSource {
     /// A fresh session startup.
@@ -224,6 +235,9 @@ pub enum SessionStartSource {
     Compact,
     /// A clear-triggered replacement session.
     Clear,
+    /// Future or unknown source value preserved as a safe fallback.
+    #[serde(other)]
+    Unknown,
 }
 
 impl SessionStartSource {
@@ -260,6 +274,54 @@ pub struct CanonicalSessionRecord {
     state_reason: String,
     #[serde(default)]
     extensions: BTreeMap<String, Value>,
+}
+
+/// Active-session wrapper that exclusively owns record mutation APIs.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ActiveSessionRecord(CanonicalSessionRecord);
+
+/// Ended-session wrapper used when the canonical record has reached terminal state.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EndedSessionRecord(CanonicalSessionRecord);
+
+impl From<ActiveSessionRecord> for CanonicalSessionRecord {
+    fn from(record: ActiveSessionRecord) -> Self {
+        record.0
+    }
+}
+
+impl From<EndedSessionRecord> for CanonicalSessionRecord {
+    fn from(record: EndedSessionRecord) -> Self {
+        record.0
+    }
+}
+
+impl AsRef<CanonicalSessionRecord> for ActiveSessionRecord {
+    fn as_ref(&self) -> &CanonicalSessionRecord {
+        &self.0
+    }
+}
+
+impl AsRef<CanonicalSessionRecord> for EndedSessionRecord {
+    fn as_ref(&self) -> &CanonicalSessionRecord {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for ActiveSessionRecord {
+    type Target = CanonicalSessionRecord;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Deref for EndedSessionRecord {
+    type Target = CanonicalSessionRecord;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl CanonicalSessionRecord {
@@ -405,99 +467,19 @@ impl CanonicalSessionRecord {
         self.extensions.get(key)
     }
 
-    /// Sets or replaces an extension value and reports whether the record changed.
-    pub fn set_extension(&mut self, key: impl Into<String>, value: Value) -> bool {
-        let key = key.into();
-        if self.extensions.get(&key) == Some(&value) {
-            return false;
+    /// Returns whether the record is already in terminal ended state.
+    pub fn is_ended(&self) -> bool {
+        self.agent_state == AgentState::Ended
+    }
+
+    /// Converts the record into the active-session mutation wrapper.
+    #[allow(clippy::result_large_err)]
+    pub fn try_into_active(self) -> Result<ActiveSessionRecord, EndedSessionRecord> {
+        if self.is_ended() {
+            Err(EndedSessionRecord(self))
+        } else {
+            Ok(ActiveSessionRecord(self))
         }
-        self.extensions.insert(key, value);
-        true
-    }
-
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "root-change rebuild preserves canonical identity and timestamps under one validated constructor path"
-    )]
-    /// Rebuilds the record after a root-establishing transition such as resume or clear.
-    pub fn rebuild_with_root_change(
-        &self,
-        active_pid: ActivePid,
-        ai_root_dir: AiRootDir,
-        ai_current_dir: AiCurrentDir,
-        session_start_source: SessionStartSource,
-        agent_state: AgentState,
-        last_hook_event: impl Into<String>,
-        state_reason: impl Into<String>,
-        ended_at: Option<UtcTimestamp>,
-        updated_at: UtcTimestamp,
-    ) -> Result<Self, HookError> {
-        let last_hook_event = last_hook_event.into();
-        let state_reason = state_reason.into();
-        let record = Self {
-            schema_version: self.schema_version,
-            provider: self.provider,
-            session_id: self.session_id.clone(),
-            active_pid,
-            parent_session_id: self.parent_session_id.clone(),
-            parent_active_pid: self.parent_active_pid,
-            ai_root_dir,
-            ai_current_dir,
-            session_start_source,
-            agent_state,
-            state_revision: self.state_revision + 1,
-            created_at: self.created_at.clone(),
-            updated_at: updated_at.clone(),
-            ended_at,
-            last_hook_event,
-            last_hook_event_at: updated_at,
-            state_reason,
-            extensions: self.extensions.clone(),
-        };
-        record.validate()?;
-        Ok(record)
-    }
-
-    /// Bumps the record revision and updates the mutation timestamp without changing semantic fields.
-    pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
-        let mut next = self.clone();
-        next.state_revision += 1;
-        next.updated_at = updated_at;
-        next.validate()?;
-        *self = next;
-        Ok(())
-    }
-
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "hook-state updates need to carry the full validated canonical mutation set"
-    )]
-    /// Applies a validated hook-driven mutation to the canonical record.
-    pub fn apply_hook_update(
-        &mut self,
-        active_pid: ActivePid,
-        ai_current_dir: AiCurrentDir,
-        session_start_source: SessionStartSource,
-        agent_state: AgentState,
-        updated_at: UtcTimestamp,
-        last_hook_event: impl Into<String>,
-        state_reason: impl Into<String>,
-        ended_at: Option<UtcTimestamp>,
-    ) -> Result<(), HookError> {
-        let mut next = self.clone();
-        next.state_revision += 1;
-        next.active_pid = active_pid;
-        next.ai_current_dir = ai_current_dir;
-        next.session_start_source = session_start_source;
-        next.agent_state = agent_state;
-        next.updated_at = updated_at.clone();
-        next.last_hook_event = last_hook_event.into();
-        next.last_hook_event_at = updated_at;
-        next.state_reason = state_reason.into();
-        next.ended_at = ended_at;
-        next.validate()?;
-        *self = next;
-        Ok(())
     }
 
     /// Validates record invariants prior to persistence.
@@ -526,6 +508,109 @@ impl CanonicalSessionRecord {
             _ => {}
         }
         Ok(())
+    }
+}
+
+impl ActiveSessionRecord {
+    /// Sets or replaces an extension value and reports whether the record changed.
+    pub fn set_extension(
+        &mut self,
+        key: impl Into<String>,
+        value: Value,
+    ) -> Result<bool, HookError> {
+        let key = key.into();
+        if self.0.extensions.get(&key) == Some(&value) {
+            return Ok(false);
+        }
+        let mut next = self.0.clone();
+        next.extensions.insert(key, value);
+        next.validate()?;
+        self.0 = next;
+        Ok(true)
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "root-change rebuild preserves canonical identity and timestamps under one validated constructor path"
+    )]
+    /// Rebuilds the record after a root-establishing transition such as resume or clear.
+    pub fn rebuild_with_root_change(
+        self,
+        active_pid: ActivePid,
+        ai_root_dir: AiRootDir,
+        ai_current_dir: AiCurrentDir,
+        session_start_source: SessionStartSource,
+        agent_state: AgentState,
+        last_hook_event: impl Into<String>,
+        state_reason: impl Into<String>,
+        ended_at: Option<UtcTimestamp>,
+        updated_at: UtcTimestamp,
+    ) -> Result<CanonicalSessionRecord, HookError> {
+        let last_hook_event = last_hook_event.into();
+        let state_reason = state_reason.into();
+        let record = CanonicalSessionRecord {
+            schema_version: self.0.schema_version,
+            provider: self.0.provider,
+            session_id: self.0.session_id.clone(),
+            active_pid,
+            parent_session_id: self.0.parent_session_id.clone(),
+            parent_active_pid: self.0.parent_active_pid,
+            ai_root_dir,
+            ai_current_dir,
+            session_start_source,
+            agent_state,
+            state_revision: self.0.state_revision + 1,
+            created_at: self.0.created_at.clone(),
+            updated_at: updated_at.clone(),
+            ended_at,
+            last_hook_event,
+            last_hook_event_at: updated_at,
+            state_reason,
+            extensions: self.0.extensions.clone(),
+        };
+        record.validate()?;
+        Ok(record)
+    }
+
+    /// Bumps the record revision and updates the mutation timestamp without changing semantic fields.
+    pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
+        let mut next = self.0.clone();
+        next.state_revision += 1;
+        next.updated_at = updated_at;
+        next.validate()?;
+        self.0 = next;
+        Ok(())
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "hook-state updates need to carry the full validated canonical mutation set"
+    )]
+    /// Applies a validated hook-driven mutation to the canonical record.
+    pub fn apply_hook_update(
+        self,
+        active_pid: ActivePid,
+        ai_current_dir: AiCurrentDir,
+        session_start_source: SessionStartSource,
+        agent_state: AgentState,
+        updated_at: UtcTimestamp,
+        last_hook_event: impl Into<String>,
+        state_reason: impl Into<String>,
+        ended_at: Option<UtcTimestamp>,
+    ) -> Result<CanonicalSessionRecord, HookError> {
+        let mut next = self.0.clone();
+        next.state_revision += 1;
+        next.active_pid = active_pid;
+        next.ai_current_dir = ai_current_dir;
+        next.session_start_source = session_start_source;
+        next.agent_state = agent_state;
+        next.updated_at = updated_at.clone();
+        next.last_hook_event = last_hook_event.into();
+        next.last_hook_event_at = updated_at;
+        next.state_reason = state_reason.into();
+        next.ended_at = ended_at;
+        next.validate()?;
+        Ok(next)
     }
 }
 
@@ -585,11 +670,15 @@ struct CanonicalSessionRecordWire {
     session_start_source: SessionStartSource,
     agent_state: AgentState,
     state_revision: u64,
+    #[serde(deserialize_with = "deserialize_created_at")]
     created_at: UtcTimestamp,
+    #[serde(deserialize_with = "deserialize_updated_at")]
     updated_at: UtcTimestamp,
     #[serde(default)]
+    #[serde(deserialize_with = "deserialize_optional_ended_at")]
     ended_at: Option<UtcTimestamp>,
     last_hook_event: String,
+    #[serde(deserialize_with = "deserialize_last_hook_event_at")]
     last_hook_event_at: UtcTimestamp,
     state_reason: String,
     #[serde(default)]
@@ -625,6 +714,48 @@ impl<'de> Deserialize<'de> for CanonicalSessionRecord {
         record.validate().map_err(serde::de::Error::custom)?;
         Ok(record)
     }
+}
+
+fn deserialize_created_at<'de, D>(deserializer: D) -> Result<UtcTimestamp, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_timestamp_field(deserializer, "created_at")
+}
+
+fn deserialize_updated_at<'de, D>(deserializer: D) -> Result<UtcTimestamp, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_timestamp_field(deserializer, "updated_at")
+}
+
+fn deserialize_last_hook_event_at<'de, D>(deserializer: D) -> Result<UtcTimestamp, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_timestamp_field(deserializer, "last_hook_event_at")
+}
+
+fn deserialize_optional_ended_at<'de, D>(deserializer: D) -> Result<Option<UtcTimestamp>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)?
+        .map(|value| UtcTimestamp::from_field("ended_at", value))
+        .transpose()
+        .map_err(serde::de::Error::custom)
+}
+
+fn deserialize_timestamp_field<'de, D>(
+    deserializer: D,
+    field: &'static str,
+) -> Result<UtcTimestamp, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    UtcTimestamp::from_field(field, value).map_err(serde::de::Error::custom)
 }
 
 #[cfg(test)]
@@ -733,5 +864,12 @@ mod tests {
                 serde_json::from_str(&rendered).expect("source should deserialize");
             assert_eq!(reparsed, source);
         }
+    }
+
+    #[test]
+    fn session_start_source_deserializes_unknown_values_to_unknown() {
+        let reparsed: SessionStartSource =
+            serde_json::from_str("\"future_source\"").expect("source should deserialize");
+        assert_eq!(reparsed, SessionStartSource::Unknown);
     }
 }

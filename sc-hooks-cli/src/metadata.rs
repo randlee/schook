@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
+use log::warn;
 use sc_hooks_core::session::SessionId;
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
@@ -268,6 +269,10 @@ fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
             continue;
         };
         let Ok(age) = now.duration_since(modified) else {
+            warn!(
+                "metadata temp file clock skew detected for {} while sweeping stale files",
+                path.display()
+            );
             continue;
         };
         if age >= max_age {
