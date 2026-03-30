@@ -1,12 +1,11 @@
-use sc_hooks_core::session::{SessionId, SessionStartSource};
+use sc_hooks_core::session::{AiCurrentDir, SessionId, SessionStartSource};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionStartPayload {
     pub session_id: SessionId,
-    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    _cwd: String,
+    _cwd: AiCurrentDir,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -23,9 +22,8 @@ pub struct SessionStartPayload {
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionEndPayload {
     pub session_id: SessionId,
-    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    _cwd: String,
+    _cwd: AiCurrentDir,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -37,9 +35,8 @@ pub struct SessionEndPayload {
 #[derive(Debug, Clone, Deserialize)]
 pub struct PreCompactPayload {
     pub session_id: SessionId,
-    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    _cwd: String,
+    _cwd: AiCurrentDir,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -60,9 +57,8 @@ pub struct PreCompactPayload {
 #[derive(Debug, Clone, Deserialize)]
 pub struct StopPayload {
     pub session_id: SessionId,
-    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    _cwd: String,
+    _cwd: AiCurrentDir,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"

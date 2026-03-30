@@ -1,9 +1,10 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
 use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_hooks_core::events::HookType;
 use sc_hooks_sdk::traits::SyncHandler;
 
@@ -37,22 +38,6 @@ fn stop_payload(session_id: &str, cwd: &Path) -> serde_json::Value {
         "cwd": cwd.to_str().expect("cwd utf8"),
         "stop_hook_active": false,
     })
-}
-
-fn divergence_log_path(project_root: &Path) -> PathBuf {
-    project_root
-        .join(".sc-hooks")
-        .join("observability")
-        .join("sc-hooks")
-        .join("logs")
-        .join("sc-hooks.log.jsonl")
-}
-
-fn last_log_event(project_root: &Path) -> serde_json::Value {
-    let rendered =
-        fs::read_to_string(divergence_log_path(project_root)).expect("log file should exist");
-    let line = rendered.lines().last().expect("log line should exist");
-    serde_json::from_str(line).expect("log line should parse")
 }
 
 fn test_lock() -> &'static Mutex<()> {
@@ -487,13 +472,13 @@ fn startup_project_dir_divergence_logs_and_uses_payload_root() {
         ),
         ("SC_HOOK_AGENT_PID", "900"),
     ]);
-    handler
+    let result = handler
         .handle(hook_context_with_payload(
             HookType::SessionStart,
             None,
             session_start_payload(session_id, "startup", &project_root),
         ))
-        .expect("startup divergence should log and continue");
+        .expect("startup divergence should surface structured notice");
 
     let state_file = temp.path().join(format!("state/{session_id}.json"));
     let parsed: serde_json::Value =
@@ -505,18 +490,17 @@ fn startup_project_dir_divergence_logs_and_uses_payload_root() {
         project_root.to_str().expect("utf8")
     );
 
-    let log = last_log_event(&project_root);
-    assert_eq!(log["level"], "Error");
-    assert_eq!(log["action"], "session.root_divergence");
-    assert_eq!(
-        log["fields"]["immutable_root"],
-        project_root.to_str().expect("utf8")
-    );
-    assert_eq!(
-        log["fields"]["observed"],
-        mismatched_root.to_str().expect("utf8")
-    );
-    assert_eq!(log["fields"]["session_id"], session_id);
+    let notice = RootDivergenceNotice::decode(
+        result
+            .additional_context
+            .as_deref()
+            .expect("root divergence should produce additional context"),
+    )
+    .expect("root divergence context should decode");
+    assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
+    assert_eq!(notice.observed, mismatched_root);
+    assert_eq!(notice.session_id.as_str(), session_id);
+    assert_eq!(notice.hook_event, HookType::SessionStart);
 }
 
 #[test]
@@ -563,13 +547,24 @@ fn mismatched_project_dir_logs_and_preserves_immutable_root() {
             ),
             ("SC_HOOK_AGENT_PID", "900"),
         ]);
-        handler
+        let result = handler
             .handle(hook_context_with_payload(
                 HookType::Stop,
                 None,
                 stop_payload(session_id, &drift_dir),
             ))
             .expect("mismatched CLAUDE_PROJECT_DIR should log and continue");
+        let notice = RootDivergenceNotice::decode(
+            result
+                .additional_context
+                .as_deref()
+                .expect("root divergence should produce additional context"),
+        )
+        .expect("root divergence context should decode");
+        assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
+        assert_eq!(notice.observed, mismatched_root);
+        assert_eq!(notice.session_id.as_str(), session_id);
+        assert_eq!(notice.hook_event, HookType::Stop);
     }
 
     let state_file = temp.path().join(format!("state/{session_id}.json"));
@@ -579,21 +574,59 @@ fn mismatched_project_dir_logs_and_preserves_immutable_root() {
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
     assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
     assert_eq!(parsed["agent_state"], "idle");
+}
 
-    let log = last_log_event(&project_root);
-    assert_eq!(log["level"], "Error");
-    assert_eq!(log["action"], "session.root_divergence");
-    assert_eq!(
-        log["fields"]["immutable_root"],
-        project_root.to_str().expect("utf8")
-    );
-    assert_eq!(
-        log["fields"]["observed"],
-        mismatched_root.to_str().expect("utf8")
-    );
-    assert_eq!(
-        log["fields"]["ai_current_dir"],
-        drift_dir.to_str().expect("utf8")
-    );
-    assert_eq!(log["fields"]["session_id"], session_id);
+#[test]
+fn missing_project_dir_preserves_root_without_divergence_context() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let drift_dir = project_root.join("subdir");
+    let session_id = "session-missing-project-dir";
+    fs::create_dir_all(&drift_dir).expect("drift dir");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    let _env = EnvGuard::set(&[
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
+        ("SC_HOOK_AGENT_PID", "900"),
+    ]);
+    let result = handler
+        .handle(hook_context_with_payload(
+            HookType::Stop,
+            None,
+            stop_payload(session_id, &drift_dir),
+        ))
+        .expect("missing project dir should preserve root without error");
+    assert!(result.additional_context.is_none());
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
+    assert_eq!(parsed["agent_state"], "idle");
 }

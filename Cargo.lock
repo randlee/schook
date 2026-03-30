@@ -6,10 +6,9 @@ version = 4
 name = "agent-session-foundation"
 version = "0.1.0"
 dependencies = [
+ "log",
  "sc-hooks-core",
  "sc-hooks-sdk",
- "sc-observability",
- "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",

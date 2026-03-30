@@ -1,7 +1,8 @@
 use serde_json::Value;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
+use thiserror::Error;
 
 use crate::config::ScHooksConfig;
 use crate::errors::CliError;
@@ -10,6 +11,7 @@ use crate::observability::{self, HandlerResultRecord};
 use crate::resolution::ResolvedHandler;
 use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
+use sc_hooks_core::errors::RootDivergenceNotice;
 use std::borrow::Cow;
 
 #[derive(Debug)]
@@ -33,6 +35,31 @@ enum HookResultParseError {
     MalformedFirstJson(serde_json::Error),
     InvalidHookResult(serde_json::Error),
     InvalidTrailingJson(serde_json::Error),
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "failed to read plugin stderr after capturing {captured_bytes} bytes (partial stderr: {captured_excerpt:?})"
+)]
+struct StderrCaptureContextError {
+    captured_bytes: usize,
+    captured_excerpt: String,
+    #[source]
+    source: std::io::Error,
+}
+
+impl StderrCaptureContextError {
+    fn new(captured: &[u8], source: std::io::Error) -> Self {
+        let captured_excerpt = String::from_utf8_lossy(captured)
+            .chars()
+            .take(200)
+            .collect();
+        Self {
+            captured_bytes: captured.len(),
+            captured_excerpt,
+            source,
+        }
+    }
 }
 
 impl fmt::Display for HookResultParseError {
@@ -347,7 +374,10 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::plugin_error_with_source(ai_message, read_err));
+            return Err(CliError::plugin_error_with_source(
+                ai_message,
+                StderrCaptureContextError::new(&stderr, read_err),
+            ));
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
@@ -418,6 +448,19 @@ pub fn execute_chain(
             }
         };
 
+        let mut parsed = parsed;
+        let (additional_context, root_divergence) =
+            split_root_divergence_context(parsed.additional_context.take());
+        let warning = merge_warnings(
+            warning,
+            root_divergence
+                .as_ref()
+                .map(RootDivergenceNotice::warning_message),
+        );
+        if let Some(notice) = root_divergence.as_ref() {
+            emit_root_divergence_log_with_fallback(&log_base.project_root, notice);
+        }
+
         match parsed.action {
             sc_hooks_core::results::HookAction::Proceed => {
                 log_results.push(HandlerResultRecord {
@@ -435,7 +478,7 @@ pub fn execute_chain(
                 });
 
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    if let Some(context) = parsed.additional_context {
+                    if let Some(context) = additional_context {
                         async_additional_context.push(context);
                     }
                     if let Some(message) = parsed.system_message {
@@ -611,7 +654,49 @@ fn emit_dispatch_log_with_fallback(
     ai_notification: Option<&str>,
 ) {
     if let Err(err) = emit_dispatch_log(base, results, total_ms, exit, ai_notification) {
-        eprintln!("sc-hooks: failed emitting dispatch observability event: {err}");
+        emit_observability_stderr_fallback(&err);
+    }
+}
+
+fn emit_root_divergence_log(
+    project_root: &Path,
+    notice: &RootDivergenceNotice,
+) -> Result<(), CliError> {
+    observability::emit_root_divergence_event(observability::RootDivergenceEventArgs {
+        notice,
+        project_root,
+    })
+}
+
+fn emit_root_divergence_log_with_fallback(project_root: &Path, notice: &RootDivergenceNotice) {
+    if let Err(err) = emit_root_divergence_log(project_root, notice) {
+        emit_observability_stderr_fallback(&err);
+    }
+}
+
+fn emit_observability_stderr_fallback(err: &CliError) {
+    eprintln!("sc-hooks: failed emitting dispatch observability event: {err}");
+}
+
+fn split_root_divergence_context(
+    additional_context: Option<String>,
+) -> (Option<String>, Option<RootDivergenceNotice>) {
+    let Some(additional_context) = additional_context else {
+        return (None, None);
+    };
+
+    match RootDivergenceNotice::decode(&additional_context) {
+        Some(notice) => (None, Some(notice)),
+        None => (Some(additional_context), None),
+    }
+}
+
+fn merge_warnings(existing: Option<String>, additional: Option<String>) -> Option<String> {
+    match (existing, additional) {
+        (Some(existing), Some(additional)) => Some(format!("{existing}; {additional}")),
+        (Some(existing), None) => Some(existing),
+        (None, Some(additional)) => Some(additional),
+        (None, None) => None,
     }
 }
 
