@@ -12,7 +12,7 @@
 //! and side effects stay explicit and testable:
 //! - `RawRequest<T>` captures the raw payload plus resolved ATM routing
 //! - `ValidatedRequest<T>` carries a payload that passed shape/content checks
-//! - `RelayDecision<T>` describes the relay event, state update, and cleanup work
+//! - `RelayDecision` describes the relay event, state update, and cleanup work
 //! - `RelayResult` records the side-effect application outcome
 
 use std::collections::BTreeMap;
@@ -59,8 +59,8 @@ struct RelayContext {
 }
 
 #[derive(Debug)]
-struct RelayDecision<T> {
-    request: ValidatedRequest<T>,
+struct RelayDecision {
+    relay: RelayContext,
     state_update: RecordUpdate,
     event_body: Value,
     cleanup_identity_file: bool,
@@ -569,7 +569,7 @@ fn validate_stop_request(
 
 fn permission_relay_decision(
     request: ValidatedRequest<ValidatedPermissionRequest>,
-) -> RelayDecision<ValidatedPermissionRequest> {
+) -> RelayDecision {
     let process_id = request.relay.process_id;
     let body = json!({
         "event": "permission_request",
@@ -583,7 +583,7 @@ fn permission_relay_decision(
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
-        request,
+        relay: request.relay,
         state_update: RecordUpdate {
             hook_event: "PermissionRequest",
             state_reason: "permission_requested",
@@ -594,9 +594,7 @@ fn permission_relay_decision(
     }
 }
 
-fn stop_relay_decision(
-    request: ValidatedRequest<ValidatedStopRequest>,
-) -> RelayDecision<ValidatedStopRequest> {
+fn stop_relay_decision(request: ValidatedRequest<ValidatedStopRequest>) -> RelayDecision {
     let process_id = request.relay.process_id;
     let body = json!({
         "event": "stop",
@@ -607,7 +605,7 @@ fn stop_relay_decision(
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
-        request,
+        relay: request.relay,
         state_update: RecordUpdate {
             hook_event: "Stop",
             state_reason: "relay_stop",
@@ -618,22 +616,22 @@ fn stop_relay_decision(
     }
 }
 
-fn execute_relay<T>(
+fn execute_relay(
     store: &SessionStore,
     record: CanonicalSessionRecord,
-    decision: RelayDecision<T>,
+    decision: RelayDecision,
 ) -> Result<RelayResult, HookError> {
     persist_atm_update(
         store,
         record,
-        &decision.request.relay.routing,
+        &decision.relay.routing,
         decision.state_update,
     )?;
 
     append_relay_event(relay_event_root(), decision.event_body);
 
     if decision.cleanup_identity_file {
-        let identity_file = identity_file_path(decision.request.relay.process_id);
+        let identity_file = identity_file_path(decision.relay.process_id);
         if let Err(err) = delete_identity_file(&identity_file) {
             eprintln!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
