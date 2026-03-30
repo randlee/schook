@@ -12,7 +12,7 @@ use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
-use sc_hooks_core::session::utc_timestamp_now;
+use sc_hooks_core::session::{AgentState, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_core::tools::{SpawnKind, ToolName};
 use sc_hooks_sdk::result::{block, proceed};
@@ -114,6 +114,9 @@ impl SyncHandler for AgentSpawnGatesHandler {
 
         let next_extension = spawn_extension(&record, &payload, spawn_kind);
         let changed = record.extension("spawn_gate") != Some(&next_extension);
+        if record.agent_state() == AgentState::Ended {
+            return Ok(proceed());
+        }
         if changed {
             record.set_extension("spawn_gate", next_extension);
             record.mark_material_change(utc_timestamp_now())?;

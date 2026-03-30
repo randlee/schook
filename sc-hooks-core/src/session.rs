@@ -397,9 +397,12 @@ impl CanonicalSessionRecord {
     }
 
     pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
-        self.state_revision += 1;
-        self.updated_at = updated_at;
-        self.validate()
+        let mut next = self.clone();
+        next.state_revision += 1;
+        next.updated_at = updated_at;
+        next.validate()?;
+        *self = next;
+        Ok(())
     }
 
     #[expect(
@@ -417,17 +420,20 @@ impl CanonicalSessionRecord {
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
     ) -> Result<(), HookError> {
-        self.state_revision += 1;
-        self.active_pid = active_pid;
-        self.ai_current_dir = ai_current_dir;
-        self.session_start_source = session_start_source;
-        self.agent_state = agent_state;
-        self.updated_at = updated_at.clone();
-        self.last_hook_event = last_hook_event.into();
-        self.last_hook_event_at = updated_at;
-        self.state_reason = state_reason.into();
-        self.ended_at = ended_at;
-        self.validate()
+        let mut next = self.clone();
+        next.state_revision += 1;
+        next.active_pid = active_pid;
+        next.ai_current_dir = ai_current_dir;
+        next.session_start_source = session_start_source;
+        next.agent_state = agent_state;
+        next.updated_at = updated_at.clone();
+        next.last_hook_event = last_hook_event.into();
+        next.last_hook_event_at = updated_at;
+        next.state_reason = state_reason.into();
+        next.ended_at = ended_at;
+        next.validate()?;
+        *self = next;
+        Ok(())
     }
 
     pub fn validate(&self) -> Result<(), HookError> {
@@ -497,6 +503,7 @@ pub fn utc_timestamp_now() -> UtcTimestamp {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CanonicalSessionRecordWire {
     schema_version: SchemaVersion,
     provider: Provider,

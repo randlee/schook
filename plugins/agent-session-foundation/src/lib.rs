@@ -179,9 +179,9 @@ impl TryFrom<HookType> for LifecycleEvent {
                 "unsupported hook for session foundation: {}",
                 value.as_str()
             ))),
-            _ => Err(HookError::invalid_context(
-                "unsupported future hook for session foundation",
-            )),
+            _ => Err(HookError::invalid_context(format!(
+                "unsupported future hook for session foundation: {value:?}"
+            ))),
         }
     }
 }

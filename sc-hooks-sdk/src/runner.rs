@@ -6,6 +6,7 @@ use std::str::FromStr;
 use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
 use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use thiserror::Error;
 
@@ -13,6 +14,9 @@ pub struct PluginRunner;
 
 #[derive(Debug, Error)]
 pub enum RunnerError {
+    #[error("missing hook type in SC_HOOK_TYPE and payload")]
+    MissingHookType,
+
     #[error("unknown hook type `{name}`: {reason}")]
     UnknownHookType { name: String, reason: String },
 
@@ -24,9 +28,33 @@ pub enum RunnerError {
 
     #[error("invalid JSON on stdin: {source}")]
     StdinParse {
+        input_excerpt: String,
         #[source]
         source: serde_json::Error,
     },
+}
+
+impl From<RunnerError> for HookError {
+    fn from(err: RunnerError) -> Self {
+        match err {
+            RunnerError::MissingHookType => {
+                HookError::invalid_context("missing hook type in SC_HOOK_TYPE and payload")
+            }
+            RunnerError::UnknownHookType { name, reason } => {
+                HookError::invalid_context(format!("unknown hook type `{name}`: {reason}"))
+            }
+            RunnerError::StdinRead { source } => {
+                HookError::internal_with_source("failed to read stdin", source)
+            }
+            RunnerError::StdinParse {
+                input_excerpt,
+                source,
+            } => HookError::InvalidPayload {
+                input_excerpt,
+                source: Some(source),
+            },
+        }
+    }
 }
 
 impl PluginRunner {
@@ -38,8 +66,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&HookError::from(err)));
             }
         };
 
@@ -59,8 +86,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&HookError::from(err)));
             }
         };
 
@@ -100,8 +126,10 @@ fn read_json_stdin() -> Result<serde_json::Value, RunnerError> {
         return Ok(serde_json::json!({}));
     }
 
-    serde_json::from_str::<serde_json::Value>(&input)
-        .map_err(|source| RunnerError::StdinParse { source })
+    serde_json::from_str::<serde_json::Value>(&input).map_err(|source| RunnerError::StdinParse {
+        input_excerpt: input.chars().take(120).collect(),
+        source,
+    })
 }
 
 fn read_hook_context() -> Result<HookContext, RunnerError> {
@@ -123,10 +151,7 @@ fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerEr
                 .and_then(serde_json::Value::as_str)
                 .map(Cow::Borrowed)
         })
-        .ok_or_else(|| RunnerError::UnknownHookType {
-            name: "<missing>".to_string(),
-            reason: "missing from SC_HOOK_TYPE and payload".to_string(),
-        })?;
+        .ok_or(RunnerError::MissingHookType)?;
 
     HookType::from_str(hook_name.as_ref()).map_err(|err| RunnerError::UnknownHookType {
         name: hook_name.into_owned(),
