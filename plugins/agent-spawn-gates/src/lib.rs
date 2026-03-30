@@ -98,6 +98,9 @@ impl SyncHandler for AgentSpawnGatesHandler {
                 ));
             }
         };
+        if record.agent_state() == AgentState::Ended {
+            return Ok(proceed());
+        }
 
         let spawn_kind = if payload.tool_input.run_in_background.unwrap_or(false) {
             SpawnKind::BackgroundAgent
@@ -114,9 +117,6 @@ impl SyncHandler for AgentSpawnGatesHandler {
 
         let next_extension = spawn_extension(&record, &payload, spawn_kind);
         let changed = record.extension("spawn_gate") != Some(&next_extension);
-        if record.agent_state() == AgentState::Ended {
-            return Ok(proceed());
-        }
         if changed {
             record.set_extension("spawn_gate", next_extension);
             record.mark_material_change(utc_timestamp_now())?;
