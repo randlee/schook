@@ -3,9 +3,11 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
-pub mod private {
+pub(crate) mod private {
     pub trait Sealed {}
 }
+
+pub use private::Sealed as ComplianceSealed;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceCheck {

@@ -14,7 +14,11 @@ pub enum HookError {
     },
 
     #[error("invalid context: {message}")]
-    InvalidContext { message: String },
+    InvalidContext {
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("state I/O failed for {path}")]
     StateIo {
@@ -24,7 +28,12 @@ pub enum HookError {
     },
 
     #[error("validation failed for {field}: {message}")]
-    Validation { field: String, message: String },
+    Validation {
+        field: String,
+        message: String,
+        #[source]
+        source: Option<BoxedError>,
+    },
 
     #[error("divergence in CLAUDE_PROJECT_DIR from {immutable_root} to {observed} on {hook_event}")]
     RootDivergence {
@@ -45,6 +54,7 @@ impl HookError {
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {
             message: message.into(),
+            source: None,
         }
     }
 
@@ -52,6 +62,29 @@ impl HookError {
         Self::Validation {
             field: field.into(),
             message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn invalid_context_with_source(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self::InvalidContext {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
+    pub fn validation_with_source(
+        field: impl Into<String>,
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self::Validation {
+            field: field.into(),
+            message: message.into(),
+            source: Some(Box::new(source)),
         }
     }
 

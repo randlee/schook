@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -10,6 +11,7 @@ use serde_json::{Map, Value};
 use thiserror::Error;
 
 use crate::errors::CliError;
+use sc_hooks_core::session::AiRootDir;
 const SERVICE_NAME: &str = "sc-hooks";
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static LOGGER_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -43,10 +45,10 @@ enum ObservabilityInitError {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct HandlerResultRecord {
     pub handler: String,
-    pub action: String,
+    pub action: Cow<'static, str>,
     pub ms: u128,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_type: Option<String>,
+    pub error_type: Option<Cow<'static, str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stderr: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -154,10 +156,11 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
 }
 
 fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
-    debug_assert!(
-        project_root.is_absolute(),
-        "dispatch callers must resolve a concrete project_root before init_observability"
-    );
+    if !project_root.is_absolute() {
+        return Err(CliError::internal(
+            "dispatch callers must resolve an absolute project_root before init_observability",
+        ));
+    }
     #[cfg(test)]
     let effective_root = crate::test_support::shared_observability_root();
     #[cfg(not(test))]
@@ -202,8 +205,11 @@ fn default_logger_config(
     service: ServiceName,
     project_root: &Path,
 ) -> Result<LoggerConfig, CliError> {
+    let project_root = AiRootDir::new(project_root.to_path_buf()).map_err(|source| {
+        CliError::internal_with_source("failed resolving absolute project root", source)
+    })?;
     let root =
-        sc_hooks_core::storage::observability_root_for(Some(project_root)).map_err(|source| {
+        sc_hooks_core::storage::observability_root_for(Some(&project_root)).map_err(|source| {
             CliError::internal_with_source("failed resolving observability root", source)
         })?;
     let mut config = LoggerConfig::default_for(service, root);
@@ -288,7 +294,7 @@ mod tests {
             handler_chain: &["guard-paths".to_string()],
             results: &[HandlerResultRecord {
                 handler: "guard-paths".to_string(),
-                action: "proceed".to_string(),
+                action: Cow::Borrowed("proceed"),
                 ms: 2,
                 error_type: None,
                 stderr: None,

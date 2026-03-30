@@ -118,8 +118,7 @@ impl SyncHandler for AgentSpawnGatesHandler {
             record
                 .extensions
                 .insert("spawn_gate".to_string(), next_extension);
-            record.state_revision += 1;
-            record.updated_at = utc_timestamp_now();
+            record.mark_material_change(utc_timestamp_now())?;
         }
         let persist = store.persist(&record)?;
         debug_assert!(matches!(
@@ -176,8 +175,8 @@ fn excerpt(text: &str) -> String {
 mod tests {
     use super::*;
     use sc_hooks_core::session::{
-        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-        SessionStartSource,
+        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider,
+        SessionId, SessionStartSource, StateRoot,
     };
     use std::sync::{Mutex, OnceLock};
 
@@ -213,10 +212,10 @@ mod tests {
     }
 
     fn write_record(state_root: &Path, project_root: &Path) -> SessionId {
-        let store = SessionStore::new(state_root.to_path_buf());
+        let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
         let session_id = SessionId::new("session-1").expect("session");
         let record = CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             session_id.clone(),
             ActivePid::new(4242).expect("pid"),
             AiRootDir::new(project_root).expect("root"),
@@ -225,7 +224,8 @@ mod tests {
             AgentState::Busy,
             "PreToolUse",
             "tool_invocation_started",
-        );
+        )
+        .expect("record should construct");
         store.persist(&record).expect("persist");
         session_id
     }
@@ -300,7 +300,7 @@ mod tests {
             .expect("handler result");
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
 
-        let store = SessionStore::new(state_root.path().to_path_buf());
+        let store = SessionStore::new(StateRoot::new(state_root.path()).expect("state root"));
         let updated = store
             .load(&session_id)
             .expect("load")

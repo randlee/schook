@@ -11,8 +11,8 @@ use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
-    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-    SessionStartSource, utc_timestamp_now,
+    ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
+    SessionStartSource, UtcTimestamp, utc_timestamp_now,
 };
 use sc_hooks_core::storage::{SessionStore, observability_root_for, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
@@ -44,7 +44,7 @@ struct SessionTransition {
     agent_state: AgentState,
     session_start_source: Option<SessionStartSource>,
     state_reason: String,
-    ended_at: Option<String>,
+    ended_at: Option<UtcTimestamp>,
 }
 
 #[derive(Debug)]
@@ -176,10 +176,18 @@ impl TryFrom<HookType> for LifecycleEvent {
             HookType::SessionEnd => Ok(Self::SessionEnd),
             HookType::PreCompact => Ok(Self::PreCompact),
             HookType::Stop => Ok(Self::Stop),
-            _ => Err(HookError::invalid_context(format!(
+            HookType::PreToolUse
+            | HookType::PostToolUse
+            | HookType::PostCompact
+            | HookType::Notification
+            | HookType::TeammateIdle
+            | HookType::PermissionRequest => Err(HookError::invalid_context(format!(
                 "unsupported hook for session foundation: {}",
                 value.as_str()
             ))),
+            _ => Err(HookError::invalid_context(
+                "unsupported future hook for session foundation",
+            )),
         }
     }
 }
@@ -227,7 +235,7 @@ fn build_next_record(
     let event_name = lifecycle_event.as_str().to_string();
     let now = utc_timestamp_now();
 
-    let mut record = match existing {
+    match existing {
         Some(mut record) => {
             let next_source = session_start_source.unwrap_or(record.session_start_source);
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
@@ -240,15 +248,19 @@ fn build_next_record(
                 || record.session_start_source != next_source
                 || record.last_hook_event != event_name
                 || record.state_reason != resolved.transition.state_reason
-                || record.ended_at != resolved.transition.ended_at;
+                || record.ended_at().cloned() != resolved.transition.ended_at;
+            if record.session_id != resolved.session_id {
+                return Err(HookError::validation(
+                    "session_id",
+                    "existing record does not match resolved session id",
+                ));
+            }
             if !material_changed {
                 return Ok(record);
             }
 
             if root_changed {
-                let mut rebuilt = CanonicalSessionRecord::new(
-                    record.provider.clone(),
-                    record.session_id.clone(),
+                record.rebuild_with_root_change(
                     resolved.active_pid,
                     next_root.clone(),
                     resolved.ai_current_dir.clone(),
@@ -256,28 +268,26 @@ fn build_next_record(
                     resolved.transition.agent_state,
                     event_name.clone(),
                     resolved.transition.state_reason.clone(),
-                );
-                rebuilt.schema_version = record.schema_version;
-                rebuilt.parent_session_id = record.parent_session_id.clone();
-                rebuilt.parent_active_pid = record.parent_active_pid;
-                rebuilt.state_revision = record.state_revision + 1;
-                rebuilt.created_at = record.created_at;
-                rebuilt.updated_at = record.updated_at;
-                rebuilt.ended_at = record.ended_at.clone();
-                rebuilt.last_hook_event_at = record.last_hook_event_at;
-                rebuilt.extensions = record.extensions.clone();
-                record = rebuilt;
+                    resolved.transition.ended_at.clone(),
+                    now.clone(),
+                )
             } else {
                 record.active_pid = resolved.active_pid;
                 record.ai_current_dir = resolved.ai_current_dir.clone();
                 record.agent_state = resolved.transition.agent_state;
                 record.session_start_source = next_source;
-                record.state_revision += 1;
+                record.apply_hook_update(
+                    now,
+                    event_name,
+                    resolved.transition.state_reason.clone(),
+                    resolved.transition.ended_at.clone(),
+                )?;
+                record.validate()?;
+                Ok(record)
             }
-            record
         }
         None => CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             resolved.session_id.clone(),
             resolved.active_pid,
             resolved.ai_root_dir.clone().into_new_record_root()?,
@@ -287,22 +297,7 @@ fn build_next_record(
             event_name.clone(),
             resolved.transition.state_reason.clone(),
         ),
-    };
-
-    if record.session_id != resolved.session_id {
-        return Err(HookError::validation(
-            "session_id",
-            "existing record does not match resolved session id",
-        ));
     }
-
-    record.last_hook_event = event_name;
-    record.last_hook_event_at = now.clone();
-    record.updated_at = now;
-    record.state_reason = resolved.transition.state_reason.clone();
-    record.ended_at = resolved.transition.ended_at.clone();
-
-    Ok(record)
 }
 
 fn resolve_transition(
@@ -313,7 +308,7 @@ fn resolve_transition(
         LifecycleEvent::SessionStart => {
             let payload: SessionStartPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Starting,
                 session_start_source: Some(payload.source),
                 state_reason: "session_started".to_string(),
@@ -323,7 +318,7 @@ fn resolve_transition(
         LifecycleEvent::SessionEnd => {
             let payload: SessionEndPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Ended,
                 session_start_source: None,
                 state_reason: payload
@@ -335,7 +330,7 @@ fn resolve_transition(
         LifecycleEvent::PreCompact => {
             let payload: PreCompactPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Compacting,
                 session_start_source: None,
                 state_reason: "compaction_started".to_string(),
@@ -345,7 +340,7 @@ fn resolve_transition(
         LifecycleEvent::Stop => {
             let payload: StopPayload = context.payload()?;
             Ok(SessionTransition {
-                session_id: SessionId::new(payload.session_id)?,
+                session_id: payload.session_id,
                 agent_state: AgentState::Idle,
                 session_start_source: None,
                 state_reason: "turn_completed".to_string(),
@@ -430,7 +425,8 @@ fn try_emit_root_divergence_event(
 
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| HookError::internal_with_source("invalid service name", source))?;
-    let root = observability_root_for(Some(immutable_root.as_path()))?;
+    let immutable_root = AiRootDir::new(immutable_root.clone())?;
+    let root = observability_root_for(Some(&immutable_root))?;
     let mut config = LoggerConfig::default_for(service.clone(), root);
     config.level = LevelFilter::Info;
     config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
@@ -451,7 +447,7 @@ fn try_emit_root_divergence_event(
     );
     fields.insert(
         "immutable_root".to_string(),
-        Value::String(immutable_root.display().to_string()),
+        Value::String(immutable_root.as_path().display().to_string()),
     );
     fields.insert(
         "observed".to_string(),
@@ -539,14 +535,23 @@ fn resolve_active_pid(
 mod tests {
     use super::*;
 
+    fn portable_test_path() -> String {
+        std::env::temp_dir()
+            .join("projects")
+            .join("agent")
+            .display()
+            .to_string()
+    }
+
     #[test]
     fn supports_all_normalized_state_transitions() {
+        let path = portable_test_path();
         assert_eq!(
             resolve_transition(
                 &HookContext::new(
                     HookType::SessionStart,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","source":"startup"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"source":"startup"}}),
                     None,
                 ),
                 LifecycleEvent::SessionStart,
@@ -560,7 +565,7 @@ mod tests {
                 &HookContext::new(
                     HookType::PreCompact,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::PreCompact,
@@ -574,7 +579,7 @@ mod tests {
                 &HookContext::new(
                     HookType::Stop,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","stop_hook_active":false}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"stop_hook_active":false}}),
                     None,
                 ),
                 LifecycleEvent::Stop,
@@ -588,7 +593,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionEnd,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::SessionEnd,

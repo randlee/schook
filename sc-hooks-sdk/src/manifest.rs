@@ -242,7 +242,7 @@ fn validate_field_value(
     if !type_matches(value, &spec.field_type) {
         return Err(ManifestError::TypeValidationFailed {
             field: field.to_string(),
-            expected: spec.field_type.clone(),
+            expected: spec.field_type,
         });
     }
 

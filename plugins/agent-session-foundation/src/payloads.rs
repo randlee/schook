@@ -1,11 +1,12 @@
-use sc_hooks_core::session::SessionStartSource;
+use sc_hooks_core::session::{SessionId, SessionStartSource};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionStartPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
+    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    pub _cwd: String,
+    _cwd: String,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -21,9 +22,10 @@ pub struct SessionStartPayload {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionEndPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
+    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    pub _cwd: String,
+    _cwd: String,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -34,9 +36,10 @@ pub struct SessionEndPayload {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PreCompactPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
+    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    pub _cwd: String,
+    _cwd: String,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"
@@ -56,9 +59,10 @@ pub struct PreCompactPayload {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StopPayload {
-    pub session_id: String,
+    pub session_id: SessionId,
+    #[allow(dead_code)]
     #[serde(rename = "cwd")]
-    pub _cwd: String,
+    _cwd: String,
     #[expect(
         dead_code,
         reason = "fixture-backed optional field is captured but not consumed in HP3"

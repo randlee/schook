@@ -9,6 +9,7 @@ use crate::observability::{self, HandlerResultRecord};
 use crate::resolution::ResolvedHandler;
 use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
+use std::borrow::Cow;
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -94,6 +95,7 @@ pub fn execute_chain(
             }
             other => CliError::PluginError {
                 message: format!("failed to construct plugin input for `{handler_name}`: {other}"),
+                source: None,
             },
         })?;
 
@@ -107,7 +109,13 @@ pub fn execute_chain(
         {
             Ok(child) => child,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "spawn-error",
@@ -127,19 +135,23 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error(ai_message));
             }
         };
 
         if let Some(mut stdin) = child.stdin.take() {
             use std::io::Write;
-            let body = serde_json::to_vec(&stdin_payload).map_err(|err| CliError::PluginError {
-                message: format!("failed to serialize stdin payload: {err}"),
+            let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
+                CliError::plugin_error_with_source("failed to serialize stdin payload", err)
             })?;
             if let Err(err) = stdin.write_all(&body) {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "stdin-write-failed",
@@ -159,9 +171,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         }
 
@@ -173,7 +183,13 @@ pub fn execute_chain(
         let status = match wait_with_timeout(&mut child, timeout_ms) {
             Ok(TimeoutOutcome::Completed(status)) => status,
             Ok(TimeoutOutcome::TimedOut) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification_with_timeout(
                     handler_name,
                     "timed-out",
@@ -205,12 +221,16 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::TIMEOUT,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::Timeout {
-                    message: ai_message,
-                });
+                return Err(CliError::timeout(ai_message));
             }
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "wait-failed",
@@ -230,9 +250,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
         use std::io::Read;
@@ -240,7 +258,13 @@ pub fn execute_chain(
         if let Some(mut out) = child.stdout.take()
             && let Err(err) = out.read_to_end(&mut stdout)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "stdout-read-failed",
@@ -260,16 +284,20 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(CliError::plugin_error(ai_message));
         }
 
         let mut stderr = Vec::new();
         if let Some(mut err) = child.stderr.take()
             && let Err(read_err) = err.read_to_end(&mut stderr)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "stderr-read-failed",
@@ -289,16 +317,20 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(CliError::plugin_error(ai_message));
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
         let stderr_text = String::from_utf8_lossy(&stderr).to_string();
 
         if !status.success() {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "non-zero-exit",
@@ -318,15 +350,19 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(CliError::plugin_error(ai_message));
         }
 
         let (parsed, warning) = match parse_first_hook_result(&stdout_text) {
             Ok(parsed) => parsed,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "invalid-json",
@@ -346,9 +382,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error(ai_message));
             }
         };
 
@@ -356,7 +390,7 @@ pub fn execute_chain(
             sc_hooks_core::results::HookAction::Proceed => {
                 log_results.push(HandlerResultRecord {
                     handler: handler_name.clone(),
-                    action: "proceed".to_string(),
+                    action: Cow::Borrowed("proceed"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
                     stderr: if stderr_text.is_empty() {
@@ -379,7 +413,13 @@ pub fn execute_chain(
             }
             sc_hooks_core::results::HookAction::Block => {
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                    disable_plugin_for_session(
+                        prepared
+                            .session_id
+                            .as_ref()
+                            .map(sc_hooks_core::session::SessionId::as_str),
+                        handler_name,
+                    )?;
                     let ai_message = ai_notification(
                         handler_name,
                         "async-block",
@@ -412,7 +452,7 @@ pub fn execute_chain(
                     .unwrap_or_else(|| "plugin blocked without reason".to_string());
                 log_results.push(HandlerResultRecord {
                     handler: handler_name.clone(),
-                    action: "block".to_string(),
+                    action: Cow::Borrowed("block"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
                     stderr: if stderr_text.is_empty() {
@@ -433,7 +473,13 @@ pub fn execute_chain(
                 return Ok(DispatchOutcome::Blocked { reason });
             }
             sc_hooks_core::results::HookAction::Error => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "action-error",
@@ -457,9 +503,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error(ai_message));
             }
         }
     }
@@ -568,15 +612,15 @@ fn parse_first_hook_result(
 fn error_result(
     handler_name: &str,
     ms: u128,
-    error_type: &str,
+    error_type: &'static str,
     stderr: Option<String>,
     disabled: Option<bool>,
 ) -> HandlerResultRecord {
     HandlerResultRecord {
         handler: handler_name.to_string(),
-        action: "error".to_string(),
+        action: Cow::Borrowed("error"),
         ms,
-        error_type: Some(error_type.to_string()),
+        error_type: Some(Cow::Borrowed(error_type)),
         stderr,
         warning: None,
         disabled,

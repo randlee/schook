@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use sc_hooks_core::events::{EventTaxonomy, HookType};
+
 pub const TOOL_EVENTS: [&str; 15] = [
     "Bash",
     "Read",
@@ -25,23 +29,26 @@ pub struct MatcherValidation {
 
 pub fn validate_matchers_for_hook(hook: &str, matchers: &[String]) -> MatcherValidation {
     let mut outcome = MatcherValidation::default();
+    let hook_type = HookType::from_str(hook).ok();
 
     for matcher in matchers {
-        if is_wildcard_only_hook(hook) && matcher != "*" {
+        if hook_type.is_some_and(is_wildcard_only_hook_type) && matcher != "*" {
             outcome.errors.push(format!(
                 "hook `{hook}` only supports wildcard matcher `*`, found `{matcher}`"
             ));
             continue;
         }
 
-        if hook == "Notification" && !NOTIFICATION_EVENTS.contains(&matcher.as_str()) {
+        if matches!(hook_type, Some(HookType::Notification))
+            && !NOTIFICATION_EVENTS.contains(&matcher.as_str())
+        {
             outcome.warnings.push(format!(
                 "hook `{hook}` matcher `{matcher}` is unrecognized (forward-compatible warning)"
             ));
             continue;
         }
 
-        if is_tool_hook(hook) && !TOOL_EVENTS.contains(&matcher.as_str()) {
+        if hook_type.is_some_and(is_tool_hook_type) && !TOOL_EVENTS.contains(&matcher.as_str()) {
             outcome.warnings.push(format!(
                 "hook `{hook}` matcher `{matcher}` is unrecognized (forward-compatible warning)"
             ));
@@ -51,34 +58,48 @@ pub fn validate_matchers_for_hook(hook: &str, matchers: &[String]) -> MatcherVal
     outcome
 }
 
+#[allow(dead_code)]
 pub fn is_tool_hook(hook: &str) -> bool {
-    matches!(hook, "PreToolUse" | "PostToolUse")
+    HookType::from_str(hook).is_ok_and(is_tool_hook_type)
 }
 
+#[allow(dead_code)]
 pub fn is_wildcard_only_hook(hook: &str) -> bool {
+    HookType::from_str(hook).is_ok_and(is_wildcard_only_hook_type)
+}
+
+fn is_tool_hook_type(hook: HookType) -> bool {
+    matches!(hook, HookType::PreToolUse | HookType::PostToolUse)
+}
+
+fn is_wildcard_only_hook_type(hook: HookType) -> bool {
     matches!(
         hook,
-        "PreCompact"
-            | "PostCompact"
-            | "SessionStart"
-            | "SessionEnd"
-            | "TeammateIdle"
-            | "PermissionRequest"
-            | "Stop"
+        HookType::PreCompact
+            | HookType::PostCompact
+            | HookType::SessionStart
+            | HookType::SessionEnd
+            | HookType::TeammateIdle
+            | HookType::PermissionRequest
+            | HookType::Stop
     )
 }
 
 pub fn canonical_events_for_hook(hook: &str) -> Vec<&'static str> {
-    if is_tool_hook(hook) {
-        return TOOL_EVENTS.to_vec();
+    match HookType::from_str(hook) {
+        Ok(HookType::PreToolUse | HookType::PostToolUse) => TOOL_EVENTS.to_vec(),
+        Ok(HookType::Notification) => NOTIFICATION_EVENTS.to_vec(),
+        Ok(
+            HookType::PreCompact
+            | HookType::PostCompact
+            | HookType::SessionStart
+            | HookType::SessionEnd
+            | HookType::TeammateIdle
+            | HookType::PermissionRequest
+            | HookType::Stop,
+        ) => vec![EventTaxonomy::Wildcard.as_str()],
+        Ok(_) | Err(_) => vec![EventTaxonomy::Wildcard.as_str()],
     }
-    if hook == "Notification" {
-        return NOTIFICATION_EVENTS.to_vec();
-    }
-    if is_wildcard_only_hook(hook) {
-        return vec!["*"];
-    }
-    vec!["*"]
 }
 
 pub fn canonical_taxonomy() -> Vec<(&'static str, Vec<&'static str>)> {
