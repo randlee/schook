@@ -197,3 +197,14 @@ Detailed post-capture runtime design for this track lives in
 If a behavior is not implemented and not required for release, it must be deferred.
 
 If a behavior is required for release but not yet fully proved, it must appear in `docs/implementation-gaps.md` and `docs/traceability.md`.
+
+## Requirement Amendment Notes
+
+- `HKR-011`
+  - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
+  - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model
+  - authorizing sprint: `S9-HP5`
+- `HKR-013`
+  - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
+  - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
+  - authorizing sprint: `S9-HP5`
