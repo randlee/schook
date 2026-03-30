@@ -1,5 +1,4 @@
 use serde_json::Value;
-use std::fmt;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -11,6 +10,7 @@ use crate::resolution::ResolvedHandler;
 use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 use std::borrow::Cow;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -27,33 +27,16 @@ struct DispatchLogBase<'a> {
     project_root: PathBuf,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 enum HookResultParseError {
+    #[error("plugin produced empty stdout")]
     EmptyStdout,
+    #[error("plugin produced malformed JSON on stdout: {0}")]
     MalformedFirstJson(serde_json::Error),
+    #[error("plugin produced JSON that did not match HookResult: {0}")]
     InvalidHookResult(serde_json::Error),
+    #[error("plugin produced invalid trailing stdout after first JSON object: {0}")]
     InvalidTrailingJson(serde_json::Error),
-}
-
-impl fmt::Display for HookResultParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EmptyStdout => write!(f, "plugin produced empty stdout"),
-            Self::MalformedFirstJson(err) => {
-                write!(f, "plugin produced malformed JSON on stdout: {err}")
-            }
-            Self::InvalidHookResult(err) => {
-                write!(
-                    f,
-                    "plugin produced JSON that did not match HookResult: {err}"
-                )
-            }
-            Self::InvalidTrailingJson(err) => write!(
-                f,
-                "plugin produced invalid trailing stdout after first JSON object: {err}"
-            ),
-        }
-    }
 }
 
 pub fn execute_chain(
@@ -413,8 +396,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                // No lower-level source is available here; the plugin returned a protocol-level JSON error.
-                return Err(CliError::plugin_error(ai_message));
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
 
