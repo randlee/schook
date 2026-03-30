@@ -314,8 +314,7 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            // No lower-level source is available here; the plugin exited non-zero after execution.
-            return Err(CliError::plugin_error(ai_message));
+            return Err(CliError::plugin_error_with_source(ai_message, err));
         }
 
         let mut stderr = Vec::new();

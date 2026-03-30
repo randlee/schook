@@ -492,7 +492,7 @@ pub fn utc_timestamp_now() -> UtcTimestamp {
     let now = OffsetDateTime::now_utc();
     let rendered = now
         .format(&Rfc3339)
-        .expect("RFC 3339 formatting for UTC timestamps should be infallible");
+        .unwrap_or_else(|_| now.unix_timestamp().to_string());
     UtcTimestamp(rendered)
 }
 

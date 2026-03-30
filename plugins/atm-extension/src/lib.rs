@@ -501,9 +501,7 @@ fn persist_atm_update(
     update: RecordUpdate,
 ) -> Result<(), HookError> {
     if record.agent_state() == AgentState::Ended {
-        return Err(HookError::invalid_context(
-            "ATM relay cannot modify an ended canonical session",
-        ));
+        return Ok(());
     }
 
     let atm_extension = json!({
