@@ -82,10 +82,37 @@ fn write_session_record(state_root: &Path, ai_root_dir: &Path, session_id: &str,
         AgentState::Starting,
         "SessionStart",
         "session_started",
-    );
+    )
+    .expect("session record should construct");
     store
         .persist(&record)
         .expect("session record should persist");
+}
+
+fn write_ended_session_record(
+    state_root: &Path,
+    ai_root_dir: &Path,
+    session_id: &str,
+    active_pid: u32,
+) {
+    let store = SessionStore::new(state_root.to_path_buf());
+    let mut record = CanonicalSessionRecord::new(
+        "claude",
+        SessionId::new(session_id.to_string()).expect("session id"),
+        ActivePid::new(active_pid).expect("pid"),
+        AiRootDir::new(ai_root_dir).expect("ai root dir"),
+        AiCurrentDir::new(ai_root_dir.join("subdir")).expect("ai current dir"),
+        SessionStartSource::Startup,
+        AgentState::Starting,
+        "SessionStart",
+        "session_started",
+    )
+    .expect("session record should construct");
+    record.agent_state = AgentState::Ended;
+    record.ended_at = Some("2026-03-30T00:00:00Z".to_string());
+    store
+        .persist(&record)
+        .expect("ended session record should persist");
 }
 
 fn load_record(state_root: &Path, session_id: &str) -> serde_json::Value {
@@ -333,6 +360,34 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
     assert_eq!(teammate_event["event"], "teammate_idle");
     assert!(teammate_event["received_at"].is_string());
     assert!(!identity_file.exists());
+}
+
+#[test]
+fn stop_does_not_revive_ended_record() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let repo_root = temp.path().join("repo");
+    let state_root = temp.path().join("state");
+    fs::create_dir_all(&repo_root).expect("repo root");
+    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
+    write_ended_session_record(&state_root, &repo_root, "sess-ended", 9007);
+
+    let _env = EnvGuard::set(&[
+        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
+        ("ATM_TEAM", "atm-dev"),
+        ("ATM_IDENTITY", "arch-hook"),
+    ]);
+
+    let err = AtmExtensionHandler
+        .handle(hook_context(
+            HookType::Stop,
+            None,
+            serde_json::json!({
+                "session_id": "sess-ended",
+                "cwd": repo_root,
+            }),
+        ))
+        .expect_err("ended sessions must not be revived");
+    assert!(err.to_string().contains("ended canonical session"));
 }
 
 #[test]

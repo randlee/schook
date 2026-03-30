@@ -202,6 +202,10 @@ impl SyncHandler for AtmExtensionHandler {
             HookType::Stop => handle_stop(context),
             HookType::TeammateIdle => handle_teammate_idle(context),
             HookType::Notification => Ok(proceed()),
+            HookType::PreCompact
+            | HookType::PostCompact
+            | HookType::SessionStart
+            | HookType::SessionEnd => Ok(proceed()),
             _ => Ok(proceed()),
         }
     }
@@ -492,6 +496,16 @@ fn persist_atm_update(
     routing: &AtmRouting,
     update: RecordUpdate,
 ) -> Result<(), HookError> {
+    if record.agent_state == AgentState::Ended
+        && update
+            .agent_state
+            .is_some_and(|state| state != AgentState::Ended)
+    {
+        return Err(HookError::invalid_context(
+            "ATM relay cannot transition an ended canonical session back to a live state",
+        ));
+    }
+
     let atm_extension = json!({
         "atm_team": routing.team,
         "atm_identity": routing.identity,

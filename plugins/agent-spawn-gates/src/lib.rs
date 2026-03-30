@@ -225,7 +225,8 @@ mod tests {
             AgentState::Busy,
             "PreToolUse",
             "tool_invocation_started",
-        );
+        )
+        .expect("record should construct");
         store.persist(&record).expect("persist");
         session_id
     }

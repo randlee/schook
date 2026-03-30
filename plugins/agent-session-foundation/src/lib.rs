@@ -234,9 +234,7 @@ fn build_next_record(
             }
 
             if root_changed {
-                let mut rebuilt = CanonicalSessionRecord::new(
-                    record.provider.clone(),
-                    record.session_id.clone(),
+                record = record.rebuild_with_root_change(
                     resolved.active_pid,
                     next_root.clone(),
                     resolved.ai_current_dir.clone(),
@@ -244,17 +242,9 @@ fn build_next_record(
                     resolved.transition.agent_state,
                     event_name.clone(),
                     resolved.transition.state_reason.clone(),
-                );
-                rebuilt.schema_version = record.schema_version;
-                rebuilt.parent_session_id = record.parent_session_id.clone();
-                rebuilt.parent_active_pid = record.parent_active_pid;
-                rebuilt.state_revision = record.state_revision + 1;
-                rebuilt.created_at = record.created_at;
-                rebuilt.updated_at = record.updated_at;
-                rebuilt.ended_at = record.ended_at.clone();
-                rebuilt.last_hook_event_at = record.last_hook_event_at;
-                rebuilt.extensions = record.extensions.clone();
-                record = rebuilt;
+                    resolved.transition.ended_at.clone(),
+                    now.clone(),
+                )?;
             } else {
                 record.active_pid = resolved.active_pid;
                 record.ai_current_dir = resolved.ai_current_dir.clone();
@@ -274,7 +264,7 @@ fn build_next_record(
             resolved.transition.agent_state,
             event_name.clone(),
             resolved.transition.state_reason.clone(),
-        ),
+        )?,
     };
 
     if record.session_id != resolved.session_id {
@@ -289,6 +279,7 @@ fn build_next_record(
     record.updated_at = now;
     record.state_reason = resolved.transition.state_reason.clone();
     record.ended_at = resolved.transition.ended_at.clone();
+    record.validate()?;
 
     Ok(record)
 }
@@ -427,14 +418,23 @@ fn resolve_active_pid(
 mod tests {
     use super::*;
 
+    fn portable_test_path() -> String {
+        std::env::temp_dir()
+            .join("projects")
+            .join("agent")
+            .display()
+            .to_string()
+    }
+
     #[test]
     fn supports_all_normalized_state_transitions() {
+        let path = portable_test_path();
         assert_eq!(
             resolve_transition(
                 &HookContext::new(
                     HookType::SessionStart,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","source":"startup"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"source":"startup"}}),
                     None,
                 ),
                 LifecycleEvent::SessionStart,
@@ -448,7 +448,7 @@ mod tests {
                 &HookContext::new(
                     HookType::PreCompact,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::PreCompact,
@@ -462,7 +462,7 @@ mod tests {
                 &HookContext::new(
                     HookType::Stop,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent","stop_hook_active":false}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path,"stop_hook_active":false}}),
                     None,
                 ),
                 LifecycleEvent::Stop,
@@ -476,7 +476,7 @@ mod tests {
                 &HookContext::new(
                     HookType::SessionEnd,
                     None,
-                    serde_json::json!({"payload":{"session_id":"s1","cwd":"/projects/agent"}}),
+                    serde_json::json!({"payload":{"session_id":"s1","cwd":path}}),
                     None,
                 ),
                 LifecycleEvent::SessionEnd,

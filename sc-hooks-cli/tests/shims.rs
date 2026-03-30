@@ -30,6 +30,14 @@ fn shim_path(name: &str) -> PathBuf {
         .join(name)
 }
 
+fn prepend_path(dir: &Path) -> std::ffi::OsString {
+    let mut paths = vec![dir.to_path_buf()];
+    if let Some(original) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&original));
+    }
+    std::env::join_paths(paths).expect("joined PATH should be valid")
+}
+
 #[test]
 fn codex_shim_exports_contract_and_maps_pre_edit() {
     let temp = tempfile::tempdir().expect("tempdir should be creatable");
@@ -37,8 +45,7 @@ fn codex_shim_exports_contract_and_maps_pre_edit() {
     write_mock_sc_hooks(&mock);
     let output = temp.path().join("out.txt");
 
-    let original_path = std::env::var("PATH").unwrap_or_default();
-    let test_path = format!("{}:{original_path}", temp.path().display());
+    let test_path = prepend_path(temp.path());
     let status = Command::new(shim_path("codex-shim.sh"))
         .arg("pre-edit")
         .env("CODEX_SESSION_ID", "session-123")
@@ -60,8 +67,7 @@ fn gemini_shim_exports_contract_and_maps_pre_tool() {
     write_mock_sc_hooks(&mock);
     let output = temp.path().join("out.txt");
 
-    let original_path = std::env::var("PATH").unwrap_or_default();
-    let test_path = format!("{}:{original_path}", temp.path().display());
+    let test_path = prepend_path(temp.path());
     let status = Command::new(shim_path("gemini-shim.sh"))
         .arg("pre-tool")
         .env("GEMINI_SESSION_ID", "g-session-9")
