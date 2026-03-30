@@ -1,11 +1,13 @@
 mod payloads;
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
+use log::warn;
 use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
-use sc_hooks_core::errors::HookError;
+use sc_hooks_core::errors::{HookError, RootDivergenceNotice};
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
@@ -39,13 +41,14 @@ struct SessionTransition {
     ended_at: Option<UtcTimestamp>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 struct ResolvedRuntime {
     session_id: SessionId,
     active_pid: ActivePid,
     ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
     transition: SessionTransition,
+    root_divergence: Option<HookError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,9 +70,7 @@ impl EstablishedRoot {
             .get("cwd")
             .and_then(serde_json::Value::as_str)
             .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
-        let root = AiRootDir::new(cwd)?;
-        verify_project_root_env_matches(context.hook.as_str(), root.as_path())?;
-        Ok(Self(root))
+        Ok(Self(AiRootDir::new(cwd)?))
     }
 
     fn as_ai_root_dir(&self) -> &AiRootDir {
@@ -143,7 +144,6 @@ impl SyncHandler for SessionFoundationHandler {
         let store = SessionStore::new(state_root);
         let existing = store.load_by_hook_context(&context)?;
         let resolved = resolve_runtime(&context, lifecycle_event, existing.as_ref())?;
-
         let next_record = build_next_record(
             lifecycle_event,
             &context,
@@ -152,6 +152,10 @@ impl SyncHandler for SessionFoundationHandler {
             resolved.transition.session_start_source,
         )?;
         let _persist = store.persist(&next_record)?;
+
+        if let Some(divergence) = resolved.root_divergence.as_ref() {
+            return root_divergence_hook_result(divergence, &resolved);
+        }
 
         Ok(proceed())
     }
@@ -201,7 +205,8 @@ fn resolve_runtime(
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
-    let ai_root_dir = resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
+    let (ai_root_dir, root_divergence) =
+        resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
 
     Ok(ResolvedRuntime {
@@ -210,6 +215,7 @@ fn resolve_runtime(
         ai_root_dir,
         ai_current_dir,
         transition,
+        root_divergence,
     })
 }
 
@@ -348,15 +354,16 @@ fn resolve_ai_root_dir(
     lifecycle_event: LifecycleEvent,
     transition: &SessionTransition,
     existing: Option<&CanonicalSessionRecord>,
-) -> Result<RootBinding, HookError> {
+) -> Result<(RootBinding, Option<HookError>), HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart
         && transition
             .session_start_source
             .is_some_and(SessionStartSource::establishes_root)
     {
-        return Ok(RootBinding::Established(
-            EstablishedRoot::from_root_establishing_session_start(context)?,
-        ));
+        let established = EstablishedRoot::from_root_establishing_session_start(context)?;
+        let divergence =
+            verify_project_root_env_matches(context.hook, established.as_ai_root_dir().as_path());
+        return Ok((RootBinding::Established(established), divergence));
     }
 
     let existing = existing.ok_or_else(|| {
@@ -364,8 +371,12 @@ fn resolve_ai_root_dir(
             "ai_root_dir unavailable before a root-establishing SessionStart established canonical state",
         )
     })?;
-    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir().as_path())?;
-    Ok(RootBinding::Persisted(PersistedRoot::from_record(existing)))
+    let divergence =
+        verify_project_root_env_matches(context.hook, existing.ai_root_dir().as_path());
+    Ok((
+        RootBinding::Persisted(PersistedRoot::from_record(existing)),
+        divergence,
+    ))
 }
 
 fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookError> {
@@ -377,25 +388,52 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
     AiCurrentDir::new(cwd)
 }
 
-fn verify_project_root_env_matches(
-    hook_name: &str,
-    expected_root: &std::path::Path,
-) -> Result<(), HookError> {
+fn verify_project_root_env_matches(hook: HookType, expected_root: &Path) -> Option<HookError> {
     let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
-        return Ok(());
+        warn!(
+            "agent-session-foundation: CLAUDE_PROJECT_DIR missing during {}; preserving immutable ai_root_dir",
+            hook.as_str()
+        );
+        return None;
     };
-    let observed = std::path::PathBuf::from(observed);
+    let observed = PathBuf::from(observed);
     if observed != expected_root {
-        return Err(HookError::validation(
-            "CLAUDE_PROJECT_DIR",
-            format!(
-                "must match immutable root on {hook_name}: expected {} but observed {}",
-                expected_root.display(),
-                observed.display()
-            ),
-        ));
+        let immutable_root = match AiRootDir::new(expected_root.to_path_buf()) {
+            Ok(root) => root,
+            Err(source) => return Some(source),
+        };
+        return Some(HookError::root_divergence(immutable_root, observed, hook));
     }
-    Ok(())
+    None
+}
+
+fn root_divergence_hook_result(
+    error: &HookError,
+    resolved: &ResolvedRuntime,
+) -> Result<HookResult, HookError> {
+    let HookError::RootDivergence {
+        immutable_root,
+        observed,
+        hook_event,
+    } = error
+    else {
+        return Ok(proceed());
+    };
+
+    let notice = RootDivergenceNotice::new(
+        immutable_root.clone(),
+        observed.clone(),
+        resolved.session_id.clone(),
+        *hook_event,
+    );
+
+    Ok(HookResult {
+        action: sc_hooks_core::results::HookAction::Proceed,
+        reason: None,
+        message: None,
+        additional_context: Some(notice.encode()?),
+        system_message: None,
+    })
 }
 
 fn resolve_active_pid(

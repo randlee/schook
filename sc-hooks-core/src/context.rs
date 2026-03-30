@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use serde::de::DeserializeOwned;
@@ -9,7 +10,7 @@ use crate::events::HookType;
 #[derive(Debug, Clone, PartialEq)]
 pub struct HookContext {
     pub hook: HookType,
-    pub event: Option<String>,
+    pub event: Option<Cow<'static, str>>,
     raw_input: Value,
     pub metadata_path: Option<PathBuf>,
 }
@@ -17,7 +18,7 @@ pub struct HookContext {
 impl HookContext {
     pub fn new(
         hook: HookType,
-        event: Option<String>,
+        event: Option<Cow<'static, str>>,
         raw_input: Value,
         metadata_path: Option<PathBuf>,
     ) -> Self {

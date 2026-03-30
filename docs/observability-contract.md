@@ -86,14 +86,15 @@ Implements:
 
 Each line is one serialized `sc_observability_types::LogEvent`.
 
-Current dispatch emission uses:
+Current observability emission uses:
 - `service = "sc-hooks"`
 - `target = "hook"`
-- `action = "dispatch.complete"`
+- `action = "dispatch.complete"` for normal dispatch completion
+- `action = "session.root_divergence"` when inbound `CLAUDE_PROJECT_DIR` diverges from immutable `ai_root_dir`
 - `outcome = "proceed" | "block" | "error"`
 - `identity.pid = <current process id>`
 
-The `fields` object currently carries:
+The `fields` object for `dispatch.complete` currently carries:
 - `hook`
 - `event` when present
 - `matcher`
@@ -103,6 +104,12 @@ The `fields` object currently carries:
 - `total_ms`
 - `exit`
 - `ai_notification` when present
+
+The `fields` object for `session.root_divergence` currently carries:
+- `immutable_root`
+- `observed`
+- `session_id`
+- `hook_event`
 
 ## 5. Handler Result Shape
 
@@ -131,8 +138,10 @@ Implements:
 - `OBS-005`
 
 - if at least one handler executes, `sc-hooks` emits one dispatch-complete event
+- if a handler reports a root-divergence notice, `sc-hooks` also emits one `session.root_divergence` event before the enclosing `dispatch.complete` event
+- `session.root_divergence` emits with `level = Error`
 - if no handlers match, `sc-hooks` emits no observability event
-- if observability emission fails during dispatch completion, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting dispatch observability event: ...` instead of silently swallowing the failure
+- if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting dispatch observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
 

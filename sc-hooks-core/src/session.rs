@@ -498,7 +498,7 @@ pub fn utc_timestamp_now() -> UtcTimestamp {
     let now = OffsetDateTime::now_utc();
     let rendered = now
         .format(&Rfc3339)
-        .unwrap_or_else(|_| now.unix_timestamp().to_string());
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
     UtcTimestamp(rendered)
 }
 

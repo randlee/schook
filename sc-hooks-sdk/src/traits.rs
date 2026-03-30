@@ -72,7 +72,7 @@ mod tests {
         let output = handler
             .handle(HookContext::new(
                 sc_hooks_core::events::HookType::PreToolUse,
-                Some("Write".to_string()),
+                Some(std::borrow::Cow::Borrowed("Write")),
                 serde_json::json!({}),
                 None,
             ))

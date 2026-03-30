@@ -5,6 +5,7 @@ edition = "2024"
 description = "Scaffold/reference sc-hooks plugin source crate"
 
 [dependencies]
+log = "0.4.29"
 sc-hooks-core = { path = "../../sc-hooks-core" }
 sc-hooks-sdk = { path = "../../sc-hooks-sdk" }
 serde = { version = "1.0.228", features = ["derive"] }

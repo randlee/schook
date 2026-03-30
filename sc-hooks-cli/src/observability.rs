@@ -2,6 +2,8 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use log::warn;
+use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
     ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
@@ -67,6 +69,11 @@ pub struct DispatchEventArgs<'a> {
     pub total_ms: u128,
     pub exit: i32,
     pub ai_notification: Option<&'a str>,
+    pub project_root: &'a Path,
+}
+
+pub struct RootDivergenceEventArgs<'a> {
+    pub notice: &'a RootDivergenceNotice,
     pub project_root: &'a Path,
 }
 
@@ -155,6 +162,62 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
+pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(), CliError> {
+    let service = ServiceName::new(SERVICE_NAME)
+        .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
+    let logger = logger(args.project_root)?;
+    let target = TargetCategory::new("hook")
+        .map_err(|source| CliError::internal_with_source("invalid log target", source))?;
+    let action = ActionName::new("session.root_divergence")
+        .map_err(|source| CliError::internal_with_source("invalid log action", source))?;
+
+    let mut fields = Map::new();
+    fields.insert(
+        "immutable_root".to_string(),
+        Value::String(args.notice.immutable_root.as_path().display().to_string()),
+    );
+    fields.insert(
+        "observed".to_string(),
+        Value::String(args.notice.observed.display().to_string()),
+    );
+    fields.insert(
+        "session_id".to_string(),
+        Value::String(args.notice.session_id.to_string()),
+    );
+    fields.insert(
+        "hook_event".to_string(),
+        Value::String(args.notice.hook_event.as_str().to_string()),
+    );
+
+    let event = LogEvent {
+        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        timestamp: sc_observability_types::Timestamp::now_utc(),
+        level: Level::Error,
+        service,
+        target,
+        action,
+        message: Some(args.notice.warning_message()),
+        identity: ProcessIdentity {
+            hostname: None,
+            pid: Some(std::process::id()),
+        },
+        trace: None,
+        request_id: None,
+        correlation_id: None,
+        outcome: Some("error".to_string()),
+        diagnostic: None,
+        state_transition: None,
+        fields,
+    };
+
+    logger.emit(event).map_err(|source| {
+        CliError::internal_with_source("failed emitting observability event", source)
+    })?;
+    logger.flush().map_err(|source| {
+        CliError::internal_with_source("failed flushing observability event", source)
+    })?;
+    Ok(())
+}
 fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
     if !project_root.is_absolute() {
         return Err(CliError::internal(
@@ -212,7 +275,7 @@ fn default_logger_config(
         sc_hooks_core::storage::observability_root_for(Some(&project_root)).map_err(|source| {
             CliError::internal_with_source("failed resolving observability root", source)
         })?;
-    let mut config = LoggerConfig::default_for(service, root);
+    let mut config = LoggerConfig::default_for(service, root.into_path_buf());
     config.level = LevelFilter::Info;
     config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
     config.enable_file_sink = env_flag("SC_HOOKS_ENABLE_FILE_SINK").unwrap_or(true);
@@ -225,7 +288,7 @@ fn env_flag(key: &str) -> Option<bool> {
         "1" | "true" | "yes" | "on" => Some(true),
         "0" | "false" | "no" | "off" => Some(false),
         _ => {
-            eprintln!(
+            warn!(
                 "warning: unrecognized value for {key}: {value:?} (expected 1/true/yes/on or 0/false/no/off)"
             );
             None

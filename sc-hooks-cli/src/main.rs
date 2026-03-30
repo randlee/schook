@@ -16,6 +16,8 @@ mod testing;
 mod timeout;
 
 use clap::{Args, Parser, Subcommand};
+use log::{error, warn};
+use std::io::Write;
 
 use crate::errors::CliError;
 
@@ -124,14 +126,16 @@ struct TestArgs {
 
 fn main() {
     std::panic::set_hook(Box::new(|panic_info| {
-        eprintln!("internal panic: {panic_info}");
+        error!("internal panic: {panic_info}");
+        let _ = writeln!(std::io::stderr(), "internal panic: {panic_info}");
     }));
 
     let outcome = std::panic::catch_unwind(run);
     match outcome {
         Ok(Ok(())) => {}
         Ok(Err(err)) => {
-            eprintln!("{err}");
+            error!("{err}");
+            let _ = writeln!(std::io::stderr(), "{err}");
             std::process::exit(err.exit_code());
         }
         Err(_) => {
@@ -235,7 +239,8 @@ fn run() -> Result<(), CliError> {
             let plan = install::write_default_settings(&config)?;
             println!("wrote .claude/settings.json");
             for warning in &plan.warnings {
-                eprintln!("warning: {warning}");
+                warn!("warning: {warning}");
+                let _ = writeln!(std::io::stderr(), "warning: {warning}");
             }
         }
         Commands::Config => {

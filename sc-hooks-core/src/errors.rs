@@ -1,8 +1,57 @@
 use std::path::PathBuf;
 
+use crate::events::HookType;
+use crate::session::{AiRootDir, SessionId};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+const ROOT_DIVERGENCE_NOTICE_PREFIX: &str = "sc-hooks.root_divergence=";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RootDivergenceNotice {
+    pub immutable_root: AiRootDir,
+    pub observed: PathBuf,
+    pub session_id: SessionId,
+    pub hook_event: HookType,
+}
+
+impl RootDivergenceNotice {
+    pub fn new(
+        immutable_root: AiRootDir,
+        observed: impl Into<PathBuf>,
+        session_id: SessionId,
+        hook_event: HookType,
+    ) -> Self {
+        Self {
+            immutable_root,
+            observed: observed.into(),
+            session_id,
+            hook_event,
+        }
+    }
+
+    pub fn encode(&self) -> Result<String, HookError> {
+        let encoded = serde_json::to_string(self).map_err(|source| {
+            HookError::internal_with_source("failed to serialize root divergence notice", source)
+        })?;
+        Ok(format!("{ROOT_DIVERGENCE_NOTICE_PREFIX}{encoded}"))
+    }
+
+    pub fn decode(value: &str) -> Option<Self> {
+        let payload = value.strip_prefix(ROOT_DIVERGENCE_NOTICE_PREFIX)?;
+        serde_json::from_str(payload).ok()
+    }
+
+    pub fn warning_message(&self) -> String {
+        format!(
+            "divergence in CLAUDE_PROJECT_DIR from {} to {} on {}",
+            self.immutable_root,
+            self.observed.display(),
+            self.hook_event
+        )
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum HookError {
@@ -33,6 +82,16 @@ pub enum HookError {
         message: String,
         #[source]
         source: Option<BoxedError>,
+    },
+    /// Added in S10-R2 to represent a mismatch between immutable
+    /// `ai_root_dir` and inbound `CLAUDE_PROJECT_DIR`. The runtime continues
+    /// with the immutable root, but dispatch must emit a prominent structured
+    /// observability event for investigation.
+    #[error("divergence in CLAUDE_PROJECT_DIR from {immutable_root} to {observed} on {hook_event}")]
+    RootDivergence {
+        immutable_root: AiRootDir,
+        observed: PathBuf,
+        hook_event: HookType,
     },
 
     #[error("internal hook error: {message}")]
@@ -85,6 +144,18 @@ impl HookError {
         Self::Internal {
             message: message.into(),
             source: None,
+        }
+    }
+
+    pub fn root_divergence(
+        immutable_root: AiRootDir,
+        observed: impl Into<PathBuf>,
+        hook_event: HookType,
+    ) -> Self {
+        Self::RootDivergence {
+            immutable_root,
+            observed: observed.into(),
+            hook_event,
         }
     }
 
