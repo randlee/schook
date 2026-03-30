@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
@@ -37,6 +37,22 @@ fn stop_payload(session_id: &str, cwd: &Path) -> serde_json::Value {
         "cwd": cwd.to_str().expect("cwd utf8"),
         "stop_hook_active": false,
     })
+}
+
+fn divergence_log_path(project_root: &Path) -> PathBuf {
+    project_root
+        .join(".sc-hooks")
+        .join("observability")
+        .join("sc-hooks")
+        .join("logs")
+        .join("sc-hooks.log.jsonl")
+}
+
+fn last_log_event(project_root: &Path) -> serde_json::Value {
+    let rendered =
+        fs::read_to_string(divergence_log_path(project_root)).expect("log file should exist");
+    let line = rendered.lines().last().expect("log line should exist");
+    serde_json::from_str(line).expect("log line should parse")
 }
 
 fn test_lock() -> &'static Mutex<()> {
@@ -451,7 +467,60 @@ fn clear_establishes_root() {
 }
 
 #[test]
-fn mismatched_project_dir_is_rejected() {
+fn startup_project_dir_divergence_logs_and_uses_payload_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let mismatched_root = temp.path().join("repo-b");
+    let session_id = "session-start-divergence";
+    fs::create_dir_all(&project_root).expect("project root");
+    fs::create_dir_all(&mismatched_root).expect("mismatched root");
+    let handler = SessionFoundationHandler;
+
+    let _env = EnvGuard::set(&[
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
+        (
+            "CLAUDE_PROJECT_DIR",
+            mismatched_root.to_str().expect("mismatched root utf8"),
+        ),
+        ("SC_HOOK_AGENT_PID", "900"),
+    ]);
+    handler
+        .handle(hook_context_with_payload(
+            HookType::SessionStart,
+            None,
+            session_start_payload(session_id, "startup", &project_root),
+        ))
+        .expect("startup divergence should log and continue");
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(
+        parsed["ai_current_dir"],
+        project_root.to_str().expect("utf8")
+    );
+
+    let log = last_log_event(&project_root);
+    assert_eq!(log["level"], "Error");
+    assert_eq!(log["action"], "session.root_divergence");
+    assert_eq!(
+        log["fields"]["immutable_root"],
+        project_root.to_str().expect("utf8")
+    );
+    assert_eq!(
+        log["fields"]["observed"],
+        mismatched_root.to_str().expect("utf8")
+    );
+    assert_eq!(log["fields"]["session_id"], session_id);
+}
+
+#[test]
+fn mismatched_project_dir_logs_and_preserves_immutable_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let drift_dir = temp.path().join("repo-a/subdir");
@@ -482,7 +551,7 @@ fn mismatched_project_dir_is_rejected() {
             .expect("startup should persist");
     }
 
-    let err = {
+    {
         let _env = EnvGuard::set(&[
             (
                 "SC_HOOKS_STATE_DIR",
@@ -500,16 +569,31 @@ fn mismatched_project_dir_is_rejected() {
                 None,
                 stop_payload(session_id, &drift_dir),
             ))
-            .expect_err("mismatched CLAUDE_PROJECT_DIR should fail")
-    };
+            .expect("mismatched CLAUDE_PROJECT_DIR should log and continue");
+    }
 
-    assert!(err.to_string().contains("CLAUDE_PROJECT_DIR"));
-    assert!(
-        err.to_string()
-            .contains(project_root.to_str().expect("utf8"))
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
+    assert_eq!(parsed["agent_state"], "idle");
+
+    let log = last_log_event(&project_root);
+    assert_eq!(log["level"], "Error");
+    assert_eq!(log["action"], "session.root_divergence");
+    assert_eq!(
+        log["fields"]["immutable_root"],
+        project_root.to_str().expect("utf8")
     );
-    assert!(
-        err.to_string()
-            .contains(mismatched_root.to_str().expect("utf8"))
+    assert_eq!(
+        log["fields"]["observed"],
+        mismatched_root.to_str().expect("utf8")
     );
+    assert_eq!(
+        log["fields"]["ai_current_dir"],
+        drift_dir.to_str().expect("utf8")
+    );
+    assert_eq!(log["fields"]["session_id"], session_id);
 }

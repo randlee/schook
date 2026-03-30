@@ -78,6 +78,7 @@ pub fn error_from_hook_error(error: &HookError) -> HookResult {
         HookError::InvalidContext { .. } => "invalid_context",
         HookError::StateIo { .. } => "state_io",
         HookError::Validation { .. } => "validation",
+        HookError::RootDivergence { .. } => "root_divergence",
         HookError::Internal { .. } => "internal",
     };
 

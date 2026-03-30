@@ -1,10 +1,9 @@
 mod payloads;
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
-use payloads::{
-    PreCompactPayload, SessionEndPayload, SessionStartPayload, SessionStartSource, StopPayload,
-};
+use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
@@ -13,11 +12,18 @@ use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
-    utc_timestamp_now,
+    SessionStartSource, utc_timestamp_now,
 };
-use sc_hooks_core::storage::{SessionStore, resolve_state_root};
+use sc_hooks_core::storage::{SessionStore, observability_root_for, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use sc_observability::{Logger, LoggerConfig};
+use sc_observability_types::{
+    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+};
+use serde_json::{Map, Value};
+
+const SERVICE_NAME: &str = "sc-hooks";
 
 /// Sync lifecycle handler that owns canonical session-state persistence for the
 /// verified Claude hook lifecycle surfaces.
@@ -41,13 +47,14 @@ struct SessionTransition {
     ended_at: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 struct ResolvedRuntime {
     session_id: SessionId,
     active_pid: ActivePid,
     ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
     transition: SessionTransition,
+    root_divergence: Option<HookError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,9 +76,7 @@ impl EstablishedRoot {
             .get("cwd")
             .and_then(serde_json::Value::as_str)
             .ok_or_else(|| HookError::validation("cwd", "missing from payload"))?;
-        let root = AiRootDir::new(cwd)?;
-        verify_project_root_env_matches(context.hook.as_str(), root.as_path())?;
-        Ok(Self(root))
+        Ok(Self(AiRootDir::new(cwd)?))
     }
 
     fn as_ai_root_dir(&self) -> &AiRootDir {
@@ -145,6 +150,9 @@ impl SyncHandler for SessionFoundationHandler {
         let store = SessionStore::new(state_root);
         let existing = store.load_by_hook_context(&context)?;
         let resolved = resolve_runtime(&context, lifecycle_event, existing.as_ref())?;
+        if let Some(divergence) = resolved.root_divergence.as_ref() {
+            emit_root_divergence_event(divergence, &resolved);
+        }
 
         let next_record = build_next_record(
             lifecycle_event,
@@ -195,7 +203,8 @@ fn resolve_runtime(
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
-    let ai_root_dir = resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
+    let (ai_root_dir, root_divergence) =
+        resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
     let ai_current_dir = resolve_ai_current_dir(context)?;
 
     Ok(ResolvedRuntime {
@@ -204,6 +213,7 @@ fn resolve_runtime(
         ai_root_dir,
         ai_current_dir,
         transition,
+        root_divergence,
     })
 }
 
@@ -219,9 +229,7 @@ fn build_next_record(
 
     let mut record = match existing {
         Some(mut record) => {
-            let next_source = session_start_source
-                .map(SessionStartSource::as_str)
-                .unwrap_or(record.session_start_source.as_str());
+            let next_source = session_start_source.unwrap_or(record.session_start_source);
             let next_root = resolved.ai_root_dir.as_ai_root_dir();
             let root_changed =
                 resolved.ai_root_dir.replaces_existing_root() && record.ai_root_dir() != next_root;
@@ -263,7 +271,7 @@ fn build_next_record(
                 record.active_pid = resolved.active_pid;
                 record.ai_current_dir = resolved.ai_current_dir.clone();
                 record.agent_state = resolved.transition.agent_state;
-                record.session_start_source = next_source.to_string();
+                record.session_start_source = next_source;
                 record.state_revision += 1;
             }
             record
@@ -274,9 +282,7 @@ fn build_next_record(
             resolved.active_pid,
             resolved.ai_root_dir.clone().into_new_record_root()?,
             resolved.ai_current_dir.clone(),
-            session_start_source
-                .map(SessionStartSource::as_str)
-                .unwrap_or("startup"),
+            session_start_source.unwrap_or(SessionStartSource::Startup),
             resolved.transition.agent_state,
             event_name.clone(),
             resolved.transition.state_reason.clone(),
@@ -354,15 +360,18 @@ fn resolve_ai_root_dir(
     lifecycle_event: LifecycleEvent,
     transition: &SessionTransition,
     existing: Option<&CanonicalSessionRecord>,
-) -> Result<RootBinding, HookError> {
+) -> Result<(RootBinding, Option<HookError>), HookError> {
     if lifecycle_event == LifecycleEvent::SessionStart
         && transition
             .session_start_source
             .is_some_and(SessionStartSource::establishes_root)
     {
-        return Ok(RootBinding::Established(
-            EstablishedRoot::from_root_establishing_session_start(context)?,
-        ));
+        let established = EstablishedRoot::from_root_establishing_session_start(context)?;
+        let divergence = verify_project_root_env_matches(
+            context.hook.as_str(),
+            established.as_ai_root_dir().as_path(),
+        );
+        return Ok((RootBinding::Established(established), divergence));
     }
 
     let existing = existing.ok_or_else(|| {
@@ -370,8 +379,12 @@ fn resolve_ai_root_dir(
             "ai_root_dir unavailable before a root-establishing SessionStart established canonical state",
         )
     })?;
-    verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir().as_path())?;
-    Ok(RootBinding::Persisted(PersistedRoot::from_record(existing)))
+    let divergence =
+        verify_project_root_env_matches(context.hook.as_str(), existing.ai_root_dir().as_path());
+    Ok((
+        RootBinding::Persisted(PersistedRoot::from_record(existing)),
+        divergence,
+    ))
 }
 
 fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookError> {
@@ -383,25 +396,118 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
     AiCurrentDir::new(cwd)
 }
 
-fn verify_project_root_env_matches(
-    hook_name: &str,
-    expected_root: &std::path::Path,
-) -> Result<(), HookError> {
-    let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
-        return Ok(());
-    };
-    let observed = std::path::PathBuf::from(observed);
+fn verify_project_root_env_matches(hook_name: &str, expected_root: &Path) -> Option<HookError> {
+    let observed = std::env::var_os("CLAUDE_PROJECT_DIR")?;
+    let observed = PathBuf::from(observed);
     if observed != expected_root {
-        return Err(HookError::validation(
-            "CLAUDE_PROJECT_DIR",
-            format!(
-                "must match immutable root on {hook_name}: expected {} but observed {}",
-                expected_root.display(),
-                observed.display()
-            ),
+        return Some(HookError::root_divergence(
+            expected_root.to_path_buf(),
+            observed,
+            hook_name,
         ));
     }
+    None
+}
+
+fn emit_root_divergence_event(error: &HookError, resolved: &ResolvedRuntime) {
+    if let Err(source) = try_emit_root_divergence_event(error, resolved) {
+        eprintln!("warning: failed to emit root divergence event: {source}");
+    }
+}
+
+fn try_emit_root_divergence_event(
+    error: &HookError,
+    resolved: &ResolvedRuntime,
+) -> Result<(), HookError> {
+    let HookError::RootDivergence {
+        immutable_root,
+        observed,
+        hook_event,
+    } = error
+    else {
+        return Ok(());
+    };
+
+    let service = ServiceName::new(SERVICE_NAME)
+        .map_err(|source| HookError::internal_with_source("invalid service name", source))?;
+    let root = observability_root_for(Some(immutable_root.as_path()))?;
+    let mut config = LoggerConfig::default_for(service.clone(), root);
+    config.level = LevelFilter::Info;
+    config.enable_console_sink = env_flag("SC_HOOKS_ENABLE_CONSOLE_SINK").unwrap_or(false);
+    config.enable_file_sink = env_flag("SC_HOOKS_ENABLE_FILE_SINK").unwrap_or(true);
+    let logger = Logger::new(config).map_err(|source| {
+        HookError::internal_with_source("failed to initialize observability logger", source)
+    })?;
+    let target = TargetCategory::new("hook")
+        .map_err(|source| HookError::internal_with_source("invalid log target", source))?;
+    let action = ActionName::new("session.root_divergence")
+        .map_err(|source| HookError::internal_with_source("invalid log action", source))?;
+
+    let mut fields = Map::new();
+    fields.insert("hook".to_string(), Value::String(hook_event.clone()));
+    fields.insert(
+        "session_id".to_string(),
+        Value::String(resolved.session_id.to_string()),
+    );
+    fields.insert(
+        "immutable_root".to_string(),
+        Value::String(immutable_root.display().to_string()),
+    );
+    fields.insert(
+        "observed".to_string(),
+        Value::String(observed.display().to_string()),
+    );
+    fields.insert(
+        "ai_current_dir".to_string(),
+        Value::String(resolved.ai_current_dir.as_path().display().to_string()),
+    );
+    fields.insert(
+        "active_pid".to_string(),
+        Value::from(resolved.active_pid.get()),
+    );
+
+    let event = LogEvent {
+        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        timestamp: sc_observability_types::Timestamp::now_utc(),
+        level: Level::Error,
+        service,
+        target,
+        action,
+        message: Some(error.to_string()),
+        identity: ProcessIdentity {
+            hostname: None,
+            pid: Some(std::process::id()),
+        },
+        trace: None,
+        request_id: None,
+        correlation_id: None,
+        outcome: Some("error".to_string()),
+        diagnostic: None,
+        state_transition: None,
+        fields,
+    };
+
+    logger.emit(event).map_err(|source| {
+        HookError::internal_with_source("failed emitting observability event", source)
+    })?;
+    logger.flush().map_err(|source| {
+        HookError::internal_with_source("failed flushing observability event", source)
+    })?;
     Ok(())
+}
+
+fn env_flag(key: &str) -> Option<bool> {
+    let value = std::env::var(key).ok()?;
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => {
+            eprintln!(
+                "warning: unrecognized value for {key}: {value:?} (expected 1/true/yes/on or 0/false/no/off)"
+            );
+            None
+        }
+    }
 }
 
 fn resolve_active_pid(

@@ -26,6 +26,13 @@ pub enum HookError {
     #[error("validation failed for {field}: {message}")]
     Validation { field: String, message: String },
 
+    #[error("divergence in CLAUDE_PROJECT_DIR from {immutable_root} to {observed} on {hook_event}")]
+    RootDivergence {
+        immutable_root: PathBuf,
+        observed: PathBuf,
+        hook_event: String,
+    },
+
     #[error("internal hook error: {message}")]
     Internal {
         message: String,
@@ -52,6 +59,18 @@ impl HookError {
         Self::Internal {
             message: message.into(),
             source: None,
+        }
+    }
+
+    pub fn root_divergence(
+        immutable_root: impl Into<PathBuf>,
+        observed: impl Into<PathBuf>,
+        hook_event: impl Into<String>,
+    ) -> Self {
+        Self::RootDivergence {
+            immutable_root: immutable_root.into(),
+            observed: observed.into(),
+            hook_event: hook_event.into(),
         }
     }
 

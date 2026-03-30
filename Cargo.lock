@@ -8,6 +8,8 @@ version = "0.1.0"
 dependencies = [
  "sc-hooks-core",
  "sc-hooks-sdk",
+ "sc-observability",
+ "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",
