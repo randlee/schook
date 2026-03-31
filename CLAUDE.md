@@ -45,14 +45,14 @@ Read these first for product behavior:
 - `docs/protocol-contract.md`
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
-- `docs/implementation-gaps.md`
+- `docs/archive/implementation-gaps.md`
 - `docs/traceability.md`
 
 Rules:
 - behavior belongs in `docs/requirements.md`
 - crate boundaries and execution flow belong in `docs/architecture.md`
 - wire contracts belong in the contract docs
-- missing or overstated behavior belongs in `docs/implementation-gaps.md`
+- missing or overstated behavior belongs in `docs/archive/implementation-gaps.md`
 
 ## ATM Coordination
 

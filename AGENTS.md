@@ -7,7 +7,7 @@ Before working in this repo, read:
 - `docs/requirements.md`
 - `docs/architecture.md`
 - `docs/project-plan.md`
-- `docs/plugin-plan-s9.md`
+- `docs/archive/plugin-plan-s9.md`
 
 ## Project Overview
 
@@ -19,7 +19,7 @@ Before working in this repo, read:
 - Create worktrees under `../schook-worktrees/<branch-name>`.
 - Target `develop` for normal PRs unless tasking says otherwise.
 - Treat `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md` as the control documents.
-- Treat `docs/plugin-plan-s9.md` and `docs/hook-api/*` as supporting detail and provider evidence.
+- Treat `docs/archive/plugin-plan-s9.md` and `docs/hook-api/*` as supporting detail and provider evidence.
 - Do not describe scaffold plugins or planned crates as shipped behavior.
 
 ## Rust Guidance

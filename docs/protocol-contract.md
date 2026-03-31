@@ -434,7 +434,7 @@ Failure classification notes:
 This contract no longer carries the earlier release-blocking gaps for
 compliance coverage (`GAP-001`) or `long_running` alignment (`GAP-002`);
 those were resolved in Sprint 2 and Sprint 3 respectively and are closed in
-`docs/implementation-gaps.md`.
+`docs/archive/implementation-gaps.md`.
 
 This document describes current behavior exactly where code is clear. It does
 not elevate every code path into a release guarantee unless
