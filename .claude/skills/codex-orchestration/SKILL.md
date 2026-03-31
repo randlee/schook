@@ -1,35 +1,35 @@
 ---
 name: codex-orchestration
-description: Orchestrate multi-sprint phases where arch-ctm (Codex) is the sole developer, with pipelined QA via quality-mgr teammate. Team-lead tracks findings and schedules fix passes.
+description: Orchestrate multi-sprint phases where chook (Codex) is the sole developer, with pipelined QA via quality-mgr teammate. Team-lead tracks findings and schedules fix passes.
 ---
 
 # Codex Orchestration
 
-This skill defines how the team-lead (ARCH-ATM) orchestrates phases where **arch-ctm (Codex)** is the sole developer, executing sprints sequentially while QA runs in parallel via a dedicated **quality-mgr** teammate.
+This skill defines how the team-lead (ARCH-ATM) orchestrates phases where **chook (Codex)** is the sole developer, executing sprints sequentially while QA runs in parallel via a dedicated **quality-mgr** teammate.
 
 **Audience**: Team-lead only.
 
-**When to use**: When a phase's implementation is done entirely by arch-ctm (a Codex agent communicating via ATM CLI), not by Claude Code scrum-masters. This pattern was proven in Phase M (8 sprints) and Phase O.
+**When to use**: When a phase's implementation is done entirely by chook (a Codex agent communicating via ATM CLI), not by Claude Code scrum-masters. This pattern was proven in Phase M (8 sprints) and Phase O.
 
 ## Prerequisites
 
 Before starting a phase:
 1. Phase plan document exists with sprint specs and dependencies
 2. Integration branch `integrate/phase-{P}` created off `develop`
-3. ATM team (`atm-dev`) is active with team-lead and arch-ctm as members
-4. arch-ctm is running and reachable via ATM CLI (`atm send arch-ctm "ping"`)
+3. ATM team (`atm-dev`) is active with team-lead and chook as members
+4. chook is running and reachable via ATM CLI (`atm send chook "ping"`)
 
 ## Architecture
 
 ```
 team-lead (ARCH-ATM)
-  ├── arch-ctm (Codex) ──── sole developer, sequential sprints
+  ├── chook (Codex) ──── sole developer, sequential sprints
   │     communicates via ATM CLI only
   └── quality-mgr (Claude Code) ──── QA coordinator teammate
         spawns rust-qa-agent + atm-qa-agent as background agents
 ```
 
-Key principle: **arch-ctm does NOT wait for QA**. He proceeds to the next sprint as soon as he completes one, unless there are outstanding fix requests from earlier sprints.
+Key principle: **chook does NOT wait for QA**. He proceeds to the next sprint as soon as he completes one, unless there are outstanding fix requests from earlier sprints.
 
 ## Phase Setup
 
@@ -75,10 +75,10 @@ CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 /Users/randlee/.local/share/claude/versio
 
 All three flags (`--agent-id`, `--agent-name`, `--team-name`) are required together — omitting any one causes an error.
 
-### 4. Send O.1 Assignment to arch-ctm
+### 4. Send O.1 Assignment to chook
 
 ```bash
-atm send arch-ctm "Phase {P} Sprint {P}.1 assignment: {title}
+atm send chook "Phase {P} Sprint {P}.1 assignment: {title}
 
 Worktree: /path/to/worktree
 Branch: feature/p{P}-s1-{slug}
@@ -99,14 +99,14 @@ When complete: commit, push, create PR targeting integrate/phase-{P}, then notif
 
 ```
 Timeline:
-  arch-ctm:     [── S.1 ──]──fixes──[── S.2 ──]──fixes──[── S.3 ──]
+  chook:     [── S.1 ──]──fixes──[── S.2 ──]──fixes──[── S.3 ──]
   quality-mgr:         [── QA S.1 ──]      [── QA S.2 ──]     [── QA S.3 ──]
   team-lead:    assign S.1 → track → assign S.2 → track → assign S.3 → track
 ```
 
-### When arch-ctm Completes Sprint S
+### When chook Completes Sprint S
 
-1. **arch-ctm sends completion message** via ATM CLI with PR number
+1. **chook sends completion message** via ATM CLI with PR number
 2. **Team-lead creates worktree for S+1** based on sprint S branch:
    ```
    /sc-git-worktree --create feature/p{P}-s{N+1}-{slug} feature/p{P}-s{N}-{slug}
@@ -118,21 +118,21 @@ Timeline:
     Design docs: {list}. PR: #{N}."
    ```
 4. **Team-lead checks for outstanding findings** from earlier sprints:
-   - If findings exist for S-2 or S-1: send fix assignment to arch-ctm BEFORE S+1 assignment
+   - If findings exist for S-2 or S-1: send fix assignment to chook BEFORE S+1 assignment
    - If no findings: send S+1 assignment immediately
-5. **arch-ctm addresses fixes first, then starts S+1**
+5. **chook addresses fixes first, then starts S+1**
 
-### When arch-ctm Has Outstanding Findings
+### When chook Has Outstanding Findings
 
-Priority order for arch-ctm:
+Priority order for chook:
 1. Fix findings on oldest sprint first (S-2 before S-1)
 2. Merge fixes forward into later sprint worktrees
 3. Then proceed to next sprint
 
 Fix workflow:
 ```bash
-# arch-ctm fixes on the sprint's original worktree
-# arch-ctm pushes fix commits to same PR branch
+# chook fixes on the sprint's original worktree
+# chook pushes fix commits to same PR branch
 # team-lead asks quality-mgr to re-run QA on the fixed worktree
 # If QA passes, team-lead merges PR to integration branch
 ```
@@ -140,7 +140,7 @@ Fix workflow:
 ### Merge Forward Protocol
 
 After fixes merge to `integrate/phase-{P}`:
-- arch-ctm must merge integration branch into any active sprint worktree before continuing:
+- chook must merge integration branch into any active sprint worktree before continuing:
   ```bash
   git fetch origin
   git merge origin/integrate/phase-{P}
@@ -180,7 +180,7 @@ quality-mgr reports PASS/FAIL with finding IDs. Team-lead tracks:
 ### Finding Lifecycle
 
 ```
-OPEN → assigned to arch-ctm → FIXED (arch-ctm pushes) → re-QA → VERIFIED (QA passes)
+OPEN → assigned to chook → FIXED (chook pushes) → re-QA → VERIFIED (QA passes)
                              → WONTFIX (team-lead approves deviation)
 ```
 
@@ -189,7 +189,7 @@ OPEN → assigned to arch-ctm → FIXED (arch-ctm pushes) → re-QA → VERIFIED
 - **All PRs target `integrate/phase-{P}`** (never develop directly)
 - **Merge order**: Sprint PRs merge in order (S.1 before S.2)
 - **Merge gate**: QA pass + CI green
-- **Team-lead merges** (not arch-ctm)
+- **Team-lead merges** (not chook)
 - After all sprints merge: one final PR `integrate/phase-{P} → develop`
 
 ### Pre-PR Merge Check (REQUIRED before opening any PR)
@@ -201,7 +201,7 @@ git log origin/integrate/phase-{P}..origin/{branch} --oneline   # commits unique
 git log origin/{branch}..origin/integrate/phase-{P} --oneline   # commits missing from branch (must be empty)
 ```
 
-If the second command shows commits, have arch-ctm merge forward before opening the PR:
+If the second command shows commits, have chook merge forward before opening the PR:
 
 ```bash
 git fetch origin && git merge origin/integrate/phase-{P}
@@ -213,10 +213,10 @@ Missing merges cause pre-existing test failures that block CI and cause QA agent
 
 Two Jinja2 templates live alongside this skill:
 
-- **`dev-template.xml.j2`** — task assignment to arch-ctm
+- **`dev-template.xml.j2`** — task assignment to chook
 - **`qa-template.xml.j2`** — QA assignment to quality-mgr
 
-Every task message to arch-ctm MUST embed the 5-step workflow from `dev-template.xml.j2`. Do not rely on arch-ctm remembering instructions from prior messages — include them every time.
+Every task message to chook MUST embed the 5-step workflow from `dev-template.xml.j2`. Do not rely on chook remembering instructions from prior messages — include them every time.
 
 Every QA assignment to quality-mgr MUST embed the 5-step workflow from `qa-template.xml.j2`. This ensures quality-mgr always spawns `rust-qa-agent` and `atm-qa-agent` as background agents instead of running checks himself.
 
@@ -238,7 +238,7 @@ Dev assignment example:
 {
   "task_id": "SC-EXAMPLE-DEV-1",
   "sprint": "S9-BC.1",
-  "assignee": "arch-ctm",
+  "assignee": "chook",
   "description": "Implement session foundation hook runtime.",
   "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
   "branch": "feature/s9-bc1-session-foundation",
@@ -260,7 +260,7 @@ Multiline dev example:
 sc-compose render .claude/skills/codex-orchestration/dev-template.xml.j2 \
   --var task_id=SC-EXAMPLE-DEV-2 \
   --var sprint=S9-BC.1 \
-  --var assignee=arch-ctm \
+  --var assignee=chook \
   --var description='Implement session foundation hook runtime.' \
   --var worktree_path=/Users/example/schook-worktrees/feature-s9-bc1-session-foundation \
   --var branch=feature/s9-bc1-session-foundation \
@@ -314,9 +314,9 @@ Use TaskList to track each sprint's sub-tasks. Each sprint assignment creates 4 
 
 | Task | Description | Completes when |
 |------|-------------|----------------|
-| `{sprint}: arch-ctm ack` | arch-ctm acknowledges task | arch-ctm sends ack message |
-| `{sprint}: dev + push` | dev complete, commit pushed | arch-ctm reports commit hash |
-| `{sprint}: cargo test` | tests pass, QA handoff | arch-ctm reports PASS |
+| `{sprint}: chook ack` | chook acknowledges task | chook sends ack message |
+| `{sprint}: dev + push` | dev complete, commit pushed | chook reports commit hash |
+| `{sprint}: cargo test` | tests pass, QA handoff | chook reports PASS |
 | `{sprint}: QA pass` | QA agents report PASS | quality-mgr sends PASS verdict |
 | `{sprint}: merge` | PR merged to integration branch | GitHub confirms merge |
 
@@ -324,11 +324,11 @@ On QA FAIL: create new `a/b/c` tasks for the fix pass. Do not reuse completed ta
 
 ## ATM Communication Protocol
 
-All arch-ctm communication is via ATM CLI. Follow the dogfooding protocol (ACK → work → complete → ACK).
+All chook communication is via ATM CLI. Follow the dogfooding protocol (ACK → work → complete → ACK).
 
 ### Sending assignments
 ```bash
-atm send arch-ctm "message"
+atm send chook "message"
 ```
 
 Use the `dev-template.xml.j2` structure. Render the template fields inline in the message body.
@@ -347,16 +347,16 @@ atm read
 
 ### Nudging (if no ack within 2 minutes)
 ```bash
-# Find arch-ctm's pane
+# Find chook's pane
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title} #{pane_current_command}'
 # Send nudge
 tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team atm-dev" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
 ```
 
-**Do NOT assume arch-ctm received a task without an ack.** If no ack within ~2 minutes, nudge immediately.
+**Do NOT assume chook received a task without an ack.** If no ack within ~2 minutes, nudge immediately.
 
-### Advise arch-ctm to poll with timeout
-When arch-ctm is waiting for assignments, tell him:
+### Advise chook to poll with timeout
+When chook is waiting for assignments, tell him:
 ```
 "Standing by? Use: atm read --team atm-dev --timeout 60"
 ```
@@ -374,17 +374,17 @@ After all sprints pass QA and merge to integration branch:
 
 ## Anti-Patterns
 
-- Do NOT tell arch-ctm to wait for QA before starting the next sprint
+- Do NOT tell chook to wait for QA before starting the next sprint
 - Do NOT skip QA on any sprint — quality-mgr runs both agents every time
 - Do NOT merge PRs without QA pass + CI green
 - Do NOT let findings accumulate — schedule fixes before assigning new sprints
 - Do NOT create worktrees off `develop` — chain from previous sprint or integration branch
-- Do NOT communicate with arch-ctm via SendMessage — use ATM CLI only
+- Do NOT communicate with chook via SendMessage — use ATM CLI only
 - Do NOT reuse quality-mgr across phases — spawn fresh per phase
 - Do NOT clean up worktrees without user approval
-- Do NOT assume arch-ctm received a task — wait for ack, nudge if none within 2 minutes
-- Do NOT have arch-ctm open PRs — team-lead opens all PRs after arch-ctm reports commit hash
+- Do NOT assume chook received a task — wait for ack, nudge if none within 2 minutes
+- Do NOT have chook open PRs — team-lead opens all PRs after chook reports commit hash
 - Do NOT have quality-mgr run tests himself — he must always spawn rust-qa-agent + atm-qa-agent
-- Do NOT omit the workflow steps from task messages — embed them every time, arch-ctm does not remember prior instructions
+- Do NOT omit the workflow steps from task messages — embed them every time, chook does not remember prior instructions
 - Do NOT pre-load next task before current ack is received — confirm handoff before queuing next
-- Do NOT let arch-ctm push a PR without first merging `origin/integrate/phase-{P}` into his branch — ensures all prior sprint fixes are included
+- Do NOT let chook push a PR without first merging `origin/integrate/phase-{P}` into his branch — ensures all prior sprint fixes are included

@@ -22,7 +22,7 @@ chook (or a background agent) and report results.
 
 ## Key Rules
 
-- All dev assignments to `chook` via `atm send --team atm-dev arch-ctm`
+- All dev assignments to `chook` via `atm send --team atm-dev chook`
 - All QA assignments to `qa-hook` via `SendMessage`
 - All task messages rendered via `sc-compose` from Jinja2 templates — never hand-written prose
 - `chook` does not wait for QA; queue next sprint immediately after completion
