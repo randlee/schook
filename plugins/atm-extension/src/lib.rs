@@ -496,7 +496,7 @@ fn first_nonempty<const N: usize>(candidates: [Option<String>; N]) -> Option<Str
 
 fn persist_atm_update(
     store: &SessionStore,
-    mut record: CanonicalSessionRecord,
+    record: CanonicalSessionRecord,
     routing: &AtmRouting,
     update: RecordUpdate,
 ) -> Result<(), HookError> {
@@ -509,19 +509,24 @@ fn persist_atm_update(
         "atm_identity": routing.identity,
     });
 
-    let mut material_changed = record.set_extension("atm", atm_extension);
+    let mut active = match record.try_into_active() {
+        Ok(record) => record,
+        Err(_) => return Ok(()),
+    };
+
+    let mut material_changed = active.set_extension("atm", atm_extension)?;
 
     if let Some(agent_state) = update.agent_state
-        && record.agent_state() != agent_state
+        && active.agent_state() != agent_state
     {
         material_changed = true;
     }
 
-    if record.last_hook_event() != update.hook_event {
+    if active.last_hook_event() != update.hook_event {
         material_changed = true;
     }
 
-    if record.state_reason() != update.state_reason {
+    if active.state_reason() != update.state_reason {
         material_changed = true;
     }
 
@@ -530,12 +535,16 @@ fn persist_atm_update(
     }
 
     let now = utc_timestamp_now();
-    let ended_at = record.ended_at().cloned();
-    record.apply_hook_update(
-        record.active_pid(),
-        record.ai_current_dir().clone(),
-        record.session_start_source(),
-        update.agent_state.unwrap_or(record.agent_state()),
+    let active_pid = active.active_pid();
+    let ai_current_dir = active.ai_current_dir().clone();
+    let session_start_source = active.session_start_source();
+    let agent_state = update.agent_state.unwrap_or(active.agent_state());
+    let ended_at = active.ended_at().cloned();
+    let record = active.apply_hook_update(
+        active_pid,
+        ai_current_dir,
+        session_start_source,
+        agent_state,
         now,
         update.hook_event,
         update.state_reason,

@@ -149,7 +149,9 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
 fn manifest_error_kind(err: &sc_hooks_sdk::manifest::ManifestLoadError) -> &'static str {
     match err {
         sc_hooks_sdk::manifest::ManifestLoadError::Spawn { .. } => "spawn",
-        sc_hooks_sdk::manifest::ManifestLoadError::NonZero { .. } => "non_zero",
+        sc_hooks_sdk::manifest::ManifestLoadError::NonZeroExit { .. } => "non_zero",
+        sc_hooks_sdk::manifest::ManifestLoadError::TerminatedBySignal { .. } => "signal",
+        sc_hooks_sdk::manifest::ManifestLoadError::Terminated { .. } => "terminated",
         sc_hooks_sdk::manifest::ManifestLoadError::Manifest(_) => "manifest",
     }
 }

@@ -1,11 +1,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Creates a shell plugin script that echoes a fixed JSON runtime payload.
 pub fn create_shell_plugin(path: &Path, manifest_json: &str, runtime_output_json: &str) {
     let runtime_body = format!("cat >/dev/null\ncat <<'JSON'\n{runtime_output_json}\nJSON\n");
     create_shell_plugin_script(path, manifest_json, &runtime_body);
 }
 
+/// Creates a shell plugin script with a custom runtime body.
 pub fn create_shell_plugin_script(path: &Path, manifest_json: &str, runtime_body: &str) {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
@@ -27,10 +29,12 @@ pub fn create_shell_plugin_script(path: &Path, manifest_json: &str, runtime_body
     }
 }
 
+/// Returns the runtime plugin path under a test root.
 pub fn plugin_path(root: &Path, plugin_name: &str) -> PathBuf {
     root.join(".sc-hooks").join("plugins").join(plugin_name)
 }
 
+/// Writes the smallest valid `.sc-hooks/config.toml` for a single hook/plugin mapping.
 pub fn write_minimal_config(root: &Path, hook: &str, plugin_name: &str) {
     let config_path = root.join(".sc-hooks").join("config.toml");
     if let Some(parent) = config_path.parent() {

@@ -11,26 +11,40 @@ use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use thiserror::Error;
 
+/// Standard executable entrypoint helper for Rust plugins.
 pub struct PluginRunner;
 
 #[derive(Debug, Error)]
+/// Errors raised while constructing hook context for SDK-based plugins.
 pub enum RunnerError {
+    /// No hook type was available from the environment or payload.
     #[error("missing hook type in SC_HOOK_TYPE and payload")]
     MissingHookType,
 
+    /// The hook name could not be resolved to a known `HookType`.
     #[error("unknown hook type `{name}`: {reason}")]
-    UnknownHookType { name: String, reason: String },
+    UnknownHookType {
+        /// Unrecognized hook name.
+        name: String,
+        /// Parser rejection reason.
+        reason: String,
+    },
 
+    /// Stdin could not be read from the plugin process.
     #[error("failed to read stdin: {source}")]
     StdinRead {
         #[source]
+        /// Underlying stdin read error.
         source: std::io::Error,
     },
 
+    /// Stdin contained invalid JSON for hook-context construction.
     #[error("invalid JSON on stdin: {source}")]
     StdinParse {
+        /// Excerpt of the unreadable payload.
         input_excerpt: String,
         #[source]
+        /// Underlying JSON parser error.
         source: serde_json::Error,
     },
 }
@@ -59,6 +73,7 @@ impl From<RunnerError> for HookError {
 }
 
 impl PluginRunner {
+    /// Runs a synchronous handler from a standard `main()` function.
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
@@ -79,6 +94,7 @@ impl PluginRunner {
         write_result(&result)
     }
 
+    /// Runs an asynchronous handler from a standard `main()` function.
     pub fn run_async<H: AsyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
