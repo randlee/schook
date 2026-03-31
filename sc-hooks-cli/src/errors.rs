@@ -10,14 +10,20 @@ pub enum ResolutionError {
     #[error("handler `{handler}` could not be resolved")]
     UnresolvedHandler { handler: String },
 
-    #[error("plugin `{plugin}` manifest load failed")]
+    #[error(
+        "plugin `{plugin}` manifest load failed{source_chain}",
+        source_chain = format_source_chain(source)
+    )]
     ManifestLoadFailed {
         plugin: String,
         #[source]
         source: ManifestLoadError,
     },
 
-    #[error("handler `{plugin}` rejected for dispatch: {reason}")]
+    #[error(
+        "handler `{plugin}` rejected for dispatch: {reason}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     HandlerRejected {
         plugin: String,
         reason: String,
@@ -50,35 +56,50 @@ pub enum CliError {
     #[error(transparent)]
     Validation(#[from] ValidationError),
 
-    #[error("action blocked: {reason}")]
+    #[error(
+        "action blocked: {reason}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     Blocked {
         reason: String,
         #[source]
         source: Option<BoxedError>,
     },
 
-    #[error("plugin error: {message}")]
+    #[error(
+        "plugin error: {message}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     PluginError {
         message: String,
         #[source]
         source: Option<BoxedError>,
     },
 
-    #[error("operation timed out: {message}")]
+    #[error(
+        "operation timed out: {message}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     Timeout {
         message: String,
         #[source]
         source: Option<BoxedError>,
     },
 
-    #[error("audit failed: {message}")]
+    #[error(
+        "audit failed: {message}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     AuditFailure {
         message: String,
         #[source]
         source: Option<BoxedError>,
     },
 
-    #[error("{message}")]
+    #[error(
+        "{message}{source_suffix}",
+        source_suffix = format_optional_source(source.as_deref())
+    )]
     Internal {
         message: String,
         #[source]
@@ -151,4 +172,23 @@ impl CliError {
             Self::Internal { .. } => sc_hooks_core::exit_codes::INTERNAL_ERROR,
         }
     }
+}
+
+fn format_optional_source(
+    source: Option<&(dyn std::error::Error + Send + Sync + 'static)>,
+) -> String {
+    source
+        .map(|err| format_source_chain(err))
+        .unwrap_or_default()
+}
+
+fn format_source_chain(source: &(dyn std::error::Error + 'static)) -> String {
+    let mut rendered = String::new();
+    let mut current = Some(source);
+    while let Some(err) = current {
+        use std::fmt::Write as _;
+        let _ = write!(&mut rendered, ": {err}");
+        current = err.source();
+    }
+    rendered
 }

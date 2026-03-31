@@ -4,12 +4,16 @@ use sc_hooks_core::errors::HookError;
 pub use sc_hooks_core::results::{HookAction, HookResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Helper value for async handlers that want to return context/message additions.
 pub struct AsyncResult {
+    /// Additional context appended to Claude after the async hook finishes.
     pub additional_context: Option<String>,
+    /// System message content appended to Claude after the async hook finishes.
     pub system_message: Option<String>,
 }
 
 impl AsyncResult {
+    /// Returns an empty async result with no additional context.
     pub fn empty() -> Self {
         Self {
             additional_context: None,
@@ -17,6 +21,7 @@ impl AsyncResult {
         }
     }
 
+    /// Returns an async result carrying only `additional_context`.
     pub fn with_context(context: impl Into<String>) -> Self {
         Self {
             additional_context: Some(context.into()),
@@ -24,6 +29,7 @@ impl AsyncResult {
         }
     }
 
+    /// Returns an async result carrying only `system_message`.
     pub fn with_system_message(message: impl Into<String>) -> Self {
         Self {
             additional_context: None,
@@ -31,6 +37,7 @@ impl AsyncResult {
         }
     }
 
+    /// Converts the async helper into a standard `HookResult`.
     pub fn into_hook_result(self) -> HookResult {
         HookResult {
             action: HookAction::Proceed,
@@ -42,6 +49,7 @@ impl AsyncResult {
     }
 }
 
+/// Builds a `proceed` hook result with no extra fields.
 pub fn proceed() -> HookResult {
     HookResult {
         action: HookAction::Proceed,
@@ -52,6 +60,7 @@ pub fn proceed() -> HookResult {
     }
 }
 
+/// Builds a blocking hook result with a retryable reason string.
 pub fn block(reason: impl Into<String>) -> HookResult {
     HookResult {
         action: HookAction::Block,
@@ -62,6 +71,7 @@ pub fn block(reason: impl Into<String>) -> HookResult {
     }
 }
 
+/// Builds an error hook result with a message.
 pub fn error(message: impl Into<String>) -> HookResult {
     HookResult {
         action: HookAction::Error,
@@ -72,6 +82,7 @@ pub fn error(message: impl Into<String>) -> HookResult {
     }
 }
 
+/// Converts a typed `HookError` into the public `HookResult` error shape.
 pub fn error_from_hook_error(error: &HookError) -> HookResult {
     let kind = match error {
         HookError::InvalidPayload { .. } => "invalid_payload",

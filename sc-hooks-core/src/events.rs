@@ -4,20 +4,32 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
+/// Canonical hook names supported by the runtime.
 pub enum HookType {
+    /// Fires before a tool invocation.
     PreToolUse,
+    /// Fires after a tool invocation.
     PostToolUse,
+    /// Fires before Claude compacts context.
     PreCompact,
+    /// Fires after Claude compacts context.
     PostCompact,
+    /// Fires when Claude starts a session.
     SessionStart,
+    /// Fires when Claude ends a session.
     SessionEnd,
+    /// Fires for notification surfaces when payload support exists.
     Notification,
+    /// Fires when a teammate agent becomes idle.
     TeammateIdle,
+    /// Fires when Claude asks for user permission.
     PermissionRequest,
+    /// Fires when Claude stops a turn or session.
     Stop,
 }
 
 impl HookType {
+    /// Returns the provider-facing hook name.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::PreToolUse => "PreToolUse",
@@ -62,26 +74,44 @@ impl FromStr for HookType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
+/// Canonical matcher/event taxonomy used for hook routing.
 pub enum EventTaxonomy {
+    /// Shell command execution.
     Bash,
+    /// File read operation.
     Read,
+    /// File write operation.
     Write,
+    /// File edit operation.
     Edit,
+    /// Glob pattern lookup.
     Glob,
+    /// Grep or ripgrep search.
     Grep,
+    /// Web fetch request.
     WebFetch,
+    /// Web search request.
     WebSearch,
+    /// Agent or subagent spawn.
     Agent,
+    /// Notebook cell edit.
     NotebookEdit,
+    /// Todo list write.
     TodoWrite,
+    /// Follow-up question request.
     AskFollowup,
+    /// Message send action.
     SendMessage,
+    /// Historical task-tool surface.
     Task,
+    /// Idle prompt event.
     IdlePrompt,
+    /// Wildcard matcher.
     Wildcard,
 }
 
 impl EventTaxonomy {
+    /// Returns the serialized matcher/event name.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Bash => "Bash",

@@ -65,6 +65,20 @@ impl StderrCaptureContextError {
         }
     }
 }
+
+#[derive(Debug, Error)]
+#[error("{context}")]
+struct PluginExecutionContextError {
+    context: String,
+}
+
+impl PluginExecutionContextError {
+    fn new(context: impl Into<String>) -> Self {
+        Self {
+            context: context.into(),
+        }
+    }
+}
 pub fn execute_chain(
     handlers: &[ResolvedHandler],
     config: &ScHooksConfig,
@@ -132,10 +146,10 @@ pub fn execute_chain(
                     reason: format!("expected type {expected:?}"),
                 })
             }
-            other => CliError::PluginError {
-                message: format!("failed to construct plugin input for `{handler_name}`: {other}"),
-                source: None,
-            },
+            other => CliError::plugin_error_with_source(
+                format!("failed to construct plugin input for `{handler_name}`"),
+                other,
+            ),
         })?;
 
         let mut command = std::process::Command::new(&handler.executable_path);
@@ -363,8 +377,7 @@ pub fn execute_chain(
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
-        let stderr_text =
-            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
+        let stderr_text = (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr));
 
         if !status.success() {
             disable_plugin_for_session(
@@ -383,7 +396,7 @@ pub fn execute_chain(
                 handler_name,
                 handler_started.elapsed().as_millis(),
                 "non_zero_exit",
-                stderr_text.clone(),
+                stderr_text.as_deref().map(str::to_string),
                 Some(true),
             ));
             emit_dispatch_log_with_fallback(
@@ -393,8 +406,12 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            // No lower-level source is available here; the plugin exited non-zero after execution.
-            return Err(CliError::plugin_error(ai_message));
+            return Err(plugin_error_with_context(
+                ai_message,
+                stderr_text.as_deref().map(|stderr| {
+                    PluginExecutionContextError::new(format!("plugin stderr: {stderr}"))
+                }),
+            ));
         }
 
         let (parsed, warning) = match parse_first_hook_result(&stdout_text) {
@@ -453,7 +470,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("proceed"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: stderr_text.clone(),
+                    stderr: stderr_text.as_deref().map(str::to_string),
                     warning,
                     disabled: None,
                 });
@@ -485,7 +502,7 @@ pub fn execute_chain(
                         handler_name,
                         handler_started.elapsed().as_millis(),
                         "async_block",
-                        stderr_text.clone(),
+                        stderr_text.as_deref().map(str::to_string),
                         Some(true),
                     ));
                     emit_dispatch_log_with_fallback(
@@ -507,7 +524,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("block"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: stderr_text.clone(),
+                    stderr: stderr_text.as_deref().map(str::to_string),
                     warning,
                     disabled: None,
                 });
@@ -533,15 +550,14 @@ pub fn execute_chain(
                     "action-error",
                     "fix plugin logic and run 'sc-hooks test <plugin>'.",
                 );
+                let action_error_message = parsed
+                    .message
+                    .unwrap_or_else(|| "plugin returned action=error".to_string());
                 log_results.push(error_result(
                     handler_name,
                     handler_started.elapsed().as_millis(),
                     "action_error",
-                    Some(
-                        parsed
-                            .message
-                            .unwrap_or_else(|| "plugin returned action=error".to_string()),
-                    ),
+                    Some(action_error_message.clone()),
                     Some(true),
                 ));
                 emit_dispatch_log_with_fallback(
@@ -551,8 +567,15 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                // No lower-level source is available here; the plugin explicitly returned action=error.
-                return Err(CliError::plugin_error(ai_message));
+                return Err(plugin_error_with_context(
+                    ai_message,
+                    stderr_text
+                        .as_deref()
+                        .map(|stderr| {
+                            PluginExecutionContextError::new(format!("plugin stderr: {stderr}"))
+                        })
+                        .or_else(|| Some(PluginExecutionContextError::new(action_error_message))),
+                ));
             }
         }
     }
@@ -711,6 +734,16 @@ fn error_result(
         stderr,
         warning: None,
         disabled,
+    }
+}
+
+fn plugin_error_with_context(
+    message: String,
+    context: Option<PluginExecutionContextError>,
+) -> CliError {
+    match context {
+        Some(context) => CliError::plugin_error_with_source(message, context),
+        None => CliError::plugin_error(message),
     }
 }
 

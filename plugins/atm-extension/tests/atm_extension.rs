@@ -112,7 +112,7 @@ fn write_ended_session_record(
     active_pid: u32,
 ) {
     let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
-    let mut record = CanonicalSessionRecord::new(
+    let record = CanonicalSessionRecord::new(
         Provider::Claude,
         SessionId::new(session_id.to_string()).expect("session id"),
         ActivePid::new(active_pid).expect("pid"),
@@ -124,11 +124,17 @@ fn write_ended_session_record(
         "session_started",
     )
     .expect("session record should construct");
-    record
+    let active = record
+        .try_into_active()
+        .expect("new session record should be active");
+    let active_pid = active.active_pid();
+    let ai_current_dir = active.ai_current_dir().clone();
+    let session_start_source = active.session_start_source();
+    let record = active
         .apply_hook_update(
-            record.active_pid(),
-            record.ai_current_dir().clone(),
-            record.session_start_source(),
+            active_pid,
+            ai_current_dir,
+            session_start_source,
             AgentState::Ended,
             UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z").expect("timestamp"),
             "SessionEnd",

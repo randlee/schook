@@ -249,7 +249,10 @@ fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
             ObservabilityInitError::InvalidServiceName { source },
         )
     })?;
-    let config = default_logger_config(service, initialized_root).map_err(|source| {
+    let initialized_root = AiRootDir::new(initialized_root.clone()).map_err(|source| {
+        CliError::internal_with_source("failed resolving absolute project root", source)
+    })?;
+    let config = default_logger_config(service, &initialized_root).map_err(|source| {
         CliError::internal_with_source(
             "failed to initialize observability logger",
             ObservabilityInitError::ResolveRoot { source },
@@ -266,13 +269,10 @@ fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
 
 fn default_logger_config(
     service: ServiceName,
-    project_root: &Path,
+    project_root: &AiRootDir,
 ) -> Result<LoggerConfig, CliError> {
-    let project_root = AiRootDir::new(project_root.to_path_buf()).map_err(|source| {
-        CliError::internal_with_source("failed resolving absolute project root", source)
-    })?;
     let root =
-        sc_hooks_core::storage::observability_root_for(Some(&project_root)).map_err(|source| {
+        sc_hooks_core::storage::observability_root_for(Some(project_root)).map_err(|source| {
             CliError::internal_with_source("failed resolving observability root", source)
         })?;
     let mut config = LoggerConfig::default_for(service, root.into_path_buf());
