@@ -1,29 +1,12 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
 use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_hooks_core::events::HookType;
 use sc_hooks_sdk::traits::SyncHandler;
-
-fn fixture_path(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../test-harness/hooks/claude/fixtures/approved")
-        .join(name)
-}
-
-fn load_fixture(name: &str) -> serde_json::Value {
-    let path = fixture_path(name);
-    let body = fs::read_to_string(&path).unwrap_or_else(|err| {
-        panic!("failed reading fixture {}: {err}", path.display());
-    });
-    serde_json::from_str(&body).expect("fixture json should parse")
-}
-
-fn hook_context(hook: HookType, event: Option<&str>, fixture: &str) -> HookContext {
-    hook_context_with_payload(hook, event, load_fixture(fixture))
-}
 
 fn hook_context_with_payload(
     hook: HookType,
@@ -32,13 +15,29 @@ fn hook_context_with_payload(
 ) -> HookContext {
     HookContext::new(
         hook,
-        event.map(str::to_string),
+        event.map(|value| std::borrow::Cow::Owned(value.to_string())),
         serde_json::json!({
             "hook": { "type": hook.as_str(), "event": event },
             "payload": payload
         }),
         None,
     )
+}
+
+fn session_start_payload(session_id: &str, source: &str, cwd: &Path) -> serde_json::Value {
+    serde_json::json!({
+        "session_id": session_id,
+        "cwd": cwd.to_str().expect("cwd utf8"),
+        "source": source,
+    })
+}
+
+fn stop_payload(session_id: &str, cwd: &Path) -> serde_json::Value {
+    serde_json::json!({
+        "session_id": session_id,
+        "cwd": cwd.to_str().expect("cwd utf8"),
+        "stop_hook_active": false,
+    })
 }
 
 fn test_lock() -> &'static Mutex<()> {
@@ -86,29 +85,12 @@ impl Drop for EnvGuard {
     }
 }
 
-struct CurrentDirGuard {
-    original: PathBuf,
-}
-
-impl CurrentDirGuard {
-    fn set(path: &Path) -> Self {
-        let original = std::env::current_dir().expect("cwd should resolve");
-        std::env::set_current_dir(path).expect("cwd should change");
-        Self { original }
-    }
-}
-
-impl Drop for CurrentDirGuard {
-    fn drop(&mut self) {
-        std::env::set_current_dir(&self.original).expect("cwd should restore");
-    }
-}
-
 #[test]
-fn persists_session_record_by_session_id() {
+fn startup_establishes_root() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     fs::create_dir_all(&project_root).expect("project root");
+    let session_id = "a760f75c-055a-46f9-bcbb-447c47a22f3c";
     let _env = EnvGuard::set(&[
         (
             "SC_HOOKS_STATE_DIR",
@@ -123,31 +105,33 @@ fn persists_session_record_by_session_id() {
     let handler = SessionFoundationHandler;
 
     handler
-        .handle(hook_context(
+        .handle(hook_context_with_payload(
             HookType::SessionStart,
             None,
-            "session-start-startup.json",
+            session_start_payload(session_id, "startup", &project_root),
         ))
         .expect("session start should persist");
 
-    let state_file = temp
-        .path()
-        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
-    assert_eq!(parsed["session_id"], "a760f75c-055a-46f9-bcbb-447c47a22f3c");
+    assert_eq!(parsed["session_id"], session_id);
     assert_eq!(parsed["active_pid"], 777);
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
-    assert_eq!(parsed["ai_current_dir"], "/synthetic/test/session-start");
+    assert_eq!(
+        parsed["ai_current_dir"],
+        project_root.to_str().expect("utf8")
+    );
     assert_eq!(parsed["agent_state"], "starting");
 }
 
 #[test]
-fn later_lifecycle_events_correlate_across_directory_changes() {
+fn bash_cd_drift_updates_current_dir_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
     let other_dir = temp.path().join("repo-b");
+    let session_id = "session-drift";
     fs::create_dir_all(&project_root).expect("project root");
     fs::create_dir_all(&other_dir).expect("other dir");
     let handler = SessionFoundationHandler;
@@ -165,10 +149,10 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
             ("SC_HOOK_AGENT_PID", "900"),
         ]);
         handler
-            .handle(hook_context(
+            .handle(hook_context_with_payload(
                 HookType::SessionStart,
                 None,
-                "session-start-startup.json",
+                session_start_payload(session_id, "startup", &project_root),
             ))
             .expect("session start should persist");
     }
@@ -181,19 +165,16 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
             ),
             ("SC_HOOK_AGENT_PID", "900"),
         ]);
-        let _cwd = CurrentDirGuard::set(&other_dir);
-        let mut payload = load_fixture("stop.json");
-        payload["session_id"] =
-            serde_json::Value::String("a760f75c-055a-46f9-bcbb-447c47a22f3c".to_string());
-        payload["cwd"] = serde_json::Value::String(other_dir.to_str().expect("utf8").to_string());
         handler
-            .handle(hook_context_with_payload(HookType::Stop, None, payload))
+            .handle(hook_context_with_payload(
+                HookType::Stop,
+                None,
+                stop_payload(session_id, &other_dir),
+            ))
             .expect("stop should update existing session");
     }
 
-    let state_file = temp
-        .path()
-        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
@@ -206,6 +187,7 @@ fn later_lifecycle_events_correlate_across_directory_changes() {
 fn noop_session_start_keeps_single_persisted_record() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
+    let session_id = "session-noop";
     fs::create_dir_all(&project_root).expect("project root");
     let _env = EnvGuard::set(&[
         (
@@ -221,23 +203,21 @@ fn noop_session_start_keeps_single_persisted_record() {
     let handler = SessionFoundationHandler;
 
     handler
-        .handle(hook_context(
+        .handle(hook_context_with_payload(
             HookType::SessionStart,
             None,
-            "session-start-startup.json",
+            session_start_payload(session_id, "startup", &project_root),
         ))
         .expect("session start should persist");
     handler
-        .handle(hook_context(
+        .handle(hook_context_with_payload(
             HookType::SessionStart,
             None,
-            "session-start-startup.json",
+            session_start_payload(session_id, "startup", &project_root),
         ))
         .expect("second identical invocation should be allowed");
 
-    let state_file = temp
-        .path()
-        .join("state/a760f75c-055a-46f9-bcbb-447c47a22f3c.json");
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
@@ -249,6 +229,7 @@ fn noop_session_start_keeps_single_persisted_record() {
 fn session_start_requires_injected_agent_pid() {
     let temp = tempfile::tempdir().expect("tempdir");
     let project_root = temp.path().join("repo-a");
+    let session_id = "session-missing-pid";
     fs::create_dir_all(&project_root).expect("project root");
     let _env = EnvGuard::set(&[
         (
@@ -263,11 +244,389 @@ fn session_start_requires_injected_agent_pid() {
     let handler = SessionFoundationHandler;
 
     let err = handler
-        .handle(hook_context(
+        .handle(hook_context_with_payload(
             HookType::SessionStart,
             None,
-            "session-start-startup.json",
+            session_start_payload(session_id, "startup", &project_root),
         ))
         .expect_err("session start should fail without injected agent pid");
     assert!(err.to_string().contains("SC_HOOK_AGENT_PID"));
+}
+
+#[test]
+fn resume_establishes_new_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let startup_root = temp.path().join("repo-start");
+    let resumed_root = temp.path().join("repo-resumed");
+    let session_id = "session-resume";
+    fs::create_dir_all(&startup_root).expect("startup root");
+    fs::create_dir_all(&resumed_root).expect("resumed root");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                startup_root.to_str().expect("startup root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "501"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &startup_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                resumed_root.to_str().expect("resumed root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "777"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "resume", &resumed_root),
+            ))
+            .expect("resume should reestablish root");
+    }
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], resumed_root.to_str().expect("utf8"));
+    assert_eq!(
+        parsed["ai_current_dir"],
+        resumed_root.to_str().expect("utf8")
+    );
+    assert_eq!(parsed["active_pid"], 777);
+    assert_eq!(parsed["session_start_source"], "resume");
+}
+
+#[test]
+fn compact_preserves_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let drift_dir = temp.path().join("repo-a/subdir");
+    let session_id = "session-compact";
+    fs::create_dir_all(&drift_dir).expect("drift dir");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::Stop,
+                None,
+                stop_payload(session_id, &drift_dir),
+            ))
+            .expect("stop should preserve root");
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "compact", &drift_dir),
+            ))
+            .expect("compact should preserve immutable root");
+    }
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
+    assert_eq!(parsed["session_start_source"], "compact");
+}
+
+#[test]
+fn clear_establishes_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let old_root = temp.path().join("repo-old");
+    let new_root = temp.path().join("repo-new");
+    let old_session = "session-before-clear";
+    let new_session = "session-after-clear";
+    fs::create_dir_all(&old_root).expect("old root");
+    fs::create_dir_all(&new_root).expect("new root");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                old_root.to_str().expect("old root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "71"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(old_session, "startup", &old_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                new_root.to_str().expect("new root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "88"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(new_session, "clear", &new_root),
+            ))
+            .expect("clear should establish new root");
+    }
+
+    let old_state = temp.path().join(format!("state/{old_session}.json"));
+    let new_state = temp.path().join(format!("state/{new_session}.json"));
+    let old_parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(old_state).expect("old state"))
+            .expect("old state should parse");
+    let new_parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(new_state).expect("new state"))
+            .expect("new state should parse");
+    assert_eq!(old_parsed["ai_root_dir"], old_root.to_str().expect("utf8"));
+    assert_eq!(new_parsed["ai_root_dir"], new_root.to_str().expect("utf8"));
+    assert_eq!(new_parsed["session_start_source"], "clear");
+}
+
+#[test]
+fn startup_project_dir_divergence_logs_and_uses_payload_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let mismatched_root = temp.path().join("repo-b");
+    let session_id = "session-start-divergence";
+    fs::create_dir_all(&project_root).expect("project root");
+    fs::create_dir_all(&mismatched_root).expect("mismatched root");
+    let handler = SessionFoundationHandler;
+
+    let _env = EnvGuard::set(&[
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
+        (
+            "CLAUDE_PROJECT_DIR",
+            mismatched_root.to_str().expect("mismatched root utf8"),
+        ),
+        ("SC_HOOK_AGENT_PID", "900"),
+    ]);
+    let result = handler
+        .handle(hook_context_with_payload(
+            HookType::SessionStart,
+            None,
+            session_start_payload(session_id, "startup", &project_root),
+        ))
+        .expect("startup divergence should surface structured notice");
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(
+        parsed["ai_current_dir"],
+        project_root.to_str().expect("utf8")
+    );
+
+    let notice = RootDivergenceNotice::decode(
+        result
+            .additional_context
+            .as_deref()
+            .expect("root divergence should produce additional context"),
+    )
+    .expect("root divergence context should decode");
+    assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
+    assert_eq!(notice.observed.as_path(), mismatched_root.as_path());
+    assert_eq!(notice.session_id.as_str(), session_id);
+    assert_eq!(notice.hook_event, HookType::SessionStart);
+}
+
+#[test]
+fn mismatched_project_dir_logs_and_preserves_immutable_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let drift_dir = temp.path().join("repo-a/subdir");
+    let mismatched_root = temp.path().join("repo-b");
+    let session_id = "session-mismatch";
+    fs::create_dir_all(&drift_dir).expect("drift dir");
+    fs::create_dir_all(&mismatched_root).expect("mismatched root");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                mismatched_root.to_str().expect("mismatched root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        let result = handler
+            .handle(hook_context_with_payload(
+                HookType::Stop,
+                None,
+                stop_payload(session_id, &drift_dir),
+            ))
+            .expect("mismatched CLAUDE_PROJECT_DIR should log and continue");
+        let notice = RootDivergenceNotice::decode(
+            result
+                .additional_context
+                .as_deref()
+                .expect("root divergence should produce additional context"),
+        )
+        .expect("root divergence context should decode");
+        assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
+        assert_eq!(notice.observed.as_path(), mismatched_root.as_path());
+        assert_eq!(notice.session_id.as_str(), session_id);
+        assert_eq!(notice.hook_event, HookType::Stop);
+    }
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
+    assert_eq!(parsed["agent_state"], "idle");
+}
+
+#[test]
+fn missing_project_dir_preserves_root_without_divergence_context() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let drift_dir = project_root.join("subdir");
+    let session_id = "session-missing-project-dir";
+    fs::create_dir_all(&drift_dir).expect("drift dir");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "900"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("startup should persist");
+    }
+
+    let _env = EnvGuard::set(&[
+        (
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        ),
+        ("SC_HOOK_AGENT_PID", "900"),
+    ]);
+    let result = handler
+        .handle(hook_context_with_payload(
+            HookType::Stop,
+            None,
+            stop_payload(session_id, &drift_dir),
+        ))
+        .expect("missing project dir should preserve root without error");
+    assert!(result.additional_context.is_none());
+
+    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
+    assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
+    assert_eq!(parsed["agent_state"], "idle");
 }

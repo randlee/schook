@@ -12,7 +12,7 @@ use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
-use sc_hooks_core::session::utc_timestamp_now;
+use sc_hooks_core::session::{AgentState, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_core::tools::{SpawnKind, ToolName};
 use sc_hooks_sdk::result::{block, proceed};
@@ -98,6 +98,9 @@ impl SyncHandler for AgentSpawnGatesHandler {
                 ));
             }
         };
+        if record.agent_state() == AgentState::Ended {
+            return Ok(proceed());
+        }
 
         let spawn_kind = if payload.tool_input.run_in_background.unwrap_or(false) {
             SpawnKind::BackgroundAgent
@@ -105,7 +108,7 @@ impl SyncHandler for AgentSpawnGatesHandler {
             SpawnKind::NamedAgent
         };
 
-        let policy = load_agent_spawn_policy(record.ai_root_dir.as_path())?;
+        let policy = load_agent_spawn_policy(record.ai_root_dir().as_path())?;
         if policy.background_only && spawn_kind == SpawnKind::NamedAgent {
             return Ok(block(
                 "Agent spawn blocked: this project requires background agents. Retry with `tool_input.run_in_background=true`.",
@@ -113,13 +116,14 @@ impl SyncHandler for AgentSpawnGatesHandler {
         }
 
         let next_extension = spawn_extension(&record, &payload, spawn_kind);
-        let changed = record.extensions.get("spawn_gate") != Some(&next_extension);
+        let changed = record.extension("spawn_gate") != Some(&next_extension);
         if changed {
-            record
-                .extensions
-                .insert("spawn_gate".to_string(), next_extension);
-            record.state_revision += 1;
-            record.updated_at = utc_timestamp_now();
+            let mut active = record
+                .try_into_active()
+                .map_err(|_| HookError::invalid_context("cannot mutate ended session record"))?;
+            active.set_extension("spawn_gate", next_extension)?;
+            active.mark_material_change(utc_timestamp_now())?;
+            record = active.into();
         }
         let persist = store.persist(&record)?;
         debug_assert!(matches!(
@@ -159,8 +163,8 @@ fn spawn_extension(
         "last_requested_spawn": {
             "tool_use_id": payload.tool_use_id,
             "spawn_kind": spawn_kind.as_str(),
-            "parent_session_id": record.session_id.as_str(),
-            "parent_active_pid": record.active_pid.get(),
+            "parent_session_id": record.session_id().as_str(),
+            "parent_active_pid": record.active_pid().get(),
             "prompt_excerpt": excerpt(&payload.tool_input.prompt),
             "description": payload.tool_input.description,
             "run_in_background": payload.tool_input.run_in_background.unwrap_or(false),
@@ -176,7 +180,8 @@ fn excerpt(text: &str) -> String {
 mod tests {
     use super::*;
     use sc_hooks_core::session::{
-        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, SessionId,
+        ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider,
+        SessionId, SessionStartSource, StateRoot,
     };
     use std::sync::{Mutex, OnceLock};
 
@@ -212,19 +217,20 @@ mod tests {
     }
 
     fn write_record(state_root: &Path, project_root: &Path) -> SessionId {
-        let store = SessionStore::new(state_root.to_path_buf());
+        let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
         let session_id = SessionId::new("session-1").expect("session");
         let record = CanonicalSessionRecord::new(
-            "claude",
+            Provider::Claude,
             session_id.clone(),
             ActivePid::new(4242).expect("pid"),
             AiRootDir::new(project_root).expect("root"),
             AiCurrentDir::new(project_root.join("agents")).expect("current"),
-            "startup",
+            SessionStartSource::Startup,
             AgentState::Busy,
             "PreToolUse",
             "tool_invocation_started",
-        );
+        )
+        .expect("record should construct");
         store.persist(&record).expect("persist");
         session_id
     }
@@ -232,7 +238,7 @@ mod tests {
     fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext {
         HookContext::new(
             HookType::PreToolUse,
-            Some(tool_name.to_string()),
+            Some(std::borrow::Cow::Owned(tool_name.to_string())),
             json!({
                 "payload": {
                     "session_id": "session-1",
@@ -299,12 +305,12 @@ mod tests {
             .expect("handler result");
         assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
 
-        let store = SessionStore::new(state_root.path().to_path_buf());
+        let store = SessionStore::new(StateRoot::new(state_root.path()).expect("state root"));
         let updated = store
             .load(&session_id)
             .expect("load")
             .expect("record should exist");
-        let linkage = &updated.extensions["spawn_gate"]["last_requested_spawn"];
+        let linkage = &updated.extensions()["spawn_gate"]["last_requested_spawn"];
         assert_eq!(linkage["spawn_kind"], "background_agent");
         assert_eq!(linkage["parent_session_id"], "session-1");
         assert_eq!(linkage["parent_active_pid"], 4242);

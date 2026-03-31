@@ -58,6 +58,7 @@ This table maps the most important documented requirements to current implementa
 | BND-001 | implemented | `plugins/*/src/main.rs`, `plugins/agent-session-foundation/tests/session_foundation.rs`, `plugins/atm-extension/tests/atm_extension.rs`, `plugins/agent-spawn-gates/src/lib.rs`, `plugins/tool-output-gates/src/lib.rs` | behavior tests plus source inspection | |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | implemented | `plugins/*/Cargo.toml`, README, architecture docs | release-facing docs and plugin metadata agree that no current `plugins/` source crate is shipped runtime functionality, so no unsupported shipped-plugin claim remains | |
+| HKR-004 | deferred | docs-only Claude hook runtime planning (`docs/requirements.md`, `docs/plugin-plan-s9.md`, `docs/phase-bc-hook-runtime-design.md`) | documentation inspection plus captured-fixture inventory for the seven locally reproduced non-`Notification` hook surfaces | |
 | OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
 | OBS-007 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-core/Cargo.toml`, `plugins/agent-session-foundation/Cargo.toml` | observability tests plus code inspection confirming logger config and sink routing now live only at the CLI boundary | |
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
@@ -74,6 +75,12 @@ This table maps the most important documented requirements to current implementa
 | TST-001 | implemented | workspace modules | distributed unit/integration tests | |
 | TST-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared `run_contract_behavior_suite` covers timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior | |
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
+| HKR-002 | implemented | `test-harness/hooks/claude/captures/raw/`, `test-harness/hooks/claude/tests/` | `test_fixture_validation.py`, `test_harness_structure.py` — harness structure and capture script contracts verified | |
+| HKR-003 | implemented | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md` | `test-harness/run-schema-drift.py` drift detection; plan and hook API docs were revised from captured fixtures including `resume` and `clear` evidence | |
+| HKR-008 | implemented | `sc-hooks-core/src/session.rs`, `plugins/agent-session-foundation/src/lib.rs`, `sc-hooks-core/src/storage.rs` | `sc-hooks-core/src/session.rs:429-534`, `plugins/agent-session-foundation` unit tests, and storage tests covering canonical-record validation, immutable root persistence, current-dir drift handling, and provider-root equality enforcement | |
+| HKR-009 | implemented | `plugins/agent-session-foundation/src/lib.rs` | `plugins/agent-session-foundation` unit tests covering atomic-write temp-plus-rename, skip-on-unchanged, and per-invocation observability emission | |
+| HKR-011 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering extension-field enrichment, team linkage, and child identity override behavior | |
+| HKR-013 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering the four-stage relay pipeline, `ToolName` typed boundary, and relay-decision side-effect separation | |
 
 ## Resolved Gap Acknowledgments
 
@@ -93,3 +100,19 @@ This table maps the most important documented requirements to current implementa
   - prior text: source-only plugin crates could remain described as non-runtime code “unless and until” a later phase promoted them
   - current text: every source crate under `plugins/` must be documented with an explicit maturity level of either scaffold/reference or runtime implementation with direct tests
   - authorizing sprint: `S9-BONUS`
+- `HKR-008`
+  - prior text: env-var availability of `CLAUDE_PROJECT_DIR` in hook process context was unverified; implementation of the canonical session-state record keyed by `ai_root_dir` was specified but not capture-backed
+  - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source=”startup”)` is the only capture-backed surface for establishing immutable root; later `cwd` values may drift; the full implementation of the canonical session-state model (atomic persistence, root-equality check, normalized consumer output) remains deferred pending `S10-R1`
+  - authorizing sprint: `S9-ENV-CAPTURE`
+- `BND-001a`
+  - prior text: the documented `plugins/` source inventory listed nine crates and treated later additions as outside the branch baseline
+  - current text: the documented `plugins/` source inventory lists all thirteen source crates in the branch and distinguishes the four non-scaffold runtime crates from the nine scaffold/reference crates
+  - authorizing sprint: `S9-HP5`
+- `HKR-011`
+  - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
+  - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model
+  - authorizing sprint: `S9-HP5`
+- `HKR-013`
+  - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
+  - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
+  - authorizing sprint: `S9-HP5`

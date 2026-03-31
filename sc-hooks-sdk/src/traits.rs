@@ -10,6 +10,7 @@ use crate::result::{AsyncResult, HookResult};
 /// live in sibling workspace crates rather than inside `sc-hooks-sdk` itself;
 /// see `SEAL-001` in `docs/implementation-gaps.md`.
 pub trait ManifestProvider {
+    /// Returns the manifest advertised by this handler.
     fn manifest(&self) -> Manifest;
 }
 
@@ -19,6 +20,7 @@ pub trait ManifestProvider {
 /// implement the host-facing trait surface; see `SEAL-001` in
 /// `docs/implementation-gaps.md`.
 pub trait SyncHandler: ManifestProvider {
+    /// Handles one synchronous hook invocation.
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
 }
 
@@ -28,6 +30,7 @@ pub trait SyncHandler: ManifestProvider {
 /// implement the host-facing trait surface; see `SEAL-001` in
 /// `docs/implementation-gaps.md`.
 pub trait AsyncHandler: ManifestProvider {
+    /// Handles one asynchronous hook invocation.
     fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
 }
 
@@ -72,7 +75,7 @@ mod tests {
         let output = handler
             .handle(HookContext::new(
                 sc_hooks_core::events::HookType::PreToolUse,
-                Some("Write".to_string()),
+                Some(std::borrow::Cow::Borrowed("Write")),
                 serde_json::json!({}),
                 None,
             ))

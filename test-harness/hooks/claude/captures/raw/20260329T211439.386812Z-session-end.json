@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "SessionEnd",
+  "reason": "prompt_input_exit",
+  "session_id": "ae03571e-0fae-486e-b050-777eaa42b803",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/ae03571e-0fae-486e-b050-777eaa42b803.jsonl"
+}

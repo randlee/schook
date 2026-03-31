@@ -12,14 +12,8 @@
 //! and side effects stay explicit and testable:
 //! - `RawRequest<T>` captures the raw payload plus resolved ATM routing
 //! - `ValidatedRequest<T>` carries a payload that passed shape/content checks
-//! - `RelayDecision<T>` describes the relay event, state update, and cleanup work
+//! - `RelayDecision` describes the relay event, state update, and cleanup work
 //! - `RelayResult` records the side-effect application outcome
-
-use std::collections::BTreeMap;
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
@@ -34,6 +28,10 @@ use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 /// Sync hook handler that layers ATM relay behavior onto the generic hook
 /// runtime without redefining canonical session ownership.
@@ -59,8 +57,8 @@ struct RelayContext {
 }
 
 #[derive(Debug)]
-struct RelayDecision<T> {
-    request: ValidatedRequest<T>,
+struct RelayDecision {
+    relay: RelayContext,
     state_update: RecordUpdate,
     event_body: Value,
     cleanup_identity_file: bool,
@@ -175,6 +173,7 @@ impl ManifestProvider for AtmExtensionHandler {
                 "PermissionRequest".to_string(),
                 "Stop".to_string(),
                 "TeammateIdle".to_string(),
+                "SubagentStop".to_string(),
                 "Notification".to_string(),
             ],
             matchers: vec!["*".to_string()],
@@ -200,9 +199,19 @@ impl SyncHandler for AtmExtensionHandler {
             HookType::PostToolUse => handle_post_tool_use(context),
             HookType::PermissionRequest => handle_permission_request(context),
             HookType::Stop => handle_stop(context),
-            HookType::TeammateIdle => handle_teammate_idle(context),
+            HookType::TeammateIdle | HookType::SubagentStop => handle_teammate_idle(context),
             HookType::Notification => Ok(proceed()),
-            _ => Ok(proceed()),
+            HookType::PreCompact
+            | HookType::PostCompact
+            | HookType::SessionStart
+            | HookType::SessionEnd => Ok(proceed()),
+            _ => {
+                log::warn!(
+                    "sc-hooks atm-extension: unhandled hook type {:?}, proceeding",
+                    context.hook
+                );
+                Ok(proceed())
+            }
         }
     }
 }
@@ -233,9 +242,9 @@ fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     )?;
 
     if is_atm_invocation(&payload.tool_input.command) {
-        let identity_file = identity_file_path(record.active_pid.get());
+        let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = write_identity_file(&identity_file, &record, &routing) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to write ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -271,9 +280,9 @@ fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     )?;
 
     if is_atm_invocation(&payload.tool_input.command) {
-        let identity_file = identity_file_path(record.active_pid.get());
+        let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = delete_identity_file(&identity_file) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -297,7 +306,7 @@ fn handle_permission_request(context: HookContext) -> Result<HookResult, HookErr
         raw_payload: payload,
         relay: RelayContext {
             routing,
-            process_id: record.active_pid.get(),
+            process_id: record.active_pid().get(),
         },
     };
     let validated = validate_permission_request(raw_request)?;
@@ -321,7 +330,7 @@ fn handle_stop(context: HookContext) -> Result<HookResult, HookError> {
         raw_payload: payload,
         relay: RelayContext {
             routing,
-            process_id: record.active_pid.get(),
+            process_id: record.active_pid().get(),
         },
     };
     let validated = validate_stop_request(raw_request)?;
@@ -341,7 +350,7 @@ fn handle_teammate_idle(context: HookContext) -> Result<HookResult, HookError> {
     };
 
     let process_id = record_ref
-        .map(|record| record.active_pid.get())
+        .map(|record| record.active_pid().get())
         .or_else(resolve_process_id_from_env)
         .unwrap_or_else(std::process::id);
 
@@ -401,7 +410,7 @@ fn resolve_atm_routing(
     let payload_tool_input = payload.get("tool_input").and_then(Value::as_object);
     let existing = record.and_then(existing_atm_extension);
     let config =
-        record.and_then(|existing_record| load_atm_config(existing_record.ai_root_dir.as_path()));
+        record.and_then(|existing_record| load_atm_config(existing_record.ai_root_dir().as_path()));
 
     let team = first_nonempty([
         string_field(payload, "team_name"),
@@ -432,7 +441,7 @@ fn resolve_atm_routing(
 }
 
 fn existing_atm_extension(record: &CanonicalSessionRecord) -> Option<AtmRouting> {
-    let atm = record.extensions.get("atm")?.as_object()?;
+    let atm = record.extension("atm")?.as_object()?;
     Some(AtmRouting {
         team: atm.get("atm_team")?.as_str()?.to_string(),
         identity: atm.get("atm_identity")?.as_str()?.to_string(),
@@ -488,34 +497,37 @@ fn first_nonempty<const N: usize>(candidates: [Option<String>; N]) -> Option<Str
 
 fn persist_atm_update(
     store: &SessionStore,
-    mut record: CanonicalSessionRecord,
+    record: CanonicalSessionRecord,
     routing: &AtmRouting,
     update: RecordUpdate,
 ) -> Result<(), HookError> {
+    if record.agent_state() == AgentState::Ended {
+        return Ok(());
+    }
+
     let atm_extension = json!({
         "atm_team": routing.team,
         "atm_identity": routing.identity,
     });
 
-    let mut material_changed = record.extensions.get("atm") != Some(&atm_extension);
-    if material_changed {
-        record.extensions.insert("atm".to_string(), atm_extension);
-    }
+    let mut active = match record.try_into_active() {
+        Ok(record) => record,
+        Err(_) => return Ok(()),
+    };
+
+    let mut material_changed = active.set_extension("atm", atm_extension)?;
 
     if let Some(agent_state) = update.agent_state
-        && record.agent_state != agent_state
+        && active.agent_state() != agent_state
     {
-        record.agent_state = agent_state;
         material_changed = true;
     }
 
-    if record.last_hook_event != update.hook_event {
-        record.last_hook_event = update.hook_event.to_string();
+    if active.last_hook_event() != update.hook_event {
         material_changed = true;
     }
 
-    if record.state_reason != update.state_reason {
-        record.state_reason = update.state_reason.to_string();
+    if active.state_reason() != update.state_reason {
         material_changed = true;
     }
 
@@ -523,10 +535,24 @@ fn persist_atm_update(
         return Ok(());
     }
 
-    record.state_revision += 1;
     let now = utc_timestamp_now();
-    record.updated_at = now.clone();
-    record.last_hook_event_at = now;
+    let active_pid = active.active_pid();
+    let ai_current_dir = active.ai_current_dir().clone();
+    let session_start_source = active.session_start_source();
+    let agent_state = update.agent_state.unwrap_or(active.agent_state());
+    let ended_at = active.ended_at().cloned();
+    let record = active
+        .apply_hook_update(
+            active_pid,
+            ai_current_dir,
+            session_start_source,
+            agent_state,
+            now,
+            update.hook_event,
+            update.state_reason,
+            ended_at,
+        )?
+        .into_record();
     store.persist(&record)?;
 
     Ok(())
@@ -569,7 +595,7 @@ fn validate_stop_request(
 
 fn permission_relay_decision(
     request: ValidatedRequest<ValidatedPermissionRequest>,
-) -> RelayDecision<ValidatedPermissionRequest> {
+) -> RelayDecision {
     let process_id = request.relay.process_id;
     let body = json!({
         "event": "permission_request",
@@ -583,7 +609,7 @@ fn permission_relay_decision(
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
-        request,
+        relay: request.relay,
         state_update: RecordUpdate {
             hook_event: "PermissionRequest",
             state_reason: "permission_requested",
@@ -594,9 +620,7 @@ fn permission_relay_decision(
     }
 }
 
-fn stop_relay_decision(
-    request: ValidatedRequest<ValidatedStopRequest>,
-) -> RelayDecision<ValidatedStopRequest> {
+fn stop_relay_decision(request: ValidatedRequest<ValidatedStopRequest>) -> RelayDecision {
     let process_id = request.relay.process_id;
     let body = json!({
         "event": "stop",
@@ -607,7 +631,7 @@ fn stop_relay_decision(
         "source": {"kind": "claude_hook"},
     });
     RelayDecision {
-        request,
+        relay: request.relay,
         state_update: RecordUpdate {
             hook_event: "Stop",
             state_reason: "relay_stop",
@@ -618,24 +642,24 @@ fn stop_relay_decision(
     }
 }
 
-fn execute_relay<T>(
+fn execute_relay(
     store: &SessionStore,
     record: CanonicalSessionRecord,
-    decision: RelayDecision<T>,
+    decision: RelayDecision,
 ) -> Result<RelayResult, HookError> {
     persist_atm_update(
         store,
         record,
-        &decision.request.relay.routing,
+        &decision.relay.routing,
         decision.state_update,
     )?;
 
     append_relay_event(relay_event_root(), decision.event_body);
 
     if decision.cleanup_identity_file {
-        let identity_file = identity_file_path(decision.request.relay.process_id);
+        let identity_file = identity_file_path(decision.relay.process_id);
         if let Err(err) = delete_identity_file(&identity_file) {
-            eprintln!(
+            log::error!(
                 "atm-extension: failed to delete ATM identity file {}: {err}",
                 identity_file.display()
             );
@@ -672,7 +696,7 @@ fn append_relay_event(root: Option<PathBuf>, event: Value) {
     })();
 
     if let Err(err) = result {
-        eprintln!(
+        log::error!(
             "atm-extension: failed to append relay event {}: {err}",
             events_path.display()
         );
@@ -697,16 +721,13 @@ fn write_identity_file(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let created_at = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs_f64())
-        .unwrap_or(0.0);
+    let created_at = utc_timestamp_now();
     let rendered = serde_json::to_string(&json!({
-        "pid": record.active_pid.get(),
-        "session_id": record.session_id.as_str(),
+        "pid": record.active_pid().get(),
+        "session_id": record.session_id().as_str(),
         "agent_name": routing.identity,
         "team_name": routing.team,
-        "created_at": created_at,
+        "created_at": created_at.as_str(),
     }))?;
     fs::write(path, rendered)?;
     #[cfg(unix)]
@@ -727,7 +748,7 @@ fn delete_identity_file(path: &Path) -> std::io::Result<()> {
 
 fn is_atm_invocation(command: &str) -> bool {
     let tokens = shell_words::split(command).unwrap_or_else(|err| {
-        eprintln!(
+        log::warn!(
             "[atm-extension] shell_words parse error for command {command:?}: {err}; falling back to whitespace split"
         );
         command
@@ -742,6 +763,7 @@ fn is_atm_invocation(command: &str) -> bool {
             || token.ends_with("\\atm")
             || token == "atm.exe"
             || token.ends_with("/atm.exe")
+            || token.ends_with("\\atm.exe")
     })
 }
 

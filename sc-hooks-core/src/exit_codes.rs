@@ -1,23 +1,40 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Documentation entry describing one CLI exit code.
 pub struct ExitCodeInfo {
+    /// Numeric exit code.
     pub code: i32,
+    /// Symbolic exit code name.
     pub name: &'static str,
+    /// Human-readable meaning of the code.
     pub meaning: &'static str,
+    /// Suggested remediation for operators.
     pub remediation: &'static str,
 }
 
+/// Successful command completion.
 pub const SUCCESS: i32 = 0;
+/// A sync hook blocked execution.
 pub const BLOCKED: i32 = 1;
+/// Plugin protocol or runtime failure.
 pub const PLUGIN_ERROR: i32 = 2;
+/// Configuration parsing or validation failure.
 pub const CONFIG_ERROR: i32 = 3;
+/// Plugin resolution or manifest-load failure.
 pub const RESOLUTION_ERROR: i32 = 4;
+/// Metadata validation failure.
 pub const VALIDATION_ERROR: i32 = 5;
+/// Hook timeout.
 pub const TIMEOUT: i32 = 6;
+/// Audit command failure.
 pub const AUDIT_FAILURE: i32 = 7;
+/// Reserved for future use.
 pub const RESERVED_8: i32 = 8;
+/// Reserved for future use.
 pub const RESERVED_9: i32 = 9;
+/// Unexpected host/internal failure.
 pub const INTERNAL_ERROR: i32 = 10;
 
+/// Full exit-code reference table used by CLI help output.
 pub const EXIT_CODE_TABLE: [ExitCodeInfo; 11] = [
     ExitCodeInfo {
         code: SUCCESS,
@@ -87,10 +104,12 @@ pub const EXIT_CODE_TABLE: [ExitCodeInfo; 11] = [
     },
 ];
 
+/// Returns the complete exit-code reference table.
 pub fn all() -> &'static [ExitCodeInfo] {
     &EXIT_CODE_TABLE
 }
 
+/// Renders a human-readable exit-code reference block.
 pub fn render_reference() -> String {
     let mut output = String::from("Exit Code Reference:\n");
     for entry in all() {

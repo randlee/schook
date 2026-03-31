@@ -1,3 +1,5 @@
+//! Reference scaffold plugin binary for conditional source experiments.
+
 fn main() {
     if std::env::args().any(|arg| arg == "--manifest") {
         let manifest = serde_json::json!({

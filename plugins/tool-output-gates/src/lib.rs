@@ -379,7 +379,7 @@ mod tests {
     fn bash_context(stdout: &str, tool_name: &str) -> HookContext {
         HookContext::new(
             HookType::PostToolUse,
-            Some(tool_name.to_string()),
+            Some(std::borrow::Cow::Owned(tool_name.to_string())),
             serde_json::json!({
                 "payload": {
                     "tool_name": tool_name,
@@ -421,7 +421,7 @@ mod tests {
     fn bash_context_with_payload(payload: Value) -> HookContext {
         HookContext::new(
             HookType::PostToolUse,
-            Some("Bash".to_string()),
+            Some(std::borrow::Cow::Borrowed("Bash")),
             serde_json::json!({ "payload": payload }),
             None,
         )

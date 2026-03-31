@@ -125,7 +125,7 @@ pub fn state_path() -> Result<PathBuf, CliError> {
 }
 
 fn now_timestamp() -> String {
-    utc_timestamp_now()
+    utc_timestamp_now().to_string()
 }
 
 fn normalize_session_id(session_id: Option<&str>) -> Option<&str> {

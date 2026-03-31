@@ -8,96 +8,172 @@ use thiserror::Error;
 use sc_hooks_core::manifest::{FieldRequirement, Manifest};
 use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
+/// Highest manifest contract version understood by the current host.
 pub const HOST_CONTRACT_VERSION: u32 = 1;
+const STDERR_EXCERPT_LIMIT: usize = 4096;
 
+/// Returns whether a plugin contract version is compatible with the host.
 pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
     plugin_version <= host_version
 }
 
 #[derive(Debug, Error)]
+/// Errors produced while parsing or validating plugin manifests.
 pub enum ManifestError {
+    /// Manifest JSON could not be parsed.
     #[error("invalid manifest JSON: {source}")]
     Parse {
         #[source]
+        /// Underlying serde parser error.
         source: serde_json::Error,
     },
 
+    /// Manifest JSON could not be serialized.
     #[error("failed to serialize manifest JSON: {source}")]
     Serialize {
         #[source]
+        /// Underlying serde serializer error.
         source: serde_json::Error,
     },
 
+    /// `name` was empty or whitespace-only.
     #[error("manifest field `name` must be non-empty")]
     EmptyName,
 
+    /// No hooks were declared.
     #[error("manifest must declare at least one hook")]
     EmptyHooks,
 
+    /// No matchers were declared.
     #[error("manifest must declare at least one matcher")]
     EmptyMatchers,
 
+    /// `timeout_ms` was zero.
     #[error("manifest timeout_ms must be greater than zero when set")]
     InvalidTimeout,
 
+    /// Response-time minimum exceeded the maximum.
     #[error("manifest response_time.min_ms must be <= response_time.max_ms")]
     InvalidResponseTimeRange,
 
+    /// `long_running=true` was set without a description.
     #[error("manifest long_running=true requires a non-empty description")]
     MissingLongRunningDescription,
 
+    /// `long_running=true` was used on an async handler.
     #[error("manifest long_running=true is only supported for sync handlers")]
     AsyncLongRunningUnsupported,
 
+    /// Plugin and host contract versions are incompatible.
     #[error(
         "manifest contract_version {plugin_version} is incompatible with host version {host_version}"
     )]
     IncompatibleContractVersion {
+        /// Host contract version.
         host_version: u32,
+        /// Plugin-declared contract version.
         plugin_version: u32,
     },
 
+    /// A manifest field used an unknown validation rule string.
     #[error("manifest field `{field}` has unknown validation rule `{rule}`")]
-    UnknownValidationRule { field: String, rule: String },
+    UnknownValidationRule {
+        /// Manifest field path that referenced the rule.
+        field: String,
+        /// Unknown rule string.
+        rule: String,
+    },
 
+    /// Required metadata was missing from host input.
     #[error("missing required metadata field `{field}`")]
-    MissingRequiredField { field: String },
+    MissingRequiredField {
+        /// Missing field path.
+        field: String,
+    },
 
+    /// Metadata value failed a declared validation rule.
     #[error("metadata field `{field}` failed validation `{rule}`")]
-    ValidationRuleFailed { field: String, rule: String },
+    ValidationRuleFailed {
+        /// Field path that failed validation.
+        field: String,
+        /// Rule string that failed.
+        rule: String,
+    },
 
+    /// Metadata value failed a declared type check.
     #[error("metadata field `{field}` failed type check `{expected:?}")]
-    TypeValidationFailed { field: String, expected: FieldType },
+    TypeValidationFailed {
+        /// Field path that failed the type check.
+        field: String,
+        /// Expected field type.
+        expected: FieldType,
+    },
 
+    /// Payload-condition schema was invalid.
     #[error("payload conditions invalid: {source}")]
     PayloadConditions {
         #[source]
+        /// Underlying payload-condition validation error.
         source: crate::conditions::ConditionError,
     },
 
+    /// Dot-path expansion collided with a non-object value.
     #[error("manifest field path `{path}` collides with a non-object value")]
-    PathCollision { path: String },
+    PathCollision {
+        /// Dot-separated field path that collided.
+        path: String,
+    },
 }
 
 #[derive(Debug, Error)]
+/// Errors produced while invoking a plugin executable for `--manifest`.
 pub enum ManifestLoadError {
+    /// The executable could not be spawned.
     #[error("failed to run plugin manifest command `{path}`: {source}")]
     Spawn {
+        /// Plugin executable path.
         path: String,
+        /// Underlying process-spawn error.
         source: std::io::Error,
     },
 
+    /// The executable returned non-zero from `--manifest`.
     #[error("plugin `{path}` returned non-zero on --manifest: status={status}, stderr={stderr}")]
-    NonZero {
+    NonZeroExit {
+        /// Plugin executable path.
         path: String,
+        /// Exit status code.
         status: i32,
+        /// Captured stderr output.
         stderr: String,
     },
 
+    /// The executable terminated from a signal while serving `--manifest`.
+    #[error("plugin `{path}` terminated by signal {signal} on --manifest: stderr={stderr}")]
+    TerminatedBySignal {
+        /// Plugin executable path.
+        path: String,
+        /// Signal number reported by the operating system.
+        signal: i32,
+        /// Captured stderr output.
+        stderr: String,
+    },
+
+    /// The executable terminated without an exit code while serving `--manifest`.
+    #[error("plugin `{path}` terminated without an exit status on --manifest: stderr={stderr}")]
+    Terminated {
+        /// Plugin executable path.
+        path: String,
+        /// Captured stderr output.
+        stderr: String,
+    },
+
+    /// Manifest loading succeeded but parsing/validation failed.
     #[error(transparent)]
     Manifest(#[from] ManifestError),
 }
 
+/// Parses and validates a manifest from a JSON string.
 pub fn parse_manifest_str(input: &str) -> Result<Manifest, ManifestError> {
     let manifest = serde_json::from_str::<Manifest>(input)
         .map_err(|source| ManifestError::Parse { source })?;
@@ -105,6 +181,7 @@ pub fn parse_manifest_str(input: &str) -> Result<Manifest, ManifestError> {
     Ok(manifest)
 }
 
+/// Loads, parses, and validates a manifest from a plugin executable.
 pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLoadError> {
     let output = Command::new(path)
         .arg("--manifest")
@@ -115,17 +192,44 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
         })?;
 
     if !output.status.success() {
-        return Err(ManifestLoadError::NonZero {
-            path: path.display().to_string(),
-            status: output.status.code().unwrap_or(-1),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
+        let path = path.display().to_string();
+        let stderr = capped_stderr(&output.stderr);
+        if let Some(status) = output.status.code() {
+            return Err(ManifestLoadError::NonZeroExit {
+                path,
+                status,
+                stderr,
+            });
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+
+            if let Some(signal) = output.status.signal() {
+                return Err(ManifestLoadError::TerminatedBySignal {
+                    path,
+                    signal,
+                    stderr,
+                });
+            }
+        }
+        return Err(ManifestLoadError::Terminated { path, stderr });
     }
 
     parse_manifest_str(&String::from_utf8_lossy(&output.stdout))
         .map_err(ManifestLoadError::Manifest)
 }
 
+fn capped_stderr(stderr: &[u8]) -> String {
+    let rendered = String::from_utf8_lossy(stderr);
+    let mut excerpt: String = rendered.chars().take(STDERR_EXCERPT_LIMIT).collect();
+    if rendered.chars().count() > STDERR_EXCERPT_LIMIT {
+        excerpt.push_str("…[truncated]");
+    }
+    excerpt
+}
+
+/// Validates manifest invariants required by the current host contract.
 pub fn validate_manifest(manifest: &Manifest) -> Result<(), ManifestError> {
     if manifest.name.trim().is_empty() {
         return Err(ManifestError::EmptyName);
@@ -193,6 +297,7 @@ fn validate_field_specs(fields: &BTreeMap<String, FieldRequirement>) -> Result<(
     Ok(())
 }
 
+/// Builds the filtered stdin payload passed from the host to a plugin process.
 pub fn build_plugin_input(
     manifest: &Manifest,
     metadata: &Value,
@@ -210,13 +315,13 @@ pub fn build_plugin_input(
         })?;
 
         validate_field_value(field, value, spec)?;
-        set_value_by_path(&mut root, field, value.clone())?;
+        set_value_by_path(&mut root, field, value)?;
     }
 
     for (field, spec) in &manifest.optional {
         if let Some(value) = get_value_by_path(metadata, field) {
             validate_field_value(field, value, spec)?;
-            set_value_by_path(&mut root, field, value.clone())?;
+            set_value_by_path(&mut root, field, value)?;
         }
     }
 
@@ -242,7 +347,7 @@ fn validate_field_value(
     if !type_matches(value, &spec.field_type) {
         return Err(ManifestError::TypeValidationFailed {
             field: field.to_string(),
-            expected: spec.field_type.clone(),
+            expected: spec.field_type,
         });
     }
 
@@ -348,14 +453,14 @@ fn get_value_by_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
 fn set_value_by_path(
     root: &mut Map<String, Value>,
     path: &str,
-    value: Value,
+    value: &Value,
 ) -> Result<(), ManifestError> {
     let mut segments = path.split('.').peekable();
     let mut current = root;
 
     while let Some(segment) = segments.next() {
         if segments.peek().is_none() {
-            current.insert(segment.to_string(), value);
+            current.insert(segment.to_string(), value.clone());
             return Ok(());
         }
 
@@ -376,11 +481,13 @@ fn set_value_by_path(
 }
 
 #[derive(Debug, Clone)]
+/// Fluent helper for constructing valid plugin manifests in tests and binaries.
 pub struct ManifestBuilder {
     manifest: Manifest,
 }
 
 impl ManifestBuilder {
+    /// Starts a new manifest builder with default host contract values.
     pub fn new(name: impl Into<String>, mode: sc_hooks_core::dispatch::DispatchMode) -> Self {
         Self {
             manifest: Manifest {
@@ -401,33 +508,39 @@ impl ManifestBuilder {
         }
     }
 
+    /// Replaces the hook list.
     pub fn hooks(mut self, hooks: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.manifest.hooks = hooks.into_iter().map(Into::into).collect();
         self
     }
 
+    /// Replaces the matcher list.
     pub fn matchers(mut self, matchers: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.manifest.matchers = matchers.into_iter().map(Into::into).collect();
         self
     }
 
+    /// Sets an explicit timeout in milliseconds.
     pub fn timeout_ms(mut self, timeout_ms: u64) -> Self {
         self.manifest.timeout_ms = Some(timeout_ms);
         self
     }
 
+    /// Marks the manifest as long-running and records its required description.
     pub fn long_running(mut self, description: impl Into<String>) -> Self {
         self.manifest.long_running = true;
         self.manifest.description = Some(description.into());
         self
     }
 
+    /// Sets the expected minimum and maximum response times.
     pub fn response_time(mut self, min_ms: u64, max_ms: u64) -> Self {
         self.manifest.response_time =
             Some(sc_hooks_core::manifest::ResponseTimeRange { min_ms, max_ms });
         self
     }
 
+    /// Adds a required metadata field declaration.
     pub fn require_field(
         mut self,
         path: impl Into<String>,
@@ -444,6 +557,7 @@ impl ManifestBuilder {
         self
     }
 
+    /// Adds an optional metadata field declaration.
     pub fn optional_field(
         mut self,
         path: impl Into<String>,
@@ -460,11 +574,13 @@ impl ManifestBuilder {
         self
     }
 
+    /// Validates and returns the constructed manifest.
     pub fn build(self) -> Result<Manifest, ManifestError> {
         validate_manifest(&self.manifest)?;
         Ok(self.manifest)
     }
 
+    /// Validates and pretty-serializes the constructed manifest.
     pub fn build_json(self) -> Result<String, ManifestError> {
         let manifest = self.build()?;
         serde_json::to_string_pretty(&manifest)
@@ -596,7 +712,7 @@ mod tests {
         let err = set_value_by_path(
             &mut root,
             "team.name",
-            Value::String("calibration".to_string()),
+            &Value::String("calibration".to_string()),
         )
         .expect_err("non-object path collisions should not panic");
 

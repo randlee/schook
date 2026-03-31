@@ -9,6 +9,7 @@ Owning requirement IDs:
 - `OBS-006`
 - `OBS-007`
 - `OBS-008`
+- `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -78,6 +79,10 @@ Current behavior:
 - the file sink can be intentionally disabled for an operator/debugging session
   with `SC_HOOKS_ENABLE_FILE_SINK=0`
 
+Formal amendment note:
+- `OBS-009` was added in `S9-BONUS` to promote these env-flag sink toggles into
+  the release-facing observability contract; see `docs/traceability.md`.
+
 ## 4. Event Shape
 
 Implements:
@@ -86,14 +91,15 @@ Implements:
 
 Each line is one serialized `sc_observability_types::LogEvent`.
 
-Current dispatch emission uses:
+Current observability emission uses:
 - `service = "sc-hooks"`
 - `target = "hook"`
-- `action = "dispatch.complete"`
+- `action = "dispatch.complete"` for normal dispatch completion
+- `action = "session.root_divergence"` when inbound `CLAUDE_PROJECT_DIR` diverges from immutable `ai_root_dir`
 - `outcome = "proceed" | "block" | "error"`
 - `identity.pid = <current process id>`
 
-The `fields` object currently carries:
+The `fields` object for `dispatch.complete` currently carries:
 - `hook`
 - `event` when present
 - `matcher`
@@ -103,6 +109,17 @@ The `fields` object currently carries:
 - `total_ms`
 - `exit`
 - `ai_notification` when present
+
+Amendment note (`BND-001a`, `S9-BONUS`):
+- the documented `DispatchEventEmitted` field inventory was expanded in
+  `S9-BONUS` to freeze the currently emitted `dispatch.complete` field set
+  above rather than leaving the event payload partially implied by code/tests
+
+The `fields` object for `session.root_divergence` currently carries:
+- `immutable_root`
+- `observed`
+- `session_id`
+- `hook_event`
 
 ## 5. Handler Result Shape
 
@@ -131,8 +148,10 @@ Implements:
 - `OBS-005`
 
 - if at least one handler executes, `sc-hooks` emits one dispatch-complete event
+- if a handler reports a root-divergence notice, `sc-hooks` also emits one `session.root_divergence` event before the enclosing `dispatch.complete` event
+- `session.root_divergence` emits with `level = Error`
 - if no handlers match, `sc-hooks` emits no observability event
-- if observability emission fails during dispatch completion, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting dispatch observability event: ...` instead of silently swallowing the failure
+- if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting dispatch observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
 
@@ -161,7 +180,12 @@ Current console sink line format:
 
 ## 8. Non-Goals
 
-Environment controls:
+Correction note:
+- section `3.1` documents current supported behavior, not a non-goal
+- the non-goal is broader config-file sink routing or console-sink
+  customization beyond the limited env-flag controls documented above
+
+Current environment controls (not non-goals):
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: off

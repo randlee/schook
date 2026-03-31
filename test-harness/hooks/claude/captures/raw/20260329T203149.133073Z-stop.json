@@ -1,0 +1,9 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture/test-harness/hooks/claude",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "Done. The working directory successfully changed to `/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture/test-harness/hooks/claude` and persisted between the two invocations.",
+  "permission_mode": "bypassPermissions",
+  "session_id": "2a70bf69-9af8-46cd-b121-afe8b603dc5d",
+  "stop_hook_active": false,
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/2a70bf69-9af8-46cd-b121-afe8b603dc5d.jsonl"
+}
