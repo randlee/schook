@@ -1,6 +1,25 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Creates an executable script at the given path.
+pub fn create_executable_script(path: &Path, body: &str) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("script parent directory should be creatable");
+    }
+
+    fs::write(path, body).expect("script should be writable");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(path)
+            .expect("script metadata should be available")
+            .permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).expect("script should be executable");
+    }
+}
+
 /// Creates a shell plugin script that echoes a fixed JSON runtime payload.
 pub fn create_shell_plugin(path: &Path, manifest_json: &str, runtime_output_json: &str) {
     let runtime_body = format!("cat >/dev/null\ncat <<'JSON'\n{runtime_output_json}\nJSON\n");
@@ -9,24 +28,10 @@ pub fn create_shell_plugin(path: &Path, manifest_json: &str, runtime_output_json
 
 /// Creates a shell plugin script with a custom runtime body.
 pub fn create_shell_plugin_script(path: &Path, manifest_json: &str, runtime_body: &str) {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
-    }
-
     let script = format!(
         "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\n  cat <<'JSON'\n{manifest_json}\nJSON\n  exit 0\nfi\n{runtime_body}"
     );
-    fs::write(path, script).expect("plugin script should be writable");
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)
-            .expect("plugin metadata should be available")
-            .permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(path, perms).expect("plugin should be executable");
-    }
+    create_executable_script(path, &script);
 }
 
 /// Returns the runtime plugin path under a test root.
