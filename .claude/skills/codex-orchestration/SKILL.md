@@ -57,10 +57,10 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 ```json
 {
   "subagent_type": "general-purpose",
-  "name": "quality-mgr",
+  "name": "qa-hook",
   "team_name": "atm-dev",
   "model": "sonnet",
-  "prompt": "You are quality-mgr for Phase {P}. You will receive QA assignments from team-lead for each sprint as they complete. Stand by for first assignment. Integration branch: integrate/phase-{P}. Phase docs: docs/project-plan.md, docs/atm-agent-mcp/requirements.md."
+  "prompt": "You are qa-hook, the QA coordinator for Phase {P}. You will receive QA assignments from team-lead for each sprint as they complete. Stand by for first assignment. Integration branch: integrate/phase-{P}. Phase docs: docs/project-plan.md, docs/atm-agent-mcp/requirements.md."
 }
 ```
 
@@ -68,8 +68,8 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 
 ```bash
 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 /Users/randlee/.local/share/claude/versions/<VERSION> \
-  --agent-id quality-mgr@atm-dev \
-  --agent-name quality-mgr \
+  --agent-id qa-hook \
+  --agent-name qa-hook \
   --team-name atm-dev
 ```
 
@@ -334,11 +334,14 @@ atm send chook "message"
 Use the `dev-template.xml.j2` structure. Render the template fields inline in the message body.
 
 ### Sending QA assignments
-```bash
-atm send quality-mgr "message"
+
+Use `SendMessage` to reach `qa-hook` (Claude Code teammate, not ATM):
+
+```
+SendMessage(to="qa-hook", message="<rendered qa-template content>")
 ```
 
-Use the `qa-template.xml.j2` structure. Always name both agents explicitly with `run_in_background=true`.
+Use the `qa-template.xml.j2` structure rendered via `sc-compose`. Always name both agents explicitly with `run_in_background=true`.
 
 ### Checking for replies
 ```bash
