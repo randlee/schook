@@ -2,7 +2,7 @@
 name = "agent-spawn-gates"
 version.workspace = true
 edition = "2024"
-description = "Scaffold/reference sc-hooks plugin source crate"
+description = "Runtime-implementation sc-hooks plugin source crate"
 
 [dependencies]
 sc-hooks-core = { path = "../../sc-hooks-core" }
