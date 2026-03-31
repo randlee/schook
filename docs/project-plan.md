@@ -1056,6 +1056,56 @@ Acceptance criteria:
 - future Claude changes that alter root/env behavior fail contract tests rather
   than silently changing runtime state semantics
 
+### SC-S10-WORKTREE-HOOKS-1: Claude Worktree Hook Semantics Docs + Harness Proof
+
+Status:
+- in review
+
+Focus:
+- document Claude `WorktreeCreate` / `WorktreeRemove` semantics precisely and
+  prove the blocking behavior with harness coverage before any runtime
+  implementation treats these surfaces as generic hook-dispatch cases
+
+Deliverables:
+- update `docs/hook-api/claude-hook-api.md` so `WorktreeCreate` and
+  `WorktreeRemove` are described as top-level provider hooks rather than
+  `PreToolUse` matcher cases
+- document the provider I/O contract for `WorktreeCreate`:
+  - absolute worktree path on stdout
+  - rejection/failure detail on stderr
+  - non-zero exit blocks creation
+  - no `HookResult` / decision-control JSON
+- update `docs/requirements.md` and `docs/protocol-contract.md` within the
+  sprint write scope so the generic runtime contract does not overclaim these
+  provider-specific semantics
+- add `sc-hooks-test` harness tests proving:
+  - authorized `WorktreeCreate` returns a usable absolute path
+  - unauthorized-folder `WorktreeCreate` blocks with stderr + exit `1`
+  - redirect guidance points users to `/sc-git-worktree`
+  - `WorktreeRemove` consumes `worktree_path`
+- capture at least one live Claude `WorktreeCreate` transcript proving the hook
+  fires and the block message is surfaced by Claude
+
+Acceptance criteria:
+- `WorktreeCreate` / `WorktreeRemove` are documented as top-level provider
+  hooks in `docs/hook-api/claude-hook-api.md`
+- the documented contract states:
+  - stdout = worktree path
+  - stderr = rejection/failure detail
+  - exit `1` blocks the operation
+  - `HookResult` JSON does not apply
+- `sc-hooks-test` carries harness tests proving `WorktreeCreate` block behavior
+- `docs/requirements.md` and `docs/protocol-contract.md` are updated within the
+  sprint write scope
+- at least one live Claude capture in the harness proves `WorktreeCreate`
+  really fires in this environment
+
+Definition of done:
+- docs merged with the provider-specific semantics corrected
+- Rust-side harness tests pass
+- live Claude capture artifact exists for `WorktreeCreate`
+- follow-on automation gap recorded separately as `S10-H1`
+
 ### S10-H1: Live Claude Hook-Schema Validation Gate
 
 Status:
