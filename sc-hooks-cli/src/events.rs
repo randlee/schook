@@ -80,6 +80,7 @@ fn is_wildcard_only_hook_type(hook: HookType) -> bool {
             | HookType::SessionStart
             | HookType::SessionEnd
             | HookType::TeammateIdle
+            | HookType::SubagentStop
             | HookType::PermissionRequest
             | HookType::Stop
     )
@@ -95,9 +96,12 @@ pub fn canonical_events_for_hook(hook: &str) -> Vec<&'static str> {
             | HookType::SessionStart
             | HookType::SessionEnd
             | HookType::TeammateIdle
+            | HookType::SubagentStop
             | HookType::PermissionRequest
             | HookType::Stop,
         ) => vec![EventTaxonomy::Wildcard.as_str()],
+        // Unknown future hooks intentionally degrade to wildcard-only guidance so
+        // the CLI remains forward-compatible until the provider surface is reviewed.
         Ok(_) | Err(_) => vec![EventTaxonomy::Wildcard.as_str()],
     }
 }
@@ -112,6 +116,7 @@ pub fn canonical_taxonomy() -> Vec<(&'static str, Vec<&'static str>)> {
         ("SessionEnd", canonical_events_for_hook("SessionEnd")),
         ("Notification", canonical_events_for_hook("Notification")),
         ("TeammateIdle", canonical_events_for_hook("TeammateIdle")),
+        ("SubagentStop", canonical_events_for_hook("SubagentStop")),
         (
             "PermissionRequest",
             canonical_events_for_hook("PermissionRequest"),

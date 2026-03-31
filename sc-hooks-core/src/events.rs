@@ -22,6 +22,8 @@ pub enum HookType {
     Notification,
     /// Fires when a teammate agent becomes idle.
     TeammateIdle,
+    /// Fires when a subagent stops and returns control to the parent agent.
+    SubagentStop,
     /// Fires when Claude asks for user permission.
     PermissionRequest,
     /// Fires when Claude stops a turn or session.
@@ -40,6 +42,7 @@ impl HookType {
             Self::SessionEnd => "SessionEnd",
             Self::Notification => "Notification",
             Self::TeammateIdle => "TeammateIdle",
+            Self::SubagentStop => "SubagentStop",
             Self::PermissionRequest => "PermissionRequest",
             Self::Stop => "Stop",
         }
@@ -65,9 +68,36 @@ impl FromStr for HookType {
             "SessionEnd" => Ok(Self::SessionEnd),
             "Notification" => Ok(Self::Notification),
             "TeammateIdle" => Ok(Self::TeammateIdle),
+            "SubagentStop" => Ok(Self::SubagentStop),
             "PermissionRequest" => Ok(Self::PermissionRequest),
             "Stop" => Ok(Self::Stop),
             _ => Err("unknown hook type"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HookType;
+    use std::str::FromStr;
+
+    #[test]
+    fn hook_type_round_trips_all_variants() {
+        for hook in [
+            HookType::PreToolUse,
+            HookType::PostToolUse,
+            HookType::PreCompact,
+            HookType::PostCompact,
+            HookType::SessionStart,
+            HookType::SessionEnd,
+            HookType::Notification,
+            HookType::TeammateIdle,
+            HookType::SubagentStop,
+            HookType::PermissionRequest,
+            HookType::Stop,
+        ] {
+            let reparsed = HookType::from_str(hook.as_str()).expect("hook should parse");
+            assert_eq!(reparsed, hook);
         }
     }
 }

@@ -222,8 +222,16 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
 
 fn capped_stderr(stderr: &[u8]) -> String {
     let rendered = String::from_utf8_lossy(stderr);
-    let mut excerpt: String = rendered.chars().take(STDERR_EXCERPT_LIMIT).collect();
-    if rendered.chars().count() > STDERR_EXCERPT_LIMIT {
+    let mut excerpt = String::new();
+    let mut truncated = false;
+    for (index, ch) in rendered.chars().enumerate() {
+        if index == STDERR_EXCERPT_LIMIT {
+            truncated = true;
+            break;
+        }
+        excerpt.push(ch);
+    }
+    if truncated {
         excerpt.push_str("…[truncated]");
     }
     excerpt

@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
-pub(crate) mod private {
+mod private {
     pub trait Sealed {}
 }
 

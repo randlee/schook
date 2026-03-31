@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use log::warn;
@@ -16,7 +16,7 @@ use crate::errors::CliError;
 use sc_hooks_core::session::AiRootDir;
 const SERVICE_NAME: &str = "sc-hooks";
 static LOGGER: OnceLock<Logger> = OnceLock::new();
-static LOGGER_ROOT: OnceLock<PathBuf> = OnceLock::new();
+static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
 
 #[derive(Debug, Error)]
 enum ObservabilityInitError {
@@ -69,12 +69,12 @@ pub struct DispatchEventArgs<'a> {
     pub total_ms: u128,
     pub exit: i32,
     pub ai_notification: Option<&'a str>,
-    pub project_root: &'a Path,
+    pub project_root: &'a AiRootDir,
 }
 
 pub struct RootDivergenceEventArgs<'a> {
     pub notice: &'a RootDivergenceNotice,
-    pub project_root: &'a Path,
+    pub project_root: &'a AiRootDir,
 }
 
 /// Callers must pass the real dispatch project root for every invocation.
@@ -178,7 +178,7 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     );
     fields.insert(
         "observed".to_string(),
-        Value::String(args.notice.observed.display().to_string()),
+        Value::String(args.notice.observed.as_path().display().to_string()),
     );
     fields.insert(
         "session_id".to_string(),
@@ -218,24 +218,27 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     })?;
     Ok(())
 }
-fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
-    if !project_root.is_absolute() {
-        return Err(CliError::internal(
-            "dispatch callers must resolve an absolute project_root before init_observability",
-        ));
-    }
+fn logger(project_root: &AiRootDir) -> Result<&'static Logger, CliError> {
     #[cfg(test)]
-    let effective_root = crate::test_support::shared_observability_root();
+    let _ = project_root;
+    #[cfg(test)]
+    let effective_root =
+        AiRootDir::new(crate::test_support::shared_observability_root()).map_err(|source| {
+            CliError::internal_with_source(
+                "failed resolving shared test observability root",
+                source,
+            )
+        })?;
     #[cfg(not(test))]
-    let effective_root = project_root.to_path_buf();
+    let effective_root = project_root.clone();
 
     let initialized_root = LOGGER_ROOT.get_or_init(|| effective_root.clone());
     if initialized_root != &effective_root {
         return Err(CliError::internal_with_source(
             "observability logger project root mismatch",
             ObservabilityInitError::ProjectRootMismatch {
-                initialized: initialized_root.clone(),
-                requested: effective_root,
+                initialized: initialized_root.as_path().to_path_buf(),
+                requested: effective_root.as_path().to_path_buf(),
             },
         ));
     }
@@ -249,10 +252,7 @@ fn logger(project_root: &Path) -> Result<&'static Logger, CliError> {
             ObservabilityInitError::InvalidServiceName { source },
         )
     })?;
-    let initialized_root = AiRootDir::new(initialized_root.clone()).map_err(|source| {
-        CliError::internal_with_source("failed resolving absolute project root", source)
-    })?;
-    let config = default_logger_config(service, &initialized_root).map_err(|source| {
+    let config = default_logger_config(service, initialized_root).map_err(|source| {
         CliError::internal_with_source(
             "failed to initialize observability logger",
             ObservabilityInitError::ResolveRoot { source },
@@ -347,6 +347,7 @@ mod tests {
     #[test]
     fn emits_service_scoped_sc_observability_log_event() {
         let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root.clone()).expect("root should be absolute");
         let _cwd = crate::test_support::scoped_current_dir(&root);
 
         emit_dispatch_event(DispatchEventArgs {
@@ -367,7 +368,7 @@ mod tests {
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
-            project_root: &root,
+            project_root: &project_root,
         })
         .expect("observability event should emit");
 

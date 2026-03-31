@@ -5,7 +5,7 @@ use std::process::Command;
 use std::time::{Duration, SystemTime};
 
 use log::warn;
-use sc_hooks_core::session::SessionId;
+use sc_hooks_core::session::{AiRootDir, SessionId};
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
 use toml::Value as TomlValue;
@@ -51,7 +51,7 @@ pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
     pub session_id: Option<SessionId>,
-    pub project_root: PathBuf,
+    pub project_root: AiRootDir,
     // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
 }
@@ -119,11 +119,16 @@ pub fn prepare_with_runtime(
         metadata,
         env,
         session_id: runtime.session_id.clone(),
-        project_root: runtime
-            .repo_path
-            .as_ref()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(&runtime.working_dir)),
+        project_root: AiRootDir::new(
+            runtime
+                .repo_path
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(&runtime.working_dir)),
+        )
+        .map_err(|source| {
+            CliError::internal_with_source("failed to resolve absolute project root", source)
+        })?,
         _metadata_file: metadata_file,
     })
 }
