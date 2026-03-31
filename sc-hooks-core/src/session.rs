@@ -588,12 +588,15 @@ impl CanonicalSessionRecord {
     }
 
     /// Converts the record into the active-session mutation wrapper.
-    #[allow(clippy::result_large_err)]
-    pub fn try_into_active(self) -> Result<ActiveSessionRecord, EndedSessionRecord> {
+    pub fn try_into_active(self) -> Result<ActiveSessionRecord, HookError> {
         if self.is_ended() {
-            Err(EndedSessionRecord::from_validated(self).expect("validated ended record"))
+            EndedSessionRecord::from_validated(self)?;
+            Err(HookError::validation(
+                "agent_state",
+                "active session record cannot wrap AgentState::Ended",
+            ))
         } else {
-            Ok(ActiveSessionRecord::from_validated(self).expect("validated active record"))
+            ActiveSessionRecord::from_validated(self)
         }
     }
 

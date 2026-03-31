@@ -26,6 +26,10 @@ pub enum HookType {
     SubagentStop,
     /// Fires when Claude asks for user permission.
     PermissionRequest,
+    /// Fires when Claude creates a worktree.
+    WorktreeCreate,
+    /// Fires when Claude removes a worktree.
+    WorktreeRemove,
     /// Fires when Claude stops a turn or session.
     Stop,
 }
@@ -44,6 +48,8 @@ impl HookType {
             Self::TeammateIdle => "TeammateIdle",
             Self::SubagentStop => "SubagentStop",
             Self::PermissionRequest => "PermissionRequest",
+            Self::WorktreeCreate => "WorktreeCreate",
+            Self::WorktreeRemove => "WorktreeRemove",
             Self::Stop => "Stop",
         }
     }
@@ -70,6 +76,8 @@ impl FromStr for HookType {
             "TeammateIdle" => Ok(Self::TeammateIdle),
             "SubagentStop" => Ok(Self::SubagentStop),
             "PermissionRequest" => Ok(Self::PermissionRequest),
+            "WorktreeCreate" => Ok(Self::WorktreeCreate),
+            "WorktreeRemove" => Ok(Self::WorktreeRemove),
             "Stop" => Ok(Self::Stop),
             _ => Err("unknown hook type"),
         }
@@ -94,6 +102,8 @@ mod tests {
             HookType::TeammateIdle,
             HookType::SubagentStop,
             HookType::PermissionRequest,
+            HookType::WorktreeCreate,
+            HookType::WorktreeRemove,
             HookType::Stop,
         ] {
             let reparsed = HookType::from_str(hook.as_str()).expect("hook should parse");

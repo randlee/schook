@@ -44,12 +44,15 @@ def _utc_timestamp() -> str:
 
 
 def _claude_version() -> str | None:
-    result = subprocess.run(
-        ["claude", "--version"],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["claude", "--version"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
     if result.returncode != 0:
         return None
     version = result.stdout.strip()

@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use sc_hooks_core::errors::HookError;
 use serde_json::json;
 
 use crate::fixtures;
@@ -44,15 +45,21 @@ fn run_command_hook(
     }
 }
 
-fn parse_worktree_path(stdout: &str) -> Result<PathBuf, String> {
+fn parse_worktree_path(stdout: &str) -> Result<PathBuf, HookError> {
     let path = PathBuf::from(stdout.trim());
     if stdout.trim().is_empty() {
-        return Err("missing worktree path on stdout".to_string());
+        return Err(HookError::validation(
+            "stdout",
+            "missing worktree path on stdout",
+        ));
     }
     if !path.is_absolute() {
-        return Err(format!(
-            "worktree hooks require an absolute stdout path, got `{}`",
-            stdout.trim()
+        return Err(HookError::validation(
+            "stdout",
+            format!(
+                "worktree hooks require an absolute stdout path, got `{}`",
+                stdout.trim()
+            ),
         ));
     }
     Ok(path)
@@ -202,7 +209,7 @@ printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDe
     assert_eq!(outcome.exit_code, 0);
     let error = parse_worktree_path(&outcome.stdout)
         .expect_err("json control output must not be treated as a valid worktree path");
-    assert!(error.contains("absolute stdout path"));
+    assert!(error.to_string().contains("absolute stdout path"));
 }
 
 #[test]
