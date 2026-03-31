@@ -321,6 +321,7 @@ fn root_divergence_notice_emits_structured_log_event() {
         SessionId::new("session-root-divergence").expect("session id"),
         HookType::Stop,
     )
+    .expect("notice should validate")
     .encode()
     .expect("notice should encode");
     let runtime_output = serde_json::json!({
