@@ -8,9 +8,27 @@ This document describes the current architecture only.
 - host/plugin wire shapes live in `docs/protocol-contract.md`
 - observability event shapes live in `docs/observability-contract.md`
 - current JSONL dispatch-log consumer contract lives in `docs/logging-contract.md`
-- missing or overstated behavior lives in `docs/implementation-gaps.md`
+- archived gap and sprint-planning artifacts live in `docs/archive/`
+
+Crate-local ownership detail now lives in:
+
+- `docs/sc-hooks-cli/`
+- `docs/sc-hooks-core/`
+- `docs/sc-hooks-sdk/`
 
 If a behavior is not present in code, this document shall not describe it as current architecture.
+
+## 1.1 Stable Product ADR IDs
+
+Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
+
+| ADR ID | Decision |
+| --- | --- |
+| `ADR-SHK-001` | `sc-hooks` remains a process-based hook dispatcher rather than an in-process plugin runtime. |
+| `ADR-SHK-002` | The public contract is JSON, environment variables, and documented exit codes; internal Rust enums and typestates are implementation detail. |
+| `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
+| `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
+| `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
 
 ## 2. Current System Boundary
 
@@ -48,6 +66,7 @@ Important boundary:
 - source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
 - current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
 - every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
+- crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ## 3.1 Public Contract Vs Internal Typed Model
 

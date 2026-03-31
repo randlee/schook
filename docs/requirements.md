@@ -12,6 +12,42 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 | `Required Before Release` | Intended release behavior that is not yet proved cleanly enough by code, tests, or contracts |
 | `Deferred` | Not part of the current release baseline |
 
+## 2.1 Stable Product Requirement IDs
+
+Every top-level requirement row in this document has a stable product ID formed
+by prefixing the legacy row label with `REQ-SHK-`.
+
+Examples:
+
+- `CFG-001` => `REQ-SHK-CFG-001`
+- `OBS-006` => `REQ-SHK-OBS-006`
+- `BND-001a` => `REQ-SHK-BND-001a`
+- `HKR-013` => `REQ-SHK-HKR-013`
+
+The legacy row labels remain in place for continuity, but the stable
+cross-document identifiers are the `REQ-SHK-*` forms above.
+
+## 2.2 Product-To-Crate Ownership Map
+
+| Product requirement set | Owning crate requirement IDs |
+| --- | --- |
+| `REQ-SHK-CFG-*` | `REQ-SHK-CLI-001` |
+| `REQ-SHK-RES-*`, `REQ-SHK-MTR-*`, `REQ-SHK-PLC-*`, `REQ-SHK-PLG-001`, `REQ-SHK-PLG-011` | `REQ-SHK-CLI-002`, `REQ-SHK-CORE-001`, `REQ-SHK-SDK-001` |
+| `REQ-SHK-PLG-002`, `REQ-SHK-PLG-003`, `REQ-SHK-PLG-006`, `REQ-SHK-PLG-013`, `REQ-SHK-PLG-014` | `REQ-SHK-CORE-001`, `REQ-SHK-SDK-001`, `REQ-SHK-SDK-002` |
+| `REQ-SHK-DSP-*`, `REQ-SHK-TMO-*`, `REQ-SHK-SES-*`, `REQ-SHK-MTA-*`, `REQ-SHK-ERR-004` | `REQ-SHK-CLI-003`, `REQ-SHK-CLI-004`, `REQ-SHK-CORE-003` |
+| `REQ-SHK-CLI-*`, `REQ-SHK-AUD-*` | `REQ-SHK-CLI-005`, `REQ-SHK-CLI-007` |
+| `REQ-SHK-OBS-*` | `REQ-SHK-CLI-006` |
+| `REQ-SHK-EXC-*` | `REQ-SHK-CLI-003`, `REQ-SHK-CORE-002` |
+| `REQ-SHK-TST-*`, `REQ-SHK-PRT-001` | `REQ-SHK-CLI-007` |
+| `REQ-SHK-DEF-003` | `REQ-SHK-SDK-001` |
+| `REQ-SHK-HKR-008`, `REQ-SHK-HKR-009`, `REQ-SHK-HKR-012` | `REQ-SHK-CORE-003`, `REQ-SHK-CORE-004`, `REQ-SHK-SDK-003` |
+
+Crate-local ownership details live in:
+
+- `docs/sc-hooks-cli/requirements.md`
+- `docs/sc-hooks-core/requirements.md`
+- `docs/sc-hooks-sdk/requirements.md`
+
 ## 3. Release Baseline
 
 Current release scope is the host dispatcher foundation:
@@ -110,7 +146,7 @@ Current release scope does not include:
 Retired observability IDs:
 - `OBS-003` and `OBS-004` were retired during the move from older ad hoc
   logging drafts to the current `sc-observability` contract; see
-  `docs/implementation-gaps.md` for the retirement note tied to `GAP-005` and
+  `docs/archive/implementation-gaps.md` for the retirement note tied to `GAP-005` and
   `GAP-007`
 
 | ID | Status | Priority | Requirement | Acceptance Scenario |
@@ -176,7 +212,7 @@ work is complete.
 | --- | --- | --- | --- | --- |
 | HKR-001 | Deferred | Must | The first hook-extension implementation target shall be the current Claude ATM hook set documented in `docs/hook-api/claude-hook-api.md`; ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md` and is not itself the generic hook contract. | Hook-extension work cites the Claude API doc as the implementation baseline and keeps ATM-only routing/persistence details in the separate ATM extension doc. |
 | HKR-002 | Deferred | Must | No hook implementation code shall be written until the Claude hook schema harness captures and validates the required Claude payloads for the planned hook set. | The first hook-development sprint produces captured Claude fixtures and validation models before any hook runtime crate is added. |
-| HKR-003 | Deferred | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/plugin-plan-s9.md` and the hook API docs are updated from captured fixtures before the first hook crate lands. |
+| HKR-003 | Deferred | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/archive/plugin-plan-s9.md` and the hook API docs are updated from captured fixtures before the first hook crate lands. |
 | HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall be driven by captured evidence, not old ATM prose. The currently captured baseline is `SessionStart`, `SessionEnd`, `PreCompact`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, teammate/background spawn via current `PreToolUse(tool_name="Agent")`, `PermissionRequest`, and `Stop`. `Notification` stays wired and documented but remains unresolved until a live payload is captured. Note: the prior planning baseline named `PreToolUse(Task)`; live Haiku capture at `999860c` corrected that assumption to `PreToolUse(Agent)` per `HKR-003`. | Hook crates and tests map only to the captured Claude surfaces above; `Notification` is not promoted into implementation-required behavior until a live payload exists. |
 | HKR-005 | Deferred | Must | The Claude schema harness shall fail CI on required-field removal or type drift and shall preserve raw captured fixtures as evidence. | Hook-schema CI fails on breaking Claude payload drift and retains captured fixture artifacts for review. |
 | HKR-006 | Deferred | Must | Provider-specific docs for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block the first Claude implementation path. | The first hook-development sequence proceeds on Claude-only capture and implementation even while other provider docs remain present. |
@@ -192,4 +228,4 @@ work is complete.
 
 If a behavior is not implemented and not required for release, it must be deferred.
 
-If a behavior is required for release but not yet fully proved, it must appear in `docs/implementation-gaps.md` and `docs/traceability.md`.
+If a behavior is required for release but not yet fully proved, it must appear in `docs/traceability.md` and, when needed for historical planning context, in `docs/archive/`.

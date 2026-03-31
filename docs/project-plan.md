@@ -9,14 +9,14 @@ It is a derived planning document. It does not override:
 - `docs/requirements.md` for release-facing behavior
 - `docs/architecture.md` for current architecture
 - `docs/protocol-contract.md` for the host/plugin wire contract
-- `docs/implementation-gaps.md` for explicit open gaps
+- `docs/archive/implementation-gaps.md` for archived gap context
 
 ## 2. Planning Inputs
 
 This plan is derived from:
 - `docs/requirements.md`
 - `docs/traceability.md`
-- `docs/implementation-gaps.md`
+- `docs/archive/implementation-gaps.md`
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
@@ -60,9 +60,9 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
+| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
 | Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
 | Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
@@ -123,7 +123,7 @@ Current high-risk classes covered here:
 - remaining merge-only review residue that can survive after the underlying issue is already resolved
 
 Merge signal for this docs/planning pass:
-- no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/implementation-gaps.md`
+- no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/archive/implementation-gaps.md`
 
 ## 10. Sprint Details
 
@@ -164,7 +164,7 @@ Write scope:
 - `docs/architecture.md`
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
-- `docs/implementation-gaps.md`
+- `docs/archive/implementation-gaps.md`
 
 Deliverables:
 - real-dispatch tests for console-sink emission on:
@@ -452,7 +452,7 @@ QA checklist answers:
 - What code was removed early rather than left in parallel?
   No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
 - Which files/crates were the owned write scope for the sprint?
-  `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
+  `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/archive/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
   Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
 - What follow-on work is blocked or unblocked by this sprint?
@@ -530,7 +530,7 @@ Write scope:
 - `docs/traceability.md`
 - `docs/observability-contract.md`
 - `docs/project-plan.md`
-- `docs/implementation-gaps.md`
+- `docs/archive/implementation-gaps.md`
 
 Deliverables:
 - delete the dead `unreachable!()` branch in `sc-hooks-sdk/src/conditions.rs`
@@ -584,7 +584,7 @@ Before release cut or final QA handoff, complete these checks explicitly:
 - claim audit: every strong release-facing statement in requirements and contract docs points to code, tests, or a gap/deferred ID
 - removal audit: no stale duplicate implementation path remains for any release-facing behavior
 - advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
-- misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/implementation-gaps.md`
+- misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/archive/implementation-gaps.md`
 - release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
 - branch freeze: branch head is frozen before QA/reviewer handoff
 - validation record: exact validation commands are recorded on the frozen branch state
@@ -594,7 +594,7 @@ Release preflight evidence:
 | Check | Status | Evidence |
 | --- | --- | --- |
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
-| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
+| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/archive/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
 | misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
 | release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
@@ -630,7 +630,7 @@ The release plan is complete only when:
 - all non-deferred blocker or important gaps are either closed or explicitly removed from release scope
 - every required-before-release item is either implemented or intentionally cut from the release contract
 - traceability rows for release claims point to real code and tests, not inference alone
-- no uncovered high-risk misalignment class remains outside this plan or `docs/implementation-gaps.md`
+- no uncovered high-risk misalignment class remains outside this plan or `docs/archive/implementation-gaps.md`
 - merge-time review items are closed
 - branch head is frozen before QA/reviewer handoff
 - exact validation commands are recorded on that frozen branch state
@@ -654,7 +654,7 @@ Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
 
 Deliverables:
-- freeze `docs/plugin-plan-s9.md` as the umbrella Sprint 9 execution plan
+- freeze `docs/archive/plugin-plan-s9.md` as the umbrella Sprint 9 execution plan
 - `docs/hook-api/claude-hook-api.md`
 - `docs/hook-api/atm-hook-extension.md`
 - `docs/hook-api/codex-hook-api.md`
@@ -714,7 +714,7 @@ Focus:
 
 Write scope:
 
-- `docs/plugin-plan-s9.md`
+- `docs/archive/plugin-plan-s9.md`
 - `docs/hook-api/claude-hook-api.md`
 - `docs/hook-api/atm-hook-extension.md`
 - `docs/project-plan.md`
@@ -722,7 +722,7 @@ Write scope:
 - `docs/architecture.md`
 
 Deliverables:
-- updated `docs/plugin-plan-s9.md`
+- updated `docs/archive/plugin-plan-s9.md`
 - updated `docs/hook-api/claude-hook-api.md`
 - any additional traceability/gap notes needed for implementation readiness
 - frozen normalized `agent_state` model

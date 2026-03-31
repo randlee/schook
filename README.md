@@ -44,7 +44,7 @@ Important current realities:
 - The runtime emits service-scoped observability events at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`.
 - A checked example runtime layout lives at `examples/runtime-layout/.sc-hooks/`.
 - The source crates under `plugins/` are reference implementations and scaffolds; none is currently described as shipped runtime functionality.
-- The docs in `docs/` are the source of truth for release scope and known implementation gaps.
+- The docs in `docs/` are the source of truth for release scope and crate ownership; archived planning artifacts live under `docs/archive/`.
 - Internal Rust enums and error types are implementation details; the public contract is JSON, environment variables, and documented exit codes.
 - SDK runner helpers are authoring conveniences; host behavior is defined by the executable/JSON contract, not by SDK fallback defaults.
 
@@ -77,10 +77,14 @@ sc-hooks exit-codes
 | `docs/requirements.md` | Normative release-facing behavior and status |
 | `docs/architecture.md` | Current crate boundaries, execution model, and deferred areas |
 | `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps; not a normative source-of-truth doc |
+| `docs/sc-hooks-cli/` | CLI crate ownership requirements and architecture |
+| `docs/sc-hooks-core/` | Core crate ownership requirements and architecture |
+| `docs/sc-hooks-sdk/` | SDK crate ownership requirements and architecture |
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
 | `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
 | `docs/logging-contract.md` | Current JSONL dispatch-log schema for downstream consumers |
-| `docs/implementation-gaps.md` | Current reality vs required release work |
+| `docs/archive/implementation-gaps.md` | Archived gap ledger from the release-hardening phase |
+| `docs/archive/plugin-plan-s9.md` | Archived Sprint 9 plugin planning and provider-evidence ledger |
 | `docs/traceability.md` | Requirement-to-code/test/gap mapping |
 | `docs/doc-governance.md` | Rules for keeping docs and code aligned |
 
