@@ -65,6 +65,7 @@ fn worktree_create_returns_absolute_path_for_authorized_folder() {
     let script = root.join("worktree-create.sh");
     let allowed_root = root.join("allowed-root");
     let requested_cwd = allowed_root.join("repo");
+    let transcript_path = root.join("transcript.jsonl");
     std::fs::create_dir_all(&requested_cwd).expect("authorized cwd should exist");
 
     fixtures::create_executable_script(
@@ -96,7 +97,7 @@ print(target)
         &script,
         json!({
             "session_id": "abc123",
-            "transcript_path": "/tmp/transcript.jsonl",
+            "transcript_path": transcript_path,
             "cwd": requested_cwd,
             "hook_event_name": "WorktreeCreate",
             "name": "feature-auth"
@@ -121,6 +122,7 @@ fn worktree_create_blocks_unauthorized_folder_with_redirect_message() {
     let script = root.join("worktree-create.sh");
     let allowed_root = root.join("allowed-root");
     let unauthorized_cwd = root.join("unauthorized-root/repo");
+    let transcript_path = root.join("transcript.jsonl");
     std::fs::create_dir_all(&unauthorized_cwd).expect("unauthorized cwd should exist");
 
     fixtures::create_executable_script(
@@ -149,7 +151,7 @@ print(allowed_root / "worktrees" / payload["name"])
         &script,
         json!({
             "session_id": "abc123",
-            "transcript_path": "/tmp/transcript.jsonl",
+            "transcript_path": transcript_path,
             "cwd": unauthorized_cwd,
             "hook_event_name": "WorktreeCreate",
             "name": "feature-auth"
@@ -174,6 +176,8 @@ fn worktree_create_does_not_accept_json_control_output_as_a_path() {
     let temp = tempfile::tempdir().expect("tempdir should exist");
     let root = temp.path();
     let script = root.join("worktree-create-json.sh");
+    let transcript_path = root.join("transcript.jsonl");
+    let repo_path = root.join("repo");
 
     fixtures::create_executable_script(
         &script,
@@ -187,8 +191,8 @@ printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDe
         &script,
         json!({
             "session_id": "abc123",
-            "transcript_path": "/tmp/transcript.jsonl",
-            "cwd": "/tmp/repo",
+            "transcript_path": transcript_path,
+            "cwd": repo_path,
             "hook_event_name": "WorktreeCreate",
             "name": "feature-auth"
         }),
@@ -207,6 +211,7 @@ fn worktree_remove_reads_worktree_path_from_input() {
     let root = temp.path();
     let script = root.join("worktree-remove.sh");
     let worktree = root.join("allowed-root/worktrees/feature-auth");
+    let transcript_path = root.join("transcript.jsonl");
     std::fs::create_dir_all(&worktree).expect("worktree should exist");
 
     fixtures::create_executable_script(
@@ -229,7 +234,7 @@ shutil.rmtree(path)
         &script,
         json!({
             "session_id": "abc123",
-            "transcript_path": "/tmp/transcript.jsonl",
+            "transcript_path": transcript_path,
             "cwd": root,
             "hook_event_name": "WorktreeRemove",
             "worktree_path": worktree
