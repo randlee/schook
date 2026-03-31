@@ -3,46 +3,68 @@ use std::process::{Command, Stdio};
 
 use serde::Serialize;
 
-pub mod private {
+mod private {
     pub trait Sealed {}
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// Result of a single compliance assertion.
 pub struct ComplianceCheck {
+    /// Human-readable check name.
     pub name: String,
+    /// Whether the check passed.
     pub passed: bool,
+    /// Optional detail text for failures or supporting evidence.
     pub detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// Summary report for manifest/protocol compliance checks against one plugin.
 pub struct ComplianceReport {
+    /// Display path to the plugin executable under test.
     pub plugin_path: String,
+    /// Individual checks performed for the plugin.
     pub checks: Vec<ComplianceCheck>,
 }
 
 impl ComplianceReport {
+    /// Returns whether every recorded check passed.
     pub fn passed(&self) -> bool {
         self.checks.iter().all(|check| check.passed)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Shared host-behavior scenarios exercised by the compliance harness.
 pub enum ContractScenario {
+    /// Dispatch with no payload object.
     AbsentPayload,
+    /// Plugin returns invalid stdout.
     InvalidOutput,
+    /// Plugin returns multiple JSON objects.
     MultipleJsonObjects,
+    /// Async plugin attempts to block.
     AsyncBlockMisuse,
+    /// Matcher mismatch skips the plugin cleanly.
     MatcherFiltering,
+    /// Plugin exceeds its timeout.
     Timeout,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Captured host outcome for a contract-behavior scenario.
 pub struct ContractScenarioResult {
+    /// Process exit code.
     pub exit_code: i32,
+    /// Captured stdout.
     pub stdout: String,
+    /// Captured stderr.
     pub stderr: String,
+    /// Last observability log line, when one was emitted.
     pub last_log_line: Option<String>,
+    /// Serialized session state after the scenario, when present.
     pub session_state: Option<String>,
+    /// Whether the scenario-specific marker file exists.
     pub marker_exists: bool,
 }
 
@@ -51,9 +73,34 @@ pub struct ContractScenarioResult {
 /// implementations. Implementors must provide
 /// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>`.
 pub trait HostDispatchProbe: private::Sealed {
+    /// Executes one shared contract scenario through the real host path.
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
 }
 
+/// Function-backed implementation of [`HostDispatchProbe`].
+pub struct FnHostDispatchProbe<F> {
+    run: F,
+}
+
+impl<F> FnHostDispatchProbe<F> {
+    /// Wraps a function or closure as a host dispatch probe.
+    pub fn new(run: F) -> Self {
+        Self { run }
+    }
+}
+
+impl<F> private::Sealed for FnHostDispatchProbe<F> {}
+
+impl<F> HostDispatchProbe for FnHostDispatchProbe<F>
+where
+    F: Fn(ContractScenario) -> Result<ContractScenarioResult, String>,
+{
+    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
+        (self.run)(scenario)
+    }
+}
+
+/// Runs the basic manifest/protocol compliance suite against one plugin executable.
 pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {
     let mut checks = Vec::new();
     let plugin_path_str = plugin_path.display().to_string();
@@ -136,6 +183,7 @@ pub fn run_compliance(plugin_path: &Path) -> ComplianceReport {
     }
 }
 
+/// Runs shared host-behavior compliance scenarios against a dispatch probe.
 pub fn run_contract_behavior_suite(probe: &impl HostDispatchProbe) -> Vec<ComplianceCheck> {
     vec![
         check_absent_payload(probe),

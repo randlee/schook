@@ -1,34 +1,79 @@
+use std::borrow::Cow;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::result::{HookResult, error_from_hook_error};
 use crate::traits::{AsyncHandler, SyncHandler};
+use log::error;
 use sc_hooks_core::context::HookContext;
+use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use thiserror::Error;
 
+/// Standard executable entrypoint helper for Rust plugins.
 pub struct PluginRunner;
 
 #[derive(Debug, Error)]
+/// Errors raised while constructing hook context for SDK-based plugins.
 pub enum RunnerError {
-    #[error("unknown hook type `{name}`")]
-    UnknownHookType { name: String },
+    /// No hook type was available from the environment or payload.
+    #[error("missing hook type in SC_HOOK_TYPE and payload")]
+    MissingHookType,
 
+    /// The hook name could not be resolved to a known `HookType`.
+    #[error("unknown hook type `{name}`: {reason}")]
+    UnknownHookType {
+        /// Unrecognized hook name.
+        name: String,
+        /// Parser rejection reason.
+        reason: String,
+    },
+
+    /// Stdin could not be read from the plugin process.
     #[error("failed to read stdin: {source}")]
     StdinRead {
         #[source]
+        /// Underlying stdin read error.
         source: std::io::Error,
     },
 
+    /// Stdin contained invalid JSON for hook-context construction.
     #[error("invalid JSON on stdin: {source}")]
     StdinParse {
+        /// Excerpt of the unreadable payload.
+        input_excerpt: String,
         #[source]
+        /// Underlying JSON parser error.
         source: serde_json::Error,
     },
 }
 
+impl From<RunnerError> for HookError {
+    fn from(err: RunnerError) -> Self {
+        match err {
+            RunnerError::MissingHookType => {
+                HookError::invalid_context("missing hook type in SC_HOOK_TYPE and payload")
+            }
+            RunnerError::UnknownHookType { name, reason } => {
+                HookError::invalid_context(format!("unknown hook type `{name}`: {reason}"))
+            }
+            RunnerError::StdinRead { source } => {
+                HookError::internal_with_source("failed to read stdin", source)
+            }
+            RunnerError::StdinParse {
+                input_excerpt,
+                source,
+            } => HookError::InvalidPayload {
+                input_excerpt,
+                source: Some(source),
+            },
+        }
+    }
+}
+
 impl PluginRunner {
+    /// Runs a synchronous handler from a standard `main()` function.
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
@@ -37,8 +82,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&HookError::from(err)));
             }
         };
 
@@ -50,6 +94,7 @@ impl PluginRunner {
         write_result(&result)
     }
 
+    /// Runs an asynchronous handler from a standard `main()` function.
     pub fn run_async<H: AsyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
@@ -58,8 +103,7 @@ impl PluginRunner {
         let input = match read_hook_context() {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("{err}");
-                return sc_hooks_core::exit_codes::PLUGIN_ERROR;
+                return write_result(&error_from_hook_error(&HookError::from(err)));
             }
         };
 
@@ -83,7 +127,7 @@ fn print_manifest(manifest: &sc_hooks_core::manifest::Manifest) -> i32 {
             sc_hooks_core::exit_codes::SUCCESS
         }
         Err(err) => {
-            eprintln!("failed to serialize manifest: {err}");
+            error!("failed to serialize manifest: {err}");
             sc_hooks_core::exit_codes::PLUGIN_ERROR
         }
     }
@@ -99,8 +143,10 @@ fn read_json_stdin() -> Result<serde_json::Value, RunnerError> {
         return Ok(serde_json::json!({}));
     }
 
-    serde_json::from_str::<serde_json::Value>(&input)
-        .map_err(|source| RunnerError::StdinParse { source })
+    serde_json::from_str::<serde_json::Value>(&input).map_err(|source| RunnerError::StdinParse {
+        input_excerpt: input.chars().take(120).collect(),
+        source,
+    })
 }
 
 fn read_hook_context() -> Result<HookContext, RunnerError> {
@@ -114,30 +160,33 @@ fn read_hook_context() -> Result<HookContext, RunnerError> {
 fn resolve_hook_type(raw_input: &serde_json::Value) -> Result<HookType, RunnerError> {
     let hook_name = std::env::var("SC_HOOK_TYPE")
         .ok()
+        .map(Cow::Owned)
         .or_else(|| {
             raw_input
                 .get("hook")
                 .and_then(|hook| hook.get("type"))
                 .and_then(serde_json::Value::as_str)
-                .map(str::to_string)
+                .map(Cow::Borrowed)
         })
-        .ok_or_else(|| RunnerError::UnknownHookType {
-            name: "<missing>".to_string(),
-        })?;
+        .ok_or(RunnerError::MissingHookType)?;
 
-    HookType::from_str(&hook_name).map_err(|_err| RunnerError::UnknownHookType {
-        name: hook_name.clone(),
+    HookType::from_str(hook_name.as_ref()).map_err(|err| RunnerError::UnknownHookType {
+        name: hook_name.into_owned(),
+        reason: err.to_string(),
     })
 }
 
-fn resolve_event(raw_input: &serde_json::Value) -> Option<String> {
-    std::env::var("SC_HOOK_EVENT").ok().or_else(|| {
-        raw_input
-            .get("hook")
-            .and_then(|hook| hook.get("event"))
-            .and_then(serde_json::Value::as_str)
-            .map(str::to_string)
-    })
+fn resolve_event(raw_input: &serde_json::Value) -> Option<Cow<'static, str>> {
+    std::env::var("SC_HOOK_EVENT")
+        .ok()
+        .or_else(|| {
+            raw_input
+                .get("hook")
+                .and_then(|hook| hook.get("event"))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .map(Cow::Owned)
 }
 
 fn write_result(result: &HookResult) -> i32 {
@@ -145,17 +194,17 @@ fn write_result(result: &HookResult) -> i32 {
     match serde_json::to_vec(result) {
         Ok(body) => {
             if let Err(err) = stdout.write_all(&body) {
-                eprintln!("failed to write stdout: {err}");
+                error!("failed to write stdout: {err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
             if let Err(err) = stdout.write_all(b"\n") {
-                eprintln!("failed to flush newline: {err}");
+                error!("failed to flush newline: {err}");
                 return sc_hooks_core::exit_codes::PLUGIN_ERROR;
             }
             sc_hooks_core::exit_codes::SUCCESS
         }
         Err(err) => {
-            eprintln!("failed to serialize result: {err}");
+            error!("failed to serialize result: {err}");
             sc_hooks_core::exit_codes::PLUGIN_ERROR
         }
     }
@@ -193,7 +242,7 @@ mod tests {
             .expect_err("unknown hook should fail");
         assert!(matches!(
             err,
-            RunnerError::UnknownHookType { name } if name == "NotAHook"
+            RunnerError::UnknownHookType { name, .. } if name == "NotAHook"
         ));
     }
 

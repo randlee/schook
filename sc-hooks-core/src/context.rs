@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use serde::de::DeserializeOwned;
@@ -7,17 +8,22 @@ use crate::errors::HookError;
 use crate::events::HookType;
 
 #[derive(Debug, Clone, PartialEq)]
+/// Raw hook context passed from the host to a Rust plugin handler.
 pub struct HookContext {
+    /// Canonical hook name.
     pub hook: HookType,
-    pub event: Option<String>,
+    /// Optional matcher/event name.
+    pub event: Option<Cow<'static, str>>,
     raw_input: Value,
+    /// Optional path to the temp metadata file exported by the host.
     pub metadata_path: Option<PathBuf>,
 }
 
 impl HookContext {
+    /// Creates a hook context from parsed host input.
     pub fn new(
         hook: HookType,
-        event: Option<String>,
+        event: Option<Cow<'static, str>>,
         raw_input: Value,
         metadata_path: Option<PathBuf>,
     ) -> Self {
@@ -29,12 +35,14 @@ impl HookContext {
         }
     }
 
+    /// Returns the raw `payload` object from the host input.
     pub fn payload_value(&self) -> Result<&Value, HookError> {
         self.raw_input
             .get("payload")
             .ok_or_else(|| HookError::validation("payload", "missing payload object"))
     }
 
+    /// Deserializes the raw `payload` object into a typed payload struct.
     pub fn payload<T: DeserializeOwned>(&self) -> Result<T, HookError> {
         let payload = self.payload_value()?;
         serde_json::from_value(payload.clone()).map_err(|source| HookError::InvalidPayload {
@@ -47,7 +55,7 @@ impl HookContext {
 fn excerpt(value: &Value) -> String {
     let rendered = match serde_json::to_string(value) {
         Ok(body) => body,
-        Err(_) => "<unrenderable>".to_string(),
+        Err(err) => format!("<unrenderable: {err}>"),
     };
     rendered.chars().take(120).collect()
 }

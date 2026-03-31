@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
+use log::warn;
+use sc_hooks_core::session::{AiRootDir, SessionId};
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
 use toml::Value as TomlValue;
@@ -21,7 +23,7 @@ const ENV_SESSION_ID: &str = "SC_HOOK_SESSION_ID";
 pub struct RuntimeMetadata {
     pub agent_pid: u32,
     pub agent_type: Option<String>,
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     pub repo_path: Option<String>,
     pub repo_branch: Option<String>,
     pub working_dir: String,
@@ -48,8 +50,8 @@ impl HookEnv {
 pub struct PreparedMetadata {
     pub metadata: Value,
     pub env: HookEnv,
-    pub session_id: Option<String>,
-    pub project_root: PathBuf,
+    pub session_id: Option<SessionId>,
+    pub project_root: AiRootDir,
     // Intentionally retained for drop-on-scope-exit cleanup of SC_HOOK_METADATA temp file.
     _metadata_file: MetadataFileGuard,
 }
@@ -72,7 +74,16 @@ impl RuntimeMetadata {
         Ok(Self {
             agent_pid: std::process::id(),
             agent_type: std::env::var(ENV_AGENT_TYPE).ok(),
-            session_id: std::env::var(ENV_SESSION_ID).ok(),
+            session_id: std::env::var(ENV_SESSION_ID)
+                .ok()
+                .map(SessionId::new)
+                .transpose()
+                .map_err(|source| {
+                    CliError::internal_with_source(
+                        "SC_HOOK_SESSION_ID must be a valid non-empty session id",
+                        source,
+                    )
+                })?,
             repo_path: git_output(&["rev-parse", "--show-toplevel"]),
             repo_branch: git_output(&["rev-parse", "--abbrev-ref", "HEAD"]),
             working_dir,
@@ -108,17 +119,24 @@ pub fn prepare_with_runtime(
         metadata,
         env,
         session_id: runtime.session_id.clone(),
-        project_root: runtime
-            .repo_path
-            .as_ref()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(&runtime.working_dir)),
+        project_root: AiRootDir::new(
+            runtime
+                .repo_path
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(&runtime.working_dir)),
+        )
+        .map_err(|source| {
+            CliError::internal_with_source("failed to resolve absolute project root", source)
+        })?,
         _metadata_file: metadata_file,
     })
 }
 
-pub fn current_session_id() -> Option<String> {
-    std::env::var(ENV_SESSION_ID).ok()
+pub fn current_session_id() -> Option<SessionId> {
+    std::env::var(ENV_SESSION_ID)
+        .ok()
+        .and_then(|value| SessionId::new(value).ok())
 }
 
 pub fn assemble_metadata(
@@ -136,7 +154,10 @@ pub fn assemble_metadata(
         agent.insert("type".to_string(), Value::String(agent_type.clone()));
     }
     if let Some(session_id) = runtime.session_id.as_ref() {
-        agent.insert("session_id".to_string(), Value::String(session_id.clone()));
+        agent.insert(
+            "session_id".to_string(),
+            Value::String(session_id.as_str().to_string()),
+        );
     }
     root.insert("agent".to_string(), Value::Object(agent));
 
@@ -253,6 +274,10 @@ fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
             continue;
         };
         let Ok(age) = now.duration_since(modified) else {
+            warn!(
+                "metadata temp file clock skew detected for {} while sweeping stale files",
+                path.display()
+            );
             continue;
         };
         if age >= max_age {
@@ -290,6 +315,11 @@ mod tests {
 
     #[test]
     fn assembles_metadata_with_injected_runtime_and_context() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let repo_root = temp.path().join("repo");
+        let repo_subdir = repo_root.join("subdir");
+        let repo_root_str = repo_root.to_string_lossy().to_string();
+        let repo_subdir_str = repo_subdir.to_string_lossy().to_string();
         let mut context = BTreeMap::new();
         let mut team = toml::map::Map::new();
         team.insert(
@@ -305,10 +335,10 @@ mod tests {
         let runtime = RuntimeMetadata {
             agent_pid: 42,
             agent_type: Some("codex".to_string()),
-            session_id: Some("abc123".to_string()),
-            repo_path: Some("/repo".to_string()),
+            session_id: Some(SessionId::new("abc123").expect("session id")),
+            repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
-            working_dir: "/repo/subdir".to_string(),
+            working_dir: repo_subdir_str.clone(),
         };
         let payload = serde_json::json!({"tool_input":{"command":"Write"}} );
         let metadata = assemble_metadata(
@@ -329,14 +359,14 @@ mod tests {
             metadata["agent"]["session_id"],
             Value::String("abc123".to_string())
         );
-        assert_eq!(metadata["repo"]["path"], Value::String("/repo".to_string()));
+        assert_eq!(metadata["repo"]["path"], Value::String(repo_root_str));
         assert_eq!(
             metadata["repo"]["branch"],
             Value::String("feature/s2".to_string())
         );
         assert_eq!(
             metadata["repo"]["working_dir"],
-            Value::String("/repo/subdir".to_string())
+            Value::String(repo_subdir_str)
         );
         assert_eq!(
             metadata["team"]["name"],
@@ -377,14 +407,16 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
+        let repo_root_str = repo_root.to_string_lossy().to_string();
 
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: Some("codex".to_string()),
-            session_id: Some("session-1".to_string()),
-            repo_path: Some("/repo".to_string()),
+            session_id: Some(SessionId::new("session-1").expect("session id")),
+            repo_path: Some(repo_root_str.clone()),
             repo_branch: Some("feature/s2".to_string()),
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root_str,
         };
 
         let prepared = prepare_with_runtime(
@@ -432,13 +464,14 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: None,
             session_id: None,
             repo_path: None,
             repo_branch: None,
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root.to_string_lossy().to_string(),
         };
 
         let prepared =
@@ -478,13 +511,14 @@ PreToolUse = ["guard-paths"]
             "in-memory",
         )
         .expect("config should parse");
+        let repo_root = temp.path().join("repo");
         let runtime = RuntimeMetadata {
             agent_pid: 11,
             agent_type: None,
             session_id: None,
             repo_path: None,
             repo_branch: None,
-            working_dir: "/repo".to_string(),
+            working_dir: repo_root.to_string_lossy().to_string(),
         };
 
         let prepared =

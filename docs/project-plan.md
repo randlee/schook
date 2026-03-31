@@ -76,7 +76,7 @@ Important planning rule:
 | Sprint 9 | S9-HP4 | Implementation Complete | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
 | Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-HP3 | `atm-extension`, relay tests |
 | Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
-| Sprint 9 | S9-BONUS | Completed | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/archive/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
+| Sprint 9 | S9-BONUS | In QA | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/archive/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
 | Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/raw/` (env-backed captures), `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
 | Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
 | Sprint 10 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
@@ -1001,6 +1001,13 @@ Deliverables:
   `clear`, and Bash-drift evidence
 - update direct unit/integration tests for the corrected root semantics
 
+Design constraint:
+- `ai_root_dir` immutability is enforced at the type level: the field must be
+  a newtype or typestate barrier that can only be set once at
+  `SessionStart(source="startup")` construction and is not writable by any
+  later hook handler; a plain mutable `String` or `PathBuf` field is not
+  acceptable (BP-001)
+
 Acceptance criteria:
 - runtime root identity no longer depends on later hook `cwd`
 - captured lifecycle sources (`startup`, `resume`, `compact`, `clear`) resolve
@@ -1020,6 +1027,13 @@ Focus:
   harness-backed regression coverage
 
 Deliverables:
+- define and implement a `RootDivergence` error variant (or equivalent named
+  type) with the following cause-chain fields (BP-002):
+  - `immutable_root: PathBuf` — the value established at startup
+  - `observed: PathBuf` — the inbound `CLAUDE_PROJECT_DIR` value that differed
+  - `hook_event: String` — the hook surface where the divergence was detected
+  - recovery step: log at error level and continue with the immutable root;
+    never silently substitute the inbound value
 - prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
   diverges from the persisted immutable root
 - exact structured log/assertion coverage for divergence cases

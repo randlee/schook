@@ -77,6 +77,7 @@ This table maps the most important documented requirements to current implementa
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
 | HKR-002 | implemented | `test-harness/hooks/claude/captures/raw/`, `test-harness/hooks/claude/tests/` | `test_fixture_validation.py`, `test_harness_structure.py` — harness structure and capture script contracts verified | |
 | HKR-003 | implemented | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md` | `test-harness/run-schema-drift.py` drift detection; plan and hook API docs were revised from captured fixtures including `resume` and `clear` evidence | |
+| HKR-008 | implemented | `sc-hooks-core/src/session.rs`, `plugins/agent-session-foundation/src/lib.rs`, `sc-hooks-core/src/storage.rs` | `sc-hooks-core/src/session.rs:429-534`, `plugins/agent-session-foundation` unit tests, and storage tests covering canonical-record validation, immutable root persistence, current-dir drift handling, and provider-root equality enforcement | |
 | HKR-009 | implemented | `plugins/agent-session-foundation/src/lib.rs` | `plugins/agent-session-foundation` unit tests covering atomic-write temp-plus-rename, skip-on-unchanged, and per-invocation observability emission | |
 | HKR-011 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering extension-field enrichment, team linkage, and child identity override behavior | |
 | HKR-013 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering the four-stage relay pipeline, `ToolName` typed boundary, and relay-decision side-effect separation | |
@@ -101,12 +102,16 @@ This table maps the most important documented requirements to current implementa
   - authorizing sprint: `S9-BONUS`
 - `HKR-008`
   - prior text: env-var availability of `CLAUDE_PROJECT_DIR` in hook process context was unverified; implementation of the canonical session-state record keyed by `ai_root_dir` was specified but not capture-backed
-  - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source=”startup”)` is the only capture-backed surface for establishing immutable root; later `cwd` values may drift; the full implementation of the canonical session-state model (atomic persistence, root-equality check, normalized consumer output) remains deferred pending `S10-R1`
-  - authorizing sprint: `S9-ENV-CAPTURE`
+  - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source="startup")` is the capture-backed surface for establishing immutable root; later `cwd` values may drift; the canonical session-state model now enforces immutable-root persistence, root-equality checks, and normalized consumer output
+  - authorizing sprints: `S9-ENV-CAPTURE`, `S10-R1`
 - `BND-001a`
   - prior text: the documented `plugins/` source inventory listed nine crates and treated later additions as outside the branch baseline
   - current text: the documented `plugins/` source inventory lists all thirteen source crates in the branch and distinguishes the four non-scaffold runtime crates from the nine scaffold/reference crates
   - authorizing sprint: `S9-HP5`
+- `OBS-009`
+  - prior text: env-flag sink toggles were documented implementation details, not a named release-facing observability requirement
+  - current text: env-flag sink toggles are promoted into the release-facing observability contract as `OBS-009`, with file sink canonical by default and console sink documented as the operator/debugging surface
+  - authorizing sprint: `S9-BONUS`
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
   - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model

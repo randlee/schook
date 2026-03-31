@@ -1,7 +1,12 @@
+#![cfg(unix)]
+
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use sc_hooks_core::errors::RootDivergenceNotice;
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::session::{AiRootDir, SessionId};
 use sc_hooks_test::fixtures;
 use serde_json::Value;
 
@@ -88,6 +93,14 @@ fn read_last_log(root: &Path) -> Value {
         .expect("observability log should be readable");
     let line = rendered.lines().last().expect("log line should exist");
     serde_json::from_str(line).expect("log line should parse")
+}
+
+fn read_all_logs(root: &Path) -> Vec<Value> {
+    fs::read_to_string(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH))
+        .expect("observability log should be readable")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("log line should parse"))
+        .collect()
 }
 
 fn session_disables_plugin_for_reason(root: &Path, plugin: &str, reason: &str) -> bool {
@@ -297,6 +310,69 @@ printf '%s\n' '{"action":"proceed"}'
         "probe-plugin",
         "runtime-error"
     ));
+}
+
+#[test]
+fn root_divergence_notice_emits_structured_log_event() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "Stop", "probe-plugin");
+    let notice = RootDivergenceNotice::new(
+        AiRootDir::new(root).expect("root dir"),
+        root.join("mismatched"),
+        SessionId::new("session-root-divergence").expect("session id"),
+        HookType::Stop,
+    )
+    .expect("notice should validate")
+    .encode()
+    .expect("notice should encode");
+    let runtime_output = serde_json::json!({
+        "action": "proceed",
+        "additionalContext": notice,
+    })
+    .to_string();
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["Stop"],"matchers":["*"],"requires":{}}"#,
+        &runtime_output,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "Stop",
+        None,
+        Some(serde_json::json!({
+            "session_id": "session-root-divergence",
+            "cwd": root,
+            "stop_hook_active": false
+        })),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let logs = read_all_logs(root);
+    assert_eq!(logs.len(), 2);
+    assert_eq!(logs[0]["action"], "session.root_divergence");
+    assert_eq!(logs[0]["level"], "Error");
+    assert_eq!(logs[0]["outcome"], "error");
+    assert_eq!(
+        logs[0]["fields"]["immutable_root"],
+        root.to_str().expect("utf8")
+    );
+    assert_eq!(logs[0]["fields"]["session_id"], "session-root-divergence");
+    assert_eq!(logs[0]["fields"]["hook_event"], "Stop");
+    assert_eq!(logs[1]["action"], "dispatch.complete");
+    assert_eq!(
+        logs[1]["fields"]["results"][0]["warning"],
+        "divergence in CLAUDE_PROJECT_DIR from ".to_string()
+            + root.to_str().expect("utf8")
+            + " to "
+            + root.join("mismatched").to_str().expect("utf8")
+            + " on Stop"
+    );
 }
 
 #[test]

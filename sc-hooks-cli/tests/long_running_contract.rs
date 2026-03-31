@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -20,6 +22,7 @@ fn cli_binary() -> String {
         .to_string()
 }
 
+#[cfg(unix)]
 #[test]
 fn sync_long_running_without_timeout_override_runs_past_default_timeout() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -57,6 +60,7 @@ printf '%s\n' '{"action":"proceed"}'
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn async_long_running_manifest_is_rejected_by_host_runtime() {
     let temp = tempfile::tempdir().expect("tempdir should create");

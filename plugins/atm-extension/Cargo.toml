@@ -2,7 +2,7 @@
 name = "atm-extension"
 version.workspace = true
 edition = "2024"
-description = "Scaffold/reference sc-hooks plugin source crate"
+description = "Runtime-implementation sc-hooks plugin source crate"
 
 [dependencies]
 sc-hooks-core = { path = "../../sc-hooks-core" }
@@ -12,6 +12,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 shell-words = "1.1.0"
 toml = "0.8.20"
+log = "0.4.28"
 
 [dev-dependencies]
 tempfile = "3.23.0"
