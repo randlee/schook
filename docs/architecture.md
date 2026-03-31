@@ -30,6 +30,13 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
 
+Crate-local ADR delegation:
+- crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
+  defined in the crate architecture docs under `docs/sc-hooks-cli/`,
+  `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
+- those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
+  through `ADR-SHK-005` decisions in this document
+
 ## 2. Current System Boundary
 
 `sc-hooks` is a process-based hook dispatcher.

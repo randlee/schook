@@ -18,7 +18,7 @@ responsibilities that satisfy the referenced product requirements.
 | `REQ-SHK-CLI-004` | Implemented | The CLI crate shall own runtime metadata discovery, metadata temp-file lifecycle, and environment injection for plugin subprocesses. | `REQ-SHK-MTA-*` | `sc-hooks-cli/src/metadata.rs` |
 | `REQ-SHK-CLI-005` | Implemented | The CLI crate shall own static audit execution, install-plan generation, and the retained user-facing command surface. | `REQ-SHK-CLI-001`, `REQ-SHK-CLI-002`, `REQ-SHK-AUD-*` | `sc-hooks-cli/src/audit.rs`, `sc-hooks-cli/src/install.rs`, `sc-hooks-cli/src/main.rs` |
 | `REQ-SHK-CLI-006` | Implemented | The CLI crate shall remain the only workspace crate that initializes logging sinks and emits structured `sc-observability` dispatch events. | `REQ-SHK-OBS-*` | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` |
-| `REQ-SHK-CLI-007` | Implemented | The CLI crate shall provide the real host-dispatch path that the reusable compliance harness exercises. | `REQ-SHK-CLI-007`, `REQ-SHK-TST-007` | `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/tests/compliance_host.rs` |
+| `REQ-SHK-CLI-007` | Implemented | The CLI crate shall provide the real host-dispatch path that the reusable compliance harness exercises. | `REQ-SHK-TST-007` | `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/tests/compliance_host.rs` |
 
 ## 3. Ownership Notes
 
