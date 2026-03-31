@@ -108,7 +108,6 @@ What is not verified today:
   establish a different immutable runtime root
 - whether `CLAUDE_PROJECT_DIR` is present inside ordinary Bash tool subprocesses
   rather than hook-process env
-- a local `WorktreeRemove` capture in this repo
 
 ## Verified Claude Worktree Hook Semantics
 
@@ -159,6 +158,29 @@ Verified/provider-documented facts:
 - the hook is for cleanup side effects, using the path returned by
   `WorktreeCreate`
 - it is not part of the `HookResult` / decision-control JSON model
+
+Current local evidence in this branch:
+
+- live Claude `--worktree live-remove-double-ctrl-d` capture at:
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.015758Z-worktree-create.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.015758Z-worktree-create.env.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.195636Z-worktree-remove.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.195636Z-worktree-remove.env.json`
+- captured `WorktreeRemove` payload fields:
+  - `cwd`
+  - `hook_event_name = "WorktreeRemove"`
+  - `session_id`
+  - `transcript_path`
+  - `worktree_path`
+- live exit behavior:
+  - the worktree session exited through the REPL `Ctrl-D` flow
+  - Claude surfaced `Removing worktree`
+  - the `WorktreeRemove` hook fired with the provider-returned worktree path
+
+Important local harness note:
+- the capture-only `worktree_remove.py` hook records the payload but does not
+  delete the directory; this proves hook firing and payload shape, not local
+  cleanup policy
 
 Current `schook` status:
 - documented provider surface only

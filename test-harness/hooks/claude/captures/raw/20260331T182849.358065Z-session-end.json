@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook",
+  "hook_event_name": "SessionEnd",
+  "reason": "prompt_input_exit",
+  "session_id": "1bf52864-42e9-4ede-9142-969ea642f6ed",
+  "transcript_path": "/Users/randlee/.claude/projects/-private-var-folders-zk-zklzmbr52q55r1y8zv-k84k80000gn-T-schook-worktree-live4-live-remove-double-ctrl-d/1bf52864-42e9-4ede-9142-969ea642f6ed.jsonl"
+}

@@ -28,11 +28,12 @@ def main() -> int:
         return 1
 
     allowed_root = os.environ.get("SCHOOK_WORKTREE_ALLOWED_ROOT", "").strip()
-    if not allowed_root:
+    create_root = os.environ.get("SCHOOK_WORKTREE_CREATE_ROOT", "").strip()
+    if not allowed_root and not create_root:
         return 0
 
     cwd = Path(payload.get("cwd", "")).expanduser()
-    allowed = Path(allowed_root).expanduser().resolve()
+    allowed = Path(allowed_root).expanduser().resolve() if allowed_root else None
 
     try:
         resolved_cwd = cwd.resolve()
@@ -40,11 +41,20 @@ def main() -> int:
         print("WorktreeCreate hook rejected: invalid cwd", file=sys.stderr)
         return 1
 
-    if allowed == resolved_cwd or allowed in resolved_cwd.parents:
-        return 0
+    if allowed and not (allowed == resolved_cwd or allowed in resolved_cwd.parents):
+        print(REDIRECT_MESSAGE, file=sys.stderr)
+        return 1
 
-    print(REDIRECT_MESSAGE, file=sys.stderr)
-    return 1
+    if create_root:
+        name = str(payload.get("name", "")).strip()
+        if not name:
+            print("WorktreeCreate hook rejected: missing worktree name", file=sys.stderr)
+            return 1
+        target = Path(create_root).expanduser().resolve() / name
+        target.mkdir(parents=True, exist_ok=True)
+        print(target)
+
+    return 0
 
 
 if __name__ == "__main__":

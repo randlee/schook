@@ -67,6 +67,8 @@ Captured:
 - `PreCompact`
 - `PreToolUse(Bash)`
 - `PostToolUse(Bash)`
+- `WorktreeCreate`
+- `WorktreeRemove`
 - teammate/background spawn via `PreToolUse` with `tool_name = "Agent"`
 - `PermissionRequest` with `tool_name = "Write"`
 - `PermissionRequest` with `tool_name = "Bash"`
@@ -146,6 +148,11 @@ Interactive surface notes from this capture pass:
 - `PreCompact` plus post-compact `SessionStart(source="compact")` were captured
   only after launching Claude with harness-local settings and running
   `/compact` manually
+- `WorktreeCreate` blocking was captured with a live `claude --worktree ... -p`
+  run against the local harness
+- `WorktreeRemove` was captured by launching a live `--worktree` session and
+  exiting through the REPL `Ctrl-D` flow; the capture hook is observational
+  only and does not delete the created directory
 - `Notification` remained unresolved even after switching to `matcher = ""`
   and waiting more than 60 seconds
 
