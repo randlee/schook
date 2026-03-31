@@ -77,20 +77,23 @@ All three flags (`--agent-id`, `--agent-name`, `--team-name`) are required toget
 
 ### 4. Send O.1 Assignment to chook
 
+Render via `sc-compose`, then pipe to `atm send`:
+
 ```bash
-atm send chook "Phase {P} Sprint {P}.1 assignment: {title}
+sc-compose render .claude/skills/codex-orchestration/dev-template.xml.j2 \
+  --var task_id=SC-P{P}-1 \
+  --var sprint="P{P}.1" \
+  --var assignee=chook \
+  --var description="{title}" \
+  --var worktree_path=/path/to/worktree \
+  --var branch=feature/p{P}-s1-{slug} \
+  --var pr_target=integrate/phase-{P} \
+  --var $'deliverables=- {deliverable 1}\n- {deliverable 2}' \
+  --var $'acceptance_criteria=- cargo test --workspace PASS\n- cargo clippy -- -D warnings PASS' \
+  --var $'references=- docs/requirements.md\n- docs/architecture.md\n- docs/project-plan.md'
 
-Worktree: /path/to/worktree
-Branch: feature/p{P}-s1-{slug}
-PR target: integrate/phase-{P}
-
-Deliverables:
-- {list deliverables}
-
-Requirements: docs/atm-agent-mcp/requirements.md ({relevant FRs})
-Sprint plan: docs/project-plan.md (Phase {P} section)
-
-When complete: commit, push, create PR targeting integrate/phase-{P}, then notify me via atm send."
+# Then send the rendered output:
+atm send chook "$(sc-compose render ...)"
 ```
 
 ## Sprint Pipeline
@@ -327,11 +330,15 @@ On QA FAIL: create new `a/b/c` tasks for the fix pass. Do not reuse completed ta
 All chook communication is via ATM CLI. Follow the dogfooding protocol (ACK → work → complete → ACK).
 
 ### Sending assignments
+
+Render via `sc-compose`, then send the output:
+
 ```bash
-atm send chook "message"
+MSG=$(sc-compose render .claude/skills/codex-orchestration/dev-template.xml.j2 --var-file vars.json)
+atm send chook "$MSG"
 ```
 
-Use the `dev-template.xml.j2` structure. Render the template fields inline in the message body.
+NEVER hand-write task prose. Always use `dev-template.xml.j2`.
 
 ### Sending QA assignments
 
