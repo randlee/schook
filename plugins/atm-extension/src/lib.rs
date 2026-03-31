@@ -173,6 +173,7 @@ impl ManifestProvider for AtmExtensionHandler {
                 "PermissionRequest".to_string(),
                 "Stop".to_string(),
                 "TeammateIdle".to_string(),
+                "SubagentStop".to_string(),
                 "Notification".to_string(),
             ],
             matchers: vec!["*".to_string()],
@@ -198,14 +199,16 @@ impl SyncHandler for AtmExtensionHandler {
             HookType::PostToolUse => handle_post_tool_use(context),
             HookType::PermissionRequest => handle_permission_request(context),
             HookType::Stop => handle_stop(context),
-            HookType::TeammateIdle => handle_teammate_idle(context),
+            HookType::TeammateIdle | HookType::SubagentStop => handle_teammate_idle(context),
             HookType::Notification => Ok(proceed()),
             HookType::PreCompact
             | HookType::PostCompact
             | HookType::SessionStart
             | HookType::SessionEnd => Ok(proceed()),
             _ => {
-                log::warn!(
+                // Keep future hook additions fail-open here; ATM-specific relay work
+                // should only promote a new surface after the payload is captured.
+                log::debug!(
                     "sc-hooks atm-extension: unhandled hook type {:?}, proceeding",
                     context.hook
                 );

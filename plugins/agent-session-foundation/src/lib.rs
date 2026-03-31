@@ -177,6 +177,7 @@ impl TryFrom<HookType> for LifecycleEvent {
             | HookType::PostCompact
             | HookType::Notification
             | HookType::TeammateIdle
+            | HookType::SubagentStop
             | HookType::PermissionRequest => Err(HookError::invalid_context(format!(
                 "unsupported hook for session foundation: {}",
                 value.as_str()

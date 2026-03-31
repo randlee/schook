@@ -14,6 +14,8 @@ use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+
 #[derive(Debug)]
 pub enum DispatchOutcome {
     Proceed,
@@ -70,13 +72,72 @@ impl StderrCaptureContextError {
 #[error("{context}")]
 struct PluginExecutionContextError {
     context: String,
+    #[source]
+    source: Option<BoxedError>,
 }
 
 impl PluginExecutionContextError {
     fn new(context: impl Into<String>) -> Self {
         Self {
             context: context.into(),
+            source: None,
         }
+    }
+
+    fn with_source(
+        context: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            context: context.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+enum PluginTerminationError {
+    #[error("plugin exited with status {status}{stderr_suffix}")]
+    NonZeroExit { status: i32, stderr_suffix: String },
+    #[cfg(unix)]
+    #[error("plugin terminated by signal {signal}{stderr_suffix}")]
+    Signaled { signal: i32, stderr_suffix: String },
+    #[error("plugin terminated without an exit status{stderr_suffix}")]
+    MissingStatus { stderr_suffix: String },
+}
+
+fn stderr_suffix(stderr: Option<&str>) -> String {
+    match stderr {
+        Some(stderr) if !stderr.is_empty() => format!("; stderr: {stderr}"),
+        _ => String::new(),
+    }
+}
+
+fn plugin_termination_error(
+    status: std::process::ExitStatus,
+    stderr: Option<&str>,
+) -> PluginTerminationError {
+    if let Some(code) = status.code() {
+        return PluginTerminationError::NonZeroExit {
+            status: code,
+            stderr_suffix: stderr_suffix(stderr),
+        };
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+
+        if let Some(signal) = status.signal() {
+            return PluginTerminationError::Signaled {
+                signal,
+                stderr_suffix: stderr_suffix(stderr),
+            };
+        }
+    }
+
+    PluginTerminationError::MissingStatus {
+        stderr_suffix: stderr_suffix(stderr),
     }
 }
 pub fn execute_chain(
@@ -377,7 +438,9 @@ pub fn execute_chain(
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
-        let stderr_text = (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr));
+        let stderr_text =
+            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
+        let stderr_ref = stderr_text.as_deref();
 
         if !status.success() {
             disable_plugin_for_session(
@@ -396,7 +459,7 @@ pub fn execute_chain(
                 handler_name,
                 handler_started.elapsed().as_millis(),
                 "non_zero_exit",
-                stderr_text.as_deref().map(str::to_string),
+                stderr_text.clone(),
                 Some(true),
             ));
             emit_dispatch_log_with_fallback(
@@ -408,9 +471,10 @@ pub fn execute_chain(
             );
             return Err(plugin_error_with_context(
                 ai_message,
-                stderr_text.as_deref().map(|stderr| {
-                    PluginExecutionContextError::new(format!("plugin stderr: {stderr}"))
-                }),
+                Some(PluginExecutionContextError::with_source(
+                    "plugin execution failed",
+                    plugin_termination_error(status, stderr_ref),
+                )),
             ));
         }
 
@@ -435,7 +499,7 @@ pub fn execute_chain(
                     "invalid_json",
                     Some(format!(
                         "stdout={stdout_text}; stderr={}; {err}",
-                        stderr_text.as_deref().unwrap_or("")
+                        stderr_ref.unwrap_or("")
                     )),
                     Some(true),
                 ));
@@ -470,7 +534,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("proceed"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: stderr_text.as_deref().map(str::to_string),
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
@@ -502,7 +566,7 @@ pub fn execute_chain(
                         handler_name,
                         handler_started.elapsed().as_millis(),
                         "async_block",
-                        stderr_text.as_deref().map(str::to_string),
+                        stderr_text.clone(),
                         Some(true),
                     ));
                     emit_dispatch_log_with_fallback(
@@ -524,7 +588,7 @@ pub fn execute_chain(
                     action: Cow::Borrowed("block"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: stderr_text.as_deref().map(str::to_string),
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
