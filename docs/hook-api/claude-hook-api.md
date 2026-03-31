@@ -108,9 +108,7 @@ What is not verified today:
   establish a different immutable runtime root
 - whether `CLAUDE_PROJECT_DIR` is present inside ordinary Bash tool subprocesses
   rather than hook-process env
-- a local captured `WorktreeCreate` / `WorktreeRemove` transcript in this repo;
-  current guidance for those two surfaces is source-backed by Claude's official
-  hooks reference plus local validation from issue `#12`
+- a local `WorktreeRemove` capture in this repo
 
 ## Verified Claude Worktree Hook Semantics
 
@@ -130,6 +128,21 @@ Verified/provider-documented facts:
 - non-zero exit fails worktree creation
 - `HookResult` / decision-control JSON does not apply to command hooks on this
   surface
+
+Current local evidence in this branch:
+
+- live Claude `--worktree live-proof -p ...` capture at:
+  - `test-harness/hooks/claude/captures/raw/20260331T180025.956819Z-worktree-create.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T180025.956819Z-worktree-create.env.json`
+- captured payload fields:
+  - `cwd`
+  - `hook_event_name = "WorktreeCreate"`
+  - `name`
+  - `session_id`
+  - `transcript_path`
+- live block behavior:
+  - Claude surfaced `WorktreeCreate hook rejected: use /sc-git-worktree instead of EnterWorktree directly`
+  - non-zero hook exit blocked worktree creation
 
 Local policy implication:
 - a rejecting hook should write a redirect message to stderr and exit non-zero
