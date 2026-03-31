@@ -10,20 +10,20 @@ mismatch (i.e., a full team restore is required).
 Always backup before modifying the team:
 
 ```bash
-atm teams backup atm-dev
+atm teams backup <team-name>
 # Note the backup path from output, e.g.:
-# Backup created: ~/.claude/teams/.backups/atm-dev/<timestamp>
+# Backup created: ~/.claude/teams/.backups/<team-name>/<timestamp>
 ```
 
 Also backup the Claude Code project task list (separate bucket):
 
 ```bash
-BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/atm-dev/*/ | head -1)
+BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
 cp -r ~/.claude/tasks/agent-team-mail/ "$BACKUP_PATH/tasks-cc"
 echo "CC task list backed up to $BACKUP_PATH/tasks-cc"
 ```
 
-> **Note**: `atm teams backup` captures `~/.claude/tasks/atm-dev/` (ATM sprint
+> **Note**: `atm teams backup` captures `~/.claude/tasks/<team-name>/` (ATM sprint
 > tasks) but NOT `~/.claude/tasks/agent-team-mail/` (Claude Code task tools).
 > These are two separate buckets — issue #650 tracks fixing this in the CLI.
 
@@ -35,11 +35,11 @@ echo "CC task list backed up to $BACKUP_PATH/tasks-cc"
 # 1. Clear any active team context in this session
 TeamDelete  # tool call — may say "No team name found", that is OK
 
-# 2. Remove the stale atm-dev directory so TeamCreate uses the correct name
-rm -rf ~/.claude/teams/atm-dev
+# 2. Remove the stale <team-name> directory so TeamCreate uses the correct name
+rm -rf ~/.claude/teams/<team-name>
 ```
 
-> **Warning**: If `TeamDelete` reports it cleaned up a team named `atm-dev`,
+> **Warning**: If `TeamDelete` reports it cleaned up a team named `<team-name>`,
 > do NOT `rm -rf` — the directory is already gone.
 
 ---
@@ -47,10 +47,10 @@ rm -rf ~/.claude/teams/atm-dev
 ## Step 4 — Create Team
 
 ```
-TeamCreate(team_name="atm-dev", description="ATM development team", agent_type="team-lead")
+TeamCreate(team_name="<team-name>", description="ATM development team", agent_type="team-lead")
 ```
 
-**Verify**: `team_name` in the response MUST be `"atm-dev"`.
+**Verify**: `team_name` in the response MUST be `"<team-name>"`.
 If it is any other name, **stop immediately** — do not proceed.
 
 ---
@@ -58,7 +58,7 @@ If it is any other name, **stop immediately** — do not proceed.
 ## Step 5 — Restore Team Members and Inboxes
 
 ```bash
-atm teams restore atm-dev --from ~/.claude/teams/.backups/atm-dev/<timestamp>
+atm teams restore <team-name> --from ~/.claude/teams/.backups/<team-name>/<timestamp>
 # Expected: N member(s) added, N inbox file(s) restored
 ```
 
@@ -73,7 +73,7 @@ Remove unexpected members (until `atm teams remove-member` ships — issue #649)
 ```python
 python3 -c "
 import json
-path = '/Users/randlee/.claude/teams/atm-dev/config.json'
+path = '/Users/randlee/.claude/teams/<team-name>/config.json'
 with open(path) as f: cfg = json.load(f)
 keep = ['team-lead', 'chook', 'arch-gtm', 'arch-ctask']
 cfg['members'] = [m for m in cfg['members'] if m['name'] in keep]
@@ -87,7 +87,7 @@ print('Members:', [m['name'] for m in cfg['members']])
 ## Step 6 — Restore Claude Code Task List
 
 ```bash
-BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/atm-dev/*/ | head -1)
+BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
 if [ -d "$BACKUP_PATH/tasks-cc" ]; then
   cp "$BACKUP_PATH/tasks-cc/"*.json ~/.claude/tasks/agent-team-mail/ 2>/dev/null || true
   MAX_ID=$(ls ~/.claude/tasks/agent-team-mail/*.json 2>/dev/null \
@@ -133,14 +133,14 @@ atm gh pr list       # open PRs and CI status
 ## Step 9 — Notify Teammates
 
 ```bash
-atm send chook "New session (session-id: <SESSION_ID>). Team atm-dev restored. Please acknowledge and confirm status."
+atm send chook "New session (session-id: <SESSION_ID>). Team <team-name> restored. Please acknowledge and confirm status."
 ```
 
 If no response within ~60s, nudge via tmux:
 
 ```bash
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title}'
-tmux send-keys -t <pane-id> "You have unread ATM messages. Run: atm read --team atm-dev" Enter
+tmux send-keys -t <pane-id> "You have unread ATM messages. Run: atm read --team <team-name>" Enter
 ```
 
 ---
@@ -149,8 +149,8 @@ tmux send-keys -t <pane-id> "You have unread ATM messages. Run: atm read --team 
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `TeamCreate` returns random name | `~/.claude/teams/atm-dev` still exists | `rm -rf ~/.claude/teams/atm-dev` then retry |
+| `TeamCreate` returns random name | `~/.claude/teams/<team-name>` still exists | `rm -rf ~/.claude/teams/<team-name>` then retry |
 | `TeamDelete` says "No team name found" | Fresh session, no active team context | Expected — proceed |
 | `TaskList` returns empty after restore | Highwatermark mismatch | Set manually + create one task via `TaskCreate` |
-| `atm send` fails "Agent not found" | Member lost after restore overwrite | `atm teams add-member atm-dev <name> ...` |
+| `atm send` fails "Agent not found" | Member lost after restore overwrite | `atm teams add-member <team-name> <name> ...` |
 | Self-send (team-lead → team-lead) | Teammate wrong `ATM_IDENTITY` | Relaunch with `ATM_IDENTITY=<correct-name>` |
