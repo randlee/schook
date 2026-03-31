@@ -4,7 +4,7 @@
 
 This directory is the source of truth for the hook schema harness.
 
-`docs/plugin-plan-s9.md` is the umbrella execution plan.
+`docs/archive/plugin-plan-s9.md` is the umbrella execution plan.
 
 This directory is the harness sub-specification referenced by that plan.
 
@@ -348,7 +348,7 @@ harness source of truth.
 
 Review rule:
 
-- `docs/plugin-plan-s9.md` owns the execution sequence
+- `docs/archive/plugin-plan-s9.md` owns the execution sequence
 - this README owns the harness operating rules
 - provider hook API docs own platform-specific verified facts
 

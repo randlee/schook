@@ -8,7 +8,7 @@ This document describes the current architecture only.
 - host/plugin wire shapes live in `docs/protocol-contract.md`
 - observability event shapes live in `docs/observability-contract.md`
 - current JSONL dispatch-log consumer contract lives in `docs/logging-contract.md`
-- missing or overstated behavior lives in `docs/implementation-gaps.md`
+- missing or overstated behavior lives in `docs/archive/implementation-gaps.md`
 
 If a behavior is not present in code, this document shall not describe it as current architecture.
 
@@ -54,6 +54,7 @@ Important boundary:
 - `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current runtime-implementation crates in this branch
 - the remaining source crates under `plugins/` stay scaffold/reference only in the current release baseline
 - planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
+- crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ## 3.1 Public Contract Vs Internal Typed Model
 
@@ -339,10 +340,10 @@ Current architecture guardrails for these targets in this branch:
   the public executable-plugin traits in `sc-hooks-sdk::traits` remain
   intentionally unsealed for sibling workspace crates; this deviation from the
   original BC sealed-trait assumption is tracked in
-  `docs/implementation-gaps.md`
+  `docs/archive/implementation-gaps.md`
 - the earlier hook trait-freeze gate is treated as satisfied through the
   executable-plugin JSON schema contract rather than Rust trait sealing at the
-  SDK boundary; see `SEAL-001` in `docs/implementation-gaps.md`
+  SDK boundary; see `SEAL-001` in `docs/archive/implementation-gaps.md`
 - legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
   `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
   not the clean design authority
