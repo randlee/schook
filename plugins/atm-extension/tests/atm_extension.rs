@@ -438,6 +438,44 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
 }
 
 #[test]
+fn subagent_stop_maps_to_teammate_idle_relay_behavior() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let repo_root = temp.path().join("repo");
+    let state_root = temp.path().join("state");
+    let atm_home = temp.path().join("atm-home");
+    fs::create_dir_all(&repo_root).expect("repo root");
+    fs::create_dir_all(&atm_home).expect("atm home");
+    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
+    write_session_record(&state_root, &repo_root, "sess-subagent-stop", 9015);
+
+    let _env = EnvGuard::set(&[
+        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
+        ("ATM_HOME", atm_home.to_str().expect("utf8")),
+        ("ATM_TEAM", "atm-dev"),
+        ("ATM_IDENTITY", "arch-hook"),
+    ]);
+
+    AtmExtensionHandler
+        .handle(hook_context(
+            HookType::SubagentStop,
+            None,
+            serde_json::json!({
+                "session_id": "sess-subagent-stop",
+                "hook_event_name": "SubagentStop",
+                "name": "arch-hook",
+                "team_name": "atm-dev",
+            }),
+        ))
+        .expect("subagent stop should succeed");
+
+    let events = fs::read_to_string(atm_home.join(".atm/daemon/hooks/events.jsonl"))
+        .expect("events file should exist");
+    let event: serde_json::Value =
+        serde_json::from_str(events.lines().next().expect("line")).expect("event should parse");
+    assert_eq!(event["event"], "teammate_idle");
+}
+
+#[test]
 fn stop_does_not_revive_ended_record() {
     let temp = tempfile::tempdir().expect("tempdir");
     let repo_root = temp.path().join("repo");

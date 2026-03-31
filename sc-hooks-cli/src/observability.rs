@@ -45,6 +45,7 @@ enum ObservabilityInitError {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// Structured per-handler dispatch outcome captured in observability events.
 pub struct HandlerResultRecord {
     pub handler: String,
     pub action: Cow<'static, str>,
@@ -59,6 +60,7 @@ pub struct HandlerResultRecord {
     pub disabled: Option<bool>,
 }
 
+/// Arguments required to emit one `dispatch.complete` observability event.
 pub struct DispatchEventArgs<'a> {
     pub hook: &'a str,
     pub event: Option<&'a str>,
@@ -72,14 +74,23 @@ pub struct DispatchEventArgs<'a> {
     pub project_root: &'a AiRootDir,
 }
 
+/// Arguments required to emit one `session.root_divergence` observability event.
 pub struct RootDivergenceEventArgs<'a> {
     pub notice: &'a RootDivergenceNotice,
     pub project_root: &'a AiRootDir,
 }
 
+/// Emits the canonical `dispatch.complete` observability event for one host dispatch.
+///
 /// Callers must pass the real dispatch project root for every invocation.
 /// The logger root is cached process-wide, so falling back to `current_dir()`
 /// would reintroduce cwd-dependent nondeterminism after initialization.
+///
+/// # Errors
+///
+/// Returns an error when logger initialization fails, when structured event
+/// fields cannot be serialized, or when the underlying observability sink
+/// fails during emit or flush.
 pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| CliError::internal_with_source("invalid service name", source))?;
@@ -162,6 +173,12 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
+/// Emits the canonical `session.root_divergence` observability event.
+///
+/// # Errors
+///
+/// Returns an error when logger initialization fails or when the underlying
+/// observability sink fails during emit or flush.
 pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| CliError::internal_with_source("invalid service name", source))?;

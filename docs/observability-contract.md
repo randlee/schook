@@ -9,6 +9,7 @@ Owning requirement IDs:
 - `OBS-006`
 - `OBS-007`
 - `OBS-008`
+- `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -78,6 +79,10 @@ Current behavior:
 - the file sink can be intentionally disabled for an operator/debugging session
   with `SC_HOOKS_ENABLE_FILE_SINK=0`
 
+Formal amendment note:
+- `OBS-009` was added in `S9-BONUS` to promote these env-flag sink toggles into
+  the release-facing observability contract; see `docs/traceability.md`.
+
 ## 4. Event Shape
 
 Implements:
@@ -104,6 +109,11 @@ The `fields` object for `dispatch.complete` currently carries:
 - `total_ms`
 - `exit`
 - `ai_notification` when present
+
+Amendment note (`BND-001a`, `S9-HP5`):
+- the documented `DispatchEventEmitted` field inventory was expanded in
+  `S9-BONUS` to freeze the currently emitted `dispatch.complete` field set
+  above rather than leaving the event payload partially implied by code/tests
 
 The `fields` object for `session.root_divergence` currently carries:
 - `immutable_root`
@@ -170,7 +180,12 @@ Current console sink line format:
 
 ## 8. Non-Goals
 
-Environment controls:
+Correction note:
+- section `3.1` documents current supported behavior, not a non-goal
+- the non-goal is broader config-file sink routing or console-sink
+  customization beyond the limited env-flag controls documented above
+
+Current environment controls (not non-goals):
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: off

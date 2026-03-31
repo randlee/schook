@@ -199,6 +199,7 @@ fn read_last_line(path: &Path) -> Option<String> {
     rendered.lines().last().map(str::to_string)
 }
 
+#[cfg(unix)]
 #[test]
 fn shared_compliance_suite_exercises_actual_host_dispatch_path() {
     let probe = CliBinaryProbe::new();
