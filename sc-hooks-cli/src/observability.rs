@@ -74,6 +74,7 @@ pub struct DispatchEventArgs<'a> {
     pub project_root: &'a AiRootDir,
 }
 
+/// Arguments required to emit one `session.root_divergence` observability event.
 pub struct RootDivergenceEventArgs<'a> {
     pub notice: &'a RootDivergenceNotice,
     pub project_root: &'a AiRootDir,
@@ -172,6 +173,12 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
+/// Emits the canonical `session.root_divergence` observability event.
+///
+/// # Errors
+///
+/// Returns an error when logger initialization fails or when the underlying
+/// observability sink fails during emit or flush.
 pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(), CliError> {
     let service = ServiceName::new(SERVICE_NAME)
         .map_err(|source| CliError::internal_with_source("invalid service name", source))?;

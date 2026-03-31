@@ -110,7 +110,7 @@ The `fields` object for `dispatch.complete` currently carries:
 - `exit`
 - `ai_notification` when present
 
-Amendment note (`BND-001a`, `S9-BONUS`):
+Amendment note (`BND-001a`, `S9-HP5`):
 - the documented `DispatchEventEmitted` field inventory was expanded in
   `S9-BONUS` to freeze the currently emitted `dispatch.complete` field set
   above rather than leaving the event payload partially implied by code/tests

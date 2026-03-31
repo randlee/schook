@@ -108,6 +108,10 @@ This table maps the most important documented requirements to current implementa
   - prior text: the documented `plugins/` source inventory listed nine crates and treated later additions as outside the branch baseline
   - current text: the documented `plugins/` source inventory lists all thirteen source crates in the branch and distinguishes the four non-scaffold runtime crates from the nine scaffold/reference crates
   - authorizing sprint: `S9-HP5`
+- `OBS-009`
+  - prior text: env-flag sink toggles were documented implementation details, not a named release-facing observability requirement
+  - current text: env-flag sink toggles are promoted into the release-facing observability contract as `OBS-009`, with file sink canonical by default and console sink documented as the operator/debugging surface
+  - authorizing sprint: `S9-BONUS`
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
   - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model
