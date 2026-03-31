@@ -200,6 +200,7 @@ class DriftReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     provider: str
+    claude_version: Optional[str] = None
     run_timestamp: str
     status: ProviderStatus
     entries: list[DriftEntry]
