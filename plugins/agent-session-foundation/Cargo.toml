@@ -2,7 +2,7 @@
 name = "agent-session-foundation"
 version.workspace = true
 edition = "2024"
-description = "Scaffold/reference sc-hooks plugin source crate"
+description = "Runtime-implementation sc-hooks plugin source crate"
 
 [dependencies]
 log = "0.4.29"
