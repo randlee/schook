@@ -1,5 +1,4 @@
 use serde_json::Value;
-use std::path::Path;
 use std::time::Instant;
 use thiserror::Error;
 
@@ -12,6 +11,7 @@ use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 use log::error;
 use sc_hooks_core::errors::RootDivergenceNotice;
+use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
-    project_root: &'a Path,
+    project_root: &'a AiRootDir,
 }
 
 #[derive(Debug, Error)]
@@ -655,7 +655,7 @@ fn emit_dispatch_log_with_fallback(
 }
 
 fn emit_root_divergence_log(
-    project_root: &Path,
+    project_root: &AiRootDir,
     notice: &RootDivergenceNotice,
 ) -> Result<(), CliError> {
     observability::emit_root_divergence_event(observability::RootDivergenceEventArgs {
@@ -664,7 +664,7 @@ fn emit_root_divergence_log(
     })
 }
 
-fn emit_root_divergence_log_with_fallback(project_root: &Path, notice: &RootDivergenceNotice) {
+fn emit_root_divergence_log_with_fallback(project_root: &AiRootDir, notice: &RootDivergenceNotice) {
     if let Err(err) = emit_root_divergence_log(project_root, notice) {
         emit_observability_stderr_fallback(&err);
     }

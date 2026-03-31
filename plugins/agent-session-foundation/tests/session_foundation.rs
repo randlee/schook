@@ -498,7 +498,7 @@ fn startup_project_dir_divergence_logs_and_uses_payload_root() {
     )
     .expect("root divergence context should decode");
     assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
-    assert_eq!(notice.observed, mismatched_root);
+    assert_eq!(notice.observed.as_path(), mismatched_root.as_path());
     assert_eq!(notice.session_id.as_str(), session_id);
     assert_eq!(notice.hook_event, HookType::SessionStart);
 }
@@ -562,7 +562,7 @@ fn mismatched_project_dir_logs_and_preserves_immutable_root() {
         )
         .expect("root divergence context should decode");
         assert_eq!(notice.immutable_root.as_path(), project_root.as_path());
-        assert_eq!(notice.observed, mismatched_root);
+        assert_eq!(notice.observed.as_path(), mismatched_root.as_path());
         assert_eq!(notice.session_id.as_str(), session_id);
         assert_eq!(notice.hook_event, HookType::Stop);
     }

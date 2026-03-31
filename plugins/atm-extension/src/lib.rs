@@ -540,16 +540,18 @@ fn persist_atm_update(
     let session_start_source = active.session_start_source();
     let agent_state = update.agent_state.unwrap_or(active.agent_state());
     let ended_at = active.ended_at().cloned();
-    let record = active.apply_hook_update(
-        active_pid,
-        ai_current_dir,
-        session_start_source,
-        agent_state,
-        now,
-        update.hook_event,
-        update.state_reason,
-        ended_at,
-    )?;
+    let record = active
+        .apply_hook_update(
+            active_pid,
+            ai_current_dir,
+            session_start_source,
+            agent_state,
+            now,
+            update.hook_event,
+            update.state_reason,
+            ended_at,
+        )?
+        .into_record();
     store.persist(&record)?;
 
     Ok(())

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::events::HookType;
-use crate::session::{AiRootDir, SessionId};
+use crate::session::{AiCurrentDir, AiRootDir, SessionId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -14,7 +14,7 @@ pub struct RootDivergenceNotice {
     /// Canonical immutable runtime root.
     pub immutable_root: AiRootDir,
     /// Divergent project directory reported by the provider.
-    pub observed: PathBuf,
+    pub observed: AiCurrentDir,
     /// Session identifier associated with the divergence.
     pub session_id: SessionId,
     /// Hook event that surfaced the divergence.
@@ -28,13 +28,13 @@ impl RootDivergenceNotice {
         observed: impl Into<PathBuf>,
         session_id: SessionId,
         hook_event: HookType,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, HookError> {
+        Ok(Self {
             immutable_root,
-            observed: observed.into(),
+            observed: AiCurrentDir::new(observed.into())?,
             session_id,
             hook_event,
-        }
+        })
     }
 
     /// Serializes the notice into the prefixed string format used in logs and stderr.
@@ -56,7 +56,7 @@ impl RootDivergenceNotice {
         format!(
             "divergence in CLAUDE_PROJECT_DIR from {} to {} on {}",
             self.immutable_root,
-            self.observed.display(),
+            self.observed.as_path().display(),
             self.hook_event
         )
     }

@@ -15,7 +15,7 @@ use sc_hooks_core::manifest::Manifest;
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
-    SessionStartSource, UtcTimestamp, utc_timestamp_now,
+    SessionStartSource, SessionTransitionResult, UtcTimestamp, utc_timestamp_now,
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
@@ -257,32 +257,36 @@ fn build_next_record(
                 ));
             }
             if !material_changed {
-                return Ok(active.into());
+                return Ok(active.into_inner());
             }
 
             if root_changed {
-                active.rebuild_with_root_change(
-                    resolved.active_pid,
-                    next_root.clone(),
-                    resolved.ai_current_dir.clone(),
-                    next_source,
-                    resolved.transition.agent_state,
-                    event_name.clone(),
-                    resolved.transition.state_reason.clone(),
-                    resolved.transition.ended_at.clone(),
-                    now.clone(),
-                )
+                active
+                    .rebuild_with_root_change(
+                        resolved.active_pid,
+                        next_root.clone(),
+                        resolved.ai_current_dir.clone(),
+                        next_source,
+                        resolved.transition.agent_state,
+                        event_name.clone(),
+                        resolved.transition.state_reason.clone(),
+                        resolved.transition.ended_at.clone(),
+                        now.clone(),
+                    )
+                    .map(SessionTransitionResult::into_record)
             } else {
-                active.apply_hook_update(
-                    resolved.active_pid,
-                    resolved.ai_current_dir.clone(),
-                    next_source,
-                    resolved.transition.agent_state,
-                    now,
-                    event_name,
-                    resolved.transition.state_reason.clone(),
-                    resolved.transition.ended_at.clone(),
-                )
+                active
+                    .apply_hook_update(
+                        resolved.active_pid,
+                        resolved.ai_current_dir.clone(),
+                        next_source,
+                        resolved.transition.agent_state,
+                        now,
+                        event_name,
+                        resolved.transition.state_reason.clone(),
+                        resolved.transition.ended_at.clone(),
+                    )
+                    .map(SessionTransitionResult::into_record)
             }
         }
         None => CanonicalSessionRecord::new(
@@ -425,7 +429,7 @@ fn root_divergence_hook_result(
         observed.clone(),
         resolved.session_id.clone(),
         *hook_event,
-    );
+    )?;
 
     Ok(HookResult {
         action: sc_hooks_core::results::HookAction::Proceed,

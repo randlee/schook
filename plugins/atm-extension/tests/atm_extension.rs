@@ -141,7 +141,8 @@ fn write_ended_session_record(
             "session_ended",
             Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z").expect("timestamp")),
         )
-        .expect("ended session update should validate");
+        .expect("ended session update should validate")
+        .into_record();
     store
         .persist(&record)
         .expect("ended session record should persist");

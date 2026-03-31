@@ -207,6 +207,7 @@ impl<'de> Deserialize<'de> for UtcTimestamp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 /// Normalized agent state tracked across hook events.
+#[non_exhaustive]
 pub enum AgentState {
     /// The session has started but is not yet ready for general dispatch.
     Starting,
@@ -220,6 +221,9 @@ pub enum AgentState {
     Idle,
     /// The runtime instance has ended.
     Ended,
+    /// Future or unknown state value preserved as a safe fallback.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -247,6 +251,99 @@ impl SessionStartSource {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
+/// Monotonic revision number for canonical session state.
+pub struct StateRevision(u64);
+
+impl StateRevision {
+    /// Creates a validated state revision wrapper.
+    pub fn new(value: u64) -> Result<Self, HookError> {
+        if value == 0 {
+            return Err(HookError::validation("state_revision", "must be >= 1"));
+        }
+        Ok(Self(value))
+    }
+
+    /// Returns the initial state revision for a newly created record.
+    pub const fn initial() -> Self {
+        Self(1)
+    }
+
+    /// Returns the wrapped revision number.
+    pub fn get(self) -> u64 {
+        self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for StateRevision {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = u64::deserialize(deserializer)?;
+        StateRevision::new(value).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
+/// Canonical hook-event name persisted in session state.
+pub struct HookEventName(String);
+
+impl HookEventName {
+    /// Creates a validated hook-event name.
+    pub fn new(value: impl Into<String>) -> Result<Self, HookError> {
+        let value = value.into();
+        validate_nonblank_text("last_hook_event", &value)?;
+        Ok(Self(value))
+    }
+
+    /// Borrows the normalized hook-event name.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for HookEventName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        HookEventName::new(value).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
+/// Canonical human-readable reason stored with the latest session transition.
+pub struct StateReason(String);
+
+impl StateReason {
+    /// Creates a validated state-reason wrapper.
+    pub fn new(value: impl Into<String>) -> Result<Self, HookError> {
+        let value = value.into();
+        validate_nonblank_text("state_reason", &value)?;
+        Ok(Self(value))
+    }
+
+    /// Borrows the stored state reason.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for StateReason {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        StateReason::new(value).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 /// Persisted canonical session record used by hook utilities and extensions.
 pub struct CanonicalSessionRecord {
@@ -264,14 +361,14 @@ pub struct CanonicalSessionRecord {
     ai_current_dir: AiCurrentDir,
     session_start_source: SessionStartSource,
     agent_state: AgentState,
-    state_revision: u64,
+    state_revision: StateRevision,
     created_at: UtcTimestamp,
     updated_at: UtcTimestamp,
     #[serde(default)]
     ended_at: Option<UtcTimestamp>,
-    last_hook_event: String,
+    last_hook_event: HookEventName,
     last_hook_event_at: UtcTimestamp,
-    state_reason: String,
+    state_reason: StateReason,
     #[serde(default)]
     extensions: BTreeMap<String, Value>,
 }
@@ -284,15 +381,18 @@ pub struct ActiveSessionRecord(CanonicalSessionRecord);
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EndedSessionRecord(CanonicalSessionRecord);
 
-impl From<ActiveSessionRecord> for CanonicalSessionRecord {
-    fn from(record: ActiveSessionRecord) -> Self {
-        record.0
-    }
+/// Result of a validated canonical-session transition.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum SessionTransitionResult {
+    /// The transition produced another active record.
+    Active(ActiveSessionRecord),
+    /// The transition produced a terminal ended record.
+    Ended(EndedSessionRecord),
 }
 
-impl From<EndedSessionRecord> for CanonicalSessionRecord {
-    fn from(record: EndedSessionRecord) -> Self {
-        record.0
+impl From<ActiveSessionRecord> for CanonicalSessionRecord {
+    fn from(record: ActiveSessionRecord) -> Self {
+        record.into_inner()
     }
 }
 
@@ -311,6 +411,8 @@ impl AsRef<CanonicalSessionRecord> for EndedSessionRecord {
 impl std::ops::Deref for ActiveSessionRecord {
     type Target = CanonicalSessionRecord;
 
+    /// Exposes read-only access to the underlying canonical record while
+    /// keeping mutation APIs on `ActiveSessionRecord`.
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -319,8 +421,21 @@ impl std::ops::Deref for ActiveSessionRecord {
 impl std::ops::Deref for EndedSessionRecord {
     type Target = CanonicalSessionRecord;
 
+    /// Exposes read-only access to the terminal record. `DerefMut` is
+    /// intentionally absent so ended records cannot be mutated back into an
+    /// active lifecycle state.
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl SessionTransitionResult {
+    /// Consumes the transition result and returns the underlying canonical record.
+    pub fn into_record(self) -> CanonicalSessionRecord {
+        match self {
+            Self::Active(record) => record.into_inner(),
+            Self::Ended(record) => record.0,
+        }
     }
 }
 
@@ -359,13 +474,13 @@ impl CanonicalSessionRecord {
             ai_current_dir,
             session_start_source,
             agent_state,
-            state_revision: 1,
+            state_revision: StateRevision::initial(),
             created_at: now.clone(),
             updated_at: now.clone(),
             ended_at: None,
-            last_hook_event: last_hook_event.into(),
+            last_hook_event: HookEventName::new(last_hook_event)?,
             last_hook_event_at: now,
-            state_reason: state_reason.into(),
+            state_reason: StateReason::new(state_reason)?,
             extensions: BTreeMap::new(),
         };
         record.validate()?;
@@ -423,7 +538,7 @@ impl CanonicalSessionRecord {
     }
 
     /// Returns the monotonic state revision.
-    pub fn state_revision(&self) -> u64 {
+    pub fn state_revision(&self) -> StateRevision {
         self.state_revision
     }
 
@@ -444,7 +559,7 @@ impl CanonicalSessionRecord {
 
     /// Returns the hook event name that produced the latest mutation.
     pub fn last_hook_event(&self) -> &str {
-        &self.last_hook_event
+        self.last_hook_event.as_str()
     }
 
     /// Returns the timestamp of the latest hook event recorded in state.
@@ -454,7 +569,7 @@ impl CanonicalSessionRecord {
 
     /// Returns the human-readable reason associated with the latest state mutation.
     pub fn state_reason(&self) -> &str {
-        &self.state_reason
+        self.state_reason.as_str()
     }
 
     /// Returns the extension map attached to the record.
@@ -476,22 +591,20 @@ impl CanonicalSessionRecord {
     #[allow(clippy::result_large_err)]
     pub fn try_into_active(self) -> Result<ActiveSessionRecord, EndedSessionRecord> {
         if self.is_ended() {
-            Err(EndedSessionRecord(self))
+            Err(EndedSessionRecord::from_validated(self).expect("validated ended record"))
         } else {
-            Ok(ActiveSessionRecord(self))
+            Ok(ActiveSessionRecord::from_validated(self).expect("validated active record"))
         }
     }
 
     /// Validates record invariants prior to persistence.
     pub fn validate(&self) -> Result<(), HookError> {
-        if self.state_revision == 0 {
-            return Err(HookError::validation("state_revision", "must be >= 1"));
-        }
         validate_timestamp("created_at", &self.created_at)?;
         validate_timestamp("updated_at", &self.updated_at)?;
-        validate_nonblank_text("last_hook_event", &self.last_hook_event)?;
+        StateRevision::new(self.state_revision.get())?;
+        HookEventName::new(self.last_hook_event.as_str())?;
         validate_timestamp("last_hook_event_at", &self.last_hook_event_at)?;
-        validate_nonblank_text("state_reason", &self.state_reason)?;
+        StateReason::new(self.state_reason.as_str())?;
         match self.agent_state {
             AgentState::Ended => {
                 let ended_at = self.ended_at.as_ref().ok_or_else(|| {
@@ -512,6 +625,22 @@ impl CanonicalSessionRecord {
 }
 
 impl ActiveSessionRecord {
+    fn from_validated(record: CanonicalSessionRecord) -> Result<Self, HookError> {
+        record.validate()?;
+        if matches!(record.agent_state, AgentState::Ended) {
+            return Err(HookError::validation(
+                "agent_state",
+                "active session record cannot wrap AgentState::Ended",
+            ));
+        }
+        Ok(Self(record))
+    }
+
+    /// Consumes the active wrapper and returns the canonical record.
+    pub fn into_inner(self) -> CanonicalSessionRecord {
+        self.0
+    }
+
     /// Sets or replaces an extension value and reports whether the record changed.
     pub fn set_extension(
         &mut self,
@@ -545,9 +674,9 @@ impl ActiveSessionRecord {
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
         updated_at: UtcTimestamp,
-    ) -> Result<CanonicalSessionRecord, HookError> {
-        let last_hook_event = last_hook_event.into();
-        let state_reason = state_reason.into();
+    ) -> Result<SessionTransitionResult, HookError> {
+        let last_hook_event = HookEventName::new(last_hook_event.into())?;
+        let state_reason = StateReason::new(state_reason.into())?;
         let record = CanonicalSessionRecord {
             schema_version: self.0.schema_version,
             provider: self.0.provider,
@@ -559,7 +688,7 @@ impl ActiveSessionRecord {
             ai_current_dir,
             session_start_source,
             agent_state,
-            state_revision: self.0.state_revision + 1,
+            state_revision: StateRevision::new(self.0.state_revision.get() + 1)?,
             created_at: self.0.created_at.clone(),
             updated_at: updated_at.clone(),
             ended_at,
@@ -569,13 +698,21 @@ impl ActiveSessionRecord {
             extensions: self.0.extensions.clone(),
         };
         record.validate()?;
-        Ok(record)
+        if record.is_ended() {
+            Ok(SessionTransitionResult::Ended(
+                EndedSessionRecord::from_validated(record)?,
+            ))
+        } else {
+            Ok(SessionTransitionResult::Active(
+                ActiveSessionRecord::from_validated(record)?,
+            ))
+        }
     }
 
     /// Bumps the record revision and updates the mutation timestamp without changing semantic fields.
     pub fn mark_material_change(&mut self, updated_at: UtcTimestamp) -> Result<(), HookError> {
         let mut next = self.0.clone();
-        next.state_revision += 1;
+        next.state_revision = StateRevision::new(next.state_revision.get() + 1)?;
         next.updated_at = updated_at;
         next.validate()?;
         self.0 = next;
@@ -597,20 +734,41 @@ impl ActiveSessionRecord {
         last_hook_event: impl Into<String>,
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
-    ) -> Result<CanonicalSessionRecord, HookError> {
+    ) -> Result<SessionTransitionResult, HookError> {
         let mut next = self.0.clone();
-        next.state_revision += 1;
+        next.state_revision = StateRevision::new(next.state_revision.get() + 1)?;
         next.active_pid = active_pid;
         next.ai_current_dir = ai_current_dir;
         next.session_start_source = session_start_source;
         next.agent_state = agent_state;
         next.updated_at = updated_at.clone();
-        next.last_hook_event = last_hook_event.into();
+        next.last_hook_event = HookEventName::new(last_hook_event.into())?;
         next.last_hook_event_at = updated_at;
-        next.state_reason = state_reason.into();
+        next.state_reason = StateReason::new(state_reason.into())?;
         next.ended_at = ended_at;
         next.validate()?;
-        Ok(next)
+        if next.is_ended() {
+            Ok(SessionTransitionResult::Ended(
+                EndedSessionRecord::from_validated(next)?,
+            ))
+        } else {
+            Ok(SessionTransitionResult::Active(
+                ActiveSessionRecord::from_validated(next)?,
+            ))
+        }
+    }
+}
+
+impl EndedSessionRecord {
+    fn from_validated(record: CanonicalSessionRecord) -> Result<Self, HookError> {
+        record.validate()?;
+        if !matches!(record.agent_state, AgentState::Ended) {
+            return Err(HookError::validation(
+                "agent_state",
+                "ended session record requires AgentState::Ended",
+            ));
+        }
+        Ok(Self(record))
     }
 }
 
@@ -650,11 +808,13 @@ pub fn utc_timestamp_now() -> UtcTimestamp {
     let rendered = now
         .format(&Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
-    UtcTimestamp(rendered)
+    UtcTimestamp::from_field("utc_timestamp", rendered).unwrap_or_else(|_| {
+        UtcTimestamp::from_field("utc_timestamp", "1970-01-01T00:00:00Z")
+            .expect("fallback timestamp must be valid")
+    })
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct CanonicalSessionRecordWire {
     schema_version: SchemaVersion,
     provider: Provider,
@@ -669,7 +829,7 @@ struct CanonicalSessionRecordWire {
     ai_current_dir: AiCurrentDir,
     session_start_source: SessionStartSource,
     agent_state: AgentState,
-    state_revision: u64,
+    state_revision: StateRevision,
     #[serde(deserialize_with = "deserialize_created_at")]
     created_at: UtcTimestamp,
     #[serde(deserialize_with = "deserialize_updated_at")]
@@ -677,10 +837,10 @@ struct CanonicalSessionRecordWire {
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_optional_ended_at")]
     ended_at: Option<UtcTimestamp>,
-    last_hook_event: String,
+    last_hook_event: HookEventName,
     #[serde(deserialize_with = "deserialize_last_hook_event_at")]
     last_hook_event_at: UtcTimestamp,
-    state_reason: String,
+    state_reason: StateReason,
     #[serde(default)]
     extensions: BTreeMap<String, Value>,
 }
@@ -871,5 +1031,42 @@ mod tests {
         let reparsed: SessionStartSource =
             serde_json::from_str("\"future_source\"").expect("source should deserialize");
         assert_eq!(reparsed, SessionStartSource::Unknown);
+    }
+
+    #[test]
+    fn agent_state_deserializes_unknown_values_to_unknown() {
+        let reparsed: AgentState =
+            serde_json::from_str("\"future_state\"").expect("state should deserialize");
+        assert_eq!(reparsed, AgentState::Unknown);
+    }
+
+    #[test]
+    fn validate_rejects_ended_at_when_agent_state_is_not_ended() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let err = serde_json::from_value::<CanonicalSessionRecord>(serde_json::json!({
+            "schema_version": "v1",
+            "provider": "claude",
+            "session_id": "session-ended-at-mismatch",
+            "active_pid": 10,
+            "ai_root_dir": temp.path().join("repo"),
+            "ai_current_dir": temp.path().join("repo"),
+            "session_start_source": "startup",
+            "agent_state": "starting",
+            "state_revision": 1,
+            "created_at": "2026-03-30T00:00:00Z",
+            "updated_at": "2026-03-30T00:00:00Z",
+            "ended_at": "2026-03-30T00:00:01Z",
+            "last_hook_event": "SessionStart",
+            "last_hook_event_at": "2026-03-30T00:00:00Z",
+            "state_reason": "session_started",
+            "extensions": {}
+        }))
+        .expect_err("mismatched ended_at should fail validation");
+
+        assert!(
+            err.to_string()
+                .contains("must be absent unless agent_state is ended"),
+            "unexpected validation error: {err}"
+        );
     }
 }
