@@ -19,12 +19,13 @@ Also backup the Claude Code project task list (separate bucket):
 
 ```bash
 BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
-cp -r ~/.claude/tasks/agent-team-mail/ "$BACKUP_PATH/tasks-cc"
+cp -r ~/.claude/tasks/<repo-name>/ "$BACKUP_PATH/tasks-cc"
 echo "CC task list backed up to $BACKUP_PATH/tasks-cc"
 ```
 
 > **Note**: `atm teams backup` captures `~/.claude/tasks/<team-name>/` (ATM sprint
-> tasks) but NOT `~/.claude/tasks/agent-team-mail/` (Claude Code task tools).
+> tasks) but NOT `~/.claude/tasks/<repo-name>/` (Claude Code task tools — keyed to
+> repo name, not team name).
 > These are two separate buckets — issue #650 tracks fixing this in the CLI.
 
 ---
@@ -89,11 +90,11 @@ print('Members:', [m['name'] for m in cfg['members']])
 ```bash
 BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
 if [ -d "$BACKUP_PATH/tasks-cc" ]; then
-  cp "$BACKUP_PATH/tasks-cc/"*.json ~/.claude/tasks/agent-team-mail/ 2>/dev/null || true
-  MAX_ID=$(ls ~/.claude/tasks/agent-team-mail/*.json 2>/dev/null \
+  cp "$BACKUP_PATH/tasks-cc/"*.json ~/.claude/tasks/<repo-name>/ 2>/dev/null || true
+  MAX_ID=$(ls ~/.claude/tasks/<repo-name>/*.json 2>/dev/null \
     | xargs -I{} basename {} .json \
     | sort -n | tail -1)
-  [ -n "$MAX_ID" ] && echo -n "$MAX_ID" > ~/.claude/tasks/agent-team-mail/.highwatermark
+  [ -n "$MAX_ID" ] && echo -n "$MAX_ID" > ~/.claude/tasks/<repo-name>/.highwatermark
   echo "Task list restored. Highwatermark: $MAX_ID"
 else
   echo "No tasks-cc/ in backup — task list not restored."
