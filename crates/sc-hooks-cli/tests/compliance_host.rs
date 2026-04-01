@@ -5,7 +5,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use sc_hooks_test::compliance::{
-    ContractScenario, ContractScenarioResult, FnHostDispatchProbe, run_contract_behavior_suite,
+    ContractScenario, ContractScenarioResult, FnHostDispatchProbe, ProbeError,
+    run_contract_behavior_suite,
 };
 use sc_hooks_test::fixtures;
 
@@ -34,8 +35,11 @@ impl CliBinaryProbe {
 }
 
 impl CliBinaryProbe {
-    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
-        let temp = tempfile::tempdir().map_err(|err| err.to_string())?;
+    fn run_scenario(
+        &self,
+        scenario: ContractScenario,
+    ) -> Result<ContractScenarioResult, ProbeError> {
+        let temp = tempfile::tempdir().map_err(|err| ProbeError::from(err.to_string()))?;
         let root = temp.path();
         let plugin_name = "probe-plugin";
         let plugin_path = fixtures::plugin_path(root, plugin_name);
@@ -169,15 +173,22 @@ printf '%s\n' '{"action":"proceed"}'
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()
-                .map_err(|err| err.to_string())?;
+                .map_err(|err| ProbeError::from(err.to_string()))?;
             if let Some(mut stdin) = child.stdin.take() {
                 use std::io::Write;
-                let body = serde_json::to_vec(&payload).map_err(|err| err.to_string())?;
-                stdin.write_all(&body).map_err(|err| err.to_string())?;
+                let body = serde_json::to_vec(&payload)
+                    .map_err(|err| ProbeError::from(err.to_string()))?;
+                stdin
+                    .write_all(&body)
+                    .map_err(|err| ProbeError::from(err.to_string()))?;
             }
-            child.wait_with_output().map_err(|err| err.to_string())?
+            child
+                .wait_with_output()
+                .map_err(|err| ProbeError::from(err.to_string()))?
         } else {
-            command.output().map_err(|err| err.to_string())?
+            command
+                .output()
+                .map_err(|err| ProbeError::from(err.to_string()))?
         };
 
         let log_line = read_last_line(&root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH));

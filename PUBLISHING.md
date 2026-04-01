@@ -74,6 +74,12 @@ Current planned publish order:
 3. `sc-hooks-test` (tracked, not published)
 4. `sc-hooks-cli`
 
+First release scope:
+
+- publish only the complete working crates under `crates/`
+- do not publish scaffold/reference crates under `plugins/`
+- do not expand the first release wave to all source crates in the repository
+
 ## Local Validation Commands
 
 ```bash

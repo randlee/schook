@@ -92,21 +92,25 @@ pub enum ManifestError {
     },
 
     /// Metadata value failed a declared validation rule.
-    #[error("metadata field `{field}` failed validation `{rule}`")]
+    #[error("metadata field `{field}` failed validation `{rule}` for value {actual}")]
     ValidationRuleFailed {
         /// Field path that failed validation.
         field: String,
         /// Rule string that failed.
         rule: String,
+        /// Actual serialized value that failed validation.
+        actual: String,
     },
 
     /// Metadata value failed a declared type check.
-    #[error("metadata field `{field}` failed type check `{expected:?}")]
+    #[error("metadata field `{field}` failed type check `{expected:?}` for value {actual}")]
     TypeValidationFailed {
         /// Field path that failed the type check.
         field: String,
         /// Expected field type.
         expected: FieldType,
+        /// Actual serialized value that failed the type check.
+        actual: String,
     },
 
     /// Payload-condition schema was invalid.
@@ -356,6 +360,7 @@ fn validate_field_value(
         return Err(ManifestError::TypeValidationFailed {
             field: field.to_string(),
             expected: spec.field_type,
+            actual: value.to_string(),
         });
     }
 
@@ -382,6 +387,7 @@ fn validate_rule(field: &str, value: &Value, rule: &str) -> Result<(), ManifestE
     let fail = |name: &str| ManifestError::ValidationRuleFailed {
         field: field.to_string(),
         rule: name.to_string(),
+        actual: value.to_string(),
     };
 
     match rule {

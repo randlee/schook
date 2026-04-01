@@ -193,20 +193,24 @@ pub fn execute_chain(
                     field,
                 })
             }
-            sc_hooks_sdk::manifest::ManifestError::ValidationRuleFailed { field, rule } => {
-                CliError::Validation(crate::errors::ValidationError::InvalidField {
-                    handler: handler_name.clone(),
-                    field,
-                    reason: rule,
-                })
-            }
-            sc_hooks_sdk::manifest::ManifestError::TypeValidationFailed { field, expected } => {
-                CliError::Validation(crate::errors::ValidationError::InvalidField {
-                    handler: handler_name.clone(),
-                    field,
-                    reason: format!("expected type {expected:?}"),
-                })
-            }
+            sc_hooks_sdk::manifest::ManifestError::ValidationRuleFailed {
+                field,
+                rule,
+                actual,
+            } => CliError::Validation(crate::errors::ValidationError::InvalidField {
+                handler: handler_name.clone(),
+                field,
+                reason: format!("{rule} (actual {actual})"),
+            }),
+            sc_hooks_sdk::manifest::ManifestError::TypeValidationFailed {
+                field,
+                expected,
+                actual,
+            } => CliError::Validation(crate::errors::ValidationError::InvalidField {
+                handler: handler_name.clone(),
+                field,
+                reason: format!("expected type {expected:?} (actual {actual})"),
+            }),
             other => CliError::plugin_error_with_source(
                 format!("failed to construct plugin input for `{handler_name}`"),
                 other,
