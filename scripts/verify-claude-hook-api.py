@@ -71,7 +71,12 @@ def read_recorded_version(spec: ToolSpec, repo_root: Path) -> tuple[str | None, 
     if record_path is None:
         return None, None
 
-    payload = json.loads(record_path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(record_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"{spec.tool}: invalid JSON in drift-history record {record_path}: {exc.msg}"
+        ) from exc
     value = payload.get(spec.version_field)
     if value is None:
         return None, record_path

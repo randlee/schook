@@ -67,6 +67,7 @@ Important planning rule:
 | Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| S10-VERSION-BUMP-1 | In review | AI CLI version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/*/drift-history/`, release docs |
 
 ## 5. Execution Controls
 
@@ -883,3 +884,49 @@ Acceptance criteria:
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
+
+### S10-VERSION-BUMP-1: AI CLI Version-Bump Detection
+
+Status:
+- in review
+
+Focus:
+- detect supported AI CLI version bumps before maintainers accept provider-hook
+  contract changes without rerunning schema validation
+
+Write scope:
+
+- `scripts/verify-claude-hook-api.py`
+- `test-harness/hooks/*/drift-history/`
+- `test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/project-plan.md`
+- `docs/traceability.md`
+
+Deliverables:
+- tool-selectable detector supporting `claude`, `codex`, `gemini`, `opencode`,
+  and `cursor-agent`
+- seed drift-history records for each supported provider
+- pytest coverage for the supported provider paths and failure modes
+- release-doc updates recording the detector as the implementation path for
+  `TST-008`
+
+Required tests:
+
+- `python3 scripts/verify-claude-hook-api.py --tool claude`
+- `python3 scripts/verify-claude-hook-api.py --tool codex`
+- `python3 -m pytest test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo fmt --check --all`
+
+Acceptance criteria:
+- all five supported providers have a tracked `drift-history/` directory with a
+  seed JSON record
+- the detector exits `0` when the installed version matches the latest recorded
+  version for the selected provider
+- version mismatches exit non-zero with rerun guidance
+- unavailable tools and missing baseline versions produce explicit non-fatal
+  skip messages
+- malformed drift-history JSON fails clearly instead of producing a traceback
