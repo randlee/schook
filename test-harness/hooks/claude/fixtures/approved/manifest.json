@@ -1,6 +1,7 @@
 {
   "provider": "claude",
   "status": "haiku_live_capture",
+  "claude_version": "2.1.87 (Claude Code)",
   "hooks": {
     "SessionStart": [
       "session-start-startup.json",

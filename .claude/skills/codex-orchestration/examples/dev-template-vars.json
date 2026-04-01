@@ -1,7 +1,7 @@
 {
   "task_id": "SC-EXAMPLE-DEV-1",
   "sprint": "S9-BC.1",
-  "assignee": "arch-ctm",
+  "assignee": "chook",
   "description": "Implement session foundation hook runtime.",
   "worktree_path": "/Users/example/schook-worktrees/feature-s9-bc1-session-foundation",
   "branch": "feature/s9-bc1-session-foundation",

@@ -8,9 +8,34 @@ This document describes the current architecture only.
 - host/plugin wire shapes live in `docs/protocol-contract.md`
 - observability event shapes live in `docs/observability-contract.md`
 - current JSONL dispatch-log consumer contract lives in `docs/logging-contract.md`
-- missing or overstated behavior lives in `docs/archive/implementation-gaps.md`
+- archived gap and sprint-planning artifacts live in `docs/archive/`
+
+Crate-local ownership detail now lives in:
+
+- `docs/sc-hooks-cli/`
+- `docs/sc-hooks-core/`
+- `docs/sc-hooks-sdk/`
 
 If a behavior is not present in code, this document shall not describe it as current architecture.
+
+## 1.1 Stable Product ADR IDs
+
+Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
+
+| ADR ID | Decision |
+| --- | --- |
+| `ADR-SHK-001` | `sc-hooks` remains a process-based hook dispatcher rather than an in-process plugin runtime. |
+| `ADR-SHK-002` | The public contract is JSON, environment variables, and documented exit codes; internal Rust enums and typestates are implementation detail. |
+| `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
+| `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
+| `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
+
+Crate-local ADR delegation:
+- crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
+  defined in the crate architecture docs under `docs/sc-hooks-cli/`,
+  `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
+- those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
+  through `ADR-SHK-005` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -41,19 +66,13 @@ The host does not:
 | `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
 | `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
 | `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
-| `plugins/agent-session-foundation` | Runtime-implementation source crate for session lifecycle persistence keyed by `session_id` and normalized `agent_state` transitions |
-| `plugins/agent-spawn-gates` | Runtime-implementation source crate for `PreToolUse(Agent)` policy checks and subagent linkage writes |
-| `plugins/tool-output-gates` | Runtime-implementation source crate for `PostToolUse(Bash)` fenced-JSON validation and retryable block responses |
-| `plugins/atm-extension` | Runtime-implementation source crate for ATM-specific identity-file handling and relay enrichment |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
-- source crates under `plugins/` are repository-owned implementations, not the runtime discovery directory itself
-- current source plugin inventory in `plugins/` is: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, `template-source`, and `tool-output-gates`
-- `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the current runtime-implementation crates in this branch
-- the remaining source crates under `plugins/` stay scaffold/reference only in the current release baseline
-- planning docs may still refer to the session lifecycle package as `sc-hooks-session-foundation`; the current source crate name remains `plugins/agent-session-foundation` until install/package naming is finalized
+- source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
+- current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
+- every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
 - crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ## 3.1 Public Contract Vs Internal Typed Model
@@ -189,28 +208,16 @@ Current observability ownership follows the intended boundary directly:
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
 - there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
 
-The OBS-007/OBS-008 violation corrected in this pass was:
-- `default_logger_config()` and env-flag sink routing had drifted into
-  `sc-hooks-core`
-- `plugins/agent-session-foundation` had picked up direct
-  `sc-observability` dependencies and its own logger creation path
+Next planned observability expansion:
 
-Current restored boundary:
-- logger config and sink lifecycle live in `sc-hooks-cli`
-- `sc-hooks-core` keeps only shared path-resolution helpers/constants used for
-  agreement on file locations
-- scaffold/reference plugin crates do not depend on `sc-observability`
-
-Current post-file-sink expansion status:
-
-- the file-sink JSONL contract remains the release baseline
-- console-sink verification is now implemented through the same real
-  `sc-hooks-cli` dispatch path used by the file-sink contract tests
-- console-sink coverage is the first operator-facing debugging expansion
+- keep the current file-sink JSONL contract as the release baseline
+- add console-sink verification next, through the same real `sc-hooks-cli`
+  dispatch path used by the file-sink contract tests
+- treat console-sink coverage as the first operator-facing debugging expansion
   because it is the most useful immediate surface for live multi-agent and
   background-agent monitoring
-- custom sink registration coverage and multi-hook monitoring correlation remain
-  deferred after the console-sink contract
+- defer custom sink registration coverage and multi-hook monitoring correlation
+  until console-sink behavior is frozen and documented
 
 This boundary is current architecture, not deferred intent.
 
@@ -254,30 +261,16 @@ The current architecture does not aim to provide:
 The next hook-extension track is a planned architecture addition, not part of
 the current release implementation boundary above.
 
-The detailed post-capture design authority for this track lives in
-`docs/phase-bc-hook-runtime-design.md`.
-
 ### 9.1 Claude-First Development Gate
 
 The first hook-extension development path is:
 
 1. build a Claude-focused schema harness under `test-harness/hooks/`
 2. capture and validate real Claude hook payloads
-3. build and QA the global HTML reporting stack
-4. revise hook docs and the implementation plan from captured evidence
-5. implement the Claude ATM hook crates
+3. revise hook docs and the implementation plan from captured evidence
+4. implement the Claude ATM hook crates
 
-Current status:
-
-- steps 1-2 are complete for the Claude baseline
-- post-capture doc and plan revision from captured evidence is complete for the
-  current Claude baseline
-- the global HTML reporting stack is now an explicit prerequisite before
-  schema-drift/report-generating work can close
-- captured `SessionStart.source` values now include `startup`, `compact`,
-  `resume`, and `clear`
-- `Notification(idle_prompt)` remains part of the documented Claude surface, but
-  is currently wired-but-unresolved in local Haiku capture
+Until steps 1-3 are complete, hook runtime crates remain planning targets only.
 
 ### 9.2 Planned Harness Subsystem
 
@@ -286,9 +279,8 @@ The planned hook harness owns:
 - provider launch adapters
 - captured raw fixtures
 - provider-specific validation models
-- manual schema-drift detection tooling
+- schema-drift CI checks
 - review artifacts for newly observed or changed payload fields
-- integration with the global HTML reporting stack for self-contained reports
 
 Initial execution scope:
 
@@ -300,56 +292,129 @@ Documented but deferred from the first harness pass:
 - Gemini
 - Cursor Agent
 
-### 9.3 Implemented Hook Runtime Targets In This Branch
+### 9.2a Planned Version-Bump Detection Boundary
 
-The current runtime-implementation path in this branch includes:
+The hook harness must also track which AI CLI version produced the latest
+approved schema-drift artifacts.
 
-- `sc-hooks-session-foundation` via `plugins/agent-session-foundation`
-- `sc-hooks-agent-spawn-gates` via `plugins/agent-spawn-gates`
-- `sc-hooks-tool-output-gates` via `plugins/tool-output-gates`
-- `sc-hooks-atm-extension` via `plugins/atm-extension`
+The planned boundary is:
 
-All four hook-runtime targets now exist as current source crates in this branch.
+- `scripts/verify-claude-hook-api.py` is a harness-side verification tool, not
+  a runtime dispatcher component
+- the detector reads the approved Claude manifest at
+  `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- the detector compares `claude --version` output with the manifest's
+  `claude_version`
+- a version mismatch is a release-process signal to rerun the live hook-schema
+  validation flow before accepting provider-contract changes
 
-Current architecture guardrails for these targets in this branch:
+Extensibility rule:
+
+- if other providers later need the same guardrail, the design must be revisited
+  explicitly rather than inferred from a premature multi-provider detector
+
+### 9.3 Planned Hook Crate Targets
+
+These are planned hook-extension targets only. They are not current source
+inventory and are not current runtime crates.
+
+The post-capture intended split is:
+
+- generic hook utility layer
+  - session lifecycle / session-record persistence
+  - normalized agent-state tracking
+  - subagent linkage and spawn policy
+  - tool/blocking/fenced-JSON guard behavior
+- ATM extension layer
+  - ATM routing enrichment
+  - temp identity-file behavior for `atm` Bash calls
+  - teammate-idle / ATM relay emission behavior
+
+Recommended planned crate targets:
+
+- `plugins/agent-session-foundation`
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- `plugins/atm-extension`
+
+Planned responsibility split:
+
+- `plugins/agent-session-foundation`
+  - owns the canonical session-state file
+  - owns `SessionStart`, `SessionEnd`, and `PreCompact`
+  - owns normalized `agent_state` transitions
+- `plugins/agent-spawn-gates`
+  - owns named-agent vs background-agent policy
+  - owns subagent linkage/tracking
+  - owns schema-governed fenced-JSON spawn validation
+- `plugins/tool-output-gates`
+  - owns generic blocking/fenced-JSON tool-output policy
+- `plugins/atm-extension`
+  - owns ATM routing enrichment on the same session-state record
+  - owns ATM identity-file behavior for Bash `atm` calls
+  - owns ATM relay emission and teammate-idle mapping
+
+Planned shared session-state schema rules:
+
+- one canonical session-state file per `session_id`
+- required base fields:
+  - `session_id`
+  - `active_pid`
+  - `agent_state`
+  - `created_at`
+  - `updated_at`
+  - `ai_root_dir`
+  - `ai_current_dir`
+- optional ATM fields live in an extension object on the same file rather than
+  a second authoritative ATM-only file
+- `session_id`, `active_pid`, and hook event identifiers should be represented
+  as semantic newtypes in implementation code rather than bare primitives
+
+Planned trait-freeze rule before the first runtime crate lands:
+
+- `sc-hooks-core` / `sc-hooks-sdk` must freeze a hook trait that exposes:
+  - normalized context
+  - raw provider payload
+  - typed result / failure posture
+  - fail-open versus fail-closed semantics per hook class
+- the frozen hook trait in `sc-hooks-core` shall be sealed (private supertrait
+  or mod-private pattern) so that only `sc-hooks-sdk` can provide base
+  implementations. Unsealed traits permit external plugin crates to bypass
+  normalized-context and fail-open/fail-closed invariants; retrofitting a seal
+  after downstream adoption is a breaking API change.
+- runtime crates must not define their own competing hook trait surfaces
+- `agent_state` remains a runtime enum rather than typestate because hook state
+  persists across process boundaries and must round-trip through the canonical
+  session-state file
+
+Archived prototype crates remain reference-only inputs for design review:
+
+- `plugins/atm-session-lifecycle`
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
+- `plugins/atm-state-relay`
+
+Planning rules for these targets:
 
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
   captured Claude fixtures
-- the detailed post-capture BC design in
-  `docs/phase-bc-hook-runtime-design.md` is authoritative for crate roles,
-  state ownership, and trait boundaries
-- `sc-hooks-session-foundation` is responsible for the canonical session-state
-  record keyed by `session_id`, `active_pid`, and `ai_root_dir`
-- `ai_root_dir` is the immutable working directory established from the
-  root-establishing `SessionStart` for the runtime instance and must not be
-  rewritten from later `cwd` drift
-- `ai_current_dir` is captured from each lifecycle payload `cwd` as current
-  working-directory context, not as root identity
-- inbound `CLAUDE_PROJECT_DIR`, when present, is a required equality check
-  against the persisted canonical root rather than the source of truth
-- any divergence between the persisted canonical root and inbound
-  `CLAUDE_PROJECT_DIR` must emit prominent error-level observability for
-  investigation
-- downstream hook consumers receive normalized project-root context from the
-  persisted canonical session root even when Claude omits or varies raw env
-  values across hook surfaces
-- canonical `session.json` updates use atomic write semantics and skip unchanged
-  rewrites while still emitting hook logs
-- the internal in-process hook trait remains sealed in `sc-hooks-core`, while
-  the public executable-plugin traits in `sc-hooks-sdk::traits` remain
-  intentionally unsealed for sibling workspace crates; this deviation from the
-  original BC sealed-trait assumption is tracked in
-  `docs/archive/implementation-gaps.md`
-- the earlier hook trait-freeze gate is treated as satisfied through the
-  executable-plugin JSON schema contract rather than Rust trait sealing at the
-  SDK boundary; see `SEAL-001` in `docs/archive/implementation-gaps.md`
-- legacy prototype names (`atm-session-lifecycle`, `atm-bash-identity`,
-  `gate-agent-spawns`, `atm-state-relay`) are retired planning names and are
-  not the clean design authority
-- every hook runtime crate listed above is current architecture in this branch
-  because it now lands with code, tests, and the same-PR
-  `docs/architecture.md` crate inventory update
+- these planned targets are not part of the current §3 source inventory
+  (`BND-001a`) and will not appear there until they land with code, tests, and
+  a same-PR architecture inventory update
+- no planned hook crate becomes current architecture until it lands with code,
+  tests, and the same-PR `docs/architecture.md` crate inventory update
+- archived prototype crates do not define the final crate split; they are
+  reviewed only as reference against the post-capture design
+
+Planned fail posture by crate:
+
+| Planned crate | Default posture | Reason |
+| --- | --- | --- |
+| `plugins/agent-session-foundation` | fail-open | session persistence loss should not prevent the host from continuing a Claude run |
+| `plugins/agent-spawn-gates` | fail-closed | malformed or policy-breaking subagent launches must be blocked deterministically |
+| `plugins/tool-output-gates` | fail-closed | fenced-JSON and blocking-output violations must stop the tool result before it reaches the caller |
+| `plugins/atm-extension` | fail-open | ATM routing enrichment should not make the generic hook host unusable when ATM context is absent or degraded |
 
 ### 9.4 Cursor Follow-On Boundary
 

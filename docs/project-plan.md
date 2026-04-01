@@ -9,7 +9,7 @@ It is a derived planning document. It does not override:
 - `docs/requirements.md` for release-facing behavior
 - `docs/architecture.md` for current architecture
 - `docs/protocol-contract.md` for the host/plugin wire contract
-- `docs/archive/implementation-gaps.md` for historical gap context
+- `docs/archive/implementation-gaps.md` for archived gap context
 
 ## 2. Planning Inputs
 
@@ -26,6 +26,7 @@ Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
 - `DEF-004`
+- `DEF-008`
 
 ## 3. Current Snapshot
 
@@ -43,46 +44,30 @@ Explicit follow-up after the current file-sink contract work:
 - custom sink coverage and richer multi-hook monitoring remain follow-on work
   after console-sink behavior is frozen
 
-Explicit follow-up after the current hook-env evidence pass:
-- the next implementation sprint must align runtime root/state behavior with
-  the newly captured hook/env truth
-- the sprint after that should harden divergence handling and integration tests
-  so later Claude changes are detected immediately
-
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
 - therefore observability appears below as a completed baseline sprint, not as pending build work
 
 ## 4. Sprint Sequence
 
-| Sprint | Identifier | Status | Focus | Primary drivers | Gate / Depends on | Primary write scope |
-| --- | --- | --- | --- | --- | --- | --- |
-| Sprint 0 | — | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | — | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | — | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
-| Sprint 3 | — | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
-| Sprint 4 | — | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
-| Sprint 5 | — | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
-| Sprint 6 | — | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
-| Sprint 8 | — | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Sprint 9 | S9-P0 | Completed | Phase 0: Review Baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Sprint 9 | S9-P1 | Completed | Phase 1: Build Harness | `HKR-002`, `HKR-005` | S9-P0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Sprint 9 | S9-P2 | Completed | Phase 2: Capture Claude Payloads | `HKR-002`, `HKR-003` | S9-P1 | `test-harness/hooks/claude/captures/raw/`, approved fixtures, capture reports |
-| Sprint 9 | S9-P2A | Completed | Phase 2A: Global HTML Reporting Stack | `HKR-005`, `HKR-012` | S9-P2 | `$HOME/.claude/skills/html-report/SKILL.md`, `~/.claude/agents/html-report-generator.md`, validation example |
-| Sprint 9 | S9-P3 | Completed | Phase 3: Pydantic Models + Schema | `HKR-003`, `HKR-005` | S9-P2A | Pydantic models, generated schema artifacts, drift validation tests |
-| Sprint 9 | S9-P4 | Completed | Phase 4: Revise Plan from Schema | `HKR-003` | S9-P3 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, traceability notes |
-| Sprint 9 | S9-P5 | Completed | Phase 5: Re-Evaluate + Sequence | `HKR-003`, `HKR-004` | S9-P4 | implementation disposition notes, runtime sequence updates |
-| Sprint 9 | S9-HP3 | Implementation Complete | Hook Phase 3: Session Foundation | `HKR-004` | S9-P5 | `sc-hooks-session-foundation`, same-PR architecture inventory update |
-| Sprint 9 | S9-HP4 | Implementation Complete | Hook Phase 4: Bash Identity + Spawn Gates | `HKR-004` | S9-HP3 | `agent-spawn-gates`, `tool-output-gates`, direct behavior tests |
-| Sprint 9 | S9-HP5 | Implementation Complete | Hook Phase 5: Relay Hooks | `HKR-004`, `HKR-011`, `HKR-013` | S9-HP3 | `atm-extension`, relay tests |
-| Sprint 9 | S9-PBC | In QA | Plan-BC: BC Design Consolidation | `HKR-003`, `HKR-004` | independent | `docs/phase-bc-hook-runtime-design.md`, core plan docs, hook API alignment |
-| Sprint 9 | S9-BONUS | In QA | Console-sink observability coverage (`DEF-008` partial) | `DEF-008` | Sprint 0 | `sc-hooks-cli/tests/`, `docs/observability-contract.md`, `docs/logging-contract.md`, `docs/architecture.md`, `docs/archive/implementation-gaps.md`, `docs/requirements.md`, `docs/traceability.md` |
-| Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/raw/` (env-backed captures), `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
-| Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
-| Sprint 10 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
-| Sprint 10 | SC-S10-WORKTREE-HOOKS-1 | In review | Claude worktree hook semantics docs + harness proof | `HKR-003`, `HKR-005` | `integrate/s9-hook-harness` baseline | `docs/hook-api/claude-hook-api.md`, `docs/protocol-contract.md`, `docs/requirements.md`, `test-harness/hooks/README.md`, `sc-hooks-test`, Claude capture harness |
-| Sprint 10 | S10-H1 | Planned | Live Claude hook-schema validation gate | `HKR-003`, `HKR-005`, `HKR-008` | S9-P3, S9-ENV-CAPTURE, S10-R2 | live capture harness runner, fresh-capture Pydantic validation, automatable Claude hook regression gate |
-| Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
+| Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
+| --- | --- | --- | --- | --- | --- |
+| Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
+| Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 2 | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
+| Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
+| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
+| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
+| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
+| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
 
 ## 5. Execution Controls
 
@@ -167,7 +152,7 @@ Acceptance criteria:
 ### Deferred Follow-Up: DEF-008 Console-Sink Coverage
 
 Status:
-- partially complete — console-sink delivered; custom sinks + multi-hook correlation deferred
+- deferred, next planned observability expansion
 
 Focus:
 - prove console-sink output under real `sc-hooks-cli` dispatch
@@ -181,7 +166,6 @@ Write scope:
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
 - `docs/archive/implementation-gaps.md`
-- `docs/traceability.md`
 
 Deliverables:
 - real-dispatch tests for console-sink emission on:
@@ -465,13 +449,13 @@ Definition of done:
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing the legacy `plugins/` crates as scaffold/reference only and requiring explicit maturity status for any later implementation crate.
+  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing every current `plugins/` crate as scaffold/reference only.
 - What code was removed early rather than left in parallel?
   No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
 - Which files/crates were the owned write scope for the sprint?
   `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/archive/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
-  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`, even when a source implementation crate such as `plugins/agent-session-foundation` exists in the workspace.
+  Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 6 is unblocked because plugin maturity claims are now binary and consistent across docs and metadata; any future plugin promotion will require a new scoped sprint with install guidance and direct behavior tests.
 
@@ -662,10 +646,10 @@ Purpose:
 - keep provider-specific evidence and ATM-specific behavior separate
 - make the first implementation pass small, exact, and test-driven
 
-### S9-P0: Phase 0: Review Baseline
+### Hook Phase 0: Review Baseline
 
 Status:
-- completed
+- in review
 
 Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
@@ -685,15 +669,20 @@ Acceptance criteria:
 - ATM-specific behavior is isolated in its own document
 - Cursor remains documented but deferred from the first implementation pass
 - no implementation-facing field is promoted without a verified source
-- S9-P0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
+- Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
 
-### S9-P1: Phase 1: Build Harness
-
-Status:
-- completed
+### Hook Phase 1: Claude Schema Harness
 
 Focus:
-- build the first hook harness for Claude only
+- build the first hook harness for Claude only and freeze the captured
+  provider baseline before writing runtime hook code
+
+Write scope:
+
+- `test-harness/hooks/README.md`
+- `test-harness/hooks/scripts/run-capture.sh`
+- `test-harness/hooks/claude/{prompts,hooks,models,fixtures,captures,reports,scripts,tests}/`
+- fixture manifests and harness runner helpers
 
 Deliverables:
 - `test-harness/hooks/README.md` harness contract file
@@ -701,237 +690,167 @@ Deliverables:
 - Claude provider adapter
 - Claude fixture capture scripts
 - Claude validation models
-- approved fixture snapshots and harness reports
-- rerunnable harness entry points documented in repo docs
-- `Notification(idle_prompt)` kept wired in the harness as a bounded probe, not
-  promoted as a verified payload shape
+- CI drift check for breaking Claude payload changes
+- approved fixture snapshots and a first live Claude Haiku report
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- harness structure and fixture validation tests under
+  `test-harness/hooks/claude/tests/`
 
 Acceptance criteria:
 - Claude hook payloads for the planned hook set are captured and validated
 - raw captured fixtures are stored as review evidence
+- CI fails on required-field removal or type drift
 - the harness can be rerun from repo docs without reconstructing ad hoc setup
-- the harness baseline distinguishes verified captures from wired-but-unresolved
-  probes
 
 Definition of done:
 - the team can point to captured Claude payloads instead of inferred shapes
 
-### S9-P2: Phase 2: Capture Claude Payloads
-
-Status:
-- completed
+### Hook Phase 2: Plan Revision From Captured Claude Schema
 
 Focus:
-- collect the actual Claude hook payloads that later schema/model and implementation work must obey
+- revise the hook plan from captured evidence before implementation starts
 
-Deliverables:
-- captured Claude payloads stored under `test-harness/hooks/claude/captures/raw/`
-- approved fixtures and follow-up capture notes in the harness tree
-- evidence for `startup`, `resume`, `clear`, `compact`, `PreCompact`, `PreToolUse(Bash)`, `PreToolUse(Agent)`, `PostToolUse(Bash)`, `PermissionRequest`, `Stop`, and `SessionEnd`
-- explicit note that `Notification(idle_prompt)` remains wired-but-unresolved in
-  this environment after bounded probing
+Write scope:
 
-Acceptance criteria:
-- the required first-pass Claude capture set is backed by local fixtures
-- capture artifacts are committed in the harness tree
-- implementation-facing docs cite captured evidence instead of inferred payload shapes
-
-Note:
-- S9-P2 completed as part of the executed S9-P1 harness follow-on; captured artifacts now live under `test-harness/hooks/claude/captures/raw/`
-
-### S9-P2A: Phase 2A: Global HTML Reporting Stack
-
-Status:
-- not started
-
-Focus:
-- build the reusable global HTML reporting stack before any schema-drift sprint
-  depends on report generation
-
-Deliverables:
-- `$HOME/.claude/skills/html-report/SKILL.md`
-- `~/.claude/agents/html-report-generator.md`
-- both files reviewed against:
-  `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`
-- one tested invocation producing a valid self-contained HTML file
-
-Acceptance criteria:
-- the discovery and execution layers both exist at the required paths
-- both pass the guidelines review gate
-- the execution layer can be invoked as a background agent from a caller skill
-- a test invocation proves self-contained HTML output
-
-### S9-P3: Phase 3: Pydantic Models + Schema
-
-Status:
-- not started
-
-Focus:
-- create provider-specific Pydantic models and generated schema artifacts from the captured Claude fixtures
-
-Deliverables:
-- provider-specific Pydantic models for the captured Claude payloads
-- `pyproject.toml` with `pydantic>=2.0` and `pytest`
-- generated schema artifacts derived from those models
-- drift validation tests for the captured fixtures
-- `test-harness/hooks/run-schema-drift.py`
-- per-provider adapters under `test-harness/hooks/<provider>/`
-- `.claude/skills/hook-schema-drift/`
-- report-generation flow that uses the completed global HTML reporting stack
-
-Acceptance criteria:
-- captured Claude fixtures validate against the Pydantic models
-- schema artifacts exist for the validated models
-- drift classification rules execute in tests
-- schema drift remains a manual tool path, not CI
-- any report-generating workflow depends on completed `S9-P2A`
-
-### S9-P4: Phase 4: Revise Plan from Schema
-
-Status:
-- not started
-
-Focus:
-- revise the hook plan from validated schema before implementation starts
+- `docs/archive/plugin-plan-s9.md`
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/project-plan.md`
+- `docs/requirements.md`
+- `docs/architecture.md`
 
 Deliverables:
 - updated `docs/archive/plugin-plan-s9.md`
 - updated `docs/hook-api/claude-hook-api.md`
-- traceability and implementation-readiness notes derived from validated schema
-- explicit classification of each implementation dependency as:
-  - source-backed
-  - fixture-backed
-  - deferred
-- cross-reference back to `docs/phase-bc-hook-runtime-design.md` for the frozen
-  runtime design boundary
+- any additional traceability/gap notes needed for implementation readiness
+- frozen normalized `agent_state` model
+- frozen canonical session-state schema
+- frozen hook trait/result/context contract
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- `cargo test --workspace`
 
 Acceptance criteria:
-- every planned Claude implementation field is backed by validated schema or retained as an explicit deferral
-- implementation-facing docs no longer depend on pre-schema guesses
-- implementation-facing docs and the BC design doc agree on what code lands next
+- every planned Claude implementation field is backed by captured fixtures or
+  existing source-of-truth code/docs/tests
+- unknown fields remain explicitly deferred
+- implementation tasks can start without schema guessing
+- the remaining hook phases define exact code to write, tests required, and
+  success criteria
 
-### S9-P5: Phase 5: Re-Evaluate + Sequence
-
-Status:
-- not started
-
-Focus:
-- decide the implementation queue and prototype disposition only after the schema phases finish
-
-Deliverables:
-- explicit disposition for each prototype crate
-- runtime implementation sequence derived from validated schema
-
-Acceptance criteria:
-- implementation tasks are ready to start without schema guessing
-- prototype branches remain reference-only until this sequencing pass is complete
-
-### S9-PBC: Plan-BC: BC Design Consolidation
-
-Status:
-- in QA
+### Hook Phase 3: Claude Session And Lifecycle Implementation
 
 Focus:
-- consolidate the clean post-capture runtime design in this repo before implementation starts
+- freeze the hook trait and implement the generic lifecycle/state foundation first
+
+Write scope:
+
+- `sc-hooks-core/`
+- `sc-hooks-sdk/`
+- `plugins/agent-session-foundation/`
+- same-PR updates to `docs/architecture.md`, `docs/requirements.md`, and
+  `docs/project-plan.md`
 
 Deliverables:
-- `docs/phase-bc-hook-runtime-design.md`
-- core-doc alignment for session-state ownership, `agent_state`, logging, trait boundaries, and crate split
-
-Acceptance criteria:
-- the clean runtime design authority lives in `schook`
-- implementation phases below can reference one runtime design source of truth
-
-### S9-HP3: Hook Phase 3: Session Foundation
-
-Status:
-- implemented out of sequence
-- planned HP3 test inventory is complete on the current branch
-
-Focus:
-- implement the Claude lifecycle pair first
-
-Deliverables:
+- final hook trait/context/result contract in `sc-hooks-core` / `sc-hooks-sdk`
 - `plugins/agent-session-foundation`
-- tests proving `SessionStart`, `SessionEnd`, and `Stop` state-tracking
-  behavior against the captured contract
-- canonical session-state file keyed by:
-  - `session_id`
-  - `active_pid`
-  - `ai_root_dir`
-- `ai_root_dir` established from the root-establishing `SessionStart` for the
-  runtime instance as immutable working directory
-- `ai_current_dir` chaining from payload `cwd` as current-directory context
-- required equality check between `ai_root_dir` and inbound
-  `CLAUDE_PROJECT_DIR` when present
-- prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
-  diverges from the persisted immutable root
-- normalized downstream project-root context for consumers even when Claude
-  varies raw env values across hook surfaces
-- `PreCompact` and `Stop` handling on the normalized `agent_state` path
-- `PreToolUse`, `PostToolUse`, and `PermissionRequest` explicitly deferred to
-  `S9-HP4`
-- atomic write semantics for `session.json`
-- no `session.json` rewrite when the canonical record is unchanged
-- mandatory hook logging for every lifecycle invocation
+- tests proving `SessionStart`, `SessionEnd`, and `PreCompact` against the
+  captured contract
+- session-state file implementation with normalized `agent_state` transitions
+- same-agent correlation across directory changes
+
+Required tests:
+
+- unit tests for normalized `agent_state` transitions
+- integration tests for session-state persistence keyed by `session_id`
+- integration tests proving `SessionStart` in directory A and later lifecycle
+  events in directory B still resolve the same session record
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 
 Acceptance criteria:
 - lifecycle hooks use only verified inputs
-- ATM-specific routing/persistence stays bounded by the ATM extension doc
-- the canonical session-state schema matches the documented BC design
-- state identity and persistence are stable across directory changes and PID-bound
-  hook calls
+- ATM-specific routing stays out of the generic lifecycle crate
+- the session-state schema matches the documented canonical record
+- the trait boundary no longer relies on raw `serde_json::Value` alone as the
+  only plugin-facing abstraction
 
-### S9-HP4: Hook Phase 4: Bash Identity + Spawn Gates
-
-Status:
-- implemented out of sequence
-- planned HP4 test inventory is complete on the current branch
+### Hook Phase 4: Claude Command And Spawn Gates
 
 Focus:
-- implement the spawn gate and structured tool-output gate from the clean BC design
+- implement the generic spawn and tool-gate utilities
+
+Write scope:
+
+- `plugins/agent-spawn-gates/`
+- `plugins/tool-output-gates/`
+- any same-PR doc updates required if the captured schema or blocking contract
+  needs clarifying
 
 Deliverables:
-- `agent-spawn-gates`
-- `tool-output-gates`
-- direct behavior tests for command-sensitive and team-policy behavior
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- direct behavior tests for named-agent vs background-agent policy
+- direct behavior tests for fenced-JSON/schema-governed spawn blocking
 - schema lookup from inline prompt definitions or same-name sibling schema files
-- named-agent versus background-agent policy table
 - exact retryable block responses for invalid fenced JSON
-- fenced `json` extraction and validation tests
+
+Required tests:
+
+- direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for named-agent versus background-agent policy outcomes
+- tests for subagent linkage fields written into the canonical session-state file
+- tests for fenced `json` extraction and schema validation success/failure
+- tests proving invalid input returns exact retryable failure reasons
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 
 Acceptance criteria:
 - no field is relied on unless it was verified in Phase 1 or added in a later
   approved schema capture
-- command-sensitive behavior is tested directly
-- invalid fenced JSON returns exact retryable failure reasons
-- spawn policy outcomes are tested for named-agent and background-agent paths
+- spawn and tool-blocking behavior is tested directly
+- block responses explain exactly how the caller can retry successfully
+- generic blocking/fenced-JSON policy remains separate from ATM-specific relay
+  behavior
 
-### S9-HP5: Hook Phase 5: Relay Hooks
-
-Status:
-- implemented out of sequence
-- planned HP5 test inventory is complete on the current branch
+### Hook Phase 5: Claude Relay Hooks
 
 Focus:
-- implement the notification/permission/stop relays
+- implement ATM-specific extension behavior after the generic layer is stable
+
+Write scope:
+
+- `plugins/atm-extension/`
+- ATM-only docs where relay semantics or teammate-idle mapping must be frozen
 
 Deliverables:
-- `atm-extension`
+- `plugins/atm-extension`
+- direct tests for ATM Bash identity-file behavior
 - direct tests for `PermissionRequest` and `Stop`
 - direct tests for teammate-idle mapping onto normalized `idle`
-- ATM enrichment layered onto the canonical session-state record via extension
-  fields
-- ATM environment inheritance rules for `ATM_TEAM` and `ATM_IDENTITY`
-- `Notification(idle_prompt)` kept wired and documented, but still deferred
-  unless a live payload is captured
+- ATM enrichment on the canonical session-state file through extension fields
+- `Notification` stays wired and documented, but remains deferred until a live
+  payload is captured
+
+Required tests:
+
+- tests for ATM identity-file create/delete behavior around `atm` Bash commands
+- tests for ATM extension fields on the canonical session-state record
+- tests for relay mapping on `PermissionRequest`, `Stop`, and teammate-idle
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 
 Acceptance criteria:
-- relay behavior is bounded to the verified Claude ATM baseline
+- ATM behavior is layered on top of the generic hook utilities rather than
+  defining them
 - failure posture is documented and tested
-- ATM extends the canonical record; it does not redefine the generic state model
-- parent/child ATM identity behavior is documented and tested where the child
-  environment overrides `ATM_IDENTITY`
+- `Notification` stays wired but does not block completion of this phase until
+  a live payload is captured and promoted
 
 ### Hook Phase 6: Cross-Provider Follow-On
 
@@ -939,199 +858,71 @@ Focus:
 - only after the Claude baseline is stable, decide whether to expand to other
   providers
 
+Write scope:
+
+- provider follow-on planning docs only
+- no runtime crate work without separate approval and provider-specific capture
+
 Current deferred items:
 - Codex harness and implementation work
 - Gemini harness and implementation work
 - Cursor harness capture
 - Cursor runtime implementation
 
+Required tests:
+
+- docs-only validation plus any provider harness tests explicitly approved for
+  that provider follow-on
+
+Acceptance criteria:
+
+- follow-on provider work is represented as schema-backed planning, not guessed
+  implementation
+- Claude remains the only active runtime baseline until another provider is
+  explicitly captured and approved
+
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
 
-### S9-ENV-CAPTURE: Hook Env Evidence Capture + Doc Reconciliation
-
-Status:
-- completed
-
-Focus:
-- capture the full hook-side environment for all Claude hook events using the
-  test harness (`--env-capture` flag)
-- establish known-truth for `CLAUDE_PROJECT_DIR`, `CLAUDE_CODE_ENTRYPOINT`,
-  `CLAUDE_ENV_FILE`, and ATM routing vars across all hook surfaces
-- reconcile control docs (`requirements.md`, `architecture.md`,
-  `claude-hook-api.md`, `project-plan.md`) against captured evidence
-- clarify `CLAUDE_PLUGIN_ROOT` as a plugin-context variable not part of the
-  generic hook-runtime baseline
-- plan S10-R1 and S10-R2 follow-on sprints to implement the immutable-root
-  semantics design derived from this evidence
-
-Deliverables:
-- `test-harness/hooks/claude/captures/raw/` — env-backed `.env.json` captures alongside payload `.json` files
-  for all observed hook surfaces
-- `test-harness/hooks/claude/reports/2026-03-29-hook-env-known-truth.md` —
-  authoritative known-truth table for root signals and ATM vars per surface
-- `docs/hook-api/claude-hook-api.md` — `CLAUDE_PLUGIN_ROOT` guidance updated;
-  immutable-root semantics design implications documented
-- `docs/requirements.md`, `docs/architecture.md` — stale Deferred statuses
-  corrected where evidence of implementation exists
-- `docs/project-plan.md` — S10-R1 and S10-R2 sprint specs added
-
-Key findings recorded in known-truth report:
-- `CLAUDE_PROJECT_DIR` is hook-only (not present in baseline shell), remains
-  pinned to startup root even when `cwd` drifts after `cd`
-- `SessionStart(source="startup")` `cwd` and `CLAUDE_PROJECT_DIR` align exactly
-- `CLAUDE_PLUGIN_ROOT` was not observed in any env capture
-- ATM vars (`ATM_IDENTITY`, `ATM_TEAM`) present in ATM-driven runs only
-
-### S10-R1: Root Semantics Implementation Alignment
-
-Status:
-- planned
-
-Focus:
-- align runtime session/root behavior with the captured hook/env truth before
-  any broader follow-on hook work
-
-Deliverables:
-- update `plugins/agent-session-foundation` so `ai_root_dir` is established
-  from the root-establishing `SessionStart` for the runtime instance
-- ensure later hook `cwd` values update only `ai_current_dir`
-- normalize downstream project-root context for consumers from the persisted
-  immutable root
-- make the implementation match the captured `startup`, `resume`, `compact`,
-  `clear`, and Bash-drift evidence
-- update direct unit/integration tests for the corrected root semantics
-
-Design constraint:
-- `ai_root_dir` immutability is enforced at the type level: the field must be
-  a newtype or typestate barrier that can only be set once at
-  `SessionStart(source="startup")` construction and is not writable by any
-  later hook handler; a plain mutable `String` or `PathBuf` field is not
-  acceptable (BP-001)
-
-Acceptance criteria:
-- runtime root identity no longer depends on later hook `cwd`
-- captured lifecycle sources (`startup`, `resume`, `compact`, `clear`) resolve
-  the same immutable root semantics described in the control docs
-- downstream consumers receive stable project-root context even after Bash
-  `cd` drift
-- no silent fallback or "close enough" root repair remains in the lifecycle
-  path
-
-### S10-R2: Root Divergence Logging + Contract Hardening
-
-Status:
-- planned
-
-Focus:
-- harden the corrected root semantics with explicit divergence handling and
-  harness-backed regression coverage
-
-Deliverables:
-- define and implement a `RootDivergence` error variant (or equivalent named
-  type) with the following cause-chain fields (BP-002):
-  - `immutable_root: PathBuf` — the value established at startup
-  - `observed: PathBuf` — the inbound `CLAUDE_PROJECT_DIR` value that differed
-  - `hook_event: String` — the hook surface where the divergence was detected
-  - recovery step: log at error level and continue with the immutable root;
-    never silently substitute the inbound value
-- prominent error-level observability when inbound `CLAUDE_PROJECT_DIR`
-  diverges from the persisted immutable root
-- exact structured log/assertion coverage for divergence cases
-- integration tests covering:
-  - startup root establishment
-  - Bash `cd` drift
-  - `resume`
-  - `compact`
-  - `clear`
-  - missing or varied inbound `CLAUDE_PROJECT_DIR`
-- downstream-context tests proving normalized root export remains stable for
-  consumers
-
-Acceptance criteria:
-- divergence between immutable root and inbound `CLAUDE_PROJECT_DIR` is
-  visible immediately in observability output
-- integration coverage matches the committed known-truth harness evidence
-- future Claude changes that alter root/env behavior fail contract tests rather
-  than silently changing runtime state semantics
-
-### SC-S10-WORKTREE-HOOKS-1: Claude Worktree Hook Semantics Docs + Harness Proof
+### S10-VERSION-BUMP-1: Claude Version-Bump Detection
 
 Status:
 - in review
 
 Focus:
-- document Claude `WorktreeCreate` / `WorktreeRemove` semantics precisely and
-  prove the blocking behavior with harness coverage before any runtime
-  implementation treats these surfaces as generic hook-dispatch cases
+- detect Claude CLI version bumps before maintainers accept Claude hook
+  contract changes without rerunning schema validation
+
+Write scope:
+
+- `scripts/verify-claude-hook-api.py`
+- `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- `test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/project-plan.md`
+- `docs/traceability.md`
 
 Deliverables:
-- update `docs/hook-api/claude-hook-api.md` so `WorktreeCreate` and
-  `WorktreeRemove` are described as top-level provider hooks rather than
-  `PreToolUse` matcher cases
-- document the provider I/O contract for `WorktreeCreate`:
-  - absolute worktree path on stdout
-  - rejection/failure detail on stderr
-  - non-zero exit blocks creation
-  - no `HookResult` / decision-control JSON
-- update `docs/requirements.md` and `docs/protocol-contract.md` within the
-  sprint write scope so the generic runtime contract does not overclaim these
-  provider-specific semantics
-- add `sc-hooks-test` harness tests proving:
-  - authorized `WorktreeCreate` returns a usable absolute path
-  - unauthorized-folder `WorktreeCreate` blocks with stderr + exit `1`
-  - redirect guidance points users to `/sc-git-worktree`
-  - `WorktreeRemove` consumes `worktree_path`
-- capture at least one live Claude `WorktreeCreate` transcript proving the hook
-  fires and the block message is surfaced by Claude
+- a Claude-only detector comparing `claude --version` to the approved manifest
+- approved manifest stores the current validated `claude_version`
+- pytest coverage for match, mismatch, and missing-manifest-version failure modes
+- release-doc updates recording the detector as the implementation path for
+  `TST-008`
+
+Required tests:
+
+- `python3 scripts/verify-claude-hook-api.py`
+- `python3 -m pytest test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo fmt --check --all`
 
 Acceptance criteria:
-- `WorktreeCreate` / `WorktreeRemove` are documented as top-level provider
-  hooks in `docs/hook-api/claude-hook-api.md`
-- the documented contract states:
-  - stdout = worktree path
-  - stderr = rejection/failure detail
-  - exit `1` blocks the operation
-  - `HookResult` JSON does not apply
-- `sc-hooks-test` carries harness tests proving `WorktreeCreate` block behavior
-- `docs/requirements.md` and `docs/protocol-contract.md` are updated within the
-  sprint write scope
-- at least one live Claude capture in the harness proves `WorktreeCreate`
-  really fires in this environment
-
-Definition of done:
-- docs merged with the provider-specific semantics corrected
-- Rust-side harness tests pass
-- live Claude capture artifact exists for `WorktreeCreate`
-- follow-on automation gap recorded separately as `S10-H1`
-
-### S10-H1: Live Claude Hook-Schema Validation Gate
-
-Status:
-- planned
-
-Focus:
-- convert the current manual-first Claude harness into a repeatable live
-  validation gate for every hook surface that can be exercised without user
-  assistance
-
-Deliverables:
-- a live Claude harness runner that launches real Claude with capture hooks
-  enabled and exercises all automatable hook surfaces
-- fresh raw capture generation for those automatable surfaces during the test
-  run rather than validating only committed approved fixtures
-- test coverage that validates each fresh captured payload against the
-  provider-specific Pydantic model for that hook API
-- explicit classification of which hook surfaces remain manual-only and why
-- inclusion of `WorktreeCreate` in the live automatable set once the provider
-  surface is wired into the Claude capture harness
-
-Acceptance criteria:
-- one command can execute the automatable Claude live-capture suite after the
-  environment is set up the first time
-- the suite fires each automatable hook surface and validates the resulting raw
-  JSON against the Pydantic model for that surface
-- schema drift in any automatable Claude hook payload fails the test run
-- manual-only surfaces remain documented separately and are not silently
-  skipped
+- the approved Claude manifest stores a validated `claude_version`
+- the detector exits `0` when the installed Claude version matches the approved
+  manifest
+- version mismatches exit non-zero with rerun guidance
+- missing or invalid manifest version data fails clearly instead of producing a
+  traceback

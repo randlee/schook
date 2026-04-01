@@ -44,6 +44,10 @@ Current host behavior is coarse:
 - the host checks only the integer compatibility rule above
 - it does not implement a richer compatibility negotiation protocol
 
+Unknown-field rule:
+- manifest and runtime result deserialization currently ignore unknown JSON fields
+- unknown fields are dropped on deserialize/serialize round-trip rather than preserved
+
 ## 3. Manifest Contract
 
 ### 3.1 Manifest Command
