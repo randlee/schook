@@ -9,14 +9,14 @@ It is a derived planning document. It does not override:
 - `docs/requirements.md` for release-facing behavior
 - `docs/architecture.md` for current architecture
 - `docs/protocol-contract.md` for the host/plugin wire contract
-- `docs/archive/implementation-gaps.md` for archived gap context
+- `docs/implementation-gaps.md` for archived gap context
 
 ## 2. Planning Inputs
 
 This plan is derived from:
 - `docs/requirements.md`
 - `docs/traceability.md`
-- `docs/archive/implementation-gaps.md`
+- `docs/implementation-gaps.md`
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
@@ -68,6 +68,7 @@ Important planning rule:
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
+| S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
 
 ## 5. Execution Controls
 
@@ -124,7 +125,7 @@ Current high-risk classes covered here:
 - remaining merge-only review residue that can survive after the underlying issue is already resolved
 
 Merge signal for this docs/planning pass:
-- no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/archive/implementation-gaps.md`
+- no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/implementation-gaps.md`
 
 ## 10. Sprint Details
 
@@ -165,7 +166,7 @@ Write scope:
 - `docs/architecture.md`
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
-- `docs/archive/implementation-gaps.md`
+- `docs/implementation-gaps.md`
 
 Deliverables:
 - real-dispatch tests for console-sink emission on:
@@ -453,7 +454,7 @@ QA checklist answers:
 - What code was removed early rather than left in parallel?
   No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
 - Which files/crates were the owned write scope for the sprint?
-  `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/archive/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
+  `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
   Sprint 5 closes a release-honesty gap rather than adding shipped plugin behavior. Validation relies on source inspection plus the existing runtime-layout and workspace test gates to confirm the runtime still resolves only `.sc-hooks/plugins/`.
 - What follow-on work is blocked or unblocked by this sprint?
@@ -531,7 +532,7 @@ Write scope:
 - `docs/traceability.md`
 - `docs/observability-contract.md`
 - `docs/project-plan.md`
-- `docs/archive/implementation-gaps.md`
+- `docs/implementation-gaps.md`
 
 Deliverables:
 - delete the dead `unreachable!()` branch in `sc-hooks-sdk/src/conditions.rs`
@@ -585,7 +586,7 @@ Before release cut or final QA handoff, complete these checks explicitly:
 - claim audit: every strong release-facing statement in requirements and contract docs points to code, tests, or a gap/deferred ID
 - removal audit: no stale duplicate implementation path remains for any release-facing behavior
 - advisory audit: every non-blocking QA advisory is either verified with a cited code path or converted into an explicit gap note
-- misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/archive/implementation-gaps.md`
+- misalignment audit: no high-risk doc/code/API misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - release-doc audit: requirements, architecture, traceability, project plan, and contract docs describe the same final scope
 - branch freeze: branch head is frozen before QA/reviewer handoff
 - validation record: exact validation commands are recorded on the frozen branch state
@@ -595,7 +596,7 @@ Release preflight evidence:
 | Check | Status | Evidence |
 | --- | --- | --- |
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
-| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/archive/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
+| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
 | misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
 | release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
@@ -631,7 +632,7 @@ The release plan is complete only when:
 - all non-deferred blocker or important gaps are either closed or explicitly removed from release scope
 - every required-before-release item is either implemented or intentionally cut from the release contract
 - traceability rows for release claims point to real code and tests, not inference alone
-- no uncovered high-risk misalignment class remains outside this plan or `docs/archive/implementation-gaps.md`
+- no uncovered high-risk misalignment class remains outside this plan or `docs/implementation-gaps.md`
 - merge-time review items are closed
 - branch head is frozen before QA/reviewer handoff
 - exact validation commands are recorded on that frozen branch state
@@ -926,3 +927,38 @@ Acceptance criteria:
 - version mismatches exit non-zero with rerun guidance
 - missing or invalid manifest version data fails clearly instead of producing a
   traceback
+
+### S11-DOC.1: README And Usage Guide Release-Doc Alignment
+
+Status:
+- in review
+
+Focus:
+- align the operator-facing top-level docs with the current release baseline
+- remove stale CLI/example wording that drifted from the control docs
+
+Write scope:
+- `README.md`
+- `USAGE.md`
+- `docs/project-plan.md`
+
+Deliverables:
+- README and usage examples with no `--sync` flag on `fire` invocations
+- explicit Unix-like-shell qualifier on install snippets
+- README plugin inventory aligned with the architecture baseline that treats
+  all current `plugins/` source crates as scaffold/reference only in release docs
+- a clear naming note that `docs/requirements.md` uses `sc-hooks` as the
+  product command label while the current Cargo binary artifact in this repo is
+  `sc-hooks-cli`
+
+Required tests:
+
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- no `fire` example in `README.md` or `USAGE.md` includes `--sync`
+- install snippets are explicitly scoped to Unix-like shells
+- README plugin table contains scaffold/reference-only language and no
+  `runtime-implementation` claims
+- `S11-DOC.1` appears in the sprint table and this detail section
