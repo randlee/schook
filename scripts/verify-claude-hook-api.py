@@ -16,7 +16,15 @@ def main() -> int:
     root = Path(os.environ.get("SC_HOOK_REPO_ROOT", Path(__file__).resolve().parent.parent))
     manifest = root / "test-harness" / "hooks" / "claude" / "fixtures" / "approved" / "manifest.json"
     try:
-        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        manifest_text = manifest.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return emit_error(
+            "manifest_not_found",
+            "approved manifest not found",
+            path=str(manifest),
+        )
+    try:
+        payload = json.loads(manifest_text)
     except json.JSONDecodeError as exc:
         return emit_error(
             "invalid_manifest_json",

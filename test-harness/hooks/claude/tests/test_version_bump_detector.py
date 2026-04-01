@@ -87,6 +87,15 @@ def test_version_detector_reports_invalid_manifest_json(tmp_path: Path) -> None:
     assert "Traceback" not in result.stderr
 
 
+def test_version_detector_reports_missing_manifest(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    result = _run_detector(repo_root, os.environ.get("PATH", ""))
+    assert result.returncode == 1
+    assert '"error": "manifest_not_found"' in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_version_detector_reports_missing_claude_binary(tmp_path: Path) -> None:
     repo_root = _make_repo_root(tmp_path, "2.1.87 (Claude Code)")
     result = _run_detector(repo_root, "")
