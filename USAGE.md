@@ -14,6 +14,8 @@ This guide covers:
 
 Install the CLI from this repo:
 
+Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
+
 ```bash
 cargo install --path sc-hooks-cli --root ~/.local
 export PATH="$HOME/.local/bin:$PATH"
@@ -24,6 +26,10 @@ For local development without installing:
 ```bash
 cargo run -p sc-hooks-cli -- --help
 ```
+
+Naming note:
+- [docs/requirements.md](docs/requirements.md) uses `sc-hooks` as the product command label in acceptance scenarios.
+- The current Cargo package and binary artifact in this repo is `sc-hooks-cli`, so the executable examples below use `sc-hooks-cli`.
 
 ## Runtime Layout
 
@@ -94,7 +100,7 @@ printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks-cli run PreTo
 Fire a diagnostic invocation:
 
 ```bash
-sc-hooks-cli fire PreToolUse Write --sync
+sc-hooks-cli fire PreToolUse Write
 ```
 
 Inspect the resolved configuration:

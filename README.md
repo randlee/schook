@@ -29,6 +29,8 @@ cargo test --workspace
 
 Install the CLI from this repo:
 
+Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
+
 ```bash
 cargo install --path sc-hooks-cli --root ~/.local
 export PATH="$HOME/.local/bin:$PATH"
@@ -60,6 +62,10 @@ printf '%s\n' '{"tool_input":{"command":"echo hi"}}' | sc-hooks-cli run PreToolU
 
 For a step-by-step operator guide, see [USAGE.md](USAGE.md).
 
+Naming note:
+- [docs/requirements.md](docs/requirements.md) uses `sc-hooks` as the product command label in acceptance scenarios.
+- The current Cargo package and binary artifact in this repo is `sc-hooks-cli`, so the executable examples below use `sc-hooks-cli`.
+
 ## CLI Surface
 
 Current top-level commands:
@@ -83,7 +89,7 @@ sc-hooks-cli config
 sc-hooks-cli handlers
 sc-hooks-cli handlers --events
 printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks-cli run PreToolUse Bash --sync
-sc-hooks-cli fire PreToolUse Write --sync
+sc-hooks-cli fire PreToolUse Write
 sc-hooks-cli test .sc-hooks/plugins/guard-paths
 ```
 
@@ -95,7 +101,7 @@ sc-hooks-cli test .sc-hooks/plugins/guard-paths
 | `sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
 | `sc-hooks-sdk/` | Rust authoring conveniences for manifests, runner helpers, conditions, and results; not the release-defining contract |
 | `sc-hooks-test/` | Reusable compliance harness and shell-based test fixtures |
-| `plugins/` | Source crates only; some are runtime-implementation crates, others remain scaffold/reference only |
+| `plugins/` | Source crates only; all current crates remain scaffold/reference only in the release docs and are not described as shipped runtime plugins |
 | `docs/` | Product requirements, architecture, protocol contracts, planning, and traceability |
 | `examples/` | Checked runtime layout example |
 | `shims/` | Thin adapters for Codex and Gemini |
@@ -104,10 +110,10 @@ Current source plugin inventory in `plugins/`:
 
 | Crate | Release posture |
 | --- | --- |
-| `agent-session-foundation` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
-| `agent-spawn-gates` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
-| `atm-extension` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
-| `tool-output-gates` | current runtime-implementation crate with direct tests; delivered as source code, not a preinstalled runtime plugin |
+| `agent-session-foundation` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
+| `agent-spawn-gates` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
+| `atm-extension` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
+| `tool-output-gates` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
 | `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
 | `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
 | `event-relay` | scaffold/reference only; not a shipped runtime plugin |
