@@ -590,14 +590,12 @@ impl CanonicalSessionRecord {
     /// Converts the record into the active-session mutation wrapper.
     pub fn try_into_active(self) -> Result<ActiveSessionRecord, HookError> {
         if self.is_ended() {
-            EndedSessionRecord::from_validated(self)?;
-            Err(HookError::validation(
+            return Err(HookError::validation(
                 "agent_state",
                 "active session record cannot wrap AgentState::Ended",
-            ))
-        } else {
-            ActiveSessionRecord::from_validated(self)
+            ));
         }
+        ActiveSessionRecord::from_validated(self)
     }
 
     /// Validates record invariants prior to persistence.
