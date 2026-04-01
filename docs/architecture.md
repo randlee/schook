@@ -292,6 +292,27 @@ Documented but deferred from the first harness pass:
 - Gemini
 - Cursor Agent
 
+### 9.2a Planned Version-Bump Detection Boundary
+
+The hook harness must also track which AI CLI version produced the latest
+approved schema-drift artifacts.
+
+The planned boundary is:
+
+- `scripts/verify-claude-hook-api.py` is a harness-side verification tool, not
+  a runtime dispatcher component
+- the detector reads the approved Claude manifest at
+  `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- the detector compares `claude --version` output with the manifest's
+  `claude_version`
+- a version mismatch is a release-process signal to rerun the live hook-schema
+  validation flow before accepting provider-contract changes
+
+Extensibility rule:
+
+- if other providers later need the same guardrail, the design must be revisited
+  explicitly rather than inferred from a premature multi-provider detector
+
 ### 9.3 Planned Hook Crate Targets
 
 These are planned hook-extension targets only. They are not current source

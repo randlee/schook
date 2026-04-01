@@ -71,6 +71,7 @@ This table maps the most important documented requirements to current implementa
 | EXC-008 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | TST-001 | implemented | workspace modules | distributed unit/integration tests | |
 | TST-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared `run_contract_behavior_suite` covers timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior | |
+| TST-008 | implemented | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json` | `test-harness/hooks/claude/tests/test_version_bump_detector.py` plus direct `claude --version` comparison against the approved manifest | |
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
 
 ## Resolved Gap Acknowledgments

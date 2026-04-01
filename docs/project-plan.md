@@ -67,6 +67,7 @@ Important planning rule:
 | Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
 
 ## 5. Execution Controls
 
@@ -883,3 +884,45 @@ Acceptance criteria:
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
+
+### S10-VERSION-BUMP-1: Claude Version-Bump Detection
+
+Status:
+- in review
+
+Focus:
+- detect Claude CLI version bumps before maintainers accept Claude hook
+  contract changes without rerunning schema validation
+
+Write scope:
+
+- `scripts/verify-claude-hook-api.py`
+- `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- `test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/project-plan.md`
+- `docs/traceability.md`
+
+Deliverables:
+- a Claude-only detector comparing `claude --version` to the approved manifest
+- approved manifest stores the current validated `claude_version`
+- pytest coverage for match, mismatch, and missing-manifest-version failure modes
+- release-doc updates recording the detector as the implementation path for
+  `TST-008`
+
+Required tests:
+
+- `python3 scripts/verify-claude-hook-api.py`
+- `python3 -m pytest test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo fmt --check --all`
+
+Acceptance criteria:
+- the approved Claude manifest stores a validated `claude_version`
+- the detector exits `0` when the installed Claude version matches the approved
+  manifest
+- version mismatches exit non-zero with rerun guidance
+- missing or invalid manifest version data fails clearly instead of producing a
+  traceback
