@@ -110,10 +110,6 @@ Current source plugin inventory in `plugins/`:
 
 | Crate | Release posture |
 | --- | --- |
-| `agent-session-foundation` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
-| `agent-spawn-gates` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
-| `atm-extension` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
-| `tool-output-gates` | scaffold/reference only; source crate in the workspace, not a shipped runtime plugin |
 | `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
 | `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
 | `event-relay` | scaffold/reference only; not a shipped runtime plugin |
