@@ -26,6 +26,7 @@ printf "%s|%s|%s|%s\n" \
 fn shim_path(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
+        .join("..")
         .join("shims")
         .join(name)
 }

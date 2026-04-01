@@ -23,6 +23,7 @@ fn cli_binary() -> String {
 fn example_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .and_then(|path| path.parent())
         .expect("repo root should resolve")
         .join("examples/runtime-layout")
 }
