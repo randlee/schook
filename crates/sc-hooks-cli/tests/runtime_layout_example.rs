@@ -10,9 +10,9 @@ fn cli_binary() -> String {
         .and_then(|deps| deps.parent())
         .map(|debug_dir| {
             debug_dir.join(if cfg!(windows) {
-                "sc-hooks-cli.exe"
+                "sc-hooks.exe"
             } else {
-                "sc-hooks-cli"
+                "sc-hooks"
             })
         })
         .expect("target/debug directory should resolve")
@@ -23,6 +23,7 @@ fn cli_binary() -> String {
 fn example_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
+        .and_then(|path| path.parent())
         .expect("repo root should resolve")
         .join("examples/runtime-layout")
 }

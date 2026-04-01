@@ -60,22 +60,41 @@ The host does not:
 
 ## 3. Crate Ownership
 
-| Crate | Ownership |
+### 3.1 Workspace Crates
+
+| Path | Ownership |
 | --- | --- |
-| `sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, `sc-observability` integration, exit behavior |
-| `sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
-| `sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
-| `sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures |
+| `crates/sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, `sc-observability` integration, exit behavior |
+| `crates/sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
+| `crates/sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
+| `crates/sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures; tracked in the release manifest for validation, not published to crates.io |
 
 Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
-- source crates under `plugins/` are reference implementations in this repository, not the runtime discovery directory
-- current source plugin inventory in `plugins/` is: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`
-- every current source crate under `plugins/` remains scaffold/reference only; none is a shipped runtime plugin in the current release scope
+- source crates under `plugins/` are source-owned implementation or scaffold/reference crates in this repository, not the runtime discovery directory
+- the initial publish scope covers only the complete working crates under `crates/`: `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-cli`; `sc-hooks-test` remains tracked but unpublished, and no `plugins/` source crate is part of the first crates.io release
 - crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
-## 3.1 Public Contract Vs Internal Typed Model
+### 3.2 Plugin Source Crates
+
+| Path | Classification | Notes |
+| --- | --- | --- |
+| `plugins/agent-session-foundation` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/agent-spawn-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/atm-extension` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/tool-output-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/audit-logger` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/conditional-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/event-relay` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/guard-paths` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/identity-state` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/notify` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/policy-enforcer` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/save-context` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/template-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+
+## 3.3 Public Contract Vs Internal Typed Model
 
 The public contract is not the Rust type graph.
 

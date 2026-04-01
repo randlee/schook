@@ -2,6 +2,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use serde::Serialize;
+use thiserror::Error;
 
 mod private {
     pub trait Sealed {}
@@ -68,13 +69,36 @@ pub struct ContractScenarioResult {
     pub marker_exists: bool,
 }
 
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+/// Error returned by host-dispatch compliance probes.
+pub enum ProbeError {
+    /// Probe failure with a human-readable message.
+    #[error("{0}")]
+    Message(String),
+}
+
+impl From<String> for ProbeError {
+    fn from(value: String) -> Self {
+        Self::Message(value)
+    }
+}
+
+impl From<&str> for ProbeError {
+    fn from(value: &str) -> Self {
+        Self::Message(value.to_string())
+    }
+}
+
 /// Sealed probe interface for exercising the real host dispatch path against
 /// the shared compliance scenarios without exposing arbitrary external probe
 /// implementations. Implementors must provide
-/// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>`.
+/// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, ProbeError>`.
 pub trait HostDispatchProbe: private::Sealed {
     /// Executes one shared contract scenario through the real host path.
-    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String>;
+    fn run_scenario(
+        &self,
+        scenario: ContractScenario,
+    ) -> Result<ContractScenarioResult, ProbeError>;
 }
 
 /// Function-backed implementation of [`HostDispatchProbe`].
@@ -93,9 +117,12 @@ impl<F> private::Sealed for FnHostDispatchProbe<F> {}
 
 impl<F> HostDispatchProbe for FnHostDispatchProbe<F>
 where
-    F: Fn(ContractScenario) -> Result<ContractScenarioResult, String>,
+    F: Fn(ContractScenario) -> Result<ContractScenarioResult, ProbeError>,
 {
-    fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
+    fn run_scenario(
+        &self,
+        scenario: ContractScenario,
+    ) -> Result<ContractScenarioResult, ProbeError> {
         (self.run)(scenario)
     }
 }
@@ -257,7 +284,7 @@ fn check_absent_payload(probe: &impl HostDispatchProbe) -> ComplianceCheck {
         Err(err) => ComplianceCheck {
             name: "host dispatch handles absent payload".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }
@@ -286,7 +313,7 @@ fn check_invalid_output(probe: &impl HostDispatchProbe) -> ComplianceCheck {
         Err(err) => ComplianceCheck {
             name: "host dispatch rejects invalid stdout".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }
@@ -319,7 +346,7 @@ fn check_multiple_json_objects(probe: &impl HostDispatchProbe) -> ComplianceChec
         Err(err) => ComplianceCheck {
             name: "host dispatch warns on multiple JSON objects".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }
@@ -349,7 +376,7 @@ fn check_async_block_misuse(probe: &impl HostDispatchProbe) -> ComplianceCheck {
         Err(err) => ComplianceCheck {
             name: "host dispatch rejects async block misuse".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }
@@ -367,7 +394,7 @@ fn check_matcher_filtering(probe: &impl HostDispatchProbe) -> ComplianceCheck {
         Err(err) => ComplianceCheck {
             name: "host dispatch enforces matcher filtering".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }
@@ -398,7 +425,7 @@ fn check_timeout(probe: &impl HostDispatchProbe) -> ComplianceCheck {
         Err(err) => ComplianceCheck {
             name: "host dispatch enforces timeout".to_string(),
             passed: false,
-            detail: Some(err),
+            detail: Some(err.to_string()),
         },
     }
 }

@@ -69,6 +69,7 @@ Important planning rule:
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
 | S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
+| S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
 
 ## 5. Execution Controls
 
@@ -962,3 +963,48 @@ Acceptance criteria:
 - README plugin table contains scaffold/reference-only language and no
   `runtime-implementation` claims
 - `S11-DOC.1` appears in the sprint table and this detail section
+
+### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
+
+Status:
+- in review
+
+Focus:
+- move publishable workspace crates under `crates/`
+- establish manifest-driven release infrastructure
+- document the honest first-release scope
+
+Write scope:
+
+- `Cargo.toml`
+- `crates/`
+- `release/publish-artifacts.toml`
+- `.github/workflows/release-preflight.yml`
+- `.github/workflows/release.yml`
+- `PUBLISHING.md`
+- `scripts/release_gate.sh`
+- release-facing docs
+
+Deliverables:
+- workspace crates moved to `crates/`
+- manifest-driven publish inventory for:
+  - `sc-hooks-core`
+  - `sc-hooks-sdk`
+  - `sc-hooks-test` (tracked, not published)
+  - `sc-hooks-cli`
+- release workflows for preflight, tagged release, GitHub archives, Homebrew, and WinGet
+- release gate script for branch/clean-tree/version checks
+- docs that state the first crates.io publish only covers complete working crates, not scaffold/reference plugin crates
+
+Required tests:
+
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `python3 scripts/release_artifacts.py list-publish-plan --manifest release/publish-artifacts.toml`
+- `python3 scripts/release_artifacts.py list-release-binaries --manifest release/publish-artifacts.toml`
+
+Acceptance criteria:
+- the workspace uses `crates/<name>` paths for the four host crates
+- release infrastructure is manifest-driven rather than hardcoded in workflow YAML
+- `PUBLISHING.md` documents crates.io, GitHub Releases, Homebrew, and WinGet
+- the documented initial release scope excludes scaffold/reference plugin crates

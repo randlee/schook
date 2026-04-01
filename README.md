@@ -144,6 +144,31 @@ Important rule:
 - SDK helpers are conveniences for Rust plugin authors; they do not override the executable/JSON contract.
 - Observability sink routing is not config-driven in the current release baseline.
 
+```bash
+sc-hooks config
+sc-hooks handlers
+sc-hooks handlers --events
+sc-hooks audit
+sc-hooks fire PreToolUse Write
+sc-hooks install
+sc-hooks test <plugin>
+sc-hooks exit-codes
+```
+
+## Documentation Map
+
+| File | Purpose |
+| --- | --- |
+| `docs/requirements.md` | Normative release-facing behavior and status |
+| `docs/architecture.md` | Current crate boundaries, execution model, and deferred areas |
+| `docs/project-plan.md` | Derived sprint plan from requirements, traceability, and gaps; not a normative source-of-truth doc |
+| `docs/protocol-contract.md` | Host/plugin JSON contract |
+| `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
+| `docs/logging-contract.md` | Current JSONL dispatch-log schema for downstream consumers |
+| `docs/implementation-gaps.md` | Gap ledger retained for historical release-work context |
+| `docs/traceability.md` | Requirement-to-code/test/gap mapping |
+| `docs/doc-governance.md` | Rules for keeping docs and code aligned |
+
 ## Development Workflow
 
 - Keep the main repo on `develop`.
