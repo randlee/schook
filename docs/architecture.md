@@ -301,24 +301,17 @@ The planned boundary is:
 
 - `scripts/verify-claude-hook-api.py` is a harness-side verification tool, not
   a runtime dispatcher component
-- the script resolves a tool adapter from `--tool`
-- each adapter owns:
-  - executable name
-  - drift-history directory under `test-harness/hooks/<provider>/drift-history/`
-  - JSON field name used for the recorded version
-- the detector compares `<tool> --version` output with the latest stored
-  version field for that provider
+- the detector reads the approved Claude manifest at
+  `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- the detector compares `claude --version` output with the manifest's
+  `claude_version`
 - a version mismatch is a release-process signal to rerun the live hook-schema
   validation flow before accepting provider-contract changes
-- unavailable tools and missing recorded versions are explicit, non-fatal skips
 
 Extensibility rule:
 
-- adding a new tool must be an adapter-table change, not a rewrite of the
-  verification flow
-- provider-specific version storage stays under `test-harness/hooks/<provider>/`
-  so version detection logic does not spread ad hoc path handling through the
-  rest of the harness
+- if other providers later need the same guardrail, the design must be revisited
+  explicitly rather than inferred from a premature multi-provider detector
 
 ### 9.3 Planned Hook Crate Targets
 
