@@ -57,9 +57,25 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  docs:
+    name: rustdoc
+    needs: [clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone sc-observability (path dependency)
+        run: git clone --depth 1 --branch main https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check rustdoc warnings
+        run: RUSTDOCFLAGS="-Dwarnings -Wmissing-docs" cargo doc --no-deps --workspace
+
   build:
     name: build (${{ matrix.os }})
-    needs: [clippy]
+    needs: [docs]
     strategy:
       fail-fast: false
       matrix:

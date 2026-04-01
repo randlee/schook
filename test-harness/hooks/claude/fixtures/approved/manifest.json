@@ -5,10 +5,13 @@
   "hooks": {
     "SessionStart": [
       "session-start-startup.json",
-      "session-start-compact.json"
+      "session-start-compact.json",
+      "session-start-resume.json",
+      "session-start-clear.json"
     ],
     "SessionEnd": [
-      "session-end.json"
+      "session-end.json",
+      "session-end-clear.json"
     ],
     "PreCompact": [
       "pre-compact-manual.json"

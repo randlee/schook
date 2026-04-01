@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "SessionStart",
+  "session_id": "36c9984e-4a07-4ba7-b782-da56bcf7d2b0",
+  "source": "startup",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/36c9984e-4a07-4ba7-b782-da56bcf7d2b0.jsonl"
+}

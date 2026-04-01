@@ -25,6 +25,28 @@ This harness exists to prevent guessed hook contracts from leaking into
 implementation. No hook runtime code should depend on a field unless that field
 has been promoted from captured evidence into a validated provider model.
 
+## Provider-Specific Worktree Hooks
+
+`WorktreeCreate` and `WorktreeRemove` are not part of the normal `schook`
+`HookResult` stdin/stdout contract.
+
+Current verified/provider-documented semantics for Claude Code:
+
+- `WorktreeCreate` is a top-level hook event
+- stdin JSON includes the common fields plus `name`
+- command-hook success returns the absolute worktree path on stdout
+- stderr carries rejection/failure detail
+- non-zero exit fails worktree creation
+- `HookResult` / decision JSON does not apply
+- `WorktreeRemove` is a top-level hook event
+- stdin JSON includes the common fields plus `worktree_path`
+- it performs cleanup side effects and does not use the generic decision model
+
+Because these are provider hook semantics rather than `schook` runtime plugin
+semantics, this repo verifies them with focused Rust-side shell-script probes in
+`sc-hooks-test` instead of trying to route them through the normal dispatcher
+contract tests.
+
 ## Core Rules
 
 1. `pytest` is the harness test runner.
@@ -121,6 +143,36 @@ Meaning of each subdirectory:
 - `reports/`: machine-readable and human-readable run reports
 - `scripts/`: harness runner scripts and report generation helpers
 - `tests/`: `pytest` tests for the provider
+
+## Layout Split
+
+The harness intentionally uses two parallel roots:
+
+- `test-harness/`
+  - canonical docs, runner scripts, fixture snapshots, generated artifacts, and
+    the `pytest` collection root used by the plan
+- `test_harness/`
+  - the importable Python package that contains the real implementation modules
+
+Why both exist:
+
+- hyphenated paths match the planned harness layout and are easier to read in
+  docs and shell commands
+- underscored paths are required for normal Python imports
+
+Wrapper rule:
+
+- files under `test-harness/` that mirror Python modules are thin re-export
+  wrappers over `test_harness/`
+- those wrappers exist so CLI entry points, test paths, and documentation can
+  keep the planned harness layout without forcing Python to import from an
+  invalid package name
+
+Contributor rule:
+
+- put importable Python logic in `test_harness/`
+- keep `test-harness/` wrappers thin and documented
+- do not fork implementation between the two trees
 
 ## Execution Model
 

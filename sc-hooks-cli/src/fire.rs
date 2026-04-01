@@ -14,7 +14,11 @@ pub fn run_fire(
     payload: Option<&Value>,
 ) -> Result<String, CliError> {
     let session_id = metadata::current_session_id();
-    let disabled_plugins = session::load_disabled_plugins(session_id.as_deref());
+    let disabled_plugins = session::load_disabled_plugins(
+        session_id
+            .as_ref()
+            .map(sc_hooks_core::session::SessionId::as_str),
+    )?;
     let handlers = resolution::resolve_chain(
         config,
         hook,

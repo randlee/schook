@@ -1,0 +1,13 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "session_id": "2a70bf69-9af8-46cd-b121-afe8b603dc5d",
+  "tool_input": {
+    "command": "cd test-harness/hooks/claude",
+    "description": "Change to test-harness/hooks/claude directory"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "toolu_01WPbvD2Bb4pFrWruLrD3WGu",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/2a70bf69-9af8-46cd-b121-afe8b603dc5d.jsonl"
+}

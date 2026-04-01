@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Claude Hook Schema Drift Report</title>
+  <style type="text/css">
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 24px; color: #1f2937; background: #f8fafc; }
+    header { margin-bottom: 20px; }
+    h1 { margin: 0 0 8px 0; }
+    .subtitle { color: #475569; margin: 0 0 8px 0; }
+    .generated-at { color: #64748b; font-size: 14px; margin: 0; }
+    .status { display: inline-block; margin-top: 10px; padding: 4px 10px; border-radius: 999px; font-weight: 700; border: 1px solid transparent; }
+    .status-pass { background: #f0fdf4; color: #065f46; border-color: #6ee7b7; }
+    .status-drift { background: #fffbeb; color: #92400e; border-color: #f59e0b; }
+    .status-error, .status-not-supported { background: #fef2f2; color: #991b1b; border-color: #ef4444; }
+    .status-info { background: #eff6ff; color: #1e40af; border-color: #3b82f6; }
+    .summary, .section, .recommendations, footer { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .section-actions { display: flex; gap: 8px; }
+    .icon-button { width: 30px; height: 30px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; font-size: 14px; cursor: pointer; }
+    .icon-button:hover { background: #f8fafc; }
+    .fragments { margin-top: 8px; font-size: 14px; color: #475569; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
+    .verdict { background: #f0fdf4; border-left: 4px solid #10b981; padding: 12px; margin-top: 12px; }
+    .impact { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 12px; }
+    .action { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; margin-top: 12px; }
+    .warning { background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; margin-top: 12px; }
+    .scratchpad { margin-top: 12px; padding: 12px; border-left: 4px solid #3b82f6; background: #eff6ff; }
+    pre { background: #111827; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow-x: auto; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <!-- output_path: /Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/schema-drift-report.html -->
+  <!-- json_output_path: /Users/randlee/Documents/github/schook-worktrees/feature-s9-p3-pydantic-schema/test-harness/hooks/claude/reports/20260328T205754.043587Z/schema-drift-report.json -->
+  <header>
+    <h1>Claude Hook Schema Drift Report</h1>
+
+    <p class="subtitle">Approved fixture validation</p>
+
+
+    <p class="generated-at">Generated: 20260328T205754.043587Z</p>
+
+    <div class="status status-pass">PASS</div>
+  </header>
+
+  <section class="summary">
+<h2>Summary</h2><p>All approved Claude fixtures validated against the Phase 3 Pydantic model.</p>
+  </section>
+
+<section class="section"><div class="section-head"><div><h2>Notification</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;Notification&quot;,&quot;validated_fixtures&quot;:[],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="Notification: PASS. 0 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>0 approved fixture(s) validated successfully for Notification.</p></section>
+<section class="section"><div class="section-head"><div><h2>PermissionRequest</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;PermissionRequest&quot;,&quot;validated_fixtures&quot;:[&quot;permission-request-write.json&quot;,&quot;permission-request-bash.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="PermissionRequest: PASS. 2 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>2 approved fixture(s) validated successfully for PermissionRequest.</p><p class="fragments">XHTML fragment: <code>sections/permissionrequest.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>PostToolUse(Bash)</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;PostToolUse(Bash)&quot;,&quot;validated_fixtures&quot;:[&quot;posttooluse-bash.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="PostToolUse(Bash): PASS. 1 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>1 approved fixture(s) validated successfully for PostToolUse(Bash).</p><p class="fragments">XHTML fragment: <code>sections/posttooluse-bash.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>PreCompact</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;PreCompact&quot;,&quot;validated_fixtures&quot;:[&quot;pre-compact-manual.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="PreCompact: PASS. 1 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>1 approved fixture(s) validated successfully for PreCompact.</p><p class="fragments">XHTML fragment: <code>sections/precompact.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>PreToolUse(Agent)</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;PreToolUse(Agent)&quot;,&quot;validated_fixtures&quot;:[&quot;pretooluse-agent.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="PreToolUse(Agent): PASS. 1 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>1 approved fixture(s) validated successfully for PreToolUse(Agent).</p><p class="fragments">XHTML fragment: <code>sections/pretooluse-agent.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>PreToolUse(Bash)</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;PreToolUse(Bash)&quot;,&quot;validated_fixtures&quot;:[&quot;pretooluse-bash.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="PreToolUse(Bash): PASS. 1 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>1 approved fixture(s) validated successfully for PreToolUse(Bash).</p><p class="fragments">XHTML fragment: <code>sections/pretooluse-bash.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>SessionEnd</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;SessionEnd&quot;,&quot;validated_fixtures&quot;:[&quot;session-end.json&quot;,&quot;session-end-clear.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="SessionEnd: PASS. 2 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>2 approved fixture(s) validated successfully for SessionEnd.</p><p class="fragments">XHTML fragment: <code>sections/sessionend.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>SessionStart</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;SessionStart&quot;,&quot;validated_fixtures&quot;:[&quot;session-start-startup.json&quot;,&quot;session-start-compact.json&quot;,&quot;session-start-resume.json&quot;,&quot;session-start-clear.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="SessionStart: PASS. 4 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>4 approved fixture(s) validated successfully for SessionStart.</p><p class="fragments">XHTML fragment: <code>sections/sessionstart.xhtml</code> (agent-generated commentary optional)</p></section>
+<section class="section"><div class="section-head"><div><h2>Stop</h2><p class="subtitle">Status: PASS</p></div><div class="section-actions"><button type="button" class="icon-button" title="Copy JSON" data-copy-text="{&quot;hook_event_name&quot;:&quot;Stop&quot;,&quot;validated_fixtures&quot;:[&quot;stop.json&quot;],&quot;status&quot;:&quot;PASS&quot;}">{}</button><button type="button" class="icon-button" title="Copy Context" data-copy-text="Stop: PASS. 1 approved fixture(s) validated successfully. No schema drift was detected for this run.">⎘</button></div></div><p>1 approved fixture(s) validated successfully for Stop.</p><p class="fragments">XHTML fragment: <code>sections/stop.xhtml</code> (agent-generated commentary optional)</p></section>
+
+
+  <section class="recommendations">
+    <h2>Recommendations</h2>
+<ul><li>No drift detected. Continue using the approved fixtures as the current Claude baseline.</li></ul>
+  </section>
+
+
+
+  <footer>
+<p>Generated from the Sprint 9 Phase 3 schema drift tool.</p>
+  </footer>
+
+  <script>
+    document.addEventListener("click", async function (event) {
+      const button = event.target.closest("[data-copy-text]");
+      if (!button) return;
+      const text = button.getAttribute("data-copy-text") || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        button.setAttribute("title", "Copied");
+      } catch (err) {
+        button.setAttribute("title", "Copy failed");
+      }
+    });
+  </script>
+</body>
+</html>

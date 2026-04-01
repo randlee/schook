@@ -1,28 +1,44 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+/// Supported metadata field types in plugin manifests.
 pub enum FieldType {
+    /// JSON string.
     String,
+    /// Any JSON number.
     Number,
+    /// Integral JSON number.
     Integer,
+    /// JSON boolean.
     Boolean,
+    /// JSON object.
     Object,
+    /// JSON array.
     Array,
+    /// Any JSON value.
     Any,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// Supported validation rules in plugin manifests.
 pub enum ValidationRule {
+    /// String must be non-empty after trimming.
     NonEmpty,
+    /// Path must exist and be a directory.
     DirExists,
+    /// Path must exist and be a file.
     FileExists,
+    /// Path must resolve via canonicalization.
     PathResolves,
+    /// Integer must be positive.
     PositiveInt,
+    /// String must equal one of a configured set of values.
     OneOf,
 }
 
+/// Parses a serialized validation rule into the typed representation used by the host.
 pub fn parse_validation_rule(raw: &str) -> Option<(ValidationRule, Option<Vec<String>>)> {
     if raw == "non_empty" {
         return Some((ValidationRule::NonEmpty, None));

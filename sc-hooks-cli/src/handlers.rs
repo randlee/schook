@@ -12,6 +12,7 @@ pub struct PluginHandlerInfo {
     pub mode: Option<String>,
     pub matchers: Vec<String>,
     pub timeout: String,
+    pub manifest_error_kind: Option<&'static str>,
     pub manifest_error: Option<String>,
 }
 
@@ -51,7 +52,8 @@ pub fn render(report: &HandlersReport) -> String {
             ));
         }
         if let Some(err) = plugin.manifest_error.as_ref() {
-            line.push_str(&format!(" manifest_error={err}"));
+            let kind = plugin.manifest_error_kind.unwrap_or("unknown");
+            line.push_str(&format!(" manifest_error_kind={kind} manifest_error={err}"));
         }
         lines.push(line);
     }
@@ -74,20 +76,23 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
         return Ok(Vec::new());
     }
 
-    let entries = fs::read_dir(plugin_dir).map_err(|err| {
-        CliError::internal(format!(
-            "failed reading plugins directory {}: {err}",
-            plugin_dir.display()
-        ))
+    let entries = fs::read_dir(plugin_dir).map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed reading plugins directory {}", plugin_dir.display()),
+            source,
+        )
     })?;
 
     let mut plugins = Vec::new();
     for entry in entries {
-        let entry = entry.map_err(|err| {
-            CliError::internal(format!(
-                "failed reading plugin directory entry in {}: {err}",
-                plugin_dir.display()
-            ))
+        let entry = entry.map_err(|source| {
+            CliError::internal_with_source(
+                format!(
+                    "failed reading plugin directory entry in {}",
+                    plugin_dir.display()
+                ),
+                source,
+            )
         })?;
         let path = entry.path();
         if !is_plugin_executable(&path) {
@@ -120,6 +125,7 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
                     mode: Some(manifest.mode.as_str().to_string()),
                     matchers: manifest.matchers,
                     timeout,
+                    manifest_error_kind: None,
                     manifest_error: None,
                 });
             }
@@ -130,6 +136,7 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
                     mode: None,
                     matchers: Vec::new(),
                     timeout: "unknown".to_string(),
+                    manifest_error_kind: Some(manifest_error_kind(&err)),
                     manifest_error: Some(err.to_string()),
                 });
             }
@@ -137,6 +144,16 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
     }
 
     Ok(plugins)
+}
+
+fn manifest_error_kind(err: &sc_hooks_sdk::manifest::ManifestLoadError) -> &'static str {
+    match err {
+        sc_hooks_sdk::manifest::ManifestLoadError::Spawn { .. } => "spawn",
+        sc_hooks_sdk::manifest::ManifestLoadError::NonZeroExit { .. } => "non_zero",
+        sc_hooks_sdk::manifest::ManifestLoadError::TerminatedBySignal { .. } => "signal",
+        sc_hooks_sdk::manifest::ManifestLoadError::Terminated { .. } => "terminated",
+        sc_hooks_sdk::manifest::ManifestLoadError::Manifest(_) => "manifest",
+    }
 }
 
 fn is_plugin_executable(path: &Path) -> bool {

@@ -6,23 +6,55 @@ use thiserror::Error;
 use sc_hooks_core::conditions::{ConditionOperator, PayloadCondition};
 
 #[derive(Debug, Error)]
+/// Errors produced while validating or evaluating payload conditions.
 pub enum ConditionError {
+    /// The dot-separated payload path was invalid.
     #[error("condition path `{path}` is invalid")]
-    InvalidPath { path: String },
+    InvalidPath {
+        /// Offending dot-separated payload path.
+        path: String,
+    },
 
+    /// The operator required a comparison value but none was provided.
     #[error("condition `{path}` with operator `{op:?}` requires a value")]
-    MissingValue { path: String, op: ConditionOperator },
+    MissingValue {
+        /// Offending dot-separated payload path.
+        path: String,
+        /// Operator that required a value.
+        op: ConditionOperator,
+    },
 
+    /// The provided comparison value was not compatible with the operator.
     #[error("condition `{path}` has invalid value for `{op:?}`")]
-    InvalidValue { path: String, op: ConditionOperator },
+    InvalidValue {
+        /// Offending dot-separated payload path.
+        path: String,
+        /// Operator that rejected the value.
+        op: ConditionOperator,
+    },
 
-    #[error("invalid glob pattern `{pattern}`: {reason}")]
-    InvalidGlob { pattern: String, reason: String },
+    /// A glob pattern could not be compiled.
+    #[error("invalid glob pattern `{pattern}`: {source}")]
+    InvalidGlob {
+        /// Original glob pattern.
+        pattern: String,
+        #[source]
+        /// Underlying glob parser error.
+        source: glob::PatternError,
+    },
 
-    #[error("invalid regex `{pattern}`: {reason}")]
-    InvalidRegex { pattern: String, reason: String },
+    /// A regex pattern could not be compiled.
+    #[error("invalid regex `{pattern}`: {source}")]
+    InvalidRegex {
+        /// Original regex pattern.
+        pattern: String,
+        #[source]
+        /// Underlying regex parser error.
+        source: regex::Error,
+    },
 }
 
+/// Validates a list of manifest payload conditions.
 pub fn validate_payload_conditions(conditions: &[PayloadCondition]) -> Result<(), ConditionError> {
     for condition in conditions {
         validate_path(&condition.path)?;
@@ -32,6 +64,7 @@ pub fn validate_payload_conditions(conditions: &[PayloadCondition]) -> Result<()
     Ok(())
 }
 
+/// Evaluates payload conditions against an optional payload object.
 pub fn evaluate_payload_conditions(
     conditions: &[PayloadCondition],
     payload: Option<&Value>,
@@ -185,9 +218,9 @@ fn evaluate_single(
             let Some(pattern) = condition.value.as_ref().and_then(Value::as_str) else {
                 return Ok(false);
             };
-            let compiled = Pattern::new(pattern).map_err(|err| ConditionError::InvalidGlob {
+            let compiled = Pattern::new(pattern).map_err(|source| ConditionError::InvalidGlob {
                 pattern: pattern.to_string(),
-                reason: err.to_string(),
+                source,
             })?;
             Ok(resolved
                 .and_then(Value::as_str)
@@ -210,9 +243,9 @@ fn evaluate_single(
             let Some(pattern) = condition.value.as_ref().and_then(Value::as_str) else {
                 return Ok(false);
             };
-            let compiled = Regex::new(pattern).map_err(|err| ConditionError::InvalidRegex {
+            let compiled = Regex::new(pattern).map_err(|source| ConditionError::InvalidRegex {
                 pattern: pattern.to_string(),
-                reason: err.to_string(),
+                source,
             })?;
             Ok(resolved
                 .and_then(Value::as_str)

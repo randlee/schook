@@ -16,6 +16,8 @@ It does not define:
 - human-readable CLI output
 - `sc-observability` event payloads
 - release planning or gap prioritization
+- provider-specific `WorktreeCreate` / `WorktreeRemove` hook I/O semantics; for
+  Claude Code these are documented in `docs/hook-api/claude-hook-api.md`
 
 Current observability output is documented separately in
 `docs/observability-contract.md`.
@@ -381,6 +383,14 @@ to its own stdout:
 This is host output, not plugin output.
 
 ## 7. stdout, stderr, And Exit Status Rules
+
+Provider-specific exception:
+- the stdout/stderr/exit rules in this section describe the `sc-hooks`
+  plugin-runtime `HookResult` contract only
+- Claude Code `WorktreeCreate` / `WorktreeRemove` hooks use a different
+  provider-level contract and are not interpreted through `HookResult` JSON
+- when `schook` documents or tests those surfaces, it does so as provider hook
+  semantics rather than as part of the generic host/plugin protocol
 
 ### 7.1 Runtime stdout Rules
 

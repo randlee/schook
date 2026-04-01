@@ -55,12 +55,15 @@ This table maps the most important documented requirements to current implementa
 | OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
 | OBS-002 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests, dispatch tests | |
 | OBS-005 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests plus dispatch error-path tests covering `HandlerResultRecord` fields `handler_name`, `error_type`, elapsed time, and `disabled=true` | |
-| BND-001 | implemented | `plugins/*/src/main.rs` | source inspection only | |
+| BND-001 | implemented | `plugins/*/src/main.rs`, `plugins/agent-session-foundation/tests/session_foundation.rs`, `plugins/atm-extension/tests/atm_extension.rs`, `plugins/agent-spawn-gates/src/lib.rs`, `plugins/tool-output-gates/src/lib.rs` | behavior tests plus source inspection | |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
 | BND-002 | implemented | `plugins/*/Cargo.toml`, README, architecture docs | release-facing docs and plugin metadata agree that no current `plugins/` source crate is shipped runtime functionality, so no unsupported shipped-plugin claim remains | |
+| HKR-004 | deferred | docs-only Claude hook runtime planning (`docs/requirements.md`, `docs/archive/plugin-plan-s9.md`, `docs/phase-bc-hook-runtime-design.md`) | documentation inspection plus captured-fixture inventory for the seven locally reproduced non-`Notification` hook surfaces | |
 | OBS-006 | implemented | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | build/test dependency integration plus observability tests | |
-| OBS-007 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests plus code inspection of crate boundaries | |
+| OBS-007 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-core/Cargo.toml`, `plugins/agent-session-foundation/Cargo.toml` | observability tests plus code inspection confirming logger config and sink routing now live only at the CLI boundary | |
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
+| OBS-009 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests plus contract/logging docs covering env-flag sink toggles | |
+| DEF-008 | partially implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | remaining deferred work is custom sinks and multi-hook monitoring correlation |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-002 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
 | EXC-003 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |
@@ -73,6 +76,12 @@ This table maps the most important documented requirements to current implementa
 | TST-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared `run_contract_behavior_suite` covers timeout, invalid stdout, multi-object warnings, async misuse, matcher filtering, and absent-payload behavior | |
 | TST-008 | implemented | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json` | `test-harness/hooks/claude/tests/test_version_bump_detector.py` plus direct `claude --version` comparison against the approved manifest | |
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
+| HKR-002 | implemented | `test-harness/hooks/claude/captures/raw/`, `test-harness/hooks/claude/tests/` | `test_fixture_validation.py`, `test_harness_structure.py` — harness structure and capture script contracts verified | |
+| HKR-003 | implemented | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md` | `test-harness/run-schema-drift.py` drift detection; plan and hook API docs were revised from captured fixtures including `resume` and `clear` evidence | |
+| HKR-008 | implemented | `sc-hooks-core/src/session.rs`, `plugins/agent-session-foundation/src/lib.rs`, `sc-hooks-core/src/storage.rs` | `sc-hooks-core/src/session.rs:429-534`, `plugins/agent-session-foundation` unit tests, and storage tests covering canonical-record validation, immutable root persistence, current-dir drift handling, and provider-root equality enforcement | |
+| HKR-009 | implemented | `plugins/agent-session-foundation/src/lib.rs` | `plugins/agent-session-foundation` unit tests covering atomic-write temp-plus-rename, skip-on-unchanged, and per-invocation observability emission | |
+| HKR-011 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering extension-field enrichment, team linkage, and child identity override behavior | |
+| HKR-013 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering the four-stage relay pipeline, `ToolName` typed boundary, and relay-decision side-effect separation | |
 
 ## Resolved Gap Acknowledgments
 
@@ -80,8 +89,35 @@ This table maps the most important documented requirements to current implementa
 | --- | --- | --- | --- |
 | GAP-001 | resolved | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/tests/compliance_host.rs` | shared host-dispatch contract suite plus CLI delegation through `sc-hooks-cli/src/testing.rs` |
 | GAP-002 | resolved | `sc-hooks-sdk/src/manifest.rs`, `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-cli/src/audit.rs` | manifest validation tests, timeout tests, audit tests, handler discovery tests, and `sc-hooks-cli/tests/long_running_contract.rs` |
-| GAP-003 | resolved | README, `docs/architecture.md`, `docs/requirements.md`, `plugins/*/Cargo.toml` | release-facing docs and plugin metadata consistently mark every source crate as scaffold/reference only |
+| GAP-003 | resolved | README, `docs/architecture.md`, `docs/requirements.md`, `plugins/*/Cargo.toml` | release-facing docs and plugin metadata consistently keep the legacy plugin crates scaffold/reference-only while separately classifying the Sprint 9 runtime crates |
 | GAP-004 | resolved | `examples/runtime-layout/.sc-hooks/`, `examples/runtime-layout/README.md` | `sc-hooks-cli/tests/runtime_layout_example.rs` plus the checked example tree |
 | GAP-005 | resolved | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests, logging/observability contract docs |
 | GAP-007 | resolved | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | dependency inspection, observability tests, architecture/requirements alignment |
-| GAP-010 | resolved | `sc-hooks-cli/tests/observability_contract.rs`, `docs/archive/implementation-gaps.md`, `docs/project-plan.md` | real dispatch-path observability tests plus the implementation-gap and project-plan follow-up notes agree on the file-sink coverage baseline and deferred console-sink expansion |
+| GAP-010 | resolved | `sc-hooks-cli/tests/observability_contract.rs`, `docs/archive/implementation-gaps.md`, `docs/project-plan.md` | real dispatch-path observability tests plus the implementation-gap and project-plan follow-up notes agree on the file-sink baseline and the now-complete console-sink expansion |
+
+## Requirement Amendment Notes
+
+- `BND-001`
+  - prior text: source-only plugin crates could remain described as non-runtime code “unless and until” a later phase promoted them
+  - current text: every source crate under `plugins/` must be documented with an explicit maturity level of either scaffold/reference or runtime implementation with direct tests
+  - authorizing sprint: `S9-BONUS`
+- `HKR-008`
+  - prior text: env-var availability of `CLAUDE_PROJECT_DIR` in hook process context was unverified; implementation of the canonical session-state record keyed by `ai_root_dir` was specified but not capture-backed
+  - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source="startup")` is the capture-backed surface for establishing immutable root; later `cwd` values may drift; the canonical session-state model now enforces immutable-root persistence, root-equality checks, and normalized consumer output
+  - authorizing sprints: `S9-ENV-CAPTURE`, `S10-R1`
+- `BND-001a`
+  - prior text: the documented `plugins/` source inventory listed nine crates and treated later additions as outside the branch baseline
+  - current text: the documented `plugins/` source inventory lists all thirteen source crates in the branch and distinguishes the four non-scaffold runtime crates from the nine scaffold/reference crates
+  - authorizing sprint: `S9-HP5`
+- `OBS-009`
+  - prior text: env-flag sink toggles were documented implementation details, not a named release-facing observability requirement
+  - current text: env-flag sink toggles are promoted into the release-facing observability contract as `OBS-009`, with file sink canonical by default and console sink documented as the operator/debugging surface
+  - authorizing sprint: `S9-BONUS`
+- `HKR-011`
+  - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
+  - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model
+  - authorizing sprint: `S9-HP5`
+- `HKR-013`
+  - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
+  - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
+  - authorizing sprint: `S9-HP5`

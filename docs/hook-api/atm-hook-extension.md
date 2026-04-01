@@ -6,19 +6,19 @@ This document records the currently verified ATM-specific extension behavior
 that sits on top of Claude hook execution today.
 
 This is not a generic `schook` contract. It is the current ATM baseline drawn
-from `agent-team-mail`.
+from the `agent-team-mail` repo.
 
 ## Current Source Of Truth
 
-- `/Users/randlee/Documents/github/agent-team-mail/docs/claude-hook-strategy.md`
-- `/Users/randlee/Documents/github/agent-team-mail/docs/agent-teams-hooks.md`
-- `/Users/randlee/Documents/github/agent-team-mail/docs/requirements.md`
-- `/Users/randlee/Documents/github/agent-team-mail/.claude/scripts/session-start.py`
-- `/Users/randlee/Documents/github/agent-team-mail/.claude/scripts/session-end.py`
-- `/Users/randlee/Documents/github/agent-team-mail/tests/hook-scripts/test_session_start.py`
-- `/Users/randlee/Documents/github/agent-team-mail/tests/hook-scripts/test_session_end.py`
-- `/Users/randlee/Documents/github/agent-team-mail/crates/atm/src/util/hook_identity.rs`
-- `/Users/randlee/Documents/github/agent-team-mail/crates/atm-daemon/src/daemon/session_registry.rs`
+- `agent-team-mail/docs/claude-hook-strategy.md`
+- `agent-team-mail/docs/agent-teams-hooks.md`
+- `agent-team-mail/docs/requirements.md`
+- `agent-team-mail/.claude/scripts/session-start.py`
+- `agent-team-mail/.claude/scripts/session-end.py`
+- `agent-team-mail/tests/hook-scripts/test_session_start.py`
+- `agent-team-mail/tests/hook-scripts/test_session_end.py`
+- `agent-team-mail/crates/atm/src/util/hook_identity.rs`
+- `agent-team-mail/crates/atm-daemon/src/daemon/session_registry.rs`
 
 There is no single schema folder and no Pydantic model layer in
 `agent-team-mail`. The current source of truth is split by layer:
@@ -81,20 +81,12 @@ Current verified hook behavior:
 | --- | --- |
 | `SessionStart` | announces `SESSION_ID`, resolves ATM routing, emits `session_start`, writes session file |
 | `SessionEnd` | emits `session_end`, deletes current session file |
-| `PreCompact` | participates in compact lifecycle signaling; compact restart keeps the same `session_id` |
 | `PreToolUse(Bash)` | writes temp hook identity file for `atm` commands only |
 | `PostToolUse(Bash)` | removes temp hook identity file |
-| logical teammate/background spawn surface | enforces team-aware spawn policy |
-| `Notification` | relays idle heartbeat |
+| `PreToolUse(Task)` | enforces team-aware spawn policy in current ATM scripts; clean `schook` Claude baseline uses `PreToolUse(Agent)` |
+| `Notification(idle_prompt)` | relays idle heartbeat |
 | `PermissionRequest` | relays blocked-on-permission state |
 | `Stop` | relays idle/turn-stop state |
-
-Adjacent ATM/team-state note:
-
-- `teammate_idle` is a separate raw team-state event used in
-  `agent-team-mail`
-- long-lived teammate agents may transition to normalized `idle` via
-  `teammate_idle` rather than `Stop`
 
 ## What Is Not Yet Source-Of-Truth ATM Behavior
 
@@ -106,8 +98,7 @@ evidence:
   `parent_session_id`, or `subagent_id`
 - a documented ATM JSON Schema for all Claude hook payloads
 - Pydantic hook models as the active ATM validation layer
-- a guaranteed literal `source = "resume"` payload value from Claude
-- a complete subagent lifecycle schema for Task-created agents
+- a complete subagent lifecycle schema for Agent-created descendants
 
 ## Planning Rule For `schook`
 

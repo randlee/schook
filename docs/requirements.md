@@ -12,42 +12,6 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 | `Required Before Release` | Intended release behavior that is not yet proved cleanly enough by code, tests, or contracts |
 | `Deferred` | Not part of the current release baseline |
 
-## 2.1 Stable Product Requirement IDs
-
-Every top-level requirement row in this document has a stable product ID formed
-by prefixing the legacy row label with `REQ-SHK-`.
-
-Examples:
-
-- `CFG-001` => `REQ-SHK-CFG-001`
-- `OBS-006` => `REQ-SHK-OBS-006`
-- `BND-001a` => `REQ-SHK-BND-001a`
-- `HKR-013` => `REQ-SHK-HKR-013`
-
-The legacy row labels remain in place for continuity, but the stable
-cross-document identifiers are the `REQ-SHK-*` forms above.
-
-## 2.2 Product-To-Crate Ownership Map
-
-| Product requirement set | Owning crate requirement IDs |
-| --- | --- |
-| `REQ-SHK-CFG-*` | `REQ-SHK-CLI-001` |
-| `REQ-SHK-RES-*`, `REQ-SHK-MTR-*`, `REQ-SHK-PLC-*`, `REQ-SHK-PLG-001`, `REQ-SHK-PLG-011` | `REQ-SHK-CLI-002`, `REQ-SHK-CORE-001`, `REQ-SHK-SDK-001` |
-| `REQ-SHK-PLG-002`, `REQ-SHK-PLG-003`, `REQ-SHK-PLG-006`, `REQ-SHK-PLG-013`, `REQ-SHK-PLG-014` | `REQ-SHK-CORE-001`, `REQ-SHK-SDK-001`, `REQ-SHK-SDK-002` |
-| `REQ-SHK-DSP-*`, `REQ-SHK-TMO-*`, `REQ-SHK-SES-*`, `REQ-SHK-MTA-*`, `REQ-SHK-ERR-004` | `REQ-SHK-CLI-003`, `REQ-SHK-CLI-004`, `REQ-SHK-CORE-003` |
-| `REQ-SHK-CLI-*`, `REQ-SHK-AUD-*` | `REQ-SHK-CLI-005`, `REQ-SHK-CLI-007` |
-| `REQ-SHK-OBS-*` | `REQ-SHK-CLI-006` |
-| `REQ-SHK-EXC-*` | `REQ-SHK-CLI-003`, `REQ-SHK-CORE-002` |
-| `REQ-SHK-TST-*`, `REQ-SHK-PRT-001` | `REQ-SHK-CLI-007` |
-| `REQ-SHK-DEF-003` | `REQ-SHK-SDK-001` |
-| `REQ-SHK-HKR-008`, `REQ-SHK-HKR-009`, `REQ-SHK-HKR-012` | `REQ-SHK-CORE-003`, `REQ-SHK-CORE-004`, `REQ-SHK-SDK-003` |
-
-Crate-local ownership details live in:
-
-- `docs/sc-hooks-cli/requirements.md`
-- `docs/sc-hooks-core/requirements.md`
-- `docs/sc-hooks-sdk/requirements.md`
-
 ## 3. Release Baseline
 
 Current release scope is the host dispatcher foundation:
@@ -60,7 +24,7 @@ Current release scope is the host dispatcher foundation:
 - `sc-observability` JSONL dispatch events
 
 Current release scope does not include:
-- shipped runtime plugin behavior from the source crates under `plugins/`; every current crate there remains scaffold/reference only
+- shipped runtime plugin behavior from the legacy scaffold/reference crates under `plugins/`; `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` are the only current runtime-implementation crates in this branch
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
 - config-driven observability sink routing or a `[logging]` config section
@@ -156,15 +120,16 @@ Retired observability IDs:
 | AUD-005 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` on async handlers. | `audit::run()` surfaces `AUD-005` when manifest loading hits `ManifestError::AsyncLongRunningUnsupported`. |
 | AUD-009 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` without a non-empty description. | `audit::run()` surfaces `AUD-009` when manifest loading hits `ManifestError::MissingLongRunningDescription`. |
 | OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records with `matcher = event` or `\"*\"` when no event exists. |
-| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`. |
+| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl` unless `SC_HOOKS_ENABLE_FILE_SINK=0` intentionally disables the file sink for an operator/debugging session. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`, and observability contract tests cover the default file sink path plus the explicit file-sink disable override. |
 | OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `HandlerResultRecord` is serialized into observability event fields for all error outcomes. |
 | OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the external workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
 | OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
 | OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
+| OBS-009 | Implemented | Should | The CLI may expose environment-flag sink toggles for operator/debugging sessions through `SC_HOOKS_ENABLE_CONSOLE_SINK` and `SC_HOOKS_ENABLE_FILE_SINK`; unrecognized values shall emit a warning to `stderr`, the file sink remains canonical by default, and the console sink emits the contract-tested default summary line only. | Real-dispatch observability tests prove success, block, invalid-json error, and timeout emission with the console sink enabled; docs and logging contract enumerate the accepted env values and the default file-sink posture. |
 | DEF-008 | Deferred | Should | The first observability expansion after file-sink contract coverage shall add console-sink dispatch tests through the real `sc-hooks-cli` path, proving success, block, error, and timeout emission without weakening the current file-sink contract. | A follow-up sprint adds real-dispatch console-sink tests plus docs updates that explicitly describe file-sink and console-sink coverage boundaries. |
-| BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented as reference or scaffold implementations unless and until they ship real behavior and tests. | The plugin crates currently read stdin and return `{\"action\":\"proceed\"}`. |
-| BND-001a | Implemented | Must | The documented reference/scaffold inventory shall match the actual source crates in `plugins/`: `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | The README and architecture docs enumerate the same set of source crates present in the repository. |
-| BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. The current release baseline describes no `plugins/` source crate as shipped functionality. | README, architecture, and plugin Cargo metadata all mark the current source crates as scaffold/reference only, so no shipped-plugin claim exists without matching install guidance and direct tests. |
+| BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented with an explicit maturity level: scaffold/reference or runtime implementation with direct tests, and those classifications shall agree across the control docs. | The legacy plugin crates remain scaffold/reference code, while `plugins/agent-session-foundation`, `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, and `plugins/atm-extension` are documented as the only tested runtime-implementation crates on the Sprint 9/10 path. |
+| BND-001a | Implemented | Must | The documented plugin inventory and maturity map shall match the actual source crates in `plugins/`: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `tool-output-gates`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | Architecture and plan docs enumerate the same source-crate set and identify `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and `atm-extension` as the non-scaffold runtime crates in this branch. |
+| BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. Source-only implementation crates may land before install guidance, but they must not be described as preinstalled runtime plugins. | `agent-session-foundation` now has direct behavior tests, yet the docs still describe runtime discovery as `.sc-hooks/plugins/` and do not claim a bundled installed plugin without matching install guidance. |
 
 ### 4.8 Exit Code Taxonomy
 
@@ -173,7 +138,7 @@ Retired observability IDs:
 | EXC-001 | Implemented | Must | Exit code `1` (`BLOCKED`) shall be reserved for sync `action=block` outcomes. | `CliError::Blocked` maps to exit code `1`. |
 | EXC-002 | Implemented | Must | Exit code `2` (`PLUGIN_ERROR`) shall cover runtime plugin failures and protocol violations such as invalid JSON, non-zero exit, spawn/write/read failures, and invalid `--payload` JSON parsing. | `CliError::PluginError` maps to exit code `2`. |
 | EXC-003 | Implemented | Must | Exit code `3` (`CONFIG_ERROR`) shall cover config read/parse/shape failures. | `CliError::Config` maps to exit code `3`. |
-| EXC-004 | Implemented | Must | Exit code `4` (`RESOLUTION_ERROR`) shall cover unresolved handlers and manifest-load or manifest-compatibility failures discovered during handler resolution. | `ResolutionError::UnresolvedHandler` and `ResolutionError::ManifestLoad` both map through `CliError::Resolution` to exit code `4`. |
+| EXC-004 | Implemented | Must | Exit code `4` (`RESOLUTION_ERROR`) shall cover unresolved handlers and manifest-load or manifest-compatibility failures discovered during handler resolution. | `ResolutionError::UnresolvedHandler` and `ResolutionError::ManifestLoadFailed` both map through `CliError::Resolution` to exit code `4`. |
 | EXC-005 | Implemented | Must | Exit code `5` (`VALIDATION_ERROR`) shall be reserved for handler metadata requirement failures after resolution and before plugin execution. | `CliError::Validation` is constructed only from missing or invalid required metadata fields. |
 | EXC-006 | Implemented | Must | Exit code `6` (`TIMEOUT`) shall be reserved for synchronous timeout failures that abort the host invocation. | `CliError::Timeout` maps to exit code `6`. |
 | EXC-007 | Implemented | Must | Exit code `7` (`AUDIT_FAILURE`) shall cover failed audit results and failed compliance-test runs surfaced as audit-style failures. | `CliError::AuditFailure` maps to exit code `7`. |
@@ -199,9 +164,9 @@ Retired observability IDs:
 | DEF-003 | Should | Any SDK-level `LongRunning` abstraction beyond the host's current manifest-driven behavior | The SDK, docs, and tests agree on a stable public contract |
 | DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
 | DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
-| DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
+| DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current `OBS-009` env-flag sink toggles | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 | DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
-| DEF-008 | Should | The first observability expansion after file-sink contract coverage shall add console-sink dispatch tests through the real `sc-hooks-cli` path, proving success, block, error, and timeout emission without weakening the current file-sink contract. | A follow-up sprint adds real-dispatch console-sink tests plus docs updates that explicitly describe file-sink and console-sink coverage boundaries. |
+| DEF-008 | Should | Console-sink dispatch coverage after the file-sink baseline; remaining observability expansion work after that is limited to custom sinks and multi-hook monitoring correlation. | Real-dispatch console-sink tests and docs updates land; further exit condition remains explicit only for custom sinks and multi-hook monitoring correlation. |
 
 ## 7. Post-Release Hook Extension Track
 
@@ -209,24 +174,52 @@ These items are not part of the current release baseline above. They define the
 required guardrails for the next hook-extension development track after release
 work is complete.
 
+Detailed post-capture runtime design for this track lives in
+`docs/phase-bc-hook-runtime-design.md`.
+
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | HKR-001 | Deferred | Must | The first hook-extension implementation target shall be the current Claude ATM hook set documented in `docs/hook-api/claude-hook-api.md`; ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md` and is not itself the generic hook contract. | Hook-extension work cites the Claude API doc as the implementation baseline and keeps ATM-only routing/persistence details in the separate ATM extension doc. |
-| HKR-002 | Deferred | Must | No hook implementation code shall be written until the Claude hook schema harness captures and validates the required Claude payloads for the planned hook set. | The first hook-development sprint produces captured Claude fixtures and validation models before any hook runtime crate is added. |
-| HKR-003 | Deferred | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/archive/plugin-plan-s9.md` and the hook API docs are updated from captured fixtures before the first hook crate lands. |
-| HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall be driven by captured evidence, not old ATM prose. The currently captured baseline is `SessionStart`, `SessionEnd`, `PreCompact`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, teammate/background spawn via current `PreToolUse(tool_name="Agent")`, `PermissionRequest`, and `Stop`. `Notification` stays wired and documented but remains unresolved until a live payload is captured. Note: the prior planning baseline named `PreToolUse(Task)`; live Haiku capture at `999860c` corrected that assumption to `PreToolUse(Agent)` per `HKR-003`. | Hook crates and tests map only to the captured Claude surfaces above; `Notification` is not promoted into implementation-required behavior until a live payload exists. |
-| HKR-005 | Deferred | Must | The Claude schema harness shall fail CI on required-field removal or type drift and shall preserve raw captured fixtures as evidence. | Hook-schema CI fails on breaking Claude payload drift and retains captured fixture artifacts for review. |
+| HKR-002 | Implemented | Must | No hook implementation code shall be written until the Claude hook schema harness captures and validates the required Claude payloads for the planned hook set. | The Phase 1 harness and follow-up capture passes produced verified Claude fixtures before any new hook runtime crate is authorized. |
+| HKR-003 | Implemented | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/archive/plugin-plan-s9.md` and the hook API docs were revised from captured fixtures, including `resume` and `clear` follow-up evidence. |
+| HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall cover only the documented eight-hook ATM baseline: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, `PreToolUse(Agent)`, `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`. | Hook crates and tests map only to that documented eight-hook set unless requirements are explicitly expanded later; the seven non-`Notification` surfaces are locally captured, `Notification(idle_prompt)` remains documented as wired-but-unresolved in local capture, and the clean runtime design is frozen in `docs/phase-bc-hook-runtime-design.md`. |
+| HKR-005 | Deferred | Must | The Claude schema harness shall preserve raw captured fixtures as evidence and shall provide a manual schema-drift detection path that reports required-field removal, type drift, and newly added fields without auto-fixing models. | `test-harness/hooks/run-schema-drift.py` compares current captures to approved fixtures, emits drift output, and retains captured artifacts for review; schema drift remains a manual investigation path rather than a CI gate. |
 | HKR-006 | Deferred | Must | Provider-specific docs for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block the first Claude implementation path. | The first hook-development sequence proceeds on Claude-only capture and implementation even while other provider docs remain present. |
 | HKR-007 | Deferred | Must | Cursor Agent shall remain documented as a provider reference during the first development pass, but Cursor harness capture and Cursor-targeting runtime implementation are deferred until a later explicitly approved follow-on sprint. | `docs/hook-api/cursor-agent-hook-api.md` exists, while the first harness and implementation work stays Claude-only. |
-| HKR-008 | Deferred | Must | Before any hook runtime crate is accepted, the hook track shall freeze a normalized `agent_state` model and strict transition rules separate from raw hook-event names. The minimum identity/state tuple is `session_id`, `active_pid`, and `agent_state`. | The plan and hook API docs define the normalized state enum, transition rules, and the required persisted session-record fields before implementation begins. |
-| HKR-009 | Deferred | Must | Before any hook runtime crate is accepted, the hook-plugin trait surface in `sc-hooks-core` / `sc-hooks-sdk` shall be finalized beyond raw `serde_json::Value` passthrough. The final trait must define how normalized context, raw payload, result typing, and failure posture are exposed to plugins. | The implementation plan names the final trait freeze as a gate, and the trait/result/context shapes are documented before the first hook runtime crate lands. |
-| HKR-010 | Deferred | Must | Generic hook utilities and ATM-specific behavior shall be separated. ATM routing, teammate-idle semantics, temp identity files, and ATM relay emissions shall live in a separate ATM extension crate rather than defining the generic hook baseline. | The architecture and plan docs distinguish generic session/spawn/tool utilities from a separate ATM extension crate. |
-| HKR-011 | Deferred | Must | The first hook implementation pass shall cover the core utilities needed for correctness: startup/session tracking, normalized agent-state tracking, subagent linkage/tracking, and blocking/fenced-JSON tool-gate behavior. | The plan explicitly sequences those utilities before or alongside ATM-specific relay behavior, and no implementation phase starts without those utilities being named and scoped. |
-| HKR-012 | Deferred | Must | The hook track shall use one canonical session-state file per `session_id`, with ATM fields stored as optional extensions on that same file rather than in a separate authoritative file. The minimum required base fields are `session_id`, `active_pid`, `agent_state`, `created_at`, `updated_at`, `ai_root_dir`, and `ai_current_dir`. | The plan and architecture docs define one canonical session-state schema and explicitly place ATM fields in an extension object on the same record. |
-| HKR-013 | Deferred | Must | If an agent prompt or same-name sibling schema file defines a JSON schema for subagent input, the spawn gate shall require exactly one fenced `json` block, validate it before launch, and block with an exact retryable error when validation fails. | The plan defines schema lookup and failure behavior for fenced-JSON agent launches, and the spawn-gate implementation uses those rules instead of vague format blocking. |
+| HKR-008 | Implemented | Must | The generic session foundation shall persist one canonical session-state record keyed by `session_id`, `active_pid`, and `ai_root_dir`, where `ai_root_dir` is the immutable working directory established from the root-establishing `SessionStart` for the runtime instance, `ai_current_dir` is chained from each hook payload `cwd`, and downstream consumers receive normalized project-root context regardless of later provider drift. Inbound `CLAUDE_PROJECT_DIR`, when present, is a required equality check against the persisted canonical root rather than a silent fallback. | Hook lifecycle code writes one canonical session record, uses the root-establishing `SessionStart` launch as immutable root for that runtime instance, preserves later `cwd` snapshots separately as current-directory context, never rewrites root identity from later `cwd` drift, emits prominent error-level observability when inbound `CLAUDE_PROJECT_DIR` diverges from the persisted canonical root, and exposes the canonical root back to consumers as normalized project-root context. |
+| HKR-009 | Implemented | Must | Canonical hook session-state updates shall use atomic write semantics, shall not rewrite `session.json` when the canonical record is unchanged, and shall emit hook logs on every invocation whether or not state changes. The earlier trait-freeze planning gate is treated as satisfied through the executable-plugin JSON schema contract recorded under `SEAL-001` in `docs/archive/implementation-gaps.md`. | Session-state persistence uses same-directory temp-plus-rename, increments revision only on material change, skips unchanged rewrites, still emits observability/log output for every hook invocation, and the trait-freeze closure is documented through `SEAL-001` in `docs/archive/implementation-gaps.md`. |
+| HKR-010 | Deferred | Must | Spawn/tool-gate behavior shall enforce fenced `json` input where required, validate that JSON against the declared schema source, and return exact retryable failure reasons on block. | Invalid fenced JSON is blocked with deterministic retry guidance, schema lookup is explicit, and named-agent/background-agent policy outcomes are tested directly. |
+| HKR-011 | Implemented | Must | ATM extension behavior shall enrich the canonical session-state record through extension fields and environment inheritance (`ATM_TEAM`, `ATM_IDENTITY`) without redefining the generic state model. | ATM relay/identity code writes extension fields onto the canonical record, preserves team linkage, documents child identity override behavior, and leaves the generic lifecycle model owned by the foundation crate. |
+| HKR-012 | Deferred | Must | The global HTML reporting stack shall be built and QA-approved before any schema-drift or other report-generating sprint depends on it. | `$HOME/.claude/skills/html-report/SKILL.md` and `~/.claude/agents/html-report-generator.md` exist, pass review against `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`, and produce one valid self-contained HTML report in a tested invocation before Sprint `S9-P3` is considered runnable. |
+| HKR-013 | Implemented | Must | ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable. | `plugins/atm-extension` keeps the four-stage relay pipeline explicit, uses one authoritative `ToolName` type, and covers the typed relay boundary with direct tests. |
+
+Additional verified Claude provider surface outside the current baseline:
+- `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
+  but they are not part of the current `schook` implementation baseline
+- if later promoted into scope, they must be treated as top-level provider
+  hooks rather than `PreToolUse`-style matcher cases
+- `WorktreeCreate` uses a provider-specific success/failure contract:
+  - command hooks return the absolute worktree path on stdout
+  - stderr carries rejection or failure detail
+  - non-zero exit fails worktree creation
+  - `HookResult` / decision JSON does not apply
+- `WorktreeRemove` receives the provider-returned `worktree_path` and performs
+  cleanup side effects; it is not part of the generic `HookResult` decision
+  model
 
 ## 8. Release Rule
 
 If a behavior is not implemented and not required for release, it must be deferred.
 
 If a behavior is required for release but not yet fully proved, it must appear in `docs/traceability.md` and, when needed for historical planning context, in `docs/archive/`.
+
+## Requirement Amendment Notes
+
+- `HKR-011`
+  - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
+  - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model
+  - authorizing sprint: `S9-HP5`
+- `HKR-013`
+  - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
+  - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
+  - authorizing sprint: `S9-HP5`

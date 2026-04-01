@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::time::Instant;
+use thiserror::Error;
 
 use crate::config::ScHooksConfig;
 use crate::errors::CliError;
@@ -8,6 +9,12 @@ use crate::observability::{self, HandlerResultRecord};
 use crate::resolution::ResolvedHandler;
 use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
+use log::error;
+use sc_hooks_core::errors::RootDivergenceNotice;
+use sc_hooks_core::session::AiRootDir;
+use std::borrow::Cow;
+
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -21,8 +28,118 @@ struct DispatchLogBase<'a> {
     matcher: &'a str,
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
+    project_root: &'a AiRootDir,
 }
 
+#[derive(Debug, Error)]
+enum HookResultParseError {
+    #[error("plugin produced empty stdout")]
+    EmptyStdout,
+    #[error("plugin produced malformed JSON on stdout: {0}")]
+    MalformedFirstJson(serde_json::Error),
+    #[error("plugin produced JSON that did not match HookResult: {0}")]
+    InvalidHookResult(serde_json::Error),
+    #[error("plugin produced invalid trailing stdout after first JSON object: {0}")]
+    InvalidTrailingJson(serde_json::Error),
+}
+
+#[derive(Debug, Error)]
+#[error(
+    "failed to read plugin stderr after capturing {captured_bytes} bytes (partial stderr: {captured_excerpt:?})"
+)]
+struct StderrCaptureContextError {
+    captured_bytes: usize,
+    captured_excerpt: String,
+    #[source]
+    source: std::io::Error,
+}
+
+impl StderrCaptureContextError {
+    fn new(captured: &[u8], source: std::io::Error) -> Self {
+        let captured_excerpt = String::from_utf8_lossy(captured)
+            .chars()
+            .take(200)
+            .collect();
+        Self {
+            captured_bytes: captured.len(),
+            captured_excerpt,
+            source,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("{context}")]
+struct PluginExecutionContextError {
+    context: String,
+    #[source]
+    source: Option<BoxedError>,
+}
+
+impl PluginExecutionContextError {
+    fn new(context: impl Into<String>) -> Self {
+        Self {
+            context: context.into(),
+            source: None,
+        }
+    }
+
+    fn with_source(
+        context: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            context: context.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+enum PluginTerminationError {
+    #[error("plugin exited with status {status}{stderr_suffix}")]
+    NonZeroExit { status: i32, stderr_suffix: String },
+    #[cfg(unix)]
+    #[error("plugin terminated by signal {signal}{stderr_suffix}")]
+    Signaled { signal: i32, stderr_suffix: String },
+    #[error("plugin terminated without an exit status{stderr_suffix}")]
+    MissingStatus { stderr_suffix: String },
+}
+
+fn stderr_suffix(stderr: Option<&str>) -> String {
+    match stderr {
+        Some(stderr) if !stderr.is_empty() => format!("; stderr: {stderr}"),
+        _ => String::new(),
+    }
+}
+
+fn plugin_termination_error(
+    status: std::process::ExitStatus,
+    stderr: Option<&str>,
+) -> PluginTerminationError {
+    if let Some(code) = status.code() {
+        return PluginTerminationError::NonZeroExit {
+            status: code,
+            stderr_suffix: stderr_suffix(stderr),
+        };
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+
+        if let Some(signal) = status.signal() {
+            return PluginTerminationError::Signaled {
+                signal,
+                stderr_suffix: stderr_suffix(stderr),
+            };
+        }
+    }
+
+    PluginTerminationError::MissingStatus {
+        stderr_suffix: stderr_suffix(stderr),
+    }
+}
 pub fn execute_chain(
     handlers: &[ResolvedHandler],
     config: &ScHooksConfig,
@@ -43,6 +160,7 @@ pub fn execute_chain(
         matcher: event.unwrap_or("*"),
         mode,
         handler_chain: &handler_chain,
+        project_root: &prepared.project_root,
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -53,10 +171,11 @@ pub fn execute_chain(
         let handler_name = &handler.name;
         if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
             return Err(CliError::Resolution(
-                crate::errors::ResolutionError::ManifestLoad {
+                crate::errors::ResolutionError::HandlerRejected {
                     plugin: handler_name.clone(),
                     reason: "manifest long_running=true is only supported for sync handlers"
                         .to_string(),
+                    source: None,
                 },
             ));
         }
@@ -88,9 +207,10 @@ pub fn execute_chain(
                     reason: format!("expected type {expected:?}"),
                 })
             }
-            other => CliError::PluginError {
-                message: format!("failed to construct plugin input for `{handler_name}`: {other}"),
-            },
+            other => CliError::plugin_error_with_source(
+                format!("failed to construct plugin input for `{handler_name}`"),
+                other,
+            ),
         })?;
 
         let mut command = std::process::Command::new(&handler.executable_path);
@@ -103,7 +223,13 @@ pub fn execute_chain(
         {
             Ok(child) => child,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "spawn-error",
@@ -123,19 +249,23 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
 
         if let Some(mut stdin) = child.stdin.take() {
             use std::io::Write;
-            let body = serde_json::to_vec(&stdin_payload).map_err(|err| CliError::PluginError {
-                message: format!("failed to serialize stdin payload: {err}"),
+            let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
+                CliError::plugin_error_with_source("failed to serialize stdin payload", err)
             })?;
             if let Err(err) = stdin.write_all(&body) {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "stdin-write-failed",
@@ -155,9 +285,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         }
 
@@ -169,7 +297,13 @@ pub fn execute_chain(
         let status = match wait_with_timeout(&mut child, timeout_ms) {
             Ok(TimeoutOutcome::Completed(status)) => status,
             Ok(TimeoutOutcome::TimedOut) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification_with_timeout(
                     handler_name,
                     "timed-out",
@@ -201,12 +335,16 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::TIMEOUT,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::Timeout {
-                    message: ai_message,
-                });
+                return Err(CliError::timeout(ai_message));
             }
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "wait-failed",
@@ -226,9 +364,7 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
         use std::io::Read;
@@ -236,7 +372,13 @@ pub fn execute_chain(
         if let Some(mut out) = child.stdout.take()
             && let Err(err) = out.read_to_end(&mut stdout)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "stdout-read-failed",
@@ -256,16 +398,20 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(CliError::plugin_error_with_source(ai_message, err));
         }
 
         let mut stderr = Vec::new();
         if let Some(mut err) = child.stderr.take()
             && let Err(read_err) = err.read_to_end(&mut stderr)
         {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "stderr-read-failed",
@@ -285,16 +431,25 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(CliError::plugin_error_with_source(
+                ai_message,
+                StderrCaptureContextError::new(&stderr, read_err),
+            ));
         }
 
         let stdout_text = String::from_utf8_lossy(&stdout);
-        let stderr_text = String::from_utf8_lossy(&stderr).to_string();
+        let stderr_text =
+            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
+        let stderr_ref = stderr_text.as_deref();
 
         if !status.success() {
-            disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+            disable_plugin_for_session(
+                prepared
+                    .session_id
+                    .as_ref()
+                    .map(sc_hooks_core::session::SessionId::as_str),
+                handler_name,
+            )?;
             let ai_message = ai_notification(
                 handler_name,
                 "non-zero-exit",
@@ -304,7 +459,7 @@ pub fn execute_chain(
                 handler_name,
                 handler_started.elapsed().as_millis(),
                 "non_zero_exit",
-                Some(stderr_text),
+                stderr_text.clone(),
                 Some(true),
             ));
             emit_dispatch_log_with_fallback(
@@ -314,15 +469,25 @@ pub fn execute_chain(
                 sc_hooks_core::exit_codes::PLUGIN_ERROR,
                 Some(ai_message.as_str()),
             );
-            return Err(CliError::PluginError {
-                message: ai_message,
-            });
+            return Err(plugin_error_with_context(
+                ai_message,
+                Some(PluginExecutionContextError::with_source(
+                    "plugin execution failed",
+                    plugin_termination_error(status, stderr_ref),
+                )),
+            ));
         }
 
         let (parsed, warning) = match parse_first_hook_result(&stdout_text) {
             Ok(parsed) => parsed,
             Err(err) => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "invalid-json",
@@ -332,7 +497,10 @@ pub fn execute_chain(
                     handler_name,
                     handler_started.elapsed().as_millis(),
                     "invalid_json",
-                    Some(format!("stdout={stdout_text}; stderr={stderr_text}; {err}")),
+                    Some(format!(
+                        "stdout={stdout_text}; stderr={}; {err}",
+                        stderr_ref.unwrap_or("")
+                    )),
                     Some(true),
                 ));
                 emit_dispatch_log_with_fallback(
@@ -342,30 +510,37 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
+
+        let mut parsed = parsed;
+        let (additional_context, root_divergence) =
+            split_root_divergence_context(parsed.additional_context.take());
+        let warning = merge_warnings(
+            warning,
+            root_divergence
+                .as_ref()
+                .map(RootDivergenceNotice::warning_message),
+        );
+        if let Some(notice) = root_divergence.as_ref() {
+            emit_root_divergence_log_with_fallback(log_base.project_root, notice);
+        }
 
         match parsed.action {
             sc_hooks_core::results::HookAction::Proceed => {
                 log_results.push(HandlerResultRecord {
                     handler: handler_name.clone(),
-                    action: "proceed".to_string(),
+                    action: Cow::Borrowed("proceed"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: if stderr_text.is_empty() {
-                        None
-                    } else {
-                        Some(stderr_text)
-                    },
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
 
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    if let Some(context) = parsed.additional_context {
+                    if let Some(context) = additional_context {
                         async_additional_context.push(context);
                     }
                     if let Some(message) = parsed.system_message {
@@ -375,7 +550,13 @@ pub fn execute_chain(
             }
             sc_hooks_core::results::HookAction::Block => {
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                    disable_plugin_for_session(
+                        prepared
+                            .session_id
+                            .as_ref()
+                            .map(sc_hooks_core::session::SessionId::as_str),
+                        handler_name,
+                    )?;
                     let ai_message = ai_notification(
                         handler_name,
                         "async-block",
@@ -385,11 +566,7 @@ pub fn execute_chain(
                         handler_name,
                         handler_started.elapsed().as_millis(),
                         "async_block",
-                        if stderr_text.is_empty() {
-                            None
-                        } else {
-                            Some(stderr_text)
-                        },
+                        stderr_text.clone(),
                         Some(true),
                     ));
                     emit_dispatch_log_with_fallback(
@@ -408,14 +585,10 @@ pub fn execute_chain(
                     .unwrap_or_else(|| "plugin blocked without reason".to_string());
                 log_results.push(HandlerResultRecord {
                     handler: handler_name.clone(),
-                    action: "block".to_string(),
+                    action: Cow::Borrowed("block"),
                     ms: handler_started.elapsed().as_millis(),
                     error_type: None,
-                    stderr: if stderr_text.is_empty() {
-                        None
-                    } else {
-                        Some(stderr_text)
-                    },
+                    stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
                 });
@@ -429,21 +602,26 @@ pub fn execute_chain(
                 return Ok(DispatchOutcome::Blocked { reason });
             }
             sc_hooks_core::results::HookAction::Error => {
-                disable_plugin_for_session(prepared.session_id.as_deref(), handler_name)?;
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
                 let ai_message = ai_notification(
                     handler_name,
                     "action-error",
                     "fix plugin logic and run 'sc-hooks test <plugin>'.",
                 );
+                let action_error_message = parsed
+                    .message
+                    .unwrap_or_else(|| "plugin returned action=error".to_string());
                 log_results.push(error_result(
                     handler_name,
                     handler_started.elapsed().as_millis(),
                     "action_error",
-                    Some(
-                        parsed
-                            .message
-                            .unwrap_or_else(|| "plugin returned action=error".to_string()),
-                    ),
+                    Some(action_error_message.clone()),
                     Some(true),
                 ));
                 emit_dispatch_log_with_fallback(
@@ -453,9 +631,15 @@ pub fn execute_chain(
                     sc_hooks_core::exit_codes::PLUGIN_ERROR,
                     Some(ai_message.as_str()),
                 );
-                return Err(CliError::PluginError {
-                    message: ai_message,
-                });
+                return Err(plugin_error_with_context(
+                    ai_message,
+                    stderr_text
+                        .as_deref()
+                        .map(|stderr| {
+                            PluginExecutionContextError::new(format!("plugin stderr: {stderr}"))
+                        })
+                        .or_else(|| Some(PluginExecutionContextError::new(action_error_message))),
+                ));
             }
         }
     }
@@ -493,10 +677,11 @@ fn disable_plugin_for_session(
     session_id: Option<&str>,
     handler_name: &str,
 ) -> Result<(), CliError> {
-    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|err| {
-        CliError::internal(format!(
-            "failed persisting disabled state for `{handler_name}`: {err}"
-        ))
+    session::mark_plugin_disabled(session_id, handler_name, "runtime-error").map_err(|source| {
+        CliError::internal_with_source(
+            format!("failed persisting disabled state for `{handler_name}`"),
+            source,
+        )
     })
 }
 
@@ -517,6 +702,7 @@ fn emit_dispatch_log(
         total_ms,
         exit,
         ai_notification,
+        project_root: base.project_root,
     })
 }
 
@@ -528,31 +714,69 @@ fn emit_dispatch_log_with_fallback(
     ai_notification: Option<&str>,
 ) {
     if let Err(err) = emit_dispatch_log(base, results, total_ms, exit, ai_notification) {
-        eprintln!("sc-hooks: failed emitting dispatch observability event: {err}");
+        emit_observability_stderr_fallback(&err);
+    }
+}
+
+fn emit_root_divergence_log(
+    project_root: &AiRootDir,
+    notice: &RootDivergenceNotice,
+) -> Result<(), CliError> {
+    observability::emit_root_divergence_event(observability::RootDivergenceEventArgs {
+        notice,
+        project_root,
+    })
+}
+
+fn emit_root_divergence_log_with_fallback(project_root: &AiRootDir, notice: &RootDivergenceNotice) {
+    if let Err(err) = emit_root_divergence_log(project_root, notice) {
+        emit_observability_stderr_fallback(&err);
+    }
+}
+
+fn emit_observability_stderr_fallback(err: &CliError) {
+    error!("sc-hooks: failed emitting dispatch observability event: {err}");
+}
+
+fn split_root_divergence_context(
+    additional_context: Option<String>,
+) -> (Option<String>, Option<RootDivergenceNotice>) {
+    let Some(additional_context) = additional_context else {
+        return (None, None);
+    };
+
+    match RootDivergenceNotice::decode(&additional_context) {
+        Some(notice) => (None, Some(notice)),
+        None => (Some(additional_context), None),
+    }
+}
+
+fn merge_warnings(existing: Option<String>, additional: Option<String>) -> Option<String> {
+    match (existing, additional) {
+        (Some(existing), Some(additional)) => Some(format!("{existing}; {additional}")),
+        (Some(existing), None) => Some(existing),
+        (None, Some(additional)) => Some(additional),
+        (None, None) => None,
     }
 }
 
 fn parse_first_hook_result(
     stdout_text: &str,
-) -> Result<(sc_hooks_core::results::HookResult, Option<String>), String> {
+) -> Result<(sc_hooks_core::results::HookResult, Option<String>), HookResultParseError> {
     let mut stream =
         serde_json::Deserializer::from_str(stdout_text).into_iter::<serde_json::Value>();
     let Some(first) = stream.next() else {
-        return Err("plugin produced empty stdout".to_string());
+        return Err(HookResultParseError::EmptyStdout);
     };
-    let first = first.map_err(|err| err.to_string())?;
+    let first = first.map_err(HookResultParseError::MalformedFirstJson)?;
     let parsed = serde_json::from_value::<sc_hooks_core::results::HookResult>(first)
-        .map_err(|err| err.to_string())?;
+        .map_err(HookResultParseError::InvalidHookResult)?;
 
     let warning = match stream.next() {
         Some(Ok(_)) => {
             Some("plugin produced multiple JSON objects; only first object was used".to_string())
         }
-        Some(Err(err)) => {
-            return Err(format!(
-                "plugin produced invalid trailing stdout after first JSON object: {err}"
-            ));
-        }
+        Some(Err(err)) => return Err(HookResultParseError::InvalidTrailingJson(err)),
         None => None,
     };
 
@@ -562,18 +786,28 @@ fn parse_first_hook_result(
 fn error_result(
     handler_name: &str,
     ms: u128,
-    error_type: &str,
+    error_type: &'static str,
     stderr: Option<String>,
     disabled: Option<bool>,
 ) -> HandlerResultRecord {
     HandlerResultRecord {
         handler: handler_name.to_string(),
-        action: "error".to_string(),
+        action: Cow::Borrowed("error"),
         ms,
-        error_type: Some(error_type.to_string()),
+        error_type: Some(Cow::Borrowed(error_type)),
         stderr,
         warning: None,
         disabled,
+    }
+}
+
+fn plugin_error_with_context(
+    message: String,
+    context: Option<PluginExecutionContextError>,
+) -> CliError {
+    match context {
+        Some(context) => CliError::plugin_error_with_source(message, context),
+        None => CliError::plugin_error(message),
     }
 }
 
@@ -686,7 +920,7 @@ PreToolUse = ["guard-paths"]
         let err = parse_first_hook_result("{\"action\":\"proceed\"}\nnot-json")
             .expect_err("trailing garbage should be rejected");
         assert!(
-            err.contains("invalid trailing stdout"),
+            err.to_string().contains("invalid trailing stdout"),
             "unexpected error: {err}"
         );
     }
@@ -751,15 +985,19 @@ PostToolUse = ["notify"]
 
         assert!(matches!(
             err,
-            CliError::Resolution(crate::errors::ResolutionError::ManifestLoad { plugin, reason })
+            CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
+                plugin,
+                reason,
+                source: _
+            })
                 if plugin == "notify" && reason.contains("long_running=true")
         ));
     }
 
     #[test]
     fn integration_dispatch_writes_structured_log_entry() {
-        let temp = tempfile::tempdir().expect("tempdir should create");
-        let _cwd = test_support::scoped_current_dir(temp.path());
+        let root = test_support::shared_observability_root();
+        let _cwd = test_support::scoped_current_dir(&root);
 
         make_plugin(
             Path::new(".sc-hooks/plugins/guard-paths"),
@@ -801,7 +1039,7 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
         assert!(matches!(outcome, DispatchOutcome::Proceed));
 
-        let log_path = Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let log_path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
         let rendered = fs::read_to_string(log_path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");

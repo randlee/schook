@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook",
+  "hook_event_name": "WorktreeCreate",
+  "name": "live-remove-double-ctrl-d",
+  "session_id": "1bf52864-42e9-4ede-9142-969ea642f6ed",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook/1bf52864-42e9-4ede-9142-969ea642f6ed.jsonl"
+}

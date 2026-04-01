@@ -1,9 +1,11 @@
+#![cfg(unix)]
+
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
 use sc_hooks_test::compliance::{
-    ContractScenario, ContractScenarioResult, HostDispatchProbe, run_contract_behavior_suite,
+    ContractScenario, ContractScenarioResult, FnHostDispatchProbe, run_contract_behavior_suite,
 };
 use sc_hooks_test::fixtures;
 
@@ -31,7 +33,7 @@ impl CliBinaryProbe {
     }
 }
 
-impl HostDispatchProbe for CliBinaryProbe {
+impl CliBinaryProbe {
     fn run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, String> {
         let temp = tempfile::tempdir().map_err(|err| err.to_string())?;
         let root = temp.path();
@@ -159,6 +161,7 @@ printf '%s\n' '{"action":"proceed"}'
         if let Some(session_id) = session_id {
             command.env("SC_HOOK_SESSION_ID", session_id);
         }
+        command.env("SC_HOOKS_STATE_DIR", root.join(".sc-hooks/state"));
 
         let output = if let Some(payload) = payload {
             let mut child = command
@@ -196,10 +199,12 @@ fn read_last_line(path: &Path) -> Option<String> {
     rendered.lines().last().map(str::to_string)
 }
 
+#[cfg(unix)]
 #[test]
 fn shared_compliance_suite_exercises_actual_host_dispatch_path() {
     let probe = CliBinaryProbe::new();
-    let checks = run_contract_behavior_suite(&probe);
+    let adapter = FnHostDispatchProbe::new(|scenario| probe.run_scenario(scenario));
+    let checks = run_contract_behavior_suite(&adapter);
 
     for check in &checks {
         assert!(check.passed, "{}: {:?}", check.name, check.detail);
