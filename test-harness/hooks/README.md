@@ -25,6 +25,28 @@ This harness exists to prevent guessed hook contracts from leaking into
 implementation. No hook runtime code should depend on a field unless that field
 has been promoted from captured evidence into a validated provider model.
 
+## Provider-Specific Worktree Hooks
+
+`WorktreeCreate` and `WorktreeRemove` are not part of the normal `schook`
+`HookResult` stdin/stdout contract.
+
+Current verified/provider-documented semantics for Claude Code:
+
+- `WorktreeCreate` is a top-level hook event
+- stdin JSON includes the common fields plus `name`
+- command-hook success returns the absolute worktree path on stdout
+- stderr carries rejection/failure detail
+- non-zero exit fails worktree creation
+- `HookResult` / decision JSON does not apply
+- `WorktreeRemove` is a top-level hook event
+- stdin JSON includes the common fields plus `worktree_path`
+- it performs cleanup side effects and does not use the generic decision model
+
+Because these are provider hook semantics rather than `schook` runtime plugin
+semantics, this repo verifies them with focused Rust-side shell-script probes in
+`sc-hooks-test` instead of trying to route them through the normal dispatcher
+contract tests.
+
 ## Core Rules
 
 1. `pytest` is the harness test runner.

@@ -63,6 +63,16 @@ cat > "${temp_settings}" <<JSON
         "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/notification.py'" }]
       }
     ],
+    "WorktreeCreate": [
+      {
+        "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' SCHOOK_WORKTREE_ALLOWED_ROOT='${SCHOOK_WORKTREE_ALLOWED_ROOT:-}' python3 '${HOOK_DIR}/worktree_create.py'" }]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [{ "type": "command", "command": "SCHOOK_HOOK_CAPTURE_ROOT='${CAPTURE_ROOT}' python3 '${HOOK_DIR}/worktree_remove.py'" }]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",

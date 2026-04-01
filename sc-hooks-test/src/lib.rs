@@ -4,3 +4,6 @@
 pub mod compliance;
 /// Fixture builders for shell-style test plugins and configs.
 pub mod fixtures;
+
+#[cfg(test)]
+mod worktree_hooks;

@@ -43,6 +43,22 @@ def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
 
 
+def _claude_version() -> str | None:
+    try:
+        result = subprocess.run(
+            ["claude", "--version"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    version = result.stdout.strip()
+    return version or None
+
+
 def _atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_handle = tempfile.NamedTemporaryFile(
@@ -319,7 +335,11 @@ def _build_environment() -> Environment:
     )
 
 
-def _generate_report(run_timestamp: str, validated_by_hook: dict[str, list[str]]) -> tuple[Path, list[Path]]:
+def _generate_report(
+    run_timestamp: str,
+    validated_by_hook: dict[str, list[str]],
+    claude_version: str | None,
+) -> tuple[Path, list[Path]]:
     report_dir = CLAUDE_REPORTS_ROOT / run_timestamp
     report_dir.mkdir(parents=True, exist_ok=True)
     sections_dir = report_dir / "sections"
@@ -371,6 +391,7 @@ def _generate_report(run_timestamp: str, validated_by_hook: dict[str, list[str]]
             )
         )
 
+    version_summary = html.escape(claude_version) if claude_version else "unavailable"
     report_html = report_template.render(
         output_path=str(report_dir / "schema-drift-report.html"),
         json_output_path=str(report_dir / "schema-drift-report.json"),
@@ -379,7 +400,11 @@ def _generate_report(run_timestamp: str, validated_by_hook: dict[str, list[str]]
         generated_at=run_timestamp,
         status="PASS",
         status_class="status-pass",
-        summary_html=Markup("<h2>Summary</h2><p>All approved Claude fixtures validated against the Phase 3 Pydantic model.</p>"),
+        summary_html=Markup(
+            "<h2>Summary</h2>"
+            "<p>All approved Claude fixtures validated against the Phase 3 Pydantic model.</p>"
+            f"<p>Claude CLI version: <code>{version_summary}</code></p>"
+        ),
         sections_html=Markup("\n".join(section_cards)),
         recommendations_html=Markup("<ul><li>No drift detected. Continue using the approved fixtures as the current Claude baseline.</li></ul>"),
         footer_html=Markup("<p>Generated from the Sprint 9 Phase 3 schema drift tool.</p>"),
@@ -419,13 +444,15 @@ def run_drift(output_dir: Path) -> DriftReport:
             validated_by_hook[hook_name].append(filename)
 
     run_timestamp = _utc_timestamp()
+    claude_version = _claude_version()
     schema_paths = _write_schema_artifacts()
-    report_path, section_paths = _generate_report(run_timestamp, validated_by_hook)
+    report_path, section_paths = _generate_report(run_timestamp, validated_by_hook, claude_version)
     status = ProviderStatus.DRIFT if entries else ProviderStatus.PASS
 
     drift_history_path = output_dir / "drift-history" / f"{run_timestamp}-drift.json"
     report = DriftReport(
         provider="claude",
+        claude_version=claude_version,
         run_timestamp=run_timestamp,
         status=status,
         entries=entries,

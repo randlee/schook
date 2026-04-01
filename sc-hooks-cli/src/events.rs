@@ -58,12 +58,18 @@ pub fn validate_matchers_for_hook(hook: &str, matchers: &[String]) -> MatcherVal
     outcome
 }
 
-#[allow(dead_code)]
+#[expect(
+    dead_code,
+    reason = "CLI matcher helpers remain exported even when only exercised by tests or downstream tooling"
+)]
 pub fn is_tool_hook(hook: &str) -> bool {
     HookType::from_str(hook).is_ok_and(is_tool_hook_type)
 }
 
-#[allow(dead_code)]
+#[expect(
+    dead_code,
+    reason = "CLI matcher helpers remain exported even when only exercised by tests or downstream tooling"
+)]
 pub fn is_wildcard_only_hook(hook: &str) -> bool {
     HookType::from_str(hook).is_ok_and(is_wildcard_only_hook_type)
 }
@@ -82,6 +88,8 @@ fn is_wildcard_only_hook_type(hook: HookType) -> bool {
             | HookType::TeammateIdle
             | HookType::SubagentStop
             | HookType::PermissionRequest
+            | HookType::WorktreeCreate
+            | HookType::WorktreeRemove
             | HookType::Stop
     )
 }
@@ -98,6 +106,8 @@ pub fn canonical_events_for_hook(hook: &str) -> Vec<&'static str> {
             | HookType::TeammateIdle
             | HookType::SubagentStop
             | HookType::PermissionRequest
+            | HookType::WorktreeCreate
+            | HookType::WorktreeRemove
             | HookType::Stop,
         ) => vec![EventTaxonomy::Wildcard.as_str()],
         // Unknown future hooks intentionally degrade to wildcard-only guidance so
@@ -120,6 +130,14 @@ pub fn canonical_taxonomy() -> Vec<(&'static str, Vec<&'static str>)> {
         (
             "PermissionRequest",
             canonical_events_for_hook("PermissionRequest"),
+        ),
+        (
+            "WorktreeCreate",
+            canonical_events_for_hook("WorktreeCreate"),
+        ),
+        (
+            "WorktreeRemove",
+            canonical_events_for_hook("WorktreeRemove"),
         ),
         ("Stop", canonical_events_for_hook("Stop")),
     ]

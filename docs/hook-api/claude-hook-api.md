@@ -7,6 +7,8 @@ This document records the currently verified Claude Code hook surfaces that
 
 The source-of-truth inputs for this document are:
 
+- Claude Code hooks reference:
+  - `https://code.claude.com/docs/en/hooks`
 - installed Claude hook scripts
 - Claude-specific notes in the `synaptic-canvas` repo:
   - `docs/agent-tool-use-best-practices.md`
@@ -24,6 +26,8 @@ The source-of-truth inputs for this document are:
   surface.
 - PreToolUse hooks in `settings.json` work for both in-process and tmux
   teammate modes.
+- `WorktreeCreate` and `WorktreeRemove` are top-level Claude hook events, not
+  `PreToolUse` matcher variants.
 - Frontmatter hooks should not be treated as a Claude-compatible baseline.
 
 ## Path And Environment Rules
@@ -69,6 +73,12 @@ The live harness now verifies actual Claude Haiku payloads for these surfaces:
 `Notification(idle_prompt)` remains DEFERRED: wired in the harness, but no
 verified payload was captured locally.
 
+Additional documented Claude provider surface outside the current `schook`
+implementation baseline:
+
+- `WorktreeCreate`
+- `WorktreeRemove`
+
 For `SessionStart`, the following is verified from live hook behavior:
 
 - payload field names used by the live hook:
@@ -98,6 +108,83 @@ What is not verified today:
   establish a different immutable runtime root
 - whether `CLAUDE_PROJECT_DIR` is present inside ordinary Bash tool subprocesses
   rather than hook-process env
+
+## Verified Claude Worktree Hook Semantics
+
+These two Claude hooks use a provider-specific I/O contract rather than the
+normal `PreToolUse` / `PostToolUse` decision-JSON pattern.
+
+### WorktreeCreate
+
+Verified/provider-documented facts:
+
+- `WorktreeCreate` is a top-level hook event
+- input is JSON on stdin using the common hook fields plus:
+  - `name`
+- for command hooks, success output is:
+  - absolute worktree path on stdout
+- stderr carries rejection/failure detail
+- non-zero exit fails worktree creation
+- `HookResult` / decision-control JSON does not apply to command hooks on this
+  surface
+
+Current local evidence in this branch:
+
+- live Claude `--worktree live-proof -p ...` capture at:
+  - `test-harness/hooks/claude/captures/raw/20260331T180025.956819Z-worktree-create.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T180025.956819Z-worktree-create.env.json`
+- captured payload fields:
+  - `cwd`
+  - `hook_event_name = "WorktreeCreate"`
+  - `name`
+  - `session_id`
+  - `transcript_path`
+- live block behavior:
+  - Claude surfaced `WorktreeCreate hook rejected: use /sc-git-worktree instead of EnterWorktree directly`
+  - non-zero hook exit blocked worktree creation
+
+Local policy implication:
+- a rejecting hook should write a redirect message to stderr and exit non-zero
+- the current preferred redirect text is:
+  - `use /sc-git-worktree instead of EnterWorktree directly`
+
+### WorktreeRemove
+
+Verified/provider-documented facts:
+
+- `WorktreeRemove` is a top-level hook event
+- input is JSON on stdin using the common hook fields plus:
+  - `worktree_path`
+- the hook is for cleanup side effects, using the path returned by
+  `WorktreeCreate`
+- it is not part of the `HookResult` / decision-control JSON model
+
+Current local evidence in this branch:
+
+- live Claude `--worktree live-remove-double-ctrl-d` capture at:
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.015758Z-worktree-create.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.015758Z-worktree-create.env.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.195636Z-worktree-remove.json`
+  - `test-harness/hooks/claude/captures/raw/20260331T182849.195636Z-worktree-remove.env.json`
+- captured `WorktreeRemove` payload fields:
+  - `cwd`
+  - `hook_event_name = "WorktreeRemove"`
+  - `session_id`
+  - `transcript_path`
+  - `worktree_path`
+- live exit behavior:
+  - the worktree session exited through the REPL `Ctrl-D` flow
+  - Claude surfaced `Removing worktree`
+  - the `WorktreeRemove` hook fired with the provider-returned worktree path
+
+Important local harness note:
+- the capture-only `worktree_remove.py` hook records the payload but does not
+  delete the directory; this proves hook firing and payload shape, not local
+  cleanup policy
+
+Current `schook` status:
+- documented provider surface only
+- not part of the current implemented eight-hook Claude ATM baseline
 
 What is verified by the committed Sprint 9 Phase 3 schema/tooling:
 

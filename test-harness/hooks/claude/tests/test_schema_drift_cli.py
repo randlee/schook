@@ -3,8 +3,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+
+from test_harness.hooks.claude import schema_drift
 
 
 def _run_cli(*args: str, workdir) -> subprocess.CompletedProcess[str]:
@@ -20,6 +23,17 @@ def _run_cli(*args: str, workdir) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _claude_version(workdir) -> str:
+    result = subprocess.run(
+        ["claude", "--version"],
+        cwd=workdir,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 @pytest.mark.provider_claude
 def test_run_schema_drift_cli_passes_for_claude(tmp_path, claude_root) -> None:
     repo_root = claude_root.parents[2]
@@ -30,12 +44,15 @@ def test_run_schema_drift_cli_passes_for_claude(tmp_path, claude_root) -> None:
     payload = json.loads(result.stdout)
     assert payload["status"] == "PASS"
     assert payload["provider"] == "claude"
+    assert payload["claude_version"] == _claude_version(repo_root)
 
     drift_files = sorted((output_dir / "drift-history").glob("*.json"))
     assert len(drift_files) == 1
     report_dir = claude_root / "reports" / payload["run_timestamp"]
     assert (report_dir / "schema-drift-report.html").exists()
     assert (report_dir / "schema-drift-report.json").exists()
+    report_payload = json.loads((report_dir / "schema-drift-report.json").read_text(encoding="utf-8"))
+    assert report_payload["claude_version"] == payload["claude_version"]
     assert any(path.endswith(".xhtml") for path in payload["section_paths"])
 
 
@@ -45,3 +62,15 @@ def test_run_schema_drift_cli_errors_for_unknown_provider(tmp_path, claude_root)
     output_dir = tmp_path / "unknown"
     result = _run_cli("unknown", "--output-dir", str(output_dir), workdir=repo_root)
     assert result.returncode == 2
+
+
+@pytest.mark.provider_claude
+def test_run_drift_records_no_claude_version_when_cli_unavailable(tmp_path) -> None:
+    output_dir = tmp_path / "claude"
+    with patch.object(schema_drift, "_claude_version", return_value=None):
+        report = schema_drift.run_drift(output_dir)
+
+    assert report.claude_version is None
+    report_json = Path(report.report_path).with_suffix(".json")
+    report_payload = json.loads(report_json.read_text(encoding="utf-8"))
+    assert report_payload["claude_version"] is None

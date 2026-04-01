@@ -122,6 +122,18 @@
   },
   "additionalProperties": false,
   "properties": {
+    "claude_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Claude Version"
+    },
     "drift_history_path": {
       "anyOf": [
         {

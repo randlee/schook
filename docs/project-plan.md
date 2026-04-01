@@ -80,6 +80,8 @@ Important planning rule:
 | Sprint 9 | S9-ENV-CAPTURE | Completed | Hook env evidence capture + doc reconciliation | `HKR-008` | S9-HP5, S9-BONUS | `test-harness/hooks/claude/captures/raw/` (env-backed captures), `test-harness/hooks/claude/reports/`, `docs/hook-api/claude-hook-api.md`, `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, known-truth report |
 | Sprint 10 | S10-R1 | Planned | Root semantics implementation alignment | `HKR-008` | S9-HP3 through S9-HP5 plus env evidence branch review | `plugins/agent-session-foundation`, lifecycle normalization, session-state tests |
 | Sprint 10 | S10-R2 | Planned | Root divergence logging + contract hardening | `HKR-008`, `HKR-009` | S10-R1 | lifecycle integration tests, observability assertions, downstream root-context tests |
+| Sprint 10 | SC-S10-WORKTREE-HOOKS-1 | In review | Claude worktree hook semantics docs + harness proof | `HKR-003`, `HKR-005` | `integrate/s9-hook-harness` baseline | `docs/hook-api/claude-hook-api.md`, `docs/protocol-contract.md`, `docs/requirements.md`, `test-harness/hooks/README.md`, `sc-hooks-test`, Claude capture harness |
+| Sprint 10 | S10-H1 | Planned | Live Claude hook-schema validation gate | `HKR-003`, `HKR-005`, `HKR-008` | S9-P3, S9-ENV-CAPTURE, S10-R2 | live capture harness runner, fresh-capture Pydantic validation, automatable Claude hook regression gate |
 | Hook Phase 6 | — | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | S9-HP5 plus separate approval | provider follow-on planning docs only |
 
 ## 5. Execution Controls
@@ -1053,3 +1055,83 @@ Acceptance criteria:
 - integration coverage matches the committed known-truth harness evidence
 - future Claude changes that alter root/env behavior fail contract tests rather
   than silently changing runtime state semantics
+
+### SC-S10-WORKTREE-HOOKS-1: Claude Worktree Hook Semantics Docs + Harness Proof
+
+Status:
+- in review
+
+Focus:
+- document Claude `WorktreeCreate` / `WorktreeRemove` semantics precisely and
+  prove the blocking behavior with harness coverage before any runtime
+  implementation treats these surfaces as generic hook-dispatch cases
+
+Deliverables:
+- update `docs/hook-api/claude-hook-api.md` so `WorktreeCreate` and
+  `WorktreeRemove` are described as top-level provider hooks rather than
+  `PreToolUse` matcher cases
+- document the provider I/O contract for `WorktreeCreate`:
+  - absolute worktree path on stdout
+  - rejection/failure detail on stderr
+  - non-zero exit blocks creation
+  - no `HookResult` / decision-control JSON
+- update `docs/requirements.md` and `docs/protocol-contract.md` within the
+  sprint write scope so the generic runtime contract does not overclaim these
+  provider-specific semantics
+- add `sc-hooks-test` harness tests proving:
+  - authorized `WorktreeCreate` returns a usable absolute path
+  - unauthorized-folder `WorktreeCreate` blocks with stderr + exit `1`
+  - redirect guidance points users to `/sc-git-worktree`
+  - `WorktreeRemove` consumes `worktree_path`
+- capture at least one live Claude `WorktreeCreate` transcript proving the hook
+  fires and the block message is surfaced by Claude
+
+Acceptance criteria:
+- `WorktreeCreate` / `WorktreeRemove` are documented as top-level provider
+  hooks in `docs/hook-api/claude-hook-api.md`
+- the documented contract states:
+  - stdout = worktree path
+  - stderr = rejection/failure detail
+  - exit `1` blocks the operation
+  - `HookResult` JSON does not apply
+- `sc-hooks-test` carries harness tests proving `WorktreeCreate` block behavior
+- `docs/requirements.md` and `docs/protocol-contract.md` are updated within the
+  sprint write scope
+- at least one live Claude capture in the harness proves `WorktreeCreate`
+  really fires in this environment
+
+Definition of done:
+- docs merged with the provider-specific semantics corrected
+- Rust-side harness tests pass
+- live Claude capture artifact exists for `WorktreeCreate`
+- follow-on automation gap recorded separately as `S10-H1`
+
+### S10-H1: Live Claude Hook-Schema Validation Gate
+
+Status:
+- planned
+
+Focus:
+- convert the current manual-first Claude harness into a repeatable live
+  validation gate for every hook surface that can be exercised without user
+  assistance
+
+Deliverables:
+- a live Claude harness runner that launches real Claude with capture hooks
+  enabled and exercises all automatable hook surfaces
+- fresh raw capture generation for those automatable surfaces during the test
+  run rather than validating only committed approved fixtures
+- test coverage that validates each fresh captured payload against the
+  provider-specific Pydantic model for that hook API
+- explicit classification of which hook surfaces remain manual-only and why
+- inclusion of `WorktreeCreate` in the live automatable set once the provider
+  surface is wired into the Claude capture harness
+
+Acceptance criteria:
+- one command can execute the automatable Claude live-capture suite after the
+  environment is set up the first time
+- the suite fires each automatable hook surface and validates the resulting raw
+  JSON against the Pydantic model for that surface
+- schema drift in any automatable Claude hook payload fails the test run
+- manual-only surfaces remain documented separately and are not silently
+  skipped

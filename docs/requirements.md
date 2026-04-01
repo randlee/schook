@@ -192,6 +192,20 @@ Detailed post-capture runtime design for this track lives in
 | HKR-012 | Deferred | Must | The global HTML reporting stack shall be built and QA-approved before any schema-drift or other report-generating sprint depends on it. | `$HOME/.claude/skills/html-report/SKILL.md` and `~/.claude/agents/html-report-generator.md` exist, pass review against `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`, and produce one valid self-contained HTML report in a tested invocation before Sprint `S9-P3` is considered runnable. |
 | HKR-013 | Implemented | Must | ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable. | `plugins/atm-extension` keeps the four-stage relay pipeline explicit, uses one authoritative `ToolName` type, and covers the typed relay boundary with direct tests. |
 
+Additional verified Claude provider surface outside the current baseline:
+- `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
+  but they are not part of the current `schook` implementation baseline
+- if later promoted into scope, they must be treated as top-level provider
+  hooks rather than `PreToolUse`-style matcher cases
+- `WorktreeCreate` uses a provider-specific success/failure contract:
+  - command hooks return the absolute worktree path on stdout
+  - stderr carries rejection or failure detail
+  - non-zero exit fails worktree creation
+  - `HookResult` / decision JSON does not apply
+- `WorktreeRemove` receives the provider-returned `worktree_path` and performs
+  cleanup side effects; it is not part of the generic `HookResult` decision
+  model
+
 ## 8. Release Rule
 
 If a behavior is not implemented and not required for release, it must be deferred.

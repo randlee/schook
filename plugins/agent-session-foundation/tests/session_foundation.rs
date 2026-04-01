@@ -112,7 +112,7 @@ fn startup_establishes_root() {
         ))
         .expect("session start should persist");
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
@@ -174,7 +174,7 @@ fn bash_cd_drift_updates_current_dir_only() {
             .expect("stop should update existing session");
     }
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
@@ -217,7 +217,7 @@ fn noop_session_start_keeps_single_persisted_record() {
         ))
         .expect("second identical invocation should be allowed");
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let rendered = fs::read_to_string(state_file).expect("state file should exist");
     let parsed: serde_json::Value =
         serde_json::from_str(&rendered).expect("session state should parse");
@@ -305,7 +305,7 @@ fn resume_establishes_new_root() {
             .expect("resume should reestablish root");
     }
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
             .expect("session state should parse");
@@ -376,7 +376,7 @@ fn compact_preserves_root() {
             .expect("compact should preserve immutable root");
     }
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
             .expect("session state should parse");
@@ -438,8 +438,14 @@ fn clear_establishes_root() {
             .expect("clear should establish new root");
     }
 
-    let old_state = temp.path().join(format!("state/{old_session}.json"));
-    let new_state = temp.path().join(format!("state/{new_session}.json"));
+    let old_state = temp
+        .path()
+        .join("state")
+        .join(format!("{old_session}.json"));
+    let new_state = temp
+        .path()
+        .join("state")
+        .join(format!("{new_session}.json"));
     let old_parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(old_state).expect("old state"))
             .expect("old state should parse");
@@ -480,7 +486,7 @@ fn startup_project_dir_divergence_logs_and_uses_payload_root() {
         ))
         .expect("startup divergence should surface structured notice");
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
             .expect("session state should parse");
@@ -567,7 +573,7 @@ fn mismatched_project_dir_logs_and_preserves_immutable_root() {
         assert_eq!(notice.hook_event, HookType::Stop);
     }
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
             .expect("session state should parse");
@@ -622,7 +628,7 @@ fn missing_project_dir_preserves_root_without_divergence_context() {
         .expect("missing project dir should preserve root without error");
     assert!(result.additional_context.is_none());
 
-    let state_file = temp.path().join(format!("state/{session_id}.json"));
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
     let parsed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
             .expect("session state should parse");

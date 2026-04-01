@@ -21,6 +21,7 @@ This document tracks gaps between the current codebase and the release-standard 
 | GAP-010 | resolved in this pass | `sc-hooks-cli`, docs | host-level observability contract tests prove success, block, invalid-json error, timeout, and file-sink path behavior through the real `sc-hooks-cli` binary | broader sink/monitoring coverage remains tracked under `DEF-008` |
 | DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
 | DEF-008 | deferred | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps keep richer observability validation beyond the current file-sink dispatch contract explicitly planned but not release-blocking, with console-sink coverage named as the first follow-up | none until console/custom sink coverage and multi-hook smoke correlation are intentionally promoted |
+| SEAL-001 | deferred | `sc-hooks-sdk`, docs | SDK trait docs, requirements, architecture, and gaps continue to describe the current host-facing trait surface as intentionally unsealed until an executable plugin boundary freeze is explicitly approved | replace when the SDK trait surface is intentionally sealed or the JSON/plugin contract fully supersedes direct trait implementation guidance |
 
 ## Resolved In This Pass
 
@@ -167,6 +168,33 @@ This document tracks gaps between the current codebase and the release-standard 
   - requirements, architecture, observability docs, and tests intentionally
     promote richer monitoring coverage, starting with console-sink behavior and
     then extending to custom sinks and multi-hook smoke correlation
+
+## SEAL-001: SDK Trait-Sealing Decision Stays Deferred
+
+- Severity: `deferred`
+- Source: `HKR-009`
+- Owner area:
+  - `sc-hooks-sdk`, docs
+- Current behavior:
+  - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` remain public and
+    intentionally unsealed while the project still supports direct executable
+    plugin authoring against the current SDK surface
+  - release-facing docs describe the executable JSON/plugin contract as the
+    primary stability boundary, but do not yet freeze the trait surface itself
+- Expected behavior:
+  - either the SDK trait surface is explicitly sealed with a documented
+    migration path, or the project records that the executable-plugin contract
+    is the only compatibility boundary and removes stale trait-freeze language
+- Verification method:
+  - requirements, architecture, SDK trait docs, and gaps all agree on the same
+    trait-surface posture without contradictory “sealed vs unsealed” guidance
+- Recommended fix path:
+  - keep the trait-sealing question deferred until the project intentionally
+    chooses between sealing the traits or formally retiring trait-freeze as a
+    release concern
+- Exit condition:
+  - one compatibility posture is explicitly approved and reflected in both the
+    SDK docs and the control documents
 
 ## GAP-006: Exit-Code Taxonomy Is Coarse Around Resolution-Time Manifest Failures
 
