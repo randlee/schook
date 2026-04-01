@@ -45,28 +45,28 @@ Read these first for product behavior:
 - `docs/protocol-contract.md`
 - `docs/observability-contract.md`
 - `docs/logging-contract.md`
-- `docs/archive/implementation-gaps.md`
+- `docs/implementation-gaps.md`
 - `docs/traceability.md`
 
 Rules:
 - behavior belongs in `docs/requirements.md`
 - crate boundaries and execution flow belong in `docs/architecture.md`
 - wire contracts belong in the contract docs
-- missing or overstated behavior belongs in `docs/archive/implementation-gaps.md`
+- missing or overstated behavior belongs in `docs/implementation-gaps.md`
 
 ## ATM Coordination
 
 Current repo coordination happens on the default ATM team in this environment.
 
 Known roles for this repo:
-- `arch-schook` is the repo architecture lead
+- `arch-hook` is the team-lead (Claude Code agent coordinating this repo)
 
 Use direct ATM messages. Do not assume broadcast.
 
 Common commands:
 
 ```bash
-atm send arch-schook "status update or question"
+atm send arch-hook "status update or question"
 atm read --timeout 120 --limit 20
 ```
 
