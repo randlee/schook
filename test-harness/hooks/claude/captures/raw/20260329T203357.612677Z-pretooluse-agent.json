@@ -1,0 +1,15 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "session_id": "9c627434-c6c9-43e0-8266-b07aa3c4a99d",
+  "tool_input": {
+    "description": "Launch background readiness check",
+    "prompt": "Reply READY and then stop.",
+    "run_in_background": true,
+    "subagent_type": "general-purpose"
+  },
+  "tool_name": "Agent",
+  "tool_use_id": "toolu_01XUZ95D3rfctihUUwwfhZUv",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/9c627434-c6c9-43e0-8266-b07aa3c4a99d.jsonl"
+}

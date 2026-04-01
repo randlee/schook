@@ -1,0 +1,37 @@
+{
+  "provider": "claude",
+  "status": "haiku_live_capture",
+  "claude_version": "2.1.87 (Claude Code)",
+  "hooks": {
+    "SessionStart": [
+      "session-start-startup.json",
+      "session-start-compact.json",
+      "session-start-resume.json",
+      "session-start-clear.json"
+    ],
+    "SessionEnd": [
+      "session-end.json",
+      "session-end-clear.json"
+    ],
+    "PreCompact": [
+      "pre-compact-manual.json"
+    ],
+    "PreToolUse(Bash)": [
+      "pretooluse-bash.json"
+    ],
+    "PreToolUse(Agent)": [
+      "pretooluse-agent.json"
+    ],
+    "PostToolUse(Bash)": [
+      "posttooluse-bash.json"
+    ],
+    "PermissionRequest": [
+      "permission-request-write.json",
+      "permission-request-bash.json"
+    ],
+    "Notification": [],
+    "Stop": [
+      "stop.json"
+    ]
+  }
+}

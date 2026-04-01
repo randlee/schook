@@ -1,0 +1,15 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "session_id": "a3b5924b-3fe2-4cd4-abb8-5f6fd1e2bd18",
+  "tool_input": {
+    "description": "Reply READY only",
+    "name": "harness-child",
+    "prompt": "Reply READY only and do no other work.",
+    "run_in_background": true
+  },
+  "tool_name": "Agent",
+  "tool_use_id": "toolu_0193pK8bHhUkfvqhWPLQSH3T",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/a3b5924b-3fe2-4cd4-abb8-5f6fd1e2bd18.jsonl"
+}

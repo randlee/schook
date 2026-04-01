@@ -22,3 +22,18 @@ target
 
 .sc-hooks/observability/
 examples/runtime-layout/.sc-hooks/
+
+# Python harness artifacts
+__pycache__/
+*.pyc
+
+# Local review / scratch work
+.temp/
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Local tooling / IDE
+.prompts/
+.serena/

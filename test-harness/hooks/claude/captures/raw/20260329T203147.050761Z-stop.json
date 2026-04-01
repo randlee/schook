@@ -1,0 +1,9 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "I'd be happy to spawn a background agent. To do that, I need a bit more information:\n\n1. **What should the agent do?** (the prompt/task)\n2. **What type of agent?** (e.g., `general-purpose`, `Explore`, `Plan`, or another specialized type)\n3. **Optional: Agent name** (for reference later)\n\nOnce you provide the prompt and agent type, I'll launch it in the background and stop.",
+  "permission_mode": "bypassPermissions",
+  "session_id": "36c9984e-4a07-4ba7-b782-da56bcf7d2b0",
+  "stop_hook_active": false,
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/36c9984e-4a07-4ba7-b782-da56bcf7d2b0.jsonl"
+}

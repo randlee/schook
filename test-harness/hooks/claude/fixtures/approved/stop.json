@@ -1,0 +1,9 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "Here are haikus for each PR:\n\n**PR #41 \u2014 feat: scaffold sprint 9 Claude hook capture harness**\n```\nCapture hooks dance\nPayload schemas shimmer bright\nTests pass, harness done\n```\n\n**PR #40 \u2014 docs: Sprint 9 harness-first replanning**\n```\nSchema first must come\nHarness gates all future work\nPlan locked, phase gates close\n```\n\n**PR #39 \u2014 docs: revise S9 plugin plan to harness-first sequence**\n```\nPhase gates guard the way\nPrototypes wait for schema\nTruth from real payloads\n```\n\n**PR #38 \u2014 Hook Phase 4: Bash Identity + Agent Gate**\n```\nBash hooks stand ready\nWaiting for real schema's truth\nReference only\n```\n\n**PR #37 \u2014 Hook Phase 3: Session Foundation**\n```\nSessions start and end\nWaiting for the schema gate\nPrototype sleeps on\n```\n\n**PR #33 \u2014 Hook Phase 6: Cross-platform Planning**\n```\nCross-platforms await\nPlanning docs in place, held tight\nNot yet time to build\n```\n\n**PR #32 \u2014 Hook Phase 5: State Relay**\n```\nEvents relay home\nSession routes guide the payload\nWait for schema's word\n```\n\n**PR #10 \u2014 Release v0.1.0 \u2014 sc-hooks CLI**\n```\nHooks flow through the stack\nSix sprints build the CLI\nReleased to the world\n```",
+  "permission_mode": "default",
+  "session_id": "b2fe0483-4cb2-4e3b-8659-edbc287824bc",
+  "stop_hook_active": false,
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/b2fe0483-4cb2-4e3b-8659-edbc287824bc.jsonl"
+}

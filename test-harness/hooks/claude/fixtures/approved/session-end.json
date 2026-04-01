@@ -1,0 +1,7 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "hook_event_name": "SessionEnd",
+  "reason": "prompt_input_exit",
+  "session_id": "1d5f3291-768b-4e7a-847e-b6c67e277c39",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/1d5f3291-768b-4e7a-847e-b6c67e277c39.jsonl"
+}

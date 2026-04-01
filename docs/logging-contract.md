@@ -24,12 +24,36 @@ It covers:
 It does not define:
 - plugin stdin/stdout protocol details
 - CLI human-readable output
-- future observability sinks beyond the current file sink
+- future observability sinks beyond the current file sink baseline and the
+  contract-tested default console sink
+
+## 1.1 Environment Controls
+
+- `SC_HOOKS_ENABLE_CONSOLE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: off
+  - enables console-sink emission for operator/debugging workflows
+- `SC_HOOKS_ENABLE_FILE_SINK`
+  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
+  - default: on
+  - controls durable JSONL file emission beneath the resolved observability root
+- when both are enabled, console and file sinks emit the same dispatch semantics while differing only in presentation/rendering
 
 Important current reality:
 - the current implementation does not emit the old ad hoc `DispatchLogEntry`
   record shape
 - each log line is one `sc_observability_types::LogEvent`
+- the file sink is the canonical structured contract; the console sink is a
+  human-readable rendering of the same dispatch event for operator/debugging use
+
+## 1.1 Console Sink Relationship
+
+- the default console sink renders one human-readable line per qualifying
+  dispatch
+- it preserves the same dispatch semantics as the file sink for `level`,
+  `target`, `action`, and message/outcome
+- it does not inline the full structured `fields` payload; consumers that need
+  exact `fields` data must continue to use the JSONL file sink
 
 ## 2. File And Line Model
 
@@ -47,6 +71,21 @@ Current write model:
 - the file is newline-delimited JSON
 - each line is one complete dispatch log record
 - if no handlers execute, no line is written
+
+## 2.1 Sink Routing Environment Variables
+
+The current host supports these sink-routing toggles:
+
+| Variable | Default | Accepted true values | Accepted false values | Effect |
+| --- | --- | --- | --- | --- |
+| `SC_HOOKS_ENABLE_CONSOLE_SINK` | `false` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the human-readable console sink alongside normal dispatch execution |
+| `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the JSONL file sink at the contract path above |
+
+Current rules:
+- both sinks may be enabled simultaneously
+- the file sink remains the canonical structured logging surface
+- invalid values fall back to the documented default and emit a warning to
+  `stderr`
 
 ## 3. Top-Level Record Envelope
 

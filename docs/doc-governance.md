@@ -15,6 +15,7 @@
 - `docs/requirements.md`: normative release-facing behavior and requirement IDs
 - `docs/architecture.md`: current architecture, owners, and enforcement notes
 - `docs/project-plan.md`: derived execution plan only
+- `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, `docs/sc-hooks-sdk/`: crate-local ownership docs
 - `docs/protocol-contract.md`: host/plugin wire contract
 - `docs/observability-contract.md`: observability ownership boundary and file layout
 - `docs/logging-contract.md`: current JSONL dispatch-log schema for consumers

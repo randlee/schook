@@ -126,6 +126,16 @@ jobs:
           print("workspace + crate versions validated")
           PY
 
+      - name: Verify crates.io dependency pins are ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq 'sc-observability(-types)?\s*=\s*\{[^}]*path\s*=' crates/sc-hooks-cli/Cargo.toml; then
+            echo "sc-hooks-cli still depends on local sc-observability path crates." >&2
+            echo "Resolve https://github.com/randlee/sc-observability/issues/30 and replace path deps with exact versions before preflight." >&2
+            exit 1
+          fi
+
       - name: Run dependency-aware preflight crate checks
         shell: bash
         run: |
@@ -157,12 +167,6 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Full test suite
-        run: cargo test --locked --workspace
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
       - name: Emit preflight report artifact
         shell: bash
         run: |
@@ -185,8 +189,7 @@ jobs:
               "workspace-version-alignment",
               "preflight-full-checks",
               "preflight-locked-checks",
-              "full-test-suite",
-              "clippy",
+              "platform-validation",
             ],
             "notes": [
               "preflight validates readiness from develop prior to develop->main merge",
@@ -206,3 +209,24 @@ jobs:
           path: |
             release/release-inventory.json
             release/publisher-preflight-report.json
+
+  platform-validation:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_ARTIFACT_MANIFEST: release/publish-artifacts.toml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Full test suite
+        run: cargo test --locked --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings

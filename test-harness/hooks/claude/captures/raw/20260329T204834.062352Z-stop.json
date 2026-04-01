@@ -1,0 +1,9 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "RESUMED",
+  "permission_mode": "default",
+  "session_id": "2249c2a5-c3a1-4696-acc5-c389d55fc6bb",
+  "stop_hook_active": false,
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/2249c2a5-c3a1-4696-acc5-c389d55fc6bb.jsonl"
+}

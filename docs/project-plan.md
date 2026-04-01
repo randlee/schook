@@ -9,7 +9,7 @@ It is a derived planning document. It does not override:
 - `docs/requirements.md` for release-facing behavior
 - `docs/architecture.md` for current architecture
 - `docs/protocol-contract.md` for the host/plugin wire contract
-- `docs/implementation-gaps.md` for explicit open gaps
+- `docs/implementation-gaps.md` for archived gap context
 
 ## 2. Planning Inputs
 
@@ -26,6 +26,7 @@ Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
 - `DEF-004`
+- `DEF-008`
 
 ## 3. Current Snapshot
 
@@ -35,6 +36,13 @@ Already implemented and not future sprint work:
 - observability output documented in `docs/observability-contract.md`
 - removal of the old ad hoc logging path and builtin `log` handler path
 - release-doc alignment for requirements, architecture, traceability, and gaps
+
+Explicit follow-up after the current file-sink contract work:
+- console-sink coverage is the first planned observability expansion because it
+  is the most useful next surface for debugging live multi-agent interactions
+  and background-agent monitoring
+- custom sink coverage and richer multi-hook monitoring remain follow-on work
+  after console-sink behavior is frozen
 
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
@@ -51,6 +59,17 @@ Important planning rule:
 | Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
+| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
+| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
+| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
+| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
+| S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
+| S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
 
 ## 5. Execution Controls
 
@@ -131,6 +150,55 @@ Acceptance criteria:
 - `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, and `OBS-008` are documented as implemented
 - `GAP-005` and `GAP-007` are closed
 - `cargo fmt --check --all` and `cargo test --workspace` pass
+
+### Deferred Follow-Up: DEF-008 Console-Sink Coverage
+
+Status:
+- deferred, next planned observability expansion
+
+Focus:
+- prove console-sink output under real `sc-hooks-cli` dispatch
+- keep file-sink contract coverage intact while adding an operator-facing
+  debugging surface
+
+Write scope:
+- `sc-hooks-cli/tests/`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/observability-contract.md`
+- `docs/logging-contract.md`
+- `docs/implementation-gaps.md`
+
+Deliverables:
+- real-dispatch tests for console-sink emission on:
+  - success
+  - block
+  - error
+  - timeout
+- docs that state the intended relationship between:
+  - file sink as baseline durable contract
+  - console sink as operator/debugging surface
+- explicit note on whether console and file sinks are expected to emit the same
+  dispatch semantics or intentionally differ in rendered fields
+
+Test plan:
+- run the real `sc-hooks-cli` binary in isolated temp dirs
+- enable console sink in a controlled test harness
+- capture console output and assert:
+  - one emitted line per qualifying dispatch
+  - correct action/outcome/level rendering for success, block, error, timeout
+- keep the existing file-sink contract tests running in the same suite so the
+  console work cannot regress the JSONL baseline
+
+Acceptance criteria:
+- at least one integration test proves console-sink emission for a successful
+  dispatch
+- at least one integration test proves console-sink emission for a blocked or
+  errored dispatch
+- docs name console-sink coverage as the first post-file-sink observability
+  expansion
+- `DEF-008` remains open only for work beyond console-sink coverage, such as
+  custom sinks and multi-hook monitoring correlation
 
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
@@ -449,6 +517,59 @@ Sprint 6 signoff record:
 - QA result on frozen head: `SC-QA-S6-1` found blockers/important findings, opened `SC-DEV-S6-FIX-1`, and did not clear the branch for final handoff until those doc fixes landed
 - task `#370` disposition: retired as merge-review residue only; it is not a standing requirement or gap ID after the `cdce7b1` freeze
 
+### Sprint 8: Rust Best-Practices Closeout
+
+Status:
+- in review
+
+Focus:
+- close the remaining post-release Rust best-practices findings without reopening the release contract
+
+Write scope:
+- `sc-hooks-sdk/src/conditions.rs`
+- `sc-hooks-sdk/src/manifest.rs`
+- `sc-hooks-cli/src/audit.rs`
+- `docs/requirements.md`
+- `docs/traceability.md`
+- `docs/observability-contract.md`
+- `docs/project-plan.md`
+- `docs/implementation-gaps.md`
+
+Deliverables:
+- delete the dead `unreachable!()` branch in `sc-hooks-sdk/src/conditions.rs`
+- document `AUD-005` and `AUD-009` as implemented audit requirements with matching traceability rows
+- document the dispatch stderr fallback when observability emission fails
+- record Sprint 8 closeout in the release plan and implementation-gap notes
+- add direct tests for the `long_running` audit rejection paths that Sprint 8 promotes into the release docs
+
+Verification:
+- `cargo fmt --check --all`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- `SCHOOK-QA-001` stays closed with the dead condition-validation branch removed
+- `AUD-005` and `AUD-009` are present in both `docs/requirements.md` and `docs/traceability.md`
+- `docs/observability-contract.md` documents the current stderr fallback behavior instead of leaving it implicit in code
+- the Sprint 8 plan section reflects the actual write scope, verification, and closure records
+
+Definition of done:
+- the remaining Rust best-practices follow-up is represented as a closed, documented sprint rather than an orphaned table row
+- code and docs agree on the `long_running` audit failures and observability fallback behavior
+- the Sprint 8 branch is ready for the final QA pass on documented closure state
+
+QA checklist answers:
+- Which requirement IDs or gap IDs changed status?
+  Sprint 8 promotes `AUD-005` and `AUD-009` into the implemented requirement and traceability set; no deferred gap is newly opened.
+- What code was removed early rather than left in parallel?
+  The dead `if let ConditionOperator::OneOf = condition.op { unreachable!(); }` branch in `sc-hooks-sdk/src/conditions.rs` was removed instead of being left as unreachable residue.
+- Which files/crates were the owned write scope for the sprint?
+  `sc-hooks-sdk/src/conditions.rs`, `sc-hooks-sdk/src/manifest.rs`, `sc-hooks-cli/src/audit.rs`, and the Sprint 8 release-doc set listed above.
+- What validation commands and direct tests proved the new contract?
+  `cargo fmt --check --all`, `cargo test --workspace`, and `cargo clippy --all-targets --all-features -- -D warnings` passed; direct tests include `audit_rejects_async_long_running_manifest`, `audit_rejects_long_running_without_description`, `rejects_async_long_running_manifest`, and `rejects_long_running_manifest_without_description`.
+- What follow-on work is blocked or unblocked by this sprint?
+  Sprint 8 does not introduce new follow-on implementation work; it closes remaining best-practices review residue so the branch can clear final QA.
+
 ## 11. Sprint QA Checklist
 
 Each sprint closeout must answer these questions explicitly:
@@ -517,3 +638,373 @@ The release plan is complete only when:
 - branch head is frozen before QA/reviewer handoff
 - exact validation commands are recorded on that frozen branch state
 - reviewer and QA signoff are recorded on the final branch state
+
+## 17. Post-Release Hook Extension Track
+
+This track begins only after the current release plan is accepted.
+
+Purpose:
+- extend `schook` toward the Claude ATM hook set without guessing hook schemas
+- keep provider-specific evidence and ATM-specific behavior separate
+- make the first implementation pass small, exact, and test-driven
+
+### Hook Phase 0: Review Baseline
+
+Status:
+- in review
+
+Focus:
+- freeze the hook planning baseline in docs before any hook runtime code is written
+
+Deliverables:
+- freeze `docs/archive/plugin-plan-s9.md` as the umbrella Sprint 9 execution plan
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/hook-api/codex-hook-api.md`
+- `docs/hook-api/cursor-agent-hook-api.md`
+- core-doc additions in `docs/requirements.md` and `docs/architecture.md`
+
+Acceptance criteria:
+- QA can review the Sprint 9 sequence from one umbrella document instead of
+  reconstructing it from multiple planning fragments
+- the Claude implementation baseline is explicit
+- ATM-specific behavior is isolated in its own document
+- Cursor remains documented but deferred from the first implementation pass
+- no implementation-facing field is promoted without a verified source
+- Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
+
+### Hook Phase 1: Claude Schema Harness
+
+Focus:
+- build the first hook harness for Claude only and freeze the captured
+  provider baseline before writing runtime hook code
+
+Write scope:
+
+- `test-harness/hooks/README.md`
+- `test-harness/hooks/scripts/run-capture.sh`
+- `test-harness/hooks/claude/{prompts,hooks,models,fixtures,captures,reports,scripts,tests}/`
+- fixture manifests and harness runner helpers
+
+Deliverables:
+- `test-harness/hooks/README.md` harness contract file
+- `test-harness/hooks/` scaffold
+- Claude provider adapter
+- Claude fixture capture scripts
+- Claude validation models
+- CI drift check for breaking Claude payload changes
+- approved fixture snapshots and a first live Claude Haiku report
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- harness structure and fixture validation tests under
+  `test-harness/hooks/claude/tests/`
+
+Acceptance criteria:
+- Claude hook payloads for the planned hook set are captured and validated
+- raw captured fixtures are stored as review evidence
+- CI fails on required-field removal or type drift
+- the harness can be rerun from repo docs without reconstructing ad hoc setup
+
+Definition of done:
+- the team can point to captured Claude payloads instead of inferred shapes
+
+### Hook Phase 2: Plan Revision From Captured Claude Schema
+
+Focus:
+- revise the hook plan from captured evidence before implementation starts
+
+Write scope:
+
+- `docs/archive/plugin-plan-s9.md`
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/atm-hook-extension.md`
+- `docs/project-plan.md`
+- `docs/requirements.md`
+- `docs/architecture.md`
+
+Deliverables:
+- updated `docs/archive/plugin-plan-s9.md`
+- updated `docs/hook-api/claude-hook-api.md`
+- any additional traceability/gap notes needed for implementation readiness
+- frozen normalized `agent_state` model
+- frozen canonical session-state schema
+- frozen hook trait/result/context contract
+
+Required tests:
+
+- `pytest test-harness/hooks/`
+- `cargo test --workspace`
+
+Acceptance criteria:
+- every planned Claude implementation field is backed by captured fixtures or
+  existing source-of-truth code/docs/tests
+- unknown fields remain explicitly deferred
+- implementation tasks can start without schema guessing
+- the remaining hook phases define exact code to write, tests required, and
+  success criteria
+
+### Hook Phase 3: Claude Session And Lifecycle Implementation
+
+Focus:
+- freeze the hook trait and implement the generic lifecycle/state foundation first
+
+Write scope:
+
+- `sc-hooks-core/`
+- `sc-hooks-sdk/`
+- `plugins/agent-session-foundation/`
+- same-PR updates to `docs/architecture.md`, `docs/requirements.md`, and
+  `docs/project-plan.md`
+
+Deliverables:
+- final hook trait/context/result contract in `sc-hooks-core` / `sc-hooks-sdk`
+- `plugins/agent-session-foundation`
+- tests proving `SessionStart`, `SessionEnd`, and `PreCompact` against the
+  captured contract
+- session-state file implementation with normalized `agent_state` transitions
+- same-agent correlation across directory changes
+
+Required tests:
+
+- unit tests for normalized `agent_state` transitions
+- integration tests for session-state persistence keyed by `session_id`
+- integration tests proving `SessionStart` in directory A and later lifecycle
+  events in directory B still resolve the same session record
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- lifecycle hooks use only verified inputs
+- ATM-specific routing stays out of the generic lifecycle crate
+- the session-state schema matches the documented canonical record
+- the trait boundary no longer relies on raw `serde_json::Value` alone as the
+  only plugin-facing abstraction
+
+### Hook Phase 4: Claude Command And Spawn Gates
+
+Focus:
+- implement the generic spawn and tool-gate utilities
+
+Write scope:
+
+- `plugins/agent-spawn-gates/`
+- `plugins/tool-output-gates/`
+- any same-PR doc updates required if the captured schema or blocking contract
+  needs clarifying
+
+Deliverables:
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- direct behavior tests for named-agent vs background-agent policy
+- direct behavior tests for fenced-JSON/schema-governed spawn blocking
+- schema lookup from inline prompt definitions or same-name sibling schema files
+- exact retryable block responses for invalid fenced JSON
+
+Required tests:
+
+- direct tests for `tool_name = "Agent"` spawn-gate routing
+- tests for named-agent versus background-agent policy outcomes
+- tests for subagent linkage fields written into the canonical session-state file
+- tests for fenced `json` extraction and schema validation success/failure
+- tests proving invalid input returns exact retryable failure reasons
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- no field is relied on unless it was verified in Phase 1 or added in a later
+  approved schema capture
+- spawn and tool-blocking behavior is tested directly
+- block responses explain exactly how the caller can retry successfully
+- generic blocking/fenced-JSON policy remains separate from ATM-specific relay
+  behavior
+
+### Hook Phase 5: Claude Relay Hooks
+
+Focus:
+- implement ATM-specific extension behavior after the generic layer is stable
+
+Write scope:
+
+- `plugins/atm-extension/`
+- ATM-only docs where relay semantics or teammate-idle mapping must be frozen
+
+Deliverables:
+- `plugins/atm-extension`
+- direct tests for ATM Bash identity-file behavior
+- direct tests for `PermissionRequest` and `Stop`
+- direct tests for teammate-idle mapping onto normalized `idle`
+- ATM enrichment on the canonical session-state file through extension fields
+- `Notification` stays wired and documented, but remains deferred until a live
+  payload is captured
+
+Required tests:
+
+- tests for ATM identity-file create/delete behavior around `atm` Bash commands
+- tests for ATM extension fields on the canonical session-state record
+- tests for relay mapping on `PermissionRequest`, `Stop`, and teammate-idle
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- ATM behavior is layered on top of the generic hook utilities rather than
+  defining them
+- failure posture is documented and tested
+- `Notification` stays wired but does not block completion of this phase until
+  a live payload is captured and promoted
+
+### Hook Phase 6: Cross-Provider Follow-On
+
+Focus:
+- only after the Claude baseline is stable, decide whether to expand to other
+  providers
+
+Write scope:
+
+- provider follow-on planning docs only
+- no runtime crate work without separate approval and provider-specific capture
+
+Current deferred items:
+- Codex harness and implementation work
+- Gemini harness and implementation work
+- Cursor harness capture
+- Cursor runtime implementation
+
+Required tests:
+
+- docs-only validation plus any provider harness tests explicitly approved for
+  that provider follow-on
+
+Acceptance criteria:
+
+- follow-on provider work is represented as schema-backed planning, not guessed
+  implementation
+- Claude remains the only active runtime baseline until another provider is
+  explicitly captured and approved
+
+Entry rule:
+- this phase requires separate approval after the Claude ATM baseline is
+  captured, revised, and implemented
+
+### S10-VERSION-BUMP-1: Claude Version-Bump Detection
+
+Status:
+- in review
+
+Focus:
+- detect Claude CLI version bumps before maintainers accept Claude hook
+  contract changes without rerunning schema validation
+
+Write scope:
+
+- `scripts/verify-claude-hook-api.py`
+- `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- `test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/project-plan.md`
+- `docs/traceability.md`
+
+Deliverables:
+- a Claude-only detector comparing `claude --version` to the approved manifest
+- approved manifest stores the current validated `claude_version`
+- pytest coverage for match, mismatch, and missing-manifest-version failure modes
+- release-doc updates recording the detector as the implementation path for
+  `TST-008`
+
+Required tests:
+
+- `python3 scripts/verify-claude-hook-api.py`
+- `python3 -m pytest test-harness/hooks/claude/tests/test_version_bump_detector.py`
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo fmt --check --all`
+
+Acceptance criteria:
+- the approved Claude manifest stores a validated `claude_version`
+- the detector exits `0` when the installed Claude version matches the approved
+  manifest
+- version mismatches exit non-zero with rerun guidance
+- missing or invalid manifest version data fails clearly instead of producing a
+  traceback
+
+### S11-DOC.1: README And Usage Guide Release-Doc Alignment
+
+Status:
+- in review
+
+Focus:
+- align the operator-facing top-level docs with the current release baseline
+- remove stale CLI/example wording that drifted from the control docs
+
+Write scope:
+- `README.md`
+- `USAGE.md`
+- `docs/project-plan.md`
+
+Deliverables:
+- README and usage examples with no `--sync` flag on `fire` invocations
+- explicit Unix-like-shell qualifier on install snippets
+- README plugin inventory aligned with the architecture baseline that treats
+  all current `plugins/` source crates as scaffold/reference only in release docs
+- a clear naming note that `docs/requirements.md` uses `sc-hooks` as the
+  product command label while the current Cargo binary artifact in this repo is
+  `sc-hooks-cli`
+
+Required tests:
+
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- no `fire` example in `README.md` or `USAGE.md` includes `--sync`
+- install snippets are explicitly scoped to Unix-like shells
+- README plugin table contains scaffold/reference-only language and no
+  `runtime-implementation` claims
+- `S11-DOC.1` appears in the sprint table and this detail section
+
+### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
+
+Status:
+- in review
+
+Focus:
+- move publishable workspace crates under `crates/`
+- establish manifest-driven release infrastructure
+- document the honest first-release scope
+
+Write scope:
+
+- `Cargo.toml`
+- `crates/`
+- `release/publish-artifacts.toml`
+- `.github/workflows/release-preflight.yml`
+- `.github/workflows/release.yml`
+- `PUBLISHING.md`
+- `scripts/release_gate.sh`
+- release-facing docs
+
+Deliverables:
+- workspace crates moved to `crates/`
+- manifest-driven publish inventory for:
+  - `sc-hooks-core`
+  - `sc-hooks-sdk`
+  - `sc-hooks-test` (tracked, not published)
+  - `sc-hooks-cli`
+- release workflows for preflight, tagged release, GitHub archives, Homebrew, and WinGet
+- release gate script for branch/clean-tree/version checks
+- docs that state the first crates.io publish only covers complete working crates, not scaffold/reference plugin crates
+
+Required tests:
+
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `python3 scripts/release_artifacts.py list-publish-plan --manifest release/publish-artifacts.toml`
+- `python3 scripts/release_artifacts.py list-release-binaries --manifest release/publish-artifacts.toml`
+
+Acceptance criteria:
+- the workspace uses `crates/<name>` paths for the four host crates
+- release infrastructure is manifest-driven rather than hardcoded in workflow YAML
+- `PUBLISHING.md` documents crates.io, GitHub Releases, Homebrew, and WinGet
+- the documented initial release scope excludes scaffold/reference plugin crates
