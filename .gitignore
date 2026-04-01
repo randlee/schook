@@ -27,9 +27,13 @@ examples/runtime-layout/.sc-hooks/
 __pycache__/
 *.pyc
 
-# Local developer/editor noise
-.prompts/
+# Local review / scratch work
 .temp/
-.serena/
+
+# macOS metadata
 .DS_Store
-task-vars.json
+**/.DS_Store
+
+# Local tooling / IDE
+.prompts/
+.serena/
