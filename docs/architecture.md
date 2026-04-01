@@ -80,10 +80,10 @@ Important boundary:
 
 | Path | Classification | Notes |
 | --- | --- | --- |
-| `plugins/agent-session-foundation` | Runtime implementation | Directly tested runtime hook implementation in the Sprint 9/10 host baseline |
-| `plugins/agent-spawn-gates` | Runtime implementation | Directly tested runtime hook implementation in the Sprint 9/10 host baseline |
-| `plugins/atm-extension` | Runtime implementation | Directly tested runtime hook implementation in the Sprint 9/10 host baseline |
-| `plugins/tool-output-gates` | Runtime implementation | Directly tested runtime hook implementation in the Sprint 9/10 host baseline |
+| `plugins/agent-session-foundation` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/agent-spawn-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/atm-extension` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/tool-output-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
 | `plugins/audit-logger` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/conditional-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/event-relay` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
