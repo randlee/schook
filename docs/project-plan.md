@@ -68,6 +68,7 @@ Important planning rule:
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
+| S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
 | S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
 
 ## 5. Execution Controls
@@ -927,6 +928,41 @@ Acceptance criteria:
 - version mismatches exit non-zero with rerun guidance
 - missing or invalid manifest version data fails clearly instead of producing a
   traceback
+
+### S11-DOC.1: README And Usage Guide Release-Doc Alignment
+
+Status:
+- in review
+
+Focus:
+- align the operator-facing top-level docs with the current release baseline
+- remove stale CLI/example wording that drifted from the control docs
+
+Write scope:
+- `README.md`
+- `USAGE.md`
+- `docs/project-plan.md`
+
+Deliverables:
+- README and usage examples with no `--sync` flag on `fire` invocations
+- explicit Unix-like-shell qualifier on install snippets
+- README plugin inventory aligned with the architecture baseline that treats
+  all current `plugins/` source crates as scaffold/reference only in release docs
+- a clear naming note that `docs/requirements.md` uses `sc-hooks` as the
+  product command label while the current Cargo binary artifact in this repo is
+  `sc-hooks-cli`
+
+Required tests:
+
+- `cargo test --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+
+Acceptance criteria:
+- no `fire` example in `README.md` or `USAGE.md` includes `--sync`
+- install snippets are explicitly scoped to Unix-like shells
+- README plugin table contains scaffold/reference-only language and no
+  `runtime-implementation` claims
+- `S11-DOC.1` appears in the sprint table and this detail section
 
 ### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
 
