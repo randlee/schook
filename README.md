@@ -84,7 +84,7 @@ sc-hooks exit-codes
 | `docs/protocol-contract.md` | Host/plugin JSON contract |
 | `docs/observability-contract.md` | Current `sc-observability` event path and JSONL contract |
 | `docs/logging-contract.md` | Current JSONL dispatch-log schema for downstream consumers |
-| `docs/archive/implementation-gaps.md` | Archived gap ledger retained for historical release-work context |
+| `docs/implementation-gaps.md` | Gap ledger retained for historical release-work context |
 | `docs/traceability.md` | Requirement-to-code/test/gap mapping |
 | `docs/doc-governance.md` | Rules for keeping docs and code aligned |
 

@@ -1,11 +1,7 @@
-# Archived: Implementation Gaps
+# Implementation Gaps
 
-This gap ledger moved to
-[docs/archive/implementation-gaps.md](archive/implementation-gaps.md) during
-`SC-DOCS-COMPLIANCE-1`.
-
-Use the archive file for historical gap context. Current control-doc ownership
-lives in:
+This gap ledger remains the current implementation-gap reference for release
+honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 - [docs/requirements.md](requirements.md)
 - [docs/architecture.md](architecture.md)
