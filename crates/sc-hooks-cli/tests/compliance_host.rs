@@ -21,9 +21,9 @@ impl CliBinaryProbe {
             .and_then(|deps| deps.parent())
             .map(|debug_dir| {
                 debug_dir.join(if cfg!(windows) {
-                    "sc-hooks-cli.exe"
+                    "sc-hooks.exe"
                 } else {
-                    "sc-hooks-cli"
+                    "sc-hooks"
                 })
             })
             .expect("target/debug directory should resolve");

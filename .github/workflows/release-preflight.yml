@@ -126,6 +126,16 @@ jobs:
           print("workspace + crate versions validated")
           PY
 
+      - name: Verify crates.io dependency pins are ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq 'sc-observability(-types)?\s*=\s*\{[^}]*path\s*=' crates/sc-hooks-cli/Cargo.toml; then
+            echo "sc-hooks-cli still depends on local sc-observability path crates." >&2
+            echo "Resolve https://github.com/randlee/sc-observability/issues/30 and replace path deps with exact versions before preflight." >&2
+            exit 1
+          fi
+
       - name: Run dependency-aware preflight crate checks
         shell: bash
         run: |

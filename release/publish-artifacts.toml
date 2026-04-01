@@ -1,9 +1,9 @@
 schema_version = 1
 
 [[crates]]
-artifact = "sc-hooks-sdk"
-package = "sc-hooks-sdk"
-cargo_toml = "sc-hooks-sdk/Cargo.toml"
+artifact = "sc-hooks-core"
+package = "sc-hooks-core"
+cargo_toml = "crates/sc-hooks-core/Cargo.toml"
 required = true
 publish = true
 publish_order = 10
@@ -12,37 +12,37 @@ wait_after_publish_seconds = 60
 verify_install = false
 
 [[crates]]
-artifact = "sc-hooks-cli"
-package = "sc-hooks-cli"
-cargo_toml = "sc-hooks-cli/Cargo.toml"
+artifact = "sc-hooks-sdk"
+package = "sc-hooks-sdk"
+cargo_toml = "crates/sc-hooks-sdk/Cargo.toml"
 required = true
 publish = true
 publish_order = 20
 preflight_check = "locked"
 wait_after_publish_seconds = 60
-verify_install = true
+verify_install = false
 
 [[crates]]
 artifact = "sc-hooks-test"
 package = "sc-hooks-test"
-cargo_toml = "sc-hooks-test/Cargo.toml"
+cargo_toml = "crates/sc-hooks-test/Cargo.toml"
 required = false
-publish = true
+publish = false
 publish_order = 30
 preflight_check = "locked"
 wait_after_publish_seconds = 0
 verify_install = false
 
 [[crates]]
-artifact = "sc-hooks-core"
-package = "sc-hooks-core"
-cargo_toml = "sc-hooks-core/Cargo.toml"
+artifact = "sc-hooks-cli"
+package = "sc-hooks-cli"
+cargo_toml = "crates/sc-hooks-cli/Cargo.toml"
 required = true
 publish = true
-publish_order = 5
-preflight_check = "full"
+publish_order = 40
+preflight_check = "locked"
 wait_after_publish_seconds = 60
-verify_install = false
+verify_install = true
 
 [[release_binaries]]
 name = "sc-hooks"

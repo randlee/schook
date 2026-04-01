@@ -2,6 +2,7 @@
 name = "sc-hooks-test"
 version.workspace = true
 edition = "2024"
+publish = false
 
 [dependencies]
 sc-hooks-core = { path = "../sc-hooks-core" }
