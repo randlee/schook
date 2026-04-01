@@ -17,11 +17,12 @@ def main() -> int:
     manifest = root / "test-harness" / "hooks" / "claude" / "fixtures" / "approved" / "manifest.json"
     try:
         manifest_text = manifest.read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError):
+    except (FileNotFoundError, OSError) as exc:
         return emit_error(
             "manifest_not_found",
             "approved manifest not found",
             path=str(manifest),
+            detail=str(exc),
         )
     try:
         payload = json.loads(manifest_text)
