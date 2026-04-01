@@ -1,426 +1,453 @@
-# sc-hooks — Architecture Document
+# sc-hooks Architecture
+
+## 1. Source Of Truth
+
+This document describes the current architecture only.
+
+- normative product behavior lives in `docs/requirements.md`
+- host/plugin wire shapes live in `docs/protocol-contract.md`
+- observability event shapes live in `docs/observability-contract.md`
+- current JSONL dispatch-log consumer contract lives in `docs/logging-contract.md`
+- archived gap and sprint-planning artifacts live in `docs/archive/`
+
+Crate-local ownership detail now lives in:
+
+- `docs/sc-hooks-cli/`
+- `docs/sc-hooks-core/`
+- `docs/sc-hooks-sdk/`
+
+If a behavior is not present in code, this document shall not describe it as current architecture.
+
+## 1.1 Stable Product ADR IDs
+
+Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
+
+| ADR ID | Decision |
+| --- | --- |
+| `ADR-SHK-001` | `sc-hooks` remains a process-based hook dispatcher rather than an in-process plugin runtime. |
+| `ADR-SHK-002` | The public contract is JSON, environment variables, and documented exit codes; internal Rust enums and typestates are implementation detail. |
+| `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
+| `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
+| `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
+
+Crate-local ADR delegation:
+- crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
+  defined in the crate architecture docs under `docs/sc-hooks-cli/`,
+  `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
+- those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
+  through `ADR-SHK-005` decisions in this document
+
+## 2. Current System Boundary
+
+`sc-hooks` is a process-based hook dispatcher.
+
+The host:
+- loads `.sc-hooks/config.toml`
+- resolves a hook chain
+- assembles metadata
+- validates plugin manifests and metadata requirements
+- executes plugins as child processes over stdin/stdout
+- enforces timeout and session-disable policy
+- emits service-scoped `sc-observability` JSONL events
+
+The host does not:
+- load plugins as shared libraries
+- expose a C ABI
+- store handler-specific config inside the dispatcher config
+- resolve builtin handlers inside the dispatcher; any future builtin path is deferred
+- expose config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml`
+- promise production-ready behavior for the reference plugin crates in `plugins/`
+
+## 3. Crate Ownership
+
+### 3.1 Workspace Crates
+
+| Path | Ownership |
+| --- | --- |
+| `crates/sc-hooks-cli` | CLI commands, config loading, resolution, metadata assembly, dispatch, timeout handling, audit, install-plan generation, `sc-observability` integration, exit behavior |
+| `crates/sc-hooks-core` | Shared data types for manifests, hook results, dispatch mode, events, validation rules, and exit codes |
+| `crates/sc-hooks-sdk` | Rust convenience helpers: manifest parsing/building, condition helpers, runner helpers, and result helpers; this crate is an authoring aid, not the release-defining public contract |
+| `crates/sc-hooks-test` | Reusable compliance harness and shell-plugin fixtures; tracked in the release manifest for validation, not published to crates.io |
+
+Important boundary:
+- runtime plugin discovery uses `.sc-hooks/plugins/`
+- the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
+- source crates under `plugins/` are source-owned implementation or scaffold/reference crates in this repository, not the runtime discovery directory
+- the initial publish scope covers only the complete working crates under `crates/`: `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-cli`; `sc-hooks-test` remains tracked but unpublished, and no `plugins/` source crate is part of the first crates.io release
+- crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
+
+### 3.2 Plugin Source Crates
+
+| Path | Classification | Notes |
+| --- | --- | --- |
+| `plugins/agent-session-foundation` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/agent-spawn-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/atm-extension` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/tool-output-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/audit-logger` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/conditional-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/event-relay` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/guard-paths` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/identity-state` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/notify` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/policy-enforcer` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/save-context` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+| `plugins/template-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+
+## 3.3 Public Contract Vs Internal Typed Model
+
+The public contract is not the Rust type graph.
+
+Public contract:
+- manifest JSON
+- runtime stdin/stdout JSON
+- environment variables for external plugin processes
+- documented exit codes
+
+Internal implementation detail:
+- `FieldType`
+- `ValidationRule`
+- `DispatchMode`
+- `HookAction`
+- `ResolutionError`
+- `ValidationError`
+- `CliError`
+
+The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
+
+Important SDK boundary:
+- `sc-hooks-sdk` may offer authoring conveniences that are broader than the host's guaranteed runtime contract
+- runner-helper behavior such as empty-stdin fallback is convenience behavior, not a statement that the host omits required runtime fields during real dispatch
+- if SDK helpers and the documented executable/JSON contract diverge, the contract docs and host behavior win
+
+## 4. Execution Model
+
+### 4.1 Config And Resolution
+
+1. `sc-hooks-cli` loads `.sc-hooks/config.toml`.
+2. The requested hook and optional event are matched against the configured handler chain.
+3. Handlers are resolved to `.sc-hooks/plugins/<name>`.
+4. Plugin manifests are loaded and cached within the current invocation.
+5. Matchers and payload conditions determine whether each plugin is eligible.
+
+### 4.2 Metadata And Environment
+
+Before plugin execution, the host assembles metadata from:
+- runtime discovery: PID, working directory, Git repo root, Git branch
+- selected environment variables: `SC_HOOK_AGENT_TYPE`, `SC_HOOK_SESSION_ID`
+- `[context]` values from config
+- the requested hook type and event
+- the optional hook payload
+
+The host then:
+- writes metadata JSON to a temp file under the system temp directory
+- exports `SC_HOOK_TYPE`
+- exports `SC_HOOK_EVENT` when an event exists
+- exports `SC_HOOK_METADATA` pointing at the temp file
+
+The temp metadata file is created and owned by the host, not by the plugin. The plugin may read it as an ephemeral convenience artifact only. The file is removed automatically when dispatch scope exits.
+
+### 4.3 Plugin Invocation
+
+For each resolved plugin:
+
+1. The host builds stdin JSON from the plugin manifest:
+   - declared `requires` fields
+   - declared `optional` fields when present
+   - `hook`
+   - `payload` only when supplied
+2. The host spawns the plugin process.
+3. The host writes the filtered JSON payload to stdin.
+4. The host waits for completion or timeout.
+5. The host reads stdout and stderr.
+6. The host parses the first JSON object from stdout as a `HookResult`.
+
+Failure handling:
+- spawn failure disables the plugin for the session and fails the chain
+- invalid JSON disables the plugin for the session and fails the chain
+- non-zero exit disables the plugin for the session and fails the chain
+- timeout disables the plugin for the session; sync dispatch fails, async dispatch records the failure and continues
+- async `action=block` is treated as a protocol violation and disables the plugin
+- async manifests using `long_running=true` are rejected during manifest validation and resolution
+
+## 4.6 Error Hierarchy And Exit Mapping
+
+Current CLI error layering is:
+
+- `ResolutionError`
+  - unresolved handler
+  - manifest load / manifest compatibility failure during resolution
+- `ValidationError`
+  - missing required metadata field
+  - invalid required metadata field
+- `CliError`
+  - wraps config, resolution, and validation errors
+  - carries blocked, plugin, timeout, audit, and internal host failures
+
+Exit-code mapping is intentionally coarse:
+- resolution and manifest-load failures share exit code `4`
+- metadata requirement failures alone use exit code `5`
+- runtime plugin/protocol failures use exit code `2`
+
+That coarser taxonomy is current architecture, not an accident in the docs.
+
+### 4.4 Sync And Async Behavior
+
+Sync mode:
+- handlers run in order
+- `block` short-circuits the chain
+- `error` short-circuits the chain
+- `long_running=true` removes the default sync timeout when no explicit `timeout_ms` override is set
 
-> Version 0.1.0 — March 2026 — DRAFT
+Async mode:
+- only async handlers run
+- `additionalContext` values are concatenated with `\n---\n`
+- `systemMessage` values are concatenated with `\n`
+- async block attempts are treated as protocol errors
+- timeout does not turn the async host invocation into a blocking failure
+- `long_running=true` is not part of the valid async manifest contract
 
-## 1. Overview
+### 4.5 Session Disable State
 
-sc-hooks is a Rust CLI that serves as a universal hook dispatcher for AI-assisted development. Claude Code (and other AI tools) fire hooks at defined lifecycle points. sc-hooks receives those hooks, routes them through a config-driven handler chain, validates inputs, and returns results—all with structured logging and full auditability.
+Disabled plugin state is persisted at `.sc-hooks/state/session.json`, keyed by session ID.
 
-The system replaces a fragile Python-based hook dispatcher with a compiled, testable, fast alternative that treats plugins as standalone processes communicating via JSON over stdin/stdout.
+Current behavior:
+- a missing or unreadable state file is fail-open
+- `SessionEnd` clears state for the current session
+- `sc-hooks audit --reset` clears all stored session state
 
-## 2. Design Principles
+## 5. Observability Architecture
 
-- **Simple config:** The TOML config maps hook names to handler names. That is the entire config surface. Handler-specific settings are the handler's concern.
-- **JSON as the universal contract:** Metadata, payloads, and results all flow as JSON. No C ABI, no shared memory, no unsafe. Plugins are processes, not libraries.
-- **Manifest-declared requirements:** Each plugin advertises what metadata fields it needs and their validation rules. The host validates before invocation. Failures are caught at audit time, not runtime.
-- **Language-agnostic plugins:** A plugin is any executable that responds to `--manifest` and reads JSON from stdin. Rust, Python, bash—whatever solves the problem. Swap a Rust plugin for a Python script to debug, swap back when fixed.
-- **AI-agnostic dispatch:** The environment contract (minimal env vars + JSON metadata) allows thin shims to adapt non-Claude AI tools (Codex, Gemini) to the same hook system.
-- **Fast by default:** Compiled Rust host. Builtins run in-process. External plugins are processes, but the host returns immediately for async follow-up work (the plugin forks its own background tasks).
+Current observability ownership follows the intended boundary directly:
 
-## 3. System Architecture
+- `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
+- the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
+- `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
+- the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
+- there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
 
-### 3.1 Component Overview
+Next planned observability expansion:
 
-| Layer | Artifact | Responsibility |
-|-------|----------|----------------|
-| Host | sc-hooks-cli (binary) | Config parsing, metadata assembly, plugin resolution, input validation, dispatch, structured logging, audit, diagnostic fire |
-| SDK | sc-hooks-sdk (Rust crate) | Optional helper library. Provides manifest builder, stdin/stdout protocol handling, typed result types. Not required—plugins can implement the protocol directly. |
-| Plugins | Standalone executables | Implement hook behavior. Advertise requirements via manifest. Receive validated JSON on stdin. Return action result on stdout. |
+- keep the current file-sink JSONL contract as the release baseline
+- add console-sink verification next, through the same real `sc-hooks-cli`
+  dispatch path used by the file-sink contract tests
+- treat console-sink coverage as the first operator-facing debugging expansion
+  because it is the most useful immediate surface for live multi-agent and
+  background-agent monitoring
+- defer custom sink registration coverage and multi-hook monitoring correlation
+  until console-sink behavior is frozen and documented
 
-### 3.2 Execution Flow
+This boundary is current architecture, not deferred intent.
 
-```
-Claude Code hook fires
-  → sc-hooks run <hook-type> [event] --sync|--async
-  → load .sc-hooks/config.toml
-  → resolve handler chain for hook+event
-  → filter chain by mode (sync or async)
-  → for each handler in chain:
-      → load manifest (cached after first call)
-      → validate metadata against manifest requirements
-      → pipe validated JSON subset to plugin stdin
-      → read result JSON from plugin stdout
-      → if action=block or action=error: short-circuit, return to caller
-  → log structured dispatch entry to hook log
-  → exit code back to Claude Code
-```
+## 6. Current Extension Points
 
-### 3.3 Plugin Model
+### 6.1 Supported Today
 
-A plugin is any executable that implements two behaviors:
+- custom plugins implemented as executables
+- manifest-declared metadata requirements
+- payload-condition filtering
+- sandbox declarations validated by audit
+- Codex and Gemini shell shims
 
-- **Manifest response:** When called with `--manifest`, returns a JSON object declaring its name, protocol version, execution mode, supported hooks, required metadata fields, and validation rules.
-- **Hook handling:** When called normally, reads a JSON object from stdin (containing only the fields it declared as required/optional), performs its work, and writes a result JSON to stdout.
+### 6.2 Deferred Or Unstable
 
-This means a plugin can be a compiled Rust binary (using sc-hooks-sdk for convenience), a Python script with a shebang line, a bash script that uses jq for JSON processing, or any executable in any language that speaks the protocol.
+- SDK-level `LongRunning` ergonomics beyond the host's manifest handling
+- release-grade bundled plugins
+- promotion of any `plugins/` source crate to shipped runtime behavior without install guidance and direct behavior tests
+- a more granular exit-code split for manifest compatibility vs other resolution failures
 
-**Critical design point:** there is no plugin versioning system. If a plugin has a bug, replace the executable with a working one (in any language). The manifest is the version—if the host can read it, the plugin is compatible. The `protocol` field (integer) handles breaking changes to the JSON contract itself.
+These items are not part of the current mainline architecture contract and must remain documented as gaps or deferred work.
 
-### 3.4 Metadata Model
+## 7. Non-Goals
 
-Hook context flows as a single JSON object with a stable core structure and extensible subsystem sections:
+The current architecture does not aim to provide:
+- dynamic library loading
+- plugin hot reloading
+- plugin marketplace/distribution
+- merged editing of existing `.claude/settings.json` content
+- spans, metrics, or OTLP export in the current `schook` host
 
-```json
-{
-  "agent": { "type": "claude-code", "session_id": "abc123", "pid": 48201, "role": "implementer" },
-  "repo": { "path": "/home/rand/src/p3", "branch": "feature/cal-v2", "working_dir": "/home/rand/src/p3/src/calibration" },
-  "team": { "name": "calibration", "project": "p3-platform" },
-  "hook": { "type": "PreToolUse", "event": "Write" },
-  "payload": { ... }
-}
-```
+## 8. Enforcement Notes
 
-The host assembles this from three sources: runtime discovery (agent info, repo state), config.toml `[context]` section (team/project), and the hook payload from the AI tool. Plugins only receive the subset of fields they declared in their manifest.
+- Handler names resolve only through `.sc-hooks/plugins/`; the runtime has no builtin resolution path.
+- Plugins remain processes because dispatch always shells out to executables.
+- JSON remains the only host/plugin contract because manifests and runtime results are serialized through serde-backed JSON.
+- Crate boundaries remain narrow because `sc-hooks-core` carries shared data only, `sc-hooks-sdk` is convenience code, and `sc-hooks-cli` owns orchestration.
 
-**Environment variables are minimal and intentional**—only set for cases where they're genuinely needed (spawning new processes, shell ergonomics):
+## 9. Hook Extension Planning Boundary
 
-```
-SC_HOOK_TYPE=PreToolUse
-SC_HOOK_EVENT=Write
-SC_HOOK_METADATA=/tmp/sc-hooks/meta-xxxx.json
-```
-
-Three env vars, not twenty. If a handler needs specific fields, it reads them from the metadata JSON.
-
-## 4. Configuration
-
-```toml
-# .sc-hooks/config.toml
-
-[meta]
-version = "1"
-
-[context]
-team = "calibration"
-project = "p3-platform"
-
-[hooks]
-PreToolUse = ["guard-paths", "log"]
-PostToolUse = ["log", "notify"]
-PreCompact = ["save-context", "log"]
-```
-
-There are no per-handler configuration blocks in this file. If a handler needs settings, it reads its own configuration (e.g., guard-paths reads `.sc-hooks/guard-paths.toml` or similar). This keeps the dispatcher config auditable at a glance.
-
-## 5. Plugin Protocol
-
-### 5.1 Manifest
-
-Every plugin must respond to the `--manifest` flag with a JSON declaration:
-
-```json
-{
-  "name": "guard-paths",
-  "protocol": 1,
-  "mode": "sync",
-  "hooks": ["PreToolUse"],
-  "requires": {
-    "repo.path": { "type": "string", "validate": "dir_exists" },
-    "repo.branch": { "type": "string", "validate": "non_empty" },
-    "hook.event": { "type": "string" }
-  },
-  "optional": {
-    "team.name": { "type": "string" }
-  }
-}
-```
-
-**The `mode` field** declares the plugin's execution expectation:
-
-- **sync:** Plugin makes blocking decisions (proceed/block/error). Runs in the synchronous hook chain. Must return fast.
-- **async:** Plugin performs context collection, logging, or long-running work. Runs in the async hook chain. Cannot block. May return `additionalContext` for the AI tool's next turn.
-
-### 5.2 Validation Rules
-
-| Rule | Meaning |
-|------|---------|
-| `non_empty` | String with length > 0 |
-| `dir_exists` | String, path exists and is a directory |
-| `file_exists` | String, path exists and is a file |
-| `path_resolves` | String, path resolves (symlinks followed) |
-| `one_of:a,b,c` | String, must be one of listed values |
-| `positive_int` | Number, greater than 0 |
-| *(none)* | Type check only, no additional validation |
-
-### 5.3 Input (Host → Plugin)
-
-The host writes a JSON object to the plugin's stdin containing only the fields declared in `requires` and `optional`:
-
-```json
-{
-  "repo": { "path": "/home/rand/src/p3", "branch": "feature/cal-v2" },
-  "team": { "name": "calibration" },
-  "hook": { "type": "PreToolUse", "event": "Write" },
-  "payload": { "file_path": "src/calibration/sensor.rs" }
-}
-```
-
-### 5.4 Output (Plugin → Host)
-
-Sync-mode plugins return an action:
-
-```json
-{ "action": "proceed", "log": "path allowed" }
-{ "action": "block", "reason": "path matches deny pattern" }
-{ "action": "error", "message": "unexpected state" }
-```
-
-The host interprets: `proceed` continues the chain, `block` short-circuits and reports the reason to the AI tool, `error` short-circuits and is logged as a failure.
-
-Async-mode plugins return context instead of decisions:
-
-```json
-{
-  "action": "proceed",
-  "additionalContext": "guard-paths verified: src/calibration/sensor.rs",
-  "systemMessage": "optional warning shown to user"
-}
-```
-
-The host aggregates `additionalContext` from all async plugins and passes it through to the AI tool. Async plugins must not return `block`—the audit command enforces this.
-
-## 6. Handler Resolution
-
-Given a handler name from the config, the host resolves it in order:
-
-- **Builtin:** Is the name a handler compiled into the host binary? (e.g., `log`). Run in-process.
-- **Plugin executable:** Is there an executable at `.sc-hooks/plugins/{name}`? Call it via the JSON protocol.
-- **Unresolved:** Error at audit time. Error at runtime.
-
-The local root folder in config can be changed to point at a different plugins directory. This enables the swap-to-debug workflow: replace a Rust plugin binary with a Python script of the same name, debug, fix, swap back.
-
-## 7. CLI Interface
-
-```
-sc-hooks <subcommand>
-
-SUBCOMMANDS:
-  run <hook> [event]       Normal execution (called by AI tool hooks)
-    --sync                 Run only sync-mode handlers (default)
-    --async                Run only async-mode handlers
-  audit                    Validate config + all handlers + data flow
-  fire <hook> [event]      Diagnostic trigger with synthetic/real payload
-  install                  Generate .claude/settings.json hook entries
-  config                   Show resolved configuration
-  handlers                 List available builtins + discovered plugins
-```
-
-### 7.1 Hook Installation
-
-The `install` command reads the sc-hooks config and all plugin manifests, then generates the correct `.claude/settings.json` entries. When a hook event has both sync and async plugins, it installs two handler entries:
-
-```
-$ sc-hooks install
-
-Installing hooks for PreToolUse:
-  sync chain:  guard-paths, log
-  async chain: collect-context
-  → 2 entries in .claude/settings.json
-
-Installing hooks for PostToolUse:
-  sync chain:  log
-  async chain: notify
-  → 2 entries
-
-Installing hooks for PreCompact:
-  sync chain:  save-context, log
-  → 1 entry
-```
-
-The generated settings.json:
-
-```jsonc
-// .claude/settings.json (generated by sc-hooks install)
-"hooks": {
-  "PreToolUse": [{
-    "matcher": "*",
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PreToolUse --sync" },
-      { "type": "command", "command": "sc-hooks run PreToolUse --async", "async": true }
-    ]
-  }],
-  "PostToolUse": [{
-    "matcher": "*",
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PostToolUse --sync" },
-      { "type": "command", "command": "sc-hooks run PostToolUse --async", "async": true }
-    ]
-  }],
-  "PreCompact": [{
-    "hooks": [
-      { "type": "command", "command": "sc-hooks run PreCompact --sync" }
-    ]
-  }]
-}
-```
-
-If a hook event has only sync plugins, only one entry is generated. If only async plugins, only the async entry. The user never manually writes these entries—`install` handles it.
-
-## 8. Audit System
-
-The audit command validates the entire hook system without executing any handlers:
-
-```
-$ sc-hooks audit
-
-Config: .sc-hooks/config.toml
-Protocol: 1
-
-Plugins:
-  ✓ guard-paths    (protocol=1, mode=sync)
-  ✓ log            (builtin, mode=sync)
-  ✓ collect-context (protocol=1, mode=async)
-  ✓ notify         (protocol=1, mode=async)
-
-Hook chains:
-  PreToolUse:
-    sync:  [guard-paths, log]
-    async: [collect-context]
-    guard-paths requires:
-      ✓ repo.path     (dir_exists) → /home/rand/src/p3 exists
-      ✓ repo.branch   (non_empty)  → "feature/cal-v2"
-      ✓ hook.event    (string)
-    collect-context requires:
-      ✓ repo.path     (dir_exists)
-
-  PostToolUse:
-    sync:  [log]
-    async: [notify]
-    notify requires:
-      ✓ team.name     (non_empty)  → "calibration"
-      ✗ atm.inbox     (non_empty)  → missing from context
-
-Install plan:
-  PreToolUse  → 2 entries (sync + async)
-  PostToolUse → 2 entries (sync + async)
-  PreCompact  → 1 entry  (sync only)
-
-1 error: notify requires 'atm.inbox' but it is not provided
-```
-
-## 9. Observability
-
-### 9.1 Host Dispatch Log
-
-The host logs every dispatch-level event: which hook fired, which handlers ran, their results, and timing. This is the host's responsibility and the only log the host writes.
-
-```toml
-[logging]
-hook_log = ".sc-hooks/logs/hooks.jsonl"
-level = "info"
-```
-
-If a plugin needs additional logging, that is the plugin's responsibility. The host does not provide logging infrastructure to plugins.
-
-### 9.2 Log Entry Structure
-
-```json
-{
-  "ts": "2026-03-06T10:23:45.123Z",
-  "hook": "PreToolUse",
-  "event": "Write",
-  "mode": "sync",
-  "handlers": ["guard-paths", "log"],
-  "results": [
-    { "handler": "guard-paths", "action": "proceed", "ms": 2 },
-    { "handler": "log", "action": "proceed", "ms": 0 }
-  ],
-  "total_ms": 3,
-  "exit": 0
-}
-```
-
-## 10. Sync/Async Execution Model
-
-Each plugin declares its execution mode in its manifest. The host uses this to split handler chains and generate correct AI tool integration.
-
-### 10.1 Sync Plugins
-
-Sync plugins make blocking decisions. They run sequentially in a chain that short-circuits on block/error. Claude Code waits for the result. Use sync mode for: path guards, permission decisions, input validation—anything that must complete before the tool action proceeds.
-
-### 10.2 Async Plugins
-
-Async plugins perform context collection, notifications, or long-running analysis. Claude Code does not wait for them—it starts the async chain and continues immediately. When the async chain completes, any `additionalContext` or `systemMessage` is delivered to the AI on the next conversation turn.
-
-Async plugins cannot return `block`. The audit command enforces this constraint.
-
-### 10.3 Chain Splitting
-
-When a single hook event (e.g., PreToolUse) has both sync and async plugins, `sc-hooks install` generates two Claude Code hook entries for that event. The `--sync` invocation runs only sync-mode plugins; the `--async` invocation runs only async-mode plugins. This is invisible to the plugin author—each plugin only sees its own chain.
-
-Example: `PreToolUse = ["guard-paths", "collect-context"]` where guard-paths is sync and collect-context is async:
-
-- Claude Code fires PreToolUse
-- Two sc-hooks processes start: one sync (blocking), one async (background)
-- Sync chain: guard-paths runs, returns proceed/block
-- Async chain: collect-context runs in background, returns additionalContext on next turn
-
-### 10.4 Handler-Internal Async
-
-Independent of the sync/async chain split, any plugin (sync or async) may internally fork a detached child process for follow-up work. A sync plugin that sends an ATM notification can fork the notification send and return proceed immediately. The dispatcher does not know about the fork. This is the plugin's concern.
-
-## 11. AI-Agnostic Shims
-
-Because the integration contract is env vars + JSON stdin, adapting non-Claude AI tools requires only a thin shim:
-
-```bash
-#!/bin/bash
-# codex-hook-shim.sh
-export SC_HOOK_AGENT_TYPE=codex
-export SC_HOOK_SESSION_ID="${CODEX_SESSION_ID:-unknown}"
-export SC_HOOK_AGENT_PID=$$
-
-case "$1" in
-  pre-edit)  exec sc-hooks run PreToolUse Write ;;
-  post-edit) exec sc-hooks run PostToolUse Write ;;
-  *)         exec sc-hooks run "$@" ;;
-esac
-```
-
-Handlers do not care which AI tool invoked them. They read metadata JSON. Same handlers, same logging, same audit.
-
-## 12. Project Structure
-
-```
-sc-hooks/
-├── Cargo.toml                # workspace
-├── sc-hooks-sdk/             # optional helper for Rust plugins
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── manifest.rs       # Manifest builder
-│       ├── validate.rs       # Validation rule types
-│       ├── runner.rs         # --manifest + stdin/stdout protocol
-│       └── result.rs         # HookResult enum
-├── sc-hooks-cli/             # the host binary
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs           # clap: run, audit, fire, install
-│       ├── config.rs         # TOML parsing
-│       ├── metadata.rs       # assemble JSON from config + runtime
-│       ├── resolve.rs        # name → builtin | plugin binary
-│       ├── manifest.rs       # call --manifest, parse + cache
-│       ├── validate.rs       # validate metadata against requirements
-│       ├── dispatch.rs       # pipe JSON → plugin → read result
-│       ├── install.rs        # generate .claude/settings.json
-│       ├── builtins/
-│       │   └── log.rs
-│       ├── audit.rs
-│       ├── fire.rs
-│       └── logging.rs
-├── plugins/                  # each compiles independently
-│   ├── guard-paths/
-│   ├── notify/
-│   └── save-context/
-└── shims/
-    ├── codex-shim.sh
-    └── gemini-shim.sh
-```
-
-## 13. Open Design Decisions
-
-- **Config discovery:** Walk up from CWD to find `.sc-hooks/config.toml` (mirrors `.claude/` behavior), or explicit `--config` flag, or both?
-- **Manifest caching:** Cache manifests in memory per invocation, or persist to disk with invalidation on plugin mtime change?
-- **Config inheritance:** Should a global `~/.config/sc-hooks/config.toml` provide defaults that repo-level configs extend? Useful for logging defaults.
-- **Diagnostic mode design:** The `fire` command needs design for payload generation. Synthetic payloads, recorded payloads, or both?
-- **Plugin marketplace:** Integration with Synaptic Canvas package registry for plugin distribution? Separate concern but worth tracking.
+The next hook-extension track is a planned architecture addition, not part of
+the current release implementation boundary above.
+
+### 9.1 Claude-First Development Gate
+
+The first hook-extension development path is:
+
+1. build a Claude-focused schema harness under `test-harness/hooks/`
+2. capture and validate real Claude hook payloads
+3. revise hook docs and the implementation plan from captured evidence
+4. implement the Claude ATM hook crates
+
+Until steps 1-3 are complete, hook runtime crates remain planning targets only.
+
+### 9.2 Planned Harness Subsystem
+
+The planned hook harness owns:
+
+- provider launch adapters
+- captured raw fixtures
+- provider-specific validation models
+- schema-drift CI checks
+- review artifacts for newly observed or changed payload fields
+
+Initial execution scope:
+
+- Claude only
+
+Documented but deferred from the first harness pass:
+
+- Codex
+- Gemini
+- Cursor Agent
+
+### 9.2a Planned Version-Bump Detection Boundary
+
+The hook harness must also track which AI CLI version produced the latest
+approved schema-drift artifacts.
+
+The planned boundary is:
+
+- `scripts/verify-claude-hook-api.py` is a harness-side verification tool, not
+  a runtime dispatcher component
+- the detector reads the approved Claude manifest at
+  `test-harness/hooks/claude/fixtures/approved/manifest.json`
+- the detector compares `claude --version` output with the manifest's
+  `claude_version`
+- a version mismatch is a release-process signal to rerun the live hook-schema
+  validation flow before accepting provider-contract changes
+
+Extensibility rule:
+
+- if other providers later need the same guardrail, the design must be revisited
+  explicitly rather than inferred from a premature multi-provider detector
+
+### 9.3 Planned Hook Crate Targets
+
+These are planned hook-extension targets only. They are not current source
+inventory and are not current runtime crates.
+
+The post-capture intended split is:
+
+- generic hook utility layer
+  - session lifecycle / session-record persistence
+  - normalized agent-state tracking
+  - subagent linkage and spawn policy
+  - tool/blocking/fenced-JSON guard behavior
+- ATM extension layer
+  - ATM routing enrichment
+  - temp identity-file behavior for `atm` Bash calls
+  - teammate-idle / ATM relay emission behavior
+
+Recommended planned crate targets:
+
+- `plugins/agent-session-foundation`
+- `plugins/agent-spawn-gates`
+- `plugins/tool-output-gates`
+- `plugins/atm-extension`
+
+Planned responsibility split:
+
+- `plugins/agent-session-foundation`
+  - owns the canonical session-state file
+  - owns `SessionStart`, `SessionEnd`, and `PreCompact`
+  - owns normalized `agent_state` transitions
+- `plugins/agent-spawn-gates`
+  - owns named-agent vs background-agent policy
+  - owns subagent linkage/tracking
+  - owns schema-governed fenced-JSON spawn validation
+- `plugins/tool-output-gates`
+  - owns generic blocking/fenced-JSON tool-output policy
+- `plugins/atm-extension`
+  - owns ATM routing enrichment on the same session-state record
+  - owns ATM identity-file behavior for Bash `atm` calls
+  - owns ATM relay emission and teammate-idle mapping
+
+Planned shared session-state schema rules:
+
+- one canonical session-state file per `session_id`
+- required base fields:
+  - `session_id`
+  - `active_pid`
+  - `agent_state`
+  - `created_at`
+  - `updated_at`
+  - `ai_root_dir`
+  - `ai_current_dir`
+- optional ATM fields live in an extension object on the same file rather than
+  a second authoritative ATM-only file
+- `session_id`, `active_pid`, and hook event identifiers should be represented
+  as semantic newtypes in implementation code rather than bare primitives
+
+Planned trait-freeze rule before the first runtime crate lands:
+
+- `sc-hooks-core` / `sc-hooks-sdk` must freeze a hook trait that exposes:
+  - normalized context
+  - raw provider payload
+  - typed result / failure posture
+  - fail-open versus fail-closed semantics per hook class
+- the frozen hook trait in `sc-hooks-core` shall be sealed (private supertrait
+  or mod-private pattern) so that only `sc-hooks-sdk` can provide base
+  implementations. Unsealed traits permit external plugin crates to bypass
+  normalized-context and fail-open/fail-closed invariants; retrofitting a seal
+  after downstream adoption is a breaking API change.
+- runtime crates must not define their own competing hook trait surfaces
+- `agent_state` remains a runtime enum rather than typestate because hook state
+  persists across process boundaries and must round-trip through the canonical
+  session-state file
+
+Archived prototype crates remain reference-only inputs for design review:
+
+- `plugins/atm-session-lifecycle`
+- `plugins/atm-bash-identity`
+- `plugins/gate-agent-spawns`
+- `plugins/atm-state-relay`
+
+Planning rules for these targets:
+
+- ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
+- the generic implementation baseline remains the Claude hook API doc plus the
+  captured Claude fixtures
+- these planned targets are not part of the current §3 source inventory
+  (`BND-001a`) and will not appear there until they land with code, tests, and
+  a same-PR architecture inventory update
+- no planned hook crate becomes current architecture until it lands with code,
+  tests, and the same-PR `docs/architecture.md` crate inventory update
+- archived prototype crates do not define the final crate split; they are
+  reviewed only as reference against the post-capture design
+
+Planned fail posture by crate:
+
+| Planned crate | Default posture | Reason |
+| --- | --- | --- |
+| `plugins/agent-session-foundation` | fail-open | session persistence loss should not prevent the host from continuing a Claude run |
+| `plugins/agent-spawn-gates` | fail-closed | malformed or policy-breaking subagent launches must be blocked deterministically |
+| `plugins/tool-output-gates` | fail-closed | fenced-JSON and blocking-output violations must stop the tool result before it reaches the caller |
+| `plugins/atm-extension` | fail-open | ATM routing enrichment should not make the generic hook host unusable when ATM context is absent or degraded |
+
+### 9.4 Cursor Follow-On Boundary
+
+Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`, but the
+current architecture does not yet include:
+
+- Cursor harness capture
+- Cursor-targeting runtime crates
+- Cursor hook payloads as an implementation dependency
+
+Planning targets only for a later approved Cursor pass:
+
+- `plugins/cursor-agent-gates`
+- `plugins/cursor-agent-relay`
+
+Those remain later follow-on work after the Claude ATM baseline is captured,
+reviewed, revised, and implemented.

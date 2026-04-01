@@ -1,0 +1,48 @@
+schema_version = 1
+
+[[crates]]
+artifact = "sc-hooks-core"
+package = "sc-hooks-core"
+cargo_toml = "crates/sc-hooks-core/Cargo.toml"
+required = true
+publish = true
+publish_order = 10
+preflight_check = "full"
+wait_after_publish_seconds = 60
+verify_install = false
+
+[[crates]]
+artifact = "sc-hooks-sdk"
+package = "sc-hooks-sdk"
+cargo_toml = "crates/sc-hooks-sdk/Cargo.toml"
+required = true
+publish = true
+publish_order = 20
+preflight_check = "locked"
+wait_after_publish_seconds = 60
+verify_install = false
+
+[[crates]]
+artifact = "sc-hooks-test"
+package = "sc-hooks-test"
+cargo_toml = "crates/sc-hooks-test/Cargo.toml"
+required = false
+publish = false
+publish_order = 30
+preflight_check = "locked"
+wait_after_publish_seconds = 0
+verify_install = false
+
+[[crates]]
+artifact = "sc-hooks-cli"
+package = "sc-hooks-cli"
+cargo_toml = "crates/sc-hooks-cli/Cargo.toml"
+required = true
+publish = true
+publish_order = 40
+preflight_check = "locked"
+wait_after_publish_seconds = 60
+verify_install = true
+
+[[release_binaries]]
+name = "sc-hooks"

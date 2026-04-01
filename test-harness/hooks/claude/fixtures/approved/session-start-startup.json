@@ -1,0 +1,8 @@
+{
+  "cwd": "/synthetic/test/session-start",
+  "hook_event_name": "SessionStart",
+  "model": "claude-haiku-4-5-20251001",
+  "session_id": "a760f75c-055a-46f9-bcbb-447c47a22f3c",
+  "source": "startup",
+  "transcript_path": "/synthetic/test/transcripts/a760f75c-055a-46f9-bcbb-447c47a22f3c.jsonl"
+}

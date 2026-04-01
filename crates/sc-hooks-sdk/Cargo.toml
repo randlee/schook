@@ -1,0 +1,13 @@
+[package]
+name = "sc-hooks-sdk"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+glob = "0.3.3"
+log = "0.4.29"
+regex = "1.12.2"
+sc-hooks-core = { path = "../sc-hooks-core" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2.0.18"

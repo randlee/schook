@@ -1,0 +1,8 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture",
+  "hook_event_name": "SessionStart",
+  "model": "claude-haiku-4-5-20251001",
+  "session_id": "ae03571e-0fae-486e-b050-777eaa42b803",
+  "source": "compact",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/ae03571e-0fae-486e-b050-777eaa42b803.jsonl"
+}

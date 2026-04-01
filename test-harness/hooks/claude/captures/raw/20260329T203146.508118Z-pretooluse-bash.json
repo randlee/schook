@@ -1,0 +1,13 @@
+{
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture/test-harness/hooks/claude",
+  "hook_event_name": "PreToolUse",
+  "permission_mode": "bypassPermissions",
+  "session_id": "2a70bf69-9af8-46cd-b121-afe8b603dc5d",
+  "tool_input": {
+    "command": "pwd && sed -n '1,5p' README.md",
+    "description": "Show current directory and read first 5 lines of README.md"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "toolu_01DX3YNCnACuQrSyKn6WQyd5",
+  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-hook-env-capture/2a70bf69-9af8-46cd-b121-afe8b603dc5d.jsonl"
+}
