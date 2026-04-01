@@ -16,7 +16,7 @@ This skill defines how the team-lead (ARCH-ATM) orchestrates phases where **choo
 Before starting a phase:
 1. Phase plan document exists with sprint specs and dependencies
 2. Integration branch `integrate/phase-{P}` created off `develop`
-3. ATM team (`atm-dev`) is active with team-lead and chook as members
+3. ATM team is active with team-lead and chook as members
 4. chook is running and reachable via ATM CLI (`atm send chook "ping"`)
 
 ## Architecture
@@ -58,7 +58,7 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 {
   "subagent_type": "general-purpose",
   "name": "qa-hook",
-  "team_name": "atm-dev",
+  "team_name": "<team-name>",
   "model": "sonnet",
   "prompt": "You are qa-hook, the QA coordinator for Phase {P}. You will receive QA assignments from team-lead for each sprint as they complete. Stand by for first assignment. Integration branch: integrate/phase-{P}. Phase docs: docs/project-plan.md, docs/atm-agent-mcp/requirements.md."
 }
@@ -70,7 +70,7 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 /Users/randlee/.local/share/claude/versions/<VERSION> \
   --agent-id qa-hook \
   --agent-name qa-hook \
-  --team-name atm-dev
+  --team-name <team-name>
 ```
 
 All three flags (`--agent-id`, `--agent-name`, `--team-name`) are required together — omitting any one causes an error.
@@ -360,7 +360,7 @@ atm read
 # Find chook's pane
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title} #{pane_current_command}'
 # Send nudge
-tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team atm-dev" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
+tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --team <team-name>" && sleep 0.5 && tmux send-keys -t <pane-id> Enter
 ```
 
 **Do NOT assume chook received a task without an ack.** If no ack within ~2 minutes, nudge immediately.
@@ -368,7 +368,7 @@ tmux send-keys -t <pane-id> -l "You have unread ATM messages. Run: atm read --te
 ### Advise chook to poll with timeout
 When chook is waiting for assignments, tell him:
 ```
-"Standing by? Use: atm read --team atm-dev --timeout 60"
+"Standing by? Use: atm read --timeout 60"
 ```
 This keeps him responsive without busy-polling.
 

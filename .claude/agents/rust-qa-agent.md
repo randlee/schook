@@ -64,7 +64,6 @@ Monitor test execution time:
 - Suggest performance improvements for slow tests
 
 ## Critical Rules
-
 - **100% tests must pass** - No exceptions
 - **Must read BOTH guideline files first** - `guidelines.txt` AND `docs/cross-platform-guidelines.md`
 - **Must perform critical best-practices review** - Findings are required in every QA run
