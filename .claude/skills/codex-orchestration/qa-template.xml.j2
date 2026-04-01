@@ -1,4 +1,4 @@
-<atm-qa-task id="{{ task_id }}" sprint="{{ sprint }}" assignee="quality-mgr">
+<atm-qa-task id="{{ task_id }}" sprint="{{ sprint }}" assignee="qa-hook">
   <description>{{ description }}</description>
 
   <pr-number>{{ pr_number }}</pr-number>
@@ -53,7 +53,7 @@
     <step id="e">
       Send final QA report to team-lead:
       PASS → "PR #{{ pr_number }} ready to merge"
-      FAIL → list blocking findings with recommended fixes for arch-ctm
+      FAIL → list blocking findings with recommended fixes for chook
     </step>
   </workflow>
 </atm-qa-task>
