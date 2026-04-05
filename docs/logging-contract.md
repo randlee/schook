@@ -65,7 +65,7 @@ Important current reality:
 - the file sink is the canonical structured contract; the console sink is a
   human-readable rendering of the same dispatch event for operator/debugging use
 
-## 1.1 Console Sink Relationship
+## 1.2 Console Sink Relationship
 
 - the default console sink renders one human-readable line per qualifying
   dispatch

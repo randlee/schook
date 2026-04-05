@@ -80,6 +80,22 @@ mod tests {
     }
 
     #[test]
+    fn parses_dir_exists_rule() {
+        assert_eq!(
+            parse_validation_rule("dir_exists"),
+            Some((ValidationRule::DirExists, None))
+        );
+    }
+
+    #[test]
+    fn parses_file_exists_rule() {
+        assert_eq!(
+            parse_validation_rule("file_exists"),
+            Some((ValidationRule::FileExists, None))
+        );
+    }
+
+    #[test]
     fn parses_path_resolves_rule() {
         assert_eq!(
             parse_validation_rule("path_resolves"),
@@ -108,5 +124,10 @@ mod tests {
                 ])
             ))
         );
+    }
+
+    #[test]
+    fn unknown_rule_returns_none() {
+        assert_eq!(parse_validation_rule("not_a_rule"), None);
     }
 }
