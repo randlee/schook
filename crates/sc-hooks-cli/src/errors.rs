@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use thiserror::Error;
 
 use crate::config::ConfigError;
+use crate::observability::ObservabilityInitError;
 use sc_hooks_sdk::manifest::ManifestLoadError;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
@@ -96,6 +99,12 @@ pub enum CliError {
         source: Option<BoxedError>,
     },
 
+    #[error("observability initialization failed: {source}")]
+    ObservabilityInit {
+        #[source]
+        source: Arc<ObservabilityInitError>,
+    },
+
     #[error(
         "{message}{source_suffix}",
         source_suffix = format_optional_source(source.as_deref())
@@ -160,6 +169,12 @@ impl CliError {
         }
     }
 
+    pub fn observability_init(source: impl Into<Arc<ObservabilityInitError>>) -> Self {
+        Self::ObservabilityInit {
+            source: source.into(),
+        }
+    }
+
     pub fn exit_code(&self) -> i32 {
         match self {
             Self::Config(_) => sc_hooks_core::exit_codes::CONFIG_ERROR,
@@ -169,6 +184,7 @@ impl CliError {
             Self::PluginError { .. } => sc_hooks_core::exit_codes::PLUGIN_ERROR,
             Self::Timeout { .. } => sc_hooks_core::exit_codes::TIMEOUT,
             Self::AuditFailure { .. } => sc_hooks_core::exit_codes::AUDIT_FAILURE,
+            Self::ObservabilityInit { .. } => sc_hooks_core::exit_codes::INTERNAL_ERROR,
             Self::Internal { .. } => sc_hooks_core::exit_codes::INTERNAL_ERROR,
         }
     }

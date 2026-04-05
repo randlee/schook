@@ -529,6 +529,8 @@ Exit gate:
 - confirm all degraded paths remain non-blocking
 - keep the concurrency proof in integration or soak coverage rather than the
   fast unit-test suite
+- S4 merge-forward closure note: audit code paths rely on `AUD-008` and
+  `AUD-011` being present and unique; there is no runtime dedup set involved
 
 Exit gate:
 
@@ -539,7 +541,7 @@ Exit gate:
 
 Phase-close evidence on the `SC-LOG-S7` branch:
 
-- soak record: commit `f160975` on 2026-04-05 kept the 64-agent
+- soak record: commit `fe66778` on 2026-04-05 kept the 64-agent
   `CONC-001` integration proof green, with all 64 of 64 concurrent host
   invocations producing one valid run-scoped audit directory each under a
   shared audit root without JSON corruption

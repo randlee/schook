@@ -541,6 +541,50 @@ fn standard_mode_logger_init_failure_is_non_blocking() {
 }
 
 #[test]
+fn full_mode_logger_init_failure_is_non_blocking() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+full_profile = "lean"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE", "logger_init")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("sc-hooks: failed emitting observability event:"));
+    assert!(stderr.contains("forced observability logger init failure"));
+}
+
+#[test]
 fn standard_mode_emit_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();
