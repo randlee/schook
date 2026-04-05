@@ -205,6 +205,25 @@ Phase-wide fixed decisions:
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
 
+### `SC-LOG-S5` / Observability Phase 4
+
+Status:
+- in review
+
+Key deliverables:
+- introduce the `CapturePayloads` newtype-backed config surface for debug audit
+  payload gating
+- implement debug-profile observability config and field emission for
+  machine-readable troubleshooting
+- wire `LocalObservabilityConfigLayer.capture_payloads` as
+  `Option<CapturePayloads>` so repo-local config preserves the typed contract
+
+Acceptance criteria:
+- `cargo test --workspace` passes
+- `cargo clippy --all-targets --all-features -- -D warnings` passes
+- `LocalObservabilityConfigLayer.capture_payloads` remains
+  `Option<CapturePayloads>`
+
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
 Status:
