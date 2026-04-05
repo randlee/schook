@@ -3,7 +3,7 @@
 ## Purpose
 
 This document records the currently verified Codex-facing hook surfaces that
-matter to `schook` planning. It is intentionally separate from the Claude
+matter to `sc-hooks` planning. It is intentionally separate from the Claude
 document because the execution model is materially different.
 
 ## Platform Rules
@@ -79,7 +79,7 @@ Design rule:
 - do not claim Claude-equivalent session continuity for Codex until there is a
   verified hook or runner surface that emits a stable session identifier
 
-## Design Implications For `schook`
+## Design Implications For `sc-hooks`
 
 - Codex should be documented as a separate compatibility target, not squeezed
   into the Claude hook assumptions
@@ -94,4 +94,4 @@ Design rule:
 - no standalone Codex hook stdin schema is documented in this repo yet
 - no verified upstream schema for all Codex hook payloads is captured here yet
 - any future Codex planning should cite the runner or bundle source used to
-  verify payload fields before those fields are promoted into `schook` docs
+  verify payload fields before those fields are promoted into `sc-hooks` docs

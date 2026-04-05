@@ -2,7 +2,7 @@
 
 ## Scope
 
-This note records the `SC-OBS-INTEGRATION-1` audit of the current `schook`
+This note records the `SC-OBS-INTEGRATION-1` audit of the current `sc-hooks`
 integration with the sibling `sc-observability` repository on `develop`.
 
 Checked areas:
@@ -57,13 +57,13 @@ Checked areas:
 
 1. Cargo path dependencies cannot simultaneously match both checkout layouts
    without local environment help.
-   - Main checkout layout (`.../github/schook`) needs
+   - Main checkout layout (`.../github/sc-hooks`) needs
      `../../../sc-observability/...` from `crates/sc-hooks-cli`.
-   - Required worktree layout (`.../github/schook-worktrees/<branch>`) needs a
+   - Required worktree layout (`.../github/sc-hooks-worktrees/<branch>`) needs a
      parent-level alias so the same Cargo path resolves during local worktree
      validation.
    - For this sprint, validation in the assigned worktree uses a local alias in
-     the shared `schook-worktrees/` parent. Release packaging still cannot ship
+     the shared `sc-hooks-worktrees/` parent. Release packaging still cannot ship
      with path dependencies and remains gated separately by release workflows.
 
 ## Audit Summary

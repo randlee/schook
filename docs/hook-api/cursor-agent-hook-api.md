@@ -3,7 +3,7 @@
 ## Purpose
 
 This document records the currently verified Cursor-facing hook surfaces that
-matter to `schook` planning. It is intentionally separate from the Claude and
+matter to `sc-hooks` planning. It is intentionally separate from the Claude and
 Codex documents because the current evidence comes from a different
 combination of local CLI behavior and public Cursor hook documentation.
 
@@ -55,7 +55,7 @@ Current locally verified config state:
 - `$HOME/.cursor/cli-config.json` exists
 - `$HOME/.cursor/hooks.json` does not currently exist on this machine
 
-That means `schook` can treat Cursor Agent as an installed provider with a
+That means `sc-hooks` can treat Cursor Agent as an installed provider with a
 current CLI/runtime surface, but not as a provider whose local hook config and
 stdin payloads have already been captured in this repo.
 
@@ -116,11 +116,11 @@ These are verified as names currently present in Cursor's public hook docs.
 They are not yet promoted here as guaranteed `cursor-agent` CLI stdin fields
 for the specific S9 hook set until the live harness captures them.
 
-## Planning Rules For `schook`
+## Planning Rules For `sc-hooks`
 
 - do not assume the full Cursor IDE hook schema is identical to the
   `cursor-agent` CLI runtime without live capture evidence
-- do not write `schook` code against Cursor field names that have only been
+- do not write `sc-hooks` code against Cursor field names that have only been
   seen in public docs and not yet captured by the harness
 - use the current public hook names as planning inputs only
 - require live fixture capture before any Cursor-targeting hook crate is
@@ -130,7 +130,7 @@ for the specific S9 hook set until the live harness captures them.
 
 - no captured `cursor-agent` hook payload fixtures exist in this repo yet
 - no current local `hooks.json` is configured on this machine
-- no `schook`-owned Cursor validation models exist yet
+- no `sc-hooks`-owned Cursor validation models exist yet
 - no verified provider-specific stdin schema has been captured yet for:
   - `beforeShellExecution`
   - `beforeMCPExecution`
@@ -138,7 +138,7 @@ for the specific S9 hook set until the live harness captures them.
   - `afterFileEdit`
   - `stop`
 
-## Design Implications For `schook`
+## Design Implications For `sc-hooks`
 
 - treat Cursor hook support as a documented follow-on provider target, not as
   part of the Claude implementation baseline

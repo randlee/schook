@@ -49,8 +49,11 @@ Authoritative current-state behavior remains in:
 Planned observability modes:
 
 - `off`
-  - disables durable observability sinks
-  - does not suppress direct stderr warnings or failures
+  - disables durable observability sinks for both `standard` and `full`
+  - suppresses the durable structured dispatch records that would otherwise be
+    emitted under `OBS-001`
+  - does not suppress direct stderr warnings, degraded-path notices, or hard
+    failures visible to the operator
 - `standard`
   - keeps the current operational `sc-observability` posture
   - lower-volume records centered on normal runtime behavior
@@ -112,6 +115,9 @@ They are not the primary long-term contract surface.
 
 ### 4.4 Planned Config Surface
 
+This phase resolves `DEF-006` by introducing `[observability]` as the planned
+config surface instead of restoring `[logging]`.
+
 Global `~/.sc-hooks/config.toml`:
 
 ```toml
@@ -157,6 +163,18 @@ Phase rules:
 - relative audit paths resolve from immutable `ai_root_dir`
 - absolute audit paths are allowed only in repo-local config or environment
   overrides
+
+### 4.5 Crate Boundary Rule
+
+Per `ADR-SHK-003` and requirement `OBS-007`:
+
+- `sc-hooks-cli` owns observability config loading, mode resolution, sink
+  selection, and degradation policy
+- `sc-hooks-core` may define sink-agnostic typed IDs or correlation metadata,
+  but remains sink-agnostic and does not own logger lifecycle
+- this boundary remains in force for layered config, `off | standard | full`
+  mode resolution, audit-path handling, and future deferred exporter follow-on
+  work
 
 ## 5. Output Model
 
@@ -210,6 +228,13 @@ Committed sink split:
 - durable audit files: canonical source of truth for `full`
 
 Structured live streaming is not part of the committed phase acceptance gate.
+
+Sealed sink-boundary rule:
+
+- the committed phase uses a sealed internal sink-registration boundary inside
+  `sc-hooks-cli`
+- this phase does not introduce a public sink-plugin API or trait-extension
+  surface for third-party sinks
 
 ## 6. Event Model
 
@@ -266,14 +291,18 @@ Stable `full` event names:
 - timing
 - degraded-path flags
 
-`debug` profile adds richer diagnostics such as:
+`debug` mandatory fields, in addition to all `lean` fields, are:
 
-- handler stderr or stdout summaries
-- config-source and layer notes
-- more decision-point detail
-- optional payload excerpts only when a separate capture flag allows them
-- bounded per-handler stderr/stdout excerpts instead of unlimited dumps
-- redaction action markers so a reviewer can tell when masking happened
+- config-source summary
+- config-layer resolution summary
+- decision-point trace summary
+- bounded per-handler stderr excerpt
+- bounded per-handler stdout excerpt
+- redaction action markers
+- payload-capture state marker
+
+`debug` may add optional payload excerpts only when a separate capture flag
+allows them.
 
 ## 7. Redaction Model
 
@@ -335,6 +364,12 @@ Pruning failure rules:
 The target is production-grade operation with at least 50 simultaneous agents
 on the same repo root.
 
+Basis for the 50-agent target:
+
+- planned ATM multi-agent operation on a shared repo root
+- eval and harness fan-out runs that need simultaneous audit capture without
+  corrupting output or creating one hot shared file
+
 Design consequences:
 
 - no single shared hot audit file for `full`
@@ -352,6 +387,9 @@ Implementation notes:
 - keep sink fan-out behind a sealed internal registration boundary
 - keep degraded logging behavior inside a dedicated `ObservabilityError` family
   so recovery paths remain testable without leaking sink policy into lower crates
+- `ObservabilityMode`, `FullAuditProfile`, and `ObservabilityError` are planned
+  future types for this phase; they are distinct from the current
+  `ObservabilityInitError` already implemented in `sc-hooks-cli`
 
 Required validation before the phase closes:
 
@@ -400,6 +438,10 @@ Exit gate:
 - `[observability]` is the only planned config surface for observability
 - `full` is rejected from global config alone
 - config tests prove built-in < global < local < env precedence
+- `DEF-006` is closed and both `docs/requirements.md` and `docs/architecture.md`
+  are amended to retire `[logging]` in favor of `[observability]`
+- the sealed internal sink-boundary rule is documented and preserved at the
+  `sc-hooks-cli` boundary
 
 ### `SC-LOG-S3` / Observability Phase 2
 
@@ -426,6 +468,8 @@ Exit gate:
 - `full` lean profile writes JSONL under run-scoped directories
 - zero-match and pre-dispatch failure paths are accounted for in `full`
 - integration tests, not unit-test loops, prove the durable file contract
+- the closed `debug` mandatory field list is frozen in docs before debug-profile
+  implementation begins
 
 ### `SC-LOG-S5` / Observability Phase 4
 
@@ -438,6 +482,8 @@ Exit gate:
 - `strict` redaction is default
 - `permissive` never bypasses explicit payload-capture flags
 - debug output remains bounded and machine-readable
+- the sealed internal sink-boundary rule still holds; debug does not introduce
+  a public sink-extension API
 
 ### `SC-LOG-S6` / Observability Phase 5
 
