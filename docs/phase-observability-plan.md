@@ -263,14 +263,17 @@ It keeps the current lower-volume posture.
 - degraded observability paths such as fallback-to-stderr
 - root-divergence sequencing when present
 
-Stable `full` event names:
+Implemented and contract-frozen `full` event names in `SC-LOG-S4`:
 
 - `hook.invocation.received`
-- `hook.invocation.resolved`
 - `hook.invocation.zero_match`
-- `hook.dispatch.started`
 - `hook.dispatch.completed`
 - `hook.invocation.failed_pre_dispatch`
+
+Planned future event names, not yet committed as stable contract surface:
+
+- `hook.invocation.resolved`
+- `hook.dispatch.started`
 - `hook.observability.degraded`
 - `hook.session.root_divergence`
 
@@ -280,7 +283,6 @@ Stable `full` event names:
 - service
 - run ID
 - invocation ID
-- session ID when present
 - hook name
 - hook event name
 - mode
@@ -292,6 +294,12 @@ Stable `full` event names:
 - outcome
 - timing
 - degraded-path flags
+
+Lean-field note:
+
+- `session_id` is intentionally not part of the committed `SC-LOG-S4` lean
+  schema; add it only through a later contract-and-implementation amendment if
+  session correlation becomes a required audit field
 
 `debug` mandatory fields, in addition to all `lean` fields, are:
 
@@ -305,6 +313,12 @@ Stable `full` event names:
 
 `debug` may add optional payload excerpts only when a separate capture flag
 allows them.
+
+Field-naming note:
+
+- the human-readable labels above are planning shorthand only
+- the authoritative serialized JSON key names live in
+  `docs/observability-contract.md` section `4.2`
 
 ## 7. Redaction Model
 
@@ -470,6 +484,9 @@ Exit gate:
 - `full` lean profile writes JSONL under run-scoped directories
 - zero-match and pre-dispatch failure paths are accounted for in `full`
 - integration tests, not unit-test loops, prove the durable file contract
+- degraded append-failure fallback coverage is explicitly deferred to
+  `SC-LOG-S6`, where degraded-path hardening closes logger-init, emit, append,
+  and prune failure proof together
 - the closed `debug` mandatory field list is frozen in docs before debug-profile
   implementation begins
 - the sealed internal sink-boundary rule is documented and preserved at the
