@@ -11,6 +11,11 @@ Owning requirement IDs:
 - `OBS-008`
 - `OBS-009` (`Env override ownership and the layered `[observability]` surface are defined in `docs/observability-contract.md` §3.1; SC-LOG-S4 cross-reference`)
 
+Scope note:
+- `DEF-010`, `DEF-011`, `DEF-012`, `DEF-013`, `DEF-017`, and `DEF-017a` are
+  owned by `docs/observability-contract.md` and are intentionally excluded from
+  this contract's owning-ID list
+
 This document defines the current JSONL dispatch-log contract for downstream
 consumers.
 
@@ -62,7 +67,7 @@ Important current reality:
 - the file sink is the canonical structured contract; the console sink is a
   human-readable rendering of the same dispatch event for operator/debugging use
 
-## 1.1 Console Sink Relationship
+## 1.2 Console Sink Relationship
 
 - the default console sink renders one human-readable line per qualifying
   dispatch

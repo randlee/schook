@@ -1,23 +1,37 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Creates an executable script at the given path.
 pub fn create_executable_script(path: &Path, body: &str) {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("script parent directory should be creatable");
-    }
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).expect("script parent directory should be creatable");
 
-    fs::write(path, body).expect("script should be writable");
+    let mut temp =
+        tempfile::NamedTempFile::new_in(parent).expect("temporary script file should be creatable");
+    temp.write_all(body.as_bytes())
+        .expect("script should be writable");
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)
+        let mut perms = temp
+            .as_file()
+            .metadata()
             .expect("script metadata should be available")
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(path, perms).expect("script should be executable");
+        temp.as_file()
+            .set_permissions(perms)
+            .expect("script should be executable");
     }
+
+    temp.as_file()
+        .sync_all()
+        .expect("script should sync before persist");
+    temp.into_temp_path()
+        .persist(path)
+        .expect("script should be persisted atomically");
 }
 
 /// Creates a shell plugin script that echoes a fixed JSON runtime payload.

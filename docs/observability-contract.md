@@ -251,6 +251,10 @@ Current conditional lean fields are:
 
 ## 4.2 Full Audit Debug Record Shape
 
+Planned/Frozen Design (`DEF-013` Planned):
+- this header freezes the mandatory `debug`-profile field set for
+  `SC-LOG-S5`; the `SC-LOG-S4` branch does not emit these fields yet
+
 The `debug` profile extends the lean record shape; it does not replace it.
 
 The implemented `debug`-only field set is frozen to this closed enumeration:

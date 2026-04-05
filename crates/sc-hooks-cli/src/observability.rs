@@ -26,7 +26,7 @@ use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
 use tempfile::NamedTempFile;
 const SERVICE_NAME: &str = "sc-hooks";
 const DEBUG_EXCERPT_LIMIT: usize = 160;
-static LOGGER: OnceLock<Logger> = OnceLock::new();
+static LOGGER: OnceLock<Result<Logger, String>> = OnceLock::new();
 static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
 static FULL_AUDIT_RUN: OnceLock<FullAuditRunState> = OnceLock::new();
 #[cfg(test)]
@@ -602,36 +602,39 @@ fn logger(
             },
         ));
     }
-    if let Some(logger) = LOGGER.get() {
-        return Ok(logger);
-    }
+    match LOGGER.get_or_init(|| {
+        if should_force_observability_failure(ForcedObservabilityFailure::LoggerInit) {
+            return Err("forced observability logger init failure".to_string());
+        }
 
-    if should_force_observability_failure(ForcedObservabilityFailure::LoggerInit) {
-        return Err(CliError::internal(
-            "forced observability logger init failure",
-        ));
-    }
-
-    let service = ServiceName::new(SERVICE_NAME).map_err(|source| {
-        CliError::internal_with_source(
-            "failed to initialize observability logger",
-            ObservabilityInitError::InvalidServiceName { source },
-        )
-    })?;
-    let config =
-        default_logger_config(service, initialized_root, observability).map_err(|source| {
-            CliError::internal_with_source(
-                "failed to initialize observability logger",
-                ObservabilityInitError::ResolveRoot { source },
+        let service = match ServiceName::new(SERVICE_NAME) {
+            Ok(service) => service,
+            Err(source) => {
+                return Err(format!(
+                    "failed to initialize observability logger: {}",
+                    ObservabilityInitError::InvalidServiceName { source }
+                ));
+            }
+        };
+        let config = match default_logger_config(service, initialized_root, observability) {
+            Ok(config) => config,
+            Err(source) => {
+                return Err(format!(
+                    "failed to initialize observability logger: {}",
+                    ObservabilityInitError::ResolveRoot { source }
+                ));
+            }
+        };
+        Logger::new(config).map_err(|source| {
+            format!(
+                "failed to initialize observability logger: {}",
+                ObservabilityInitError::LoggerInit { source }
             )
-        })?;
-    let logger = Logger::new(config).map_err(|source| {
-        CliError::internal_with_source(
-            "failed to initialize observability logger",
-            ObservabilityInitError::LoggerInit { source },
-        )
-    })?;
-    Ok(LOGGER.get_or_init(|| logger))
+        })
+    }) {
+        Ok(logger) => Ok(logger),
+        Err(message) => Err(CliError::internal(message.clone())),
+    }
 }
 
 #[cfg(test)]
@@ -1024,9 +1027,6 @@ fn resolve_full_audit_root(
 }
 
 fn write_full_audit_meta(state: &FullAuditRunState) -> Result<(), CliError> {
-    if state.meta_path.exists() {
-        return Ok(());
-    }
     let meta = FullAuditMeta {
         schema_version: 1,
         service: SERVICE_NAME,

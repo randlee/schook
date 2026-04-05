@@ -485,8 +485,8 @@ Exit gate:
 - zero-match and pre-dispatch failure paths are accounted for in `full`
 - integration tests, not unit-test loops, prove the durable file contract
 - degraded append-failure fallback coverage is explicitly deferred to
-  `SC-LOG-S6`, where degraded-path hardening closes logger-init, emit, append,
-  and prune failure proof together
+  `SC-LOG-S6` as planned requirement `DEF-017a`, where degraded-path hardening
+  closes logger-init, emit, append, and prune failure proof together
 - the closed `debug` mandatory field list is frozen in docs before debug-profile
   implementation begins
 - the sealed internal sink-boundary rule is documented and preserved at the
@@ -511,6 +511,7 @@ Exit gate:
 - harden pruning and bounded retention
 - prove logger-init, emit, append, and prune failures stay non-blocking
 - preserve file-backed audit JSONL as the canonical machine-readable source
+- close deferred `DEF-017a` degraded pre-dispatch audit fallback proof
 
 Exit gate:
 
@@ -538,6 +539,10 @@ Exit gate:
 
 Phase-close evidence on the `SC-LOG-S7` branch:
 
+- soak record: commit `f160975` on 2026-04-05 kept the 64-agent
+  `CONC-001` integration proof green, with all 64 of 64 concurrent host
+  invocations producing one valid run-scoped audit directory each under a
+  shared audit root without JSON corruption
 - `cargo +1.94.1 test --workspace` includes
   `full_mode_concurrent_agents_shard_runs_without_corruption`, which runs 64
   concurrent host invocations against one shared audit root and verifies one
