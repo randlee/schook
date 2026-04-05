@@ -20,13 +20,15 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- none; release-facing blocker and important gaps are closed for the chosen scope
+- naming cleanup before further public observability/global-config surface is
+  added
+- a multi-sprint observability phase that extends beyond the current
+  dispatch-only file-sink baseline
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
 - `DEF-004`
-- `DEF-008`
 
 ## 3. Current Snapshot
 
@@ -38,15 +40,22 @@ Already implemented and not future sprint work:
 - release-doc alignment for requirements, architecture, traceability, and gaps
 
 Explicit follow-up after the current file-sink contract work:
-- console-sink coverage is the first planned observability expansion because it
-  is the most useful next surface for debugging live multi-agent interactions
-  and background-agent monitoring
-- custom sink coverage and richer multi-hook monitoring remain follow-on work
-  after console-sink behavior is frozen
+- naming cleanup now precedes further observability surface growth so config,
+  filesystem, binary, and service names converge on `sc-hooks`
+- console-sink coverage is already part of the proved baseline and no longer
+  stands alone as the next observability milestone
+- the committed observability phase covers naming cleanup, layered config, full
+  audit, redaction, retention, and production-load hardening
+- future exporter or OTel defaults remain follow-on scope after that committed
+  phase closes
 
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
-- therefore observability appears below as a completed baseline sprint, not as pending build work
+- therefore observability appears below first as a completed baseline sprint,
+  not as pending build work
+- the planned observability phase extends that baseline with naming cleanup,
+  layered config, and audit-grade coverage; it does not reopen the original
+  `sc-observability` adoption decision
 
 ## 4. Sprint Sequence
 
@@ -67,9 +76,16 @@ Important planning rule:
 | Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
 | Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
-| S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
+| S10-VERSION-BUMP-1 | Completed | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
 | S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
 | S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
+| `SC-LOG-S1` / Observability Phase 0 | Planned | naming cleanup and namespace freeze | release blocker #88, `DEF-019` | `develop` baseline | naming docs, binary/service references, config/runtime namespace decisions |
+| `SC-LOG-S2` / Observability Phase 1 | Planned | layered config foundation | `DEF-010`, `DEF-011` | `SC-LOG-S1` | `sc-hooks-cli` config loading, requirements/architecture docs, config tests |
+| `SC-LOG-S3` / Observability Phase 2 | Planned | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
+| `SC-LOG-S4` / Observability Phase 3 | Planned | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
+| `SC-LOG-S5` / Observability Phase 4 | Planned | full audit debug profile and redaction controls | `DEF-013`, `DEF-014`, `DEF-015` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
+| `SC-LOG-S6` / Observability Phase 5 | Planned | retention, pruning, and degraded-path hardening | `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
+| `SC-LOG-S7` / Observability Phase 6 | Planned | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |
 
 ## 5. Execution Controls
 
@@ -88,6 +104,10 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 depends on Sprint 2 because setup proof should reflect the surviving compliance/runtime path, not the pre-cleanup shape.
 - Sprint 5 must not start until Sprint 4 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 6 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
+- `SC-LOG-S1` must close before any later observability sprint, because naming choices feed the binary name, config keys, service identity, and on-disk audit paths.
+- `SC-LOG-S2` must close before `SC-LOG-S3` through `SC-LOG-S7`, because mode resolution and layered config define which observability surfaces exist and where they are configured.
+- `SC-LOG-S4` must close before `SC-LOG-S5`, because the debug profile is an extension of the lean audit profile rather than a separate sink family.
+- `SC-LOG-S6` must close before `SC-LOG-S7`, because load and soak validation must target the final retention and degradation semantics rather than a partial design.
 
 ## 7. Pre-Sprint Kickoff Checklist
 
@@ -124,6 +144,10 @@ Current high-risk classes covered here:
 - scaffold plugin claims that can be mistaken for shipped runtime behavior
 - runtime layout/setup assumptions that are not yet proven by an example or guide
 - remaining merge-only review residue that can survive after the underlying issue is already resolved
+- naming drift across repo, binary, service, and filesystem surfaces
+- observability surface drift between current operational logging, planned full audit, and future exporter wiring
+- hot-file or shared-sink contention risk for multi-agent audit runs
+- accidental reuse of the human console sink as a machine-readable contract
 
 Merge signal for this docs/planning pass:
 - no additional high-risk misalignment class is known that is not already resolved or explicitly represented in this plan or `docs/implementation-gaps.md`
@@ -151,54 +175,35 @@ Acceptance criteria:
 - `GAP-005` and `GAP-007` are closed
 - `cargo fmt --check --all` and `cargo test --workspace` pass
 
-### Deferred Follow-Up: DEF-008 Console-Sink Coverage
+### Planned Track: Observability Phase
 
 Status:
-- deferred, next planned observability expansion
+- planned
 
 Focus:
-- prove console-sink output under real `sc-hooks-cli` dispatch
-- keep file-sink contract coverage intact while adding an operator-facing
-  debugging surface
+- freeze naming and config surfaces before expanding observability volume
+- add a layered config model with global defaults at `~/.sc-hooks/config.toml`
+  and repo-local overrides at `.sc-hooks/config.toml`
+- preserve the current lower-volume `standard` dispatch log while adding an
+  explicitly local-only `full` audit mode
+- make the audit path durable, machine-readable, redaction-aware, and safe for
+  50+ simultaneous agents
 
-Write scope:
-- `sc-hooks-cli/tests/`
-- `docs/requirements.md`
-- `docs/architecture.md`
-- `docs/observability-contract.md`
-- `docs/logging-contract.md`
-- `docs/implementation-gaps.md`
+Phase-wide fixed decisions:
+- canonical product/runtime/binary/docs name converges on `sc-hooks`
+- convenience CLI alias is `hooks`
+- filesystem namespace stays `.sc-hooks/`
+- `full` audit is never enabled from global config alone
+- observability or audit failure never changes hook execution behavior
+- load and soak validation belongs in dedicated integration and phase-end QA
+  coverage, not in flaky or long-running unit tests
+- durable audit JSONL is the machine contract for the committed phase; a
+  separate live structured stream remains out of scope for phase acceptance
+- future exporter or OTel defaults are follow-on work after this committed
+  phase, not part of its exit gate
 
-Deliverables:
-- real-dispatch tests for console-sink emission on:
-  - success
-  - block
-  - error
-  - timeout
-- docs that state the intended relationship between:
-  - file sink as baseline durable contract
-  - console sink as operator/debugging surface
-- explicit note on whether console and file sinks are expected to emit the same
-  dispatch semantics or intentionally differ in rendered fields
-
-Test plan:
-- run the real `sc-hooks-cli` binary in isolated temp dirs
-- enable console sink in a controlled test harness
-- capture console output and assert:
-  - one emitted line per qualifying dispatch
-  - correct action/outcome/level rendering for success, block, error, timeout
-- keep the existing file-sink contract tests running in the same suite so the
-  console work cannot regress the JSONL baseline
-
-Acceptance criteria:
-- at least one integration test proves console-sink emission for a successful
-  dispatch
-- at least one integration test proves console-sink emission for a blocked or
-  errored dispatch
-- docs name console-sink coverage as the first post-file-sink observability
-  expansion
-- `DEF-008` remains open only for work beyond console-sink coverage, such as
-  custom sinks and multi-hook monitoring correlation
+Detailed design and sprint sequencing for this track lives in
+`docs/phase-observability-plan.md`.
 
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
@@ -644,7 +649,7 @@ The release plan is complete only when:
 This track begins only after the current release plan is accepted.
 
 Purpose:
-- extend `schook` toward the Claude ATM hook set without guessing hook schemas
+- extend `sc-hooks` toward the Claude ATM hook set without guessing hook schemas
 - keep provider-specific evidence and ATM-specific behavior separate
 - make the first implementation pass small, exact, and test-driven
 
@@ -890,7 +895,7 @@ Entry rule:
 ### S10-VERSION-BUMP-1: Claude Version-Bump Detection
 
 Status:
-- in review
+- completed
 
 Focus:
 - detect Claude CLI version bumps before maintainers accept Claude hook
