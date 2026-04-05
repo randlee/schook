@@ -123,6 +123,10 @@ fn console_lines(output: &Output) -> Vec<String> {
         .collect()
 }
 
+fn stderr_text(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).to_string()
+}
+
 #[test]
 fn success_dispatch_emits_file_sink_log_event() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -163,6 +167,35 @@ fn success_dispatch_emits_file_sink_log_event() {
     assert!(log["fields"]["total_ms"].as_u64().is_some());
     assert_eq!(log["fields"]["exit"], sc_hooks_core::exit_codes::SUCCESS);
     assert_eq!(log["fields"]["results"][0]["action"], "proceed");
+    assert!(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
+fn invalid_sink_toggle_warns_to_stderr_and_keeps_default_file_sink() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_ENABLE_FILE_SINK", "maybe")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("unrecognized value for SC_HOOKS_ENABLE_FILE_SINK"));
     assert!(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
 }
 
