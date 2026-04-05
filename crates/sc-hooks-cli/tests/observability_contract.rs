@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
+use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sc_hooks_core::errors::RootDivergenceNotice;
@@ -170,6 +172,17 @@ fn create_fake_full_audit_run(audit_root: &Path, run_id: &str) {
     fs::create_dir_all(&run_dir).expect("fake run dir should create");
     fs::write(run_dir.join("meta.json"), "{}\n").expect("fake meta should write");
     fs::write(run_dir.join("events.jsonl"), "{}\n").expect("fake events should write");
+}
+
+fn write_full_observability_config(root: &Path, hook: &str, plugin_name: &str, retain_runs: u32) {
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        format!(
+            "[meta]\nversion = 1\n\n[hooks]\n{hook} = [\"{plugin_name}\"]\n\n[observability]\nmode = \"full\"\nfull_profile = \"lean\"\nretain_runs = {retain_runs}\nretain_days = 14\n"
+        ),
+    )
+    .expect("config file should write");
 }
 
 fn fake_run_id(age: Duration, suffix: usize) -> String {
@@ -643,6 +656,88 @@ mode = "full"
 
     let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
     assert_eq!(events[1]["name"], "hook.dispatch.completed");
+}
+
+#[test]
+fn full_mode_concurrent_agents_shard_runs_without_corruption() {
+    const AGENT_COUNT: usize = 64;
+
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = Arc::new(temp.path().to_path_buf());
+    write_full_observability_config(&root, "PreToolUse", "probe-plugin", AGENT_COUNT as u32 + 8);
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(&root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let harness = Arc::new(DispatchHarness::new());
+    let mut workers = Vec::with_capacity(AGENT_COUNT);
+    for worker_id in 0..AGENT_COUNT {
+        let harness = Arc::clone(&harness);
+        let root = Arc::clone(&root);
+        workers.push(thread::spawn(move || {
+            let session_id = format!("session-{worker_id}");
+            let output = harness.run_sync(
+                &root,
+                "PreToolUse",
+                Some("Write"),
+                Some(serde_json::json!({"tool_input": {"command": format!("echo {worker_id}")}})),
+                Some(&session_id),
+            );
+            assert_eq!(
+                output.status.code(),
+                Some(sc_hooks_core::exit_codes::SUCCESS),
+                "worker {worker_id} failed: stdout={} stderr={}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }));
+    }
+
+    for worker in workers {
+        worker.join().expect("worker thread should join");
+    }
+
+    let runs_root = root.join(".sc-hooks/audit/runs");
+    let mut run_dirs = fs::read_dir(&runs_root)
+        .expect("full audit runs dir should be readable")
+        .map(|entry| entry.expect("run entry should read").path())
+        .collect::<Vec<_>>();
+    run_dirs.sort();
+    assert_eq!(
+        run_dirs.len(),
+        AGENT_COUNT,
+        "expected one run dir per concurrent agent"
+    );
+
+    for run_dir in &run_dirs {
+        let meta: Value = serde_json::from_str(
+            &fs::read_to_string(run_dir.join("meta.json")).expect("meta file should read"),
+        )
+        .expect("meta json should parse");
+        assert_eq!(meta["service"], "sc-hooks");
+        assert_eq!(meta["profile"], "lean");
+        assert!(meta["run_id"].as_str().is_some());
+        assert!(meta["invocation_id"].as_str().is_some());
+
+        let rendered_events =
+            fs::read_to_string(run_dir.join("events.jsonl")).expect("events file should read");
+        let events = rendered_events
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).expect("event line should parse"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            events.len(),
+            2,
+            "each concurrent run should emit invocation and completion records"
+        );
+        assert_eq!(events[0]["name"], "hook.invocation.received");
+        assert_eq!(events[1]["name"], "hook.dispatch.completed");
+        assert_eq!(events[0]["run_id"], events[1]["run_id"]);
+        assert_eq!(events[0]["service"], "sc-hooks");
+        assert_eq!(events[1]["service"], "sc-hooks");
+    }
 }
 
 #[test]

@@ -55,9 +55,9 @@ Current observability ownership inside `sc-hooks-cli` now includes:
 - deterministic stderr degraded signals when a standard-mode pre-dispatch
   failure prevents `dispatch.complete`
 
-Remaining observability-phase responsibilities also stay inside `sc-hooks-cli`:
+Remaining observability follow-on responsibilities also stay inside
+`sc-hooks-cli`:
 
-- retention pruning, degraded-path hardening, and higher-load validation
 - any later machine-readable stream or exporter wiring at the CLI boundary once
   the committed audit phase closes
 
