@@ -19,6 +19,7 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
+use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
 
 use crate::errors::CliError;
@@ -163,27 +164,38 @@ fn run() -> Result<(), CliError> {
             let is_session_end = args.hook == "SessionEnd";
 
             let run_result = (|| -> Result<(), CliError> {
-                let handlers = resolution::resolve_chain(
-                    &config,
-                    &args.hook,
-                    args.event.as_deref(),
-                    mode,
-                    payload.as_ref(),
-                    args.async_bucket.as_deref(),
-                    &disabled_plugins,
-                )
-                .map_err(|err| {
-                    let cli_err = CliError::from(err);
-                    observability::emit_standard_degraded_signal(
-                        &config.observability,
+                let handlers =
+                    resolution::resolve_chain(
+                        &config,
                         &args.hook,
                         args.event.as_deref(),
                         mode,
-                        "resolution",
-                        &cli_err,
-                    );
-                    cli_err
-                })?;
+                        payload.as_ref(),
+                        args.async_bucket.as_deref(),
+                        &disabled_plugins,
+                    )
+                    .map_err(|err| {
+                        let stage = match &err {
+                            crate::errors::ResolutionError::ManifestLoadFailed {
+                                source:
+                                    ManifestLoadError::Manifest(
+                                        ManifestError::AsyncLongRunningUnsupported,
+                                    ),
+                                ..
+                            } => "dispatch_preflight",
+                            _ => "resolution",
+                        };
+                        let cli_err = CliError::from(err);
+                        observability::emit_standard_degraded_signal(
+                            &config.observability,
+                            &args.hook,
+                            args.event.as_deref(),
+                            mode,
+                            stage,
+                            &cli_err,
+                        );
+                        cli_err
+                    })?;
 
                 if handlers.is_empty() {
                     return Ok(());

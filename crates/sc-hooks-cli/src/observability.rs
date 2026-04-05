@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::io::Write;
 use std::path::PathBuf;
+#[cfg(test)]
+use std::sync::Mutex;
 use std::sync::OnceLock;
 
 use log::warn;
@@ -19,6 +21,8 @@ use sc_hooks_core::session::AiRootDir;
 const SERVICE_NAME: &str = "sc-hooks";
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
+#[cfg(test)]
+static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 
 #[derive(Debug, Error)]
 enum ObservabilityInitError {
@@ -181,27 +185,6 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
-pub fn emit_standard_degraded_signal(
-    observability: &ObservabilityConfig,
-    hook: &str,
-    event: Option<&str>,
-    mode: sc_hooks_core::dispatch::DispatchMode,
-    stage: &str,
-    err: &CliError,
-) {
-    if !matches!(observability.mode, ObservabilityMode::Standard) {
-        return;
-    }
-
-    let message = format!(
-        "sc-hooks: standard observability degraded before dispatch.complete: stage={stage} hook={hook} event={} mode={} error={err}",
-        event.unwrap_or("*"),
-        mode.as_str(),
-    );
-    warn!("{message}");
-    let _ = writeln!(std::io::stderr(), "{message}");
-}
-
 /// Emits the canonical `session.root_divergence` observability event.
 ///
 /// # Errors
@@ -268,22 +251,33 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     })?;
     Ok(())
 }
+
+pub fn emit_standard_degraded_signal(
+    observability: &ObservabilityConfig,
+    hook: &str,
+    event: Option<&str>,
+    mode: sc_hooks_core::dispatch::DispatchMode,
+    stage: &str,
+    err: &CliError,
+) {
+    if !matches!(observability.mode, ObservabilityMode::Standard) {
+        return;
+    }
+
+    let message = format!(
+        "sc-hooks: standard observability degraded before dispatch.complete: stage={stage} hook={hook} event={} mode={} error={err}",
+        event.unwrap_or("*"),
+        mode.as_str(),
+    );
+    warn!("{message}");
+    let _ = writeln!(std::io::stderr(), "{message}");
+}
+
 fn logger(
     project_root: &AiRootDir,
     observability: &ObservabilityConfig,
 ) -> Result<&'static Logger, CliError> {
-    #[cfg(test)]
-    let _ = project_root;
-    #[cfg(test)]
-    let effective_root =
-        AiRootDir::new(crate::test_support::shared_observability_root()).map_err(|source| {
-            CliError::internal_with_source(
-                "failed resolving shared test observability root",
-                source,
-            )
-        })?;
-    #[cfg(not(test))]
-    let effective_root = project_root.clone();
+    let effective_root = effective_logger_root(project_root)?;
 
     let initialized_root = LOGGER_ROOT.get_or_init(|| effective_root.clone());
     if initialized_root != &effective_root {
@@ -319,6 +313,29 @@ fn logger(
         )
     })?;
     Ok(LOGGER.get_or_init(|| logger))
+}
+
+#[cfg(test)]
+fn test_logger_root_override() -> &'static Mutex<Option<PathBuf>> {
+    TEST_LOGGER_ROOT_OVERRIDE.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(test)]
+fn effective_logger_root(project_root: &AiRootDir) -> Result<AiRootDir, CliError> {
+    let override_root = test_logger_root_override()
+        .lock()
+        .unwrap_or_else(|err| err.into_inner())
+        .clone();
+    let root = override_root.unwrap_or_else(crate::test_support::shared_observability_root);
+    let _ = project_root;
+    AiRootDir::new(root).map_err(|source| {
+        CliError::internal_with_source("failed resolving shared test observability root", source)
+    })
+}
+
+#[cfg(not(test))]
+fn effective_logger_root(project_root: &AiRootDir) -> Result<AiRootDir, CliError> {
+    Ok(project_root.clone())
 }
 
 fn default_logger_config(
@@ -410,14 +427,37 @@ fn dispatch_message(
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
 
-    #[test]
-    fn emits_service_scoped_sc_observability_log_event() {
-        let root = crate::test_support::shared_observability_root();
-        let project_root = AiRootDir::new(root.clone()).expect("root should be absolute");
-        let _cwd = crate::test_support::scoped_current_dir(&root);
-        let observability = ObservabilityConfig::default();
+    fn observability_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
+    struct LoggerRootOverrideGuard {
+        previous: Option<PathBuf>,
+    }
+
+    impl Drop for LoggerRootOverrideGuard {
+        fn drop(&mut self) {
+            *test_logger_root_override()
+                .lock()
+                .unwrap_or_else(|err| err.into_inner()) = self.previous.take();
+        }
+    }
+
+    fn scoped_logger_root_override(path: PathBuf) -> LoggerRootOverrideGuard {
+        let mut guard = test_logger_root_override()
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let previous = (*guard).replace(path);
+        LoggerRootOverrideGuard { previous }
+    }
+
+    fn emit_sample_dispatch(
+        project_root: &AiRootDir,
+        observability: &ObservabilityConfig,
+    ) -> Result<(), CliError> {
         emit_dispatch_event(DispatchEventArgs {
             hook: "PreToolUse",
             event: Some("Write"),
@@ -436,10 +476,29 @@ mod tests {
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
-            project_root: &project_root,
-            observability: &observability,
+            project_root,
+            observability,
         })
-        .expect("observability event should emit");
+    }
+
+    fn shared_log_line_count(root: &std::path::Path) -> usize {
+        fs::read_to_string(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH))
+            .map(|rendered| rendered.lines().count())
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn emits_service_scoped_sc_observability_log_event() {
+        let _lock: MutexGuard<'_, ()> = observability_lock()
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root.clone()).expect("root should be absolute");
+        let _cwd = crate::test_support::scoped_current_dir(&root);
+        let observability = ObservabilityConfig::default();
+
+        emit_sample_dispatch(&project_root, &observability)
+            .expect("observability event should emit");
 
         let path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
         let rendered = fs::read_to_string(path).expect("log should be readable");
@@ -453,5 +512,62 @@ mod tests {
         assert_eq!(parsed["fields"]["hook"], "PreToolUse");
         assert_eq!(parsed["fields"]["matcher"], "Write");
         assert_eq!(parsed["fields"]["results"][0]["handler"], "guard-paths");
+    }
+
+    #[test]
+    fn off_mode_returns_before_logger_initialization() {
+        let _lock: MutexGuard<'_, ()> = observability_lock()
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root.clone()).expect("root should be absolute");
+        let _cwd = crate::test_support::scoped_current_dir(&root);
+
+        emit_sample_dispatch(&project_root, &ObservabilityConfig::default())
+            .expect("baseline observability event should initialize logger");
+        let before = shared_log_line_count(&root);
+
+        let mismatch_root = tempfile::tempdir().expect("tempdir should create");
+        let _override = scoped_logger_root_override(mismatch_root.path().to_path_buf());
+        let observability = ObservabilityConfig {
+            mode: ObservabilityMode::Off,
+            ..ObservabilityConfig::default()
+        };
+
+        emit_sample_dispatch(&project_root, &observability)
+            .expect("off mode should return before logger initialization");
+
+        assert_eq!(shared_log_line_count(&root), before);
+    }
+
+    #[test]
+    fn reports_project_root_mismatch_for_cached_logger() {
+        let _lock: MutexGuard<'_, ()> = observability_lock()
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root.clone()).expect("root should be absolute");
+        let _cwd = crate::test_support::scoped_current_dir(&root);
+
+        emit_sample_dispatch(&project_root, &ObservabilityConfig::default())
+            .expect("baseline observability event should initialize logger");
+
+        let initialized_root = LOGGER_ROOT
+            .get()
+            .map(|root| root.as_path().to_path_buf())
+            .unwrap_or_else(|| root.clone());
+        let mismatch_root = tempfile::tempdir().expect("tempdir should create");
+        assert_ne!(
+            mismatch_root.path(),
+            initialized_root.as_path(),
+            "mismatch root must differ from the initialized root"
+        );
+        let _override = scoped_logger_root_override(mismatch_root.path().to_path_buf());
+
+        let err = emit_sample_dispatch(&project_root, &ObservabilityConfig::default())
+            .expect_err("mismatched test root should fail");
+        let rendered = err.to_string();
+        assert!(rendered.contains("observability logger project root mismatch"));
+        assert!(rendered.contains("project_root mismatch for cached logger"));
     }
 }
