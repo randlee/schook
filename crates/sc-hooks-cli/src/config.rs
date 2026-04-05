@@ -173,6 +173,22 @@ impl CaptureStdio {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(transparent)]
+pub struct CapturePayloads(bool);
+
+impl CapturePayloads {
+    pub(crate) const fn is_enabled(self) -> bool {
+        self.0
+    }
+}
+
+impl From<bool> for CapturePayloads {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigValueSource {
@@ -248,7 +264,7 @@ pub struct ObservabilityConfig {
     #[serde(default)]
     pub redaction: RedactionMode,
     #[serde(default)]
-    pub capture_payloads: bool,
+    pub capture_payloads: CapturePayloads,
     #[serde(default)]
     pub capture_stdio: CaptureStdio,
     #[serde(skip)]
@@ -265,7 +281,7 @@ impl Default for ObservabilityConfig {
             retain_runs: default_retain_runs(),
             retain_days: default_retain_days(),
             redaction: RedactionMode::Strict,
-            capture_payloads: false,
+            capture_payloads: CapturePayloads::default(),
             capture_stdio: CaptureStdio::Summary,
             debug_context: ObservabilityDebugContext::default(),
         }
@@ -326,7 +342,7 @@ impl ObservabilityConfig {
             self.debug_context.redaction_source = ConfigValueSource::Local;
         }
         if let Some(capture_payloads) = layer.capture_payloads {
-            self.capture_payloads = capture_payloads;
+            self.capture_payloads = CapturePayloads::from(capture_payloads);
             self.debug_context.capture_payloads_source = ConfigValueSource::Local;
         }
         if let Some(capture_stdio) = layer.capture_stdio {
@@ -708,13 +724,14 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
         observability.record_env_override(ENV_AUDIT_REDACTION);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_PAYLOADS)? {
-        observability.capture_payloads = parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
-            ConfigError::InvalidEnvOverride {
-                key: ENV_AUDIT_CAPTURE_PAYLOADS,
-                value,
-                expected: "1/true/yes/on or 0/false/no/off",
-            },
-        )?;
+        observability.capture_payloads =
+            CapturePayloads::from(parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
+                ConfigError::InvalidEnvOverride {
+                    key: ENV_AUDIT_CAPTURE_PAYLOADS,
+                    value,
+                    expected: "1/true/yes/on or 0/false/no/off",
+                },
+            )?);
         observability.debug_context.capture_payloads_source = ConfigValueSource::Env;
         observability.record_env_override(ENV_AUDIT_CAPTURE_PAYLOADS);
     }
@@ -853,11 +870,11 @@ PreToolUse = ["guard-paths"]
         assert_eq!(config.observability.mode, ObservabilityMode::Standard);
         assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
         assert_eq!(config.observability.path, default_audit_path());
-        assert_eq!(config.observability.console_mirror, false);
+        assert!(!config.observability.console_mirror);
         assert_eq!(config.observability.retain_runs, default_retain_runs());
         assert_eq!(config.observability.retain_days, default_retain_days());
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
-        assert!(!config.observability.capture_payloads);
+        assert!(!config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
         assert_eq!(
             config
@@ -878,11 +895,11 @@ PreToolUse = ["guard-paths"]
         assert_eq!(config.observability.mode, ObservabilityMode::Standard);
         assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
         assert_eq!(config.observability.path, default_audit_path());
-        assert_eq!(config.observability.console_mirror, false);
+        assert!(!config.observability.console_mirror);
         assert_eq!(config.observability.retain_runs, default_retain_runs());
         assert_eq!(config.observability.retain_days, default_retain_days());
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
-        assert!(!config.observability.capture_payloads);
+        assert!(!config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
     }
 
@@ -946,7 +963,7 @@ capture_stdio = "bounded"
         assert_eq!(parsed.observability.retain_runs, 7);
         assert_eq!(parsed.observability.retain_days, 21);
         assert_eq!(parsed.observability.redaction, RedactionMode::Permissive);
-        assert!(parsed.observability.capture_payloads);
+        assert!(parsed.observability.capture_payloads.is_enabled());
         assert_eq!(parsed.observability.capture_stdio, CaptureStdio::Bounded);
     }
 
@@ -1178,7 +1195,7 @@ redaction = "permissive"
         assert_eq!(config.observability.retain_runs, 4);
         assert_eq!(config.observability.retain_days, 45);
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
-        assert!(config.observability.capture_payloads);
+        assert!(config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
     }
 

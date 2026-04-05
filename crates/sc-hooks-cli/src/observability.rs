@@ -663,7 +663,7 @@ pub(crate) fn build_debug_excerpt(
         CaptureStdio::Summary => Some(DebugExcerpt {
             excerpt: summary_excerpt(text),
             truncated: false,
-            redacted: matches!(observability.redaction, RedactionMode::Strict),
+            redacted: true,
         }),
         CaptureStdio::Bounded => match observability.redaction {
             RedactionMode::Strict => Some(DebugExcerpt {
@@ -671,15 +671,7 @@ pub(crate) fn build_debug_excerpt(
                 truncated: false,
                 redacted: true,
             }),
-            RedactionMode::Permissive => {
-                let truncated = text.chars().count() > DEBUG_EXCERPT_LIMIT;
-                let excerpt = text.chars().take(DEBUG_EXCERPT_LIMIT).collect();
-                Some(DebugExcerpt {
-                    excerpt,
-                    truncated,
-                    redacted: false,
-                })
-            }
+            RedactionMode::Permissive => Some(bounded_debug_excerpt(text, false)),
         },
     }
 }
@@ -688,7 +680,7 @@ fn build_debug_payload_excerpt(
     observability: &ObservabilityConfig,
     payload: Option<&Value>,
 ) -> Option<DebugExcerpt> {
-    if !observability.capture_payloads {
+    if !observability.capture_payloads.is_enabled() {
         return None;
     }
     let payload = payload?;
@@ -699,16 +691,18 @@ fn build_debug_payload_excerpt(
             truncated: false,
             redacted: true,
         },
-        RedactionMode::Permissive => {
-            let truncated = serialized.chars().count() > DEBUG_EXCERPT_LIMIT;
-            let excerpt = serialized.chars().take(DEBUG_EXCERPT_LIMIT).collect();
-            DebugExcerpt {
-                excerpt,
-                truncated,
-                redacted: false,
-            }
-        }
+        RedactionMode::Permissive => bounded_debug_excerpt(&serialized, false),
     })
+}
+
+fn bounded_debug_excerpt(text: &str, redacted: bool) -> DebugExcerpt {
+    let truncated = text.chars().count() > DEBUG_EXCERPT_LIMIT;
+    let excerpt = text.chars().take(DEBUG_EXCERPT_LIMIT).collect();
+    DebugExcerpt {
+        excerpt,
+        truncated,
+        redacted,
+    }
 }
 
 fn summary_excerpt(text: &str) -> String {
@@ -837,7 +831,10 @@ fn full_audit_decision_trace_summary(args: &FullAuditRecordArgs<'_>) -> Vec<Stri
             "capture_stdio={}",
             args.observability.capture_stdio.as_str()
         ),
-        format!("capture_payloads={}", args.observability.capture_payloads),
+        format!(
+            "capture_payloads={}",
+            args.observability.capture_payloads.is_enabled()
+        ),
     ];
     if let Some(stage) = args.stage {
         trace.push(format!("stage={stage}"));
@@ -879,7 +876,7 @@ fn full_audit_handler_excerpts(
 
 fn full_audit_redaction_actions(observability: &ObservabilityConfig) -> Vec<String> {
     let mut actions = vec![format!("redaction={}", observability.redaction.as_str())];
-    if !observability.capture_payloads {
+    if !observability.capture_payloads.is_enabled() {
         actions.push("payload_capture_disabled".to_string());
     }
     actions.push(format!(
@@ -898,7 +895,7 @@ fn full_audit_payload_capture_state(
 ) -> FullAuditPayloadCaptureState {
     FullAuditPayloadCaptureState {
         redaction: observability.redaction.as_str(),
-        capture_payloads: observability.capture_payloads,
+        capture_payloads: observability.capture_payloads.is_enabled(),
         capture_stdio: observability.capture_stdio.as_str(),
         payloads_included,
     }
@@ -1093,6 +1090,7 @@ fn dispatch_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::CapturePayloads;
     use std::fs;
     use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -1155,6 +1153,21 @@ mod tests {
         fs::read_to_string(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH))
             .map(|rendered| rendered.lines().count())
             .unwrap_or(0)
+    }
+
+    fn debug_observability(
+        redaction: RedactionMode,
+        capture_stdio: CaptureStdio,
+        capture_payloads: bool,
+    ) -> ObservabilityConfig {
+        ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            full_profile: FullAuditProfile::Debug,
+            redaction,
+            capture_stdio,
+            capture_payloads: CapturePayloads::from(capture_payloads),
+            ..ObservabilityConfig::default()
+        }
     }
 
     #[test]
@@ -1239,5 +1252,115 @@ mod tests {
         let rendered = err.to_string();
         assert!(rendered.contains("observability logger project root mismatch"));
         assert!(rendered.contains("project_root mismatch for cached logger"));
+    }
+
+    #[test]
+    fn build_debug_excerpt_covers_all_stdio_redaction_combinations() {
+        let text = "alpha\nbeta";
+        let cases = [
+            (CaptureStdio::None, RedactionMode::Strict, None, None, None),
+            (
+                CaptureStdio::Summary,
+                RedactionMode::Strict,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::Bounded,
+                RedactionMode::Strict,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::None,
+                RedactionMode::Permissive,
+                None,
+                None,
+                None,
+            ),
+            (
+                CaptureStdio::Summary,
+                RedactionMode::Permissive,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::Bounded,
+                RedactionMode::Permissive,
+                Some("alpha\nbeta"),
+                Some(false),
+                Some(false),
+            ),
+        ];
+
+        for (capture_stdio, redaction, expected_excerpt, expected_truncated, expected_redacted) in
+            cases
+        {
+            let observability = debug_observability(redaction, capture_stdio, false);
+            let excerpt = build_debug_excerpt(&observability, text);
+            match (excerpt, expected_excerpt) {
+                (None, None) => {}
+                (Some(excerpt), Some(expected_excerpt)) => {
+                    assert_eq!(excerpt.excerpt, expected_excerpt);
+                    assert_eq!(Some(excerpt.truncated), expected_truncated);
+                    assert_eq!(Some(excerpt.redacted), expected_redacted);
+                }
+                other => panic!(
+                    "unexpected excerpt outcome for {capture_stdio:?}/{redaction:?}: {other:?}"
+                ),
+            }
+        }
+    }
+
+    #[test]
+    fn build_debug_payload_excerpt_covers_capture_and_redaction_combinations() {
+        let payload = serde_json::json!({"tool_input": {"command": "echo hi"}});
+        let serialized = serde_json::to_string(&payload).expect("payload should serialize");
+        let summary = summary_excerpt(&serialized);
+        let cases = [
+            (false, RedactionMode::Strict, None, None, None),
+            (
+                true,
+                RedactionMode::Strict,
+                Some(summary.as_str()),
+                Some(false),
+                Some(true),
+            ),
+            (false, RedactionMode::Permissive, None, None, None),
+            (
+                true,
+                RedactionMode::Permissive,
+                Some(serialized.as_str()),
+                Some(false),
+                Some(false),
+            ),
+        ];
+
+        for (
+            capture_payloads,
+            redaction,
+            expected_excerpt,
+            expected_truncated,
+            expected_redacted,
+        ) in cases
+        {
+            let observability =
+                debug_observability(redaction, CaptureStdio::Summary, capture_payloads);
+            let excerpt = build_debug_payload_excerpt(&observability, Some(&payload));
+            match (excerpt, expected_excerpt) {
+                (None, None) => {}
+                (Some(excerpt), Some(expected_excerpt)) => {
+                    assert_eq!(excerpt.excerpt, expected_excerpt);
+                    assert_eq!(Some(excerpt.truncated), expected_truncated);
+                    assert_eq!(Some(excerpt.redacted), expected_redacted);
+                }
+                other => panic!(
+                    "unexpected payload excerpt outcome for capture_payloads={capture_payloads} / {redaction:?}: {other:?}"
+                ),
+            }
+        }
     }
 }

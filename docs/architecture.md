@@ -45,6 +45,9 @@ The host:
 - loads `.sc-hooks/config.toml`
 - merges observability defaults from `~/.sc-hooks/config.toml`, repo-local
   `.sc-hooks/config.toml`, and supported environment overrides
+- applies the supported `[observability]` config surface documented in
+  `docs/observability-contract.md` while keeping sink registration and logger
+  lifecycle internal to `sc-hooks-cli`
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -57,8 +60,7 @@ The host does not:
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
-- expose a public sink-extension API, exporter/OTel transport config, or a
-  `[logging]` section outside the supported `[observability]` surface
+- expose a public sink-extension API or exporter/OTel transport config
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership

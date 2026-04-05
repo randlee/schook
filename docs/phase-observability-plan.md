@@ -263,16 +263,19 @@ It keeps the current lower-volume posture.
 - degraded observability paths such as fallback-to-stderr
 - root-divergence sequencing when present
 
-Stable `full` event names:
+Implemented and contract-frozen `full` event names in `SC-LOG-S4`:
 
 - `hook.invocation.received`
-- `hook.invocation.resolved`
 - `hook.invocation.zero_match`
-- `hook.dispatch.started`
 - `hook.dispatch.completed`
 - `hook.invocation.failed_pre_dispatch`
-- `hook.observability.degraded`
-- `hook.session.root_divergence`
+
+Planned future event names with explicit later-phase assignment:
+
+- `hook.invocation.resolved` in `SC-LOG-S6`
+- `hook.dispatch.started` in `SC-LOG-S6`
+- `hook.observability.degraded` in `SC-LOG-S6`
+- `hook.session.root_divergence` in `SC-LOG-S6`
 
 `lean` profile fields:
 
@@ -280,7 +283,6 @@ Stable `full` event names:
 - service
 - run ID
 - invocation ID
-- session ID when present
 - hook name
 - hook event name
 - mode
@@ -292,6 +294,12 @@ Stable `full` event names:
 - outcome
 - timing
 - degraded-path flags
+
+Lean-field note:
+
+- `session_id` is intentionally not part of the committed `SC-LOG-S4` lean
+  schema; add it only through a later contract-and-implementation amendment if
+  session correlation becomes a required audit field
 
 `debug` mandatory fields, in addition to all `lean` fields, are:
 
@@ -305,6 +313,12 @@ Stable `full` event names:
 
 `debug` may add optional payload excerpts only when a separate capture flag
 allows them.
+
+Field-naming note:
+
+- the human-readable labels above are planning shorthand only
+- the authoritative serialized JSON key names live in
+  `docs/observability-contract.md` section `4.2`
 
 ## 7. Redaction Model
 
@@ -492,13 +506,15 @@ Exit gate:
 ### `SC-LOG-S6` / Observability Phase 5
 
 - harden pruning and bounded retention
-- prove logger-init, emit, and prune failures stay non-blocking
+- prove logger-init, emit, append, and prune failures stay non-blocking
 - preserve file-backed audit JSONL as the canonical machine-readable source
 
 Exit gate:
 
 - pruning keeps the newest 10 runs and the 14-day age cap by default
-- logger-init, emit, and prune failures never change hook execution outcomes
+- logger-init, emit, append, and prune failures never change hook execution outcomes
+- long-term integration coverage forces append and emit failures, keeps hook
+  exits unchanged, and asserts the documented degraded fallback text
 - no committed phase behavior depends on live structured streaming or exporter
   availability
 

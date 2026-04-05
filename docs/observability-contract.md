@@ -215,6 +215,12 @@ The `fields` object for `session.root_divergence` currently carries:
 
 Each line in `events.jsonl` is one lean audit JSON object.
 
+Current contract note:
+
+- `session_id` is not part of the committed lean record shape in `SC-LOG-S4`
+- any future session-correlation field must be added in code, tests, and this
+  contract together rather than implied by planning text alone
+
 Current mandatory lean fields are:
 
 - `schema_version`
