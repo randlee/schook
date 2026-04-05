@@ -19,6 +19,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: "1.94.1"
           components: rustfmt
 
       - name: Check formatting
@@ -35,6 +36,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -69,6 +72,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Check rustdoc warnings
         run: RUSTDOCFLAGS="-Dwarnings -Wmissing-docs" cargo doc --no-deps --workspace
@@ -89,6 +94,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Cache cargo registry
         uses: actions/cache@v4
