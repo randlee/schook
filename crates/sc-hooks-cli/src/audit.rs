@@ -112,11 +112,11 @@ impl AuditDiagnostic {
                 handler_name,
                 hook_name,
             } => format!("AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"),
-            Self::MatcherWarning { message } => format!("AUD-008 warning {message}"),
-            Self::MatcherError { message } => format!("AUD-008 {message}"),
-            Self::InstallPlanWarning { message } => format!("AUD-007 {message}"),
+            Self::MatcherWarning { message } => format!("AUD-007 warning {message}"),
+            Self::MatcherError { message } => format!("AUD-010 {message}"),
+            Self::InstallPlanWarning { message } => format!("AUD-008 {message}"),
             Self::InstallPlanGenerationFailed { error } => {
-                format!("AUD-007 install plan generation failed: {error}")
+                format!("AUD-011 install plan generation failed: {error}")
             }
             Self::InstallPlanEntry {
                 hook,
@@ -130,7 +130,7 @@ impl AuditDiagnostic {
                     async_buckets.join(",")
                 };
                 format!(
-                    "AUD-007 {hook}/{matcher} -> sync={has_sync}, async_buckets={bucket_summary}"
+                    "AUD-012 {hook}/{matcher} -> sync={has_sync}, async_buckets={bucket_summary}"
                 )
             }
             Self::MissingLongRunningDescription { handler_name } => format!(
@@ -143,7 +143,7 @@ impl AuditDiagnostic {
                 "SEC-002 `{handler_name}` declares sandbox path `{path}` that does not exist"
             ),
             Self::SandboxPathUnacknowledged { handler_name, path } => format!(
-                "SEC-004 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
+                "SEC-007 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
             ),
             Self::PluginsDirPermissive { path, mode } => {
                 format!("SEC-006 plugin directory `{path}` has permissive mode {mode:o}")
@@ -154,7 +154,7 @@ impl AuditDiagnostic {
                 path,
             } => format!("SEC-005 plugin `{handler_name}` is world-writable ({mode:o}) at {path}"),
             Self::PluginWrongOwner { handler_name, path } => {
-                format!("SEC-005 plugin `{handler_name}` is not owned by current user at {path}")
+                format!("SEC-008 plugin `{handler_name}` is not owned by current user at {path}")
             }
         }
     }

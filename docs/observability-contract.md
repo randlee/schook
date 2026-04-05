@@ -10,7 +10,8 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
-- `DEF-010` through `DEF-013`, `DEF-017` (`Added in SC-LOG-S2` through `SC-LOG-S4`; traceability: `docs/traceability.md`)
+- `DEF-010` through `DEF-013`, `DEF-017`, `DEF-017a` (`Added in SC-LOG-S2`
+  through `SC-LOG-S4`; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -246,6 +247,10 @@ Current conditional lean fields are:
 - `degraded`
 
 ## 4.2 Full Audit Debug Mandatory Fields
+
+Planned/Frozen Design (`DEF-013` Planned):
+- this header freezes the mandatory `debug`-profile field set for
+  `SC-LOG-S5`; the `SC-LOG-S4` branch does not emit these fields yet
 
 The `debug` profile extends the lean record shape; it does not replace it.
 
