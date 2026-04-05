@@ -319,7 +319,7 @@ Implements:
   - `hook.invocation.failed_pre_dispatch` for resolution, metadata preparation, dispatch preflight, and plugin-input preparation failures
   - `hook.dispatch.completed` when a handler-executing dispatch completes
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
-- if full-audit append or run-file preparation fails, `sc-hooks` falls back to
+- if full-audit append, run-file preparation, or pruning fails, `sc-hooks` falls back to
   `stderr` with `sc-hooks: full audit degraded: ...`
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
