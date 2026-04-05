@@ -5,7 +5,7 @@
 This document records the currently verified ATM-specific extension behavior
 that sits on top of Claude hook execution today.
 
-This is not a generic `schook` contract. It is the current ATM baseline drawn
+This is not a generic `sc-hooks` contract. It is the current ATM baseline drawn
 from the `agent-team-mail` repo.
 
 ## Current Source Of Truth
@@ -83,7 +83,7 @@ Current verified hook behavior:
 | `SessionEnd` | emits `session_end`, deletes current session file |
 | `PreToolUse(Bash)` | writes temp hook identity file for `atm` commands only |
 | `PostToolUse(Bash)` | removes temp hook identity file |
-| `PreToolUse(Task)` | enforces team-aware spawn policy in current ATM scripts; clean `schook` Claude baseline uses `PreToolUse(Agent)` |
+| `PreToolUse(Task)` | enforces team-aware spawn policy in current ATM scripts; clean `sc-hooks` Claude baseline uses `PreToolUse(Agent)` |
 | `Notification(idle_prompt)` | relays idle heartbeat |
 | `PermissionRequest` | relays blocked-on-permission state |
 | `Stop` | relays idle/turn-stop state |
@@ -100,9 +100,9 @@ evidence:
 - Pydantic hook models as the active ATM validation layer
 - a complete subagent lifecycle schema for Agent-created descendants
 
-## Planning Rule For `schook`
+## Planning Rule For `sc-hooks`
 
-`schook` may extend this ATM baseline, but only after:
+`sc-hooks` may extend this ATM baseline, but only after:
 
 1. the live hook schema harness captures real payloads,
 2. the resulting models are validated, and
