@@ -2,147 +2,222 @@
 
 ## Purpose
 
-This document records the currently verified Cursor-facing hook surfaces that
-matter to `schook` planning. It is intentionally separate from the Claude and
-Codex documents because the current evidence comes from a different
-combination of local CLI behavior and public Cursor hook documentation.
+This document records the verified Cursor Agent hook surfaces, payload schemas,
+and differences from the Claude Code / sc-hooks model.
 
-## Current Source Of Truth
+Source of truth inputs:
 
-- local CLI help from `cursor-agent --help`
-- local Cursor CLI state under `$HOME/.cursor/`
-- public Cursor docs page `https://cursor.com/docs/hooks`
-
-This document only promotes facts that are directly visible from those sources.
+- `/Applications/Cursor.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.js`
+  — hook payload call sites extracted from the Cursor app bundle
+- `/Users/randlee/.local/bin/cursor-agent --help` — CLI flag reference
+- User-level hooks config: `~/.cursor/hooks.json`
+- Project-level hooks config: `.cursor/hooks.json`
+- Enterprise hooks config: `/etc/cursor/hooks.json`
 
 ## Platform Rules
 
-- `cursor-agent` is a real installed CLI on this machine
-- current planning treats Cursor Agent as a provider-specific compatibility
-  target, not as part of the initial Claude ATM implementation baseline
-- public Cursor hook names may be documented here before implementation, but
-  they do not become implementation inputs until the harness captures them
-- Cursor-targeting runtime work remains deferred until a later explicitly
-  approved follow-on pass
+- Cursor uses `hooks.json` (not `settings.json`) at user, project, and
+  enterprise scopes. All matching hooks from all locations run.
+- Hook scripts are invoked with the event payload on stdin as JSON.
+- Control hooks respond via JSON written to stdout.
+- Informational hooks: stdout output is ignored; no response expected.
+- `cursor-agent --print` (headless/scriptable mode) — whether hooks fire in
+  this mode is **not yet verified**; must be confirmed by harness capture.
 
-## Path And Environment Rules
+## CLI Invocation
 
-- local Cursor CLI state currently lives under `$HOME/.cursor/`
-- `$HOME/.cursor/cli-config.json` is a verified local configuration
-  input
-- `$HOME/.cursor/hooks.json` is not currently present on this machine
-- current working directory must not be treated as a stable hook identity or
-  provider-contract signal
-- provider-specific path and environment assumptions must be captured by the
-  harness before implementation relies on them
+Binary: `cursor-agent` (from PATH; e.g. `~/.local/bin/cursor-agent` on a typical install)
 
-## Current Local Runtime Baseline
+```
+cursor-agent [options] [prompt]
 
-Current locally verified CLI behavior:
+Key flags:
+  --print              Headless/scriptable mode (non-interactive)
+  --trust              Trust workspace without prompting (headless only)
+  --force / --yolo     Auto-approve all actions
+  --model <model>      Model to use (e.g. sonnet-4, gpt-5)
+  --mode plan|ask      Read-only / Q&A mode
+  --workspace <path>   Workspace directory
+  --worktree [name]    Isolated git worktree at ~/.cursor/worktrees/<repo>/<name>
+  --output-format      text | json | stream-json (--print only)
+  --approve-mcps       Auto-approve all MCP servers
+```
 
-- `cursor-agent` is installed and runnable
-- headless/CLI usage supports:
-  - `--print`
-  - `--output-format text | json | stream-json`
-  - `--mode plan | ask`
-  - `--resume`
-  - `--continue`
-  - `--workspace`
-  - `--worktree`
+## Confirmed Hook Types
 
-Current locally verified config state:
+From the Cursor app bundle (`uee` enum in workbench.desktop.main.js):
 
-- `$HOME/.cursor/cli-config.json` exists
-- `$HOME/.cursor/hooks.json` does not currently exist on this machine
+| Hook event | Control | Description |
+| --- | --- | --- |
+| `beforeShellExecution` | allow / deny / ask | Fires before any shell command |
+| `beforeMCPExecution` | allow / deny / ask | Fires before any MCP tool call |
+| `beforeReadFile` | deny only | Fires before file contents sent to LLM |
+| `afterFileEdit` | informational | Fires after Cursor modifies a file |
+| `beforeSubmitPrompt` | informational (unverified) | Not in IDE bundle enum — may be cursor-agent only; verify |
+| `stop` | informational | Fires when task completes |
 
-That means `schook` can treat Cursor Agent as an installed provider with a
-current CLI/runtime surface, but not as a provider whose local hook config and
-stdin payloads have already been captured in this repo.
+## Common Fields (All Hooks)
 
-## Current Public Hook Baseline
+Present on every hook payload:
 
-Current publicly documented hook/event names visible on the Cursor hooks page
-include:
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "<string>",
+  "workspace_roots": ["<path>", ...]
+}
+```
 
-- `beforeShellExecution`
-- `beforeMCPExecution`
-- `beforeReadFile`
-- `afterFileEdit`
-- `stop`
-- `sessionStart`
-- `sessionEnd`
-- `preCompact`
-- `subagentStart`
-- `subagentStop`
-- `beforeSubmitPrompt`
-- `afterAgentResponse`
-- `afterAgentThought`
+## Payload Schemas (Verified From Bundle)
 
-For the current S9 follow-on planning scope, the relevant Cursor hook set is:
+### beforeShellExecution
 
-- controllable hooks:
-  - `beforeShellExecution`
-  - `beforeMCPExecution`
-  - `beforeReadFile`
-- informational hooks:
-  - `afterFileEdit`
-  - `stop`
+Call site confirmed in workbench.desktop.main.js:
 
-## Verified Public Schema Fragments
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "beforeShellExecution",
+  "workspace_roots": ["<path>"],
+  "command": "<shell command string>",
+  "cwd": "<working directory>"
+}
+```
 
-The current Cursor hooks page also shows these currently documented field or
-config names:
+Response (stdout JSON):
+```json
+{
+  "permission": "allow" | "deny" | "ask",
+  "userMessage": "<optional: shown to user>",
+  "agentMessage": "<optional: shown to agent>",
+  "continue": true | false
+}
+```
 
-- common configuration keys:
-  - `failClosed`
-  - `matcher`
-- example request/response fields:
-  - `command`
-  - `permission`
-- documented hook payload fields in the current page content:
-  - `transcript_path`
-  - `user_email`
-  - `is_parallel_worker`
-  - `git_branch`
-  - `duration_ms`
-  - `message_count`
-  - `tool_call_count`
-  - `loop_count`
-  - `modified_files`
-  - `agent_transcript_path`
-  - `is_first_compaction`
+### beforeMCPExecution
 
-These are verified as names currently present in Cursor's public hook docs.
-They are not yet promoted here as guaranteed `cursor-agent` CLI stdin fields
-for the specific S9 hook set until the live harness captures them.
+Call site confirmed in workbench.desktop.main.js:
 
-## Planning Rules For `schook`
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "beforeMCPExecution",
+  "workspace_roots": ["<path>"],
+  "tool_name": "<MCP tool name>",
+  "tool_input": "<JSON string of tool parameters>",
+  "command": "<MCP server command>"
+}
+```
 
-- do not assume the full Cursor IDE hook schema is identical to the
-  `cursor-agent` CLI runtime without live capture evidence
-- do not write `schook` code against Cursor field names that have only been
-  seen in public docs and not yet captured by the harness
-- use the current public hook names as planning inputs only
-- require live fixture capture before any Cursor-targeting hook crate is
-  implemented
+Note: server `name` and `url` fields also present — exact field names to verify
+via harness capture.
 
-## Current Platform Gaps
+Response: same `permission` / `userMessage` / `agentMessage` / `continue` format.
 
-- no captured `cursor-agent` hook payload fixtures exist in this repo yet
-- no current local `hooks.json` is configured on this machine
-- no `schook`-owned Cursor validation models exist yet
-- no verified provider-specific stdin schema has been captured yet for:
-  - `beforeShellExecution`
-  - `beforeMCPExecution`
-  - `beforeReadFile`
-  - `afterFileEdit`
-  - `stop`
+### beforeReadFile
 
-## Design Implications For `schook`
+Call site confirmed in workbench.desktop.main.js:
 
-- treat Cursor hook support as a documented follow-on provider target, not as
-  part of the Claude implementation baseline
-- use the schema-capture harness to prove the actual `cursor-agent` hook
-  payloads before any hook crate depends on them
-- separate controllable hooks from informational hooks during planning because
-  they have different risk profiles and likely different response contracts
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "beforeReadFile",
+  "workspace_roots": ["<path>"],
+  "content": "<file content string>",
+  "filePath": "<relative workspace path>"
+}
+```
+
+**Note**: `filePath` is camelCase — inconsistent with `file_path` (snake_case) used
+in `afterFileEdit`. This is a Cursor API inconsistency; handle both in any
+cross-platform normalization layer.
+
+Response: `{ "permission": "deny" }` to block the read. Redaction mechanism
+(returning modified content) is not yet confirmed — verify via harness.
+
+### afterFileEdit
+
+Call site confirmed in workbench.desktop.main.js:
+
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "afterFileEdit",
+  "workspace_roots": ["<path>"],
+  "file_path": "<path>",
+  "edits": [
+    { "old_string": "<before>", "new_string": "<after>" }
+  ]
+}
+```
+
+Informational only — no response respected.
+
+### stop
+
+Payload fields from user documentation (bundle verification pending):
+
+```json
+{
+  "conversation_id": "<string>",
+  "generation_id": "<string>",
+  "hook_event_name": "stop",
+  "workspace_roots": ["<path>"],
+  "status": "completed" | "aborted" | "error"
+}
+```
+
+Informational only.
+
+## Mapping To sc-hooks HookType
+
+| Cursor event | sc-hooks analog | Gap |
+| --- | --- | --- |
+| `beforeShellExecution` | `PreToolUse` / `Bash` (`run_shell_command`) | tool name differs; payload has `command`+`cwd` not wrapped in `tool_input` |
+| `beforeMCPExecution` | `PreToolUse` / `Task` (approximate) | no direct MCP hook type in sc-hooks today |
+| `beforeReadFile` | `PreToolUse` / `Read` | `filePath` camelCase vs `file_path`; `content` pre-loaded (Claude does not pre-load) |
+| `afterFileEdit` | `PostToolUse` / `Edit` or `Write` | `edits` array format differs from sc-hooks payload |
+| `beforeSubmitPrompt` | no current analog | would require new `HookType` variant |
+| `stop` | `Stop` | closest match; `status` field maps cleanly |
+
+## Key Differences From Claude Code
+
+| Dimension | Claude Code | Cursor Agent |
+| --- | --- | --- |
+| Config format | `settings.json` hooks array | `hooks.json` object |
+| Hook granularity | `PreToolUse` generic + matcher | Per-tool-type events |
+| Session lifecycle | `SessionStart` / `SessionEnd` | Not confirmed |
+| Response format | `decision: "allow"` / `decision: "block"` (or `continue: false`) | `allow` / `deny` / `ask` + messages |
+| Content pre-loading | No — hook fires, plugin reads path | Yes — `beforeReadFile` receives full content |
+| Sub-agent gating | `PreToolUse/Task` | No confirmed equivalent |
+| `continue` field | Not present | `continue: false` can stop agent loop |
+
+## Headless Testing Strategy
+
+To verify hooks fire in `--print` mode:
+
+```bash
+# Create a minimal hooks.json with a logging hook
+cat > ~/.cursor/hooks.json << 'EOF'
+{
+  "beforeShellExecution": [
+    {
+      "command": "python3 -c \"import sys,json; d=json.load(sys.stdin); open('/tmp/cursor-hook-capture.json','w').write(json.dumps(d,indent=2)); print('{\\\"permission\\\":\\\"allow\\\"}')\""
+    }
+  ]
+}
+EOF
+
+# Run cursor-agent with a task that triggers a shell command
+cursor-agent --print --trust --yolo "run: echo hello"
+
+# Check if hook fired
+cat /tmp/cursor-hook-capture.json
+```
+
+This is the minimum capture scenario for the test harness.
