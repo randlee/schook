@@ -363,7 +363,7 @@ impl ObservabilityConfig {
             self.debug_context.redaction_source = ConfigValueSource::Local;
         }
         if let Some(capture_payloads) = layer.capture_payloads {
-            self.capture_payloads = CapturePayloads::from_bool(capture_payloads);
+            self.capture_payloads = capture_payloads;
             self.debug_context.capture_payloads_source = ConfigValueSource::Local;
         }
         if let Some(capture_stdio) = layer.capture_stdio {
@@ -416,7 +416,7 @@ struct LocalObservabilityConfigLayer {
     retain_runs: Option<u32>,
     retain_days: Option<u32>,
     redaction: Option<RedactionMode>,
-    capture_payloads: Option<bool>,
+    capture_payloads: Option<CapturePayloads>,
     capture_stdio: Option<CaptureStdio>,
 }
 
