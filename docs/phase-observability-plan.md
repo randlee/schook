@@ -458,6 +458,8 @@ Exit gate:
 - every hook invocation that reaches runtime processing emits the documented
   standard-mode operational record or degraded signal when `standard` is active
 - `standard` still avoids full zero-match accounting unless `full` is active
+- full-mode zero-match accounting and full-mode degraded pre-dispatch signaling
+  are deferred to `SC-LOG-S4`
 
 ### `SC-LOG-S4` / Observability Phase 3
 

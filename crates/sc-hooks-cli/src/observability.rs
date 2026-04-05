@@ -252,6 +252,11 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     Ok(())
 }
 
+/// Emits the `standard`-mode degraded stderr notice for pre-dispatch failures.
+///
+/// This signal is intentionally mode-gated: it fires only when the resolved
+/// observability mode is `standard`, and it does not apply to the deferred
+/// `full`-mode degraded-path contract owned by `DEF-017a` / `SC-LOG-S4`.
 pub fn emit_standard_degraded_signal(
     observability: &ObservabilityConfig,
     hook: &str,
@@ -260,6 +265,8 @@ pub fn emit_standard_degraded_signal(
     stage: &str,
     err: &CliError,
 ) {
+    // DEF-017a / SC-LOG-S4 owns any future full-mode degraded stderr contract.
+    // S3 keeps this notice exclusive to standard mode.
     if !matches!(observability.mode, ObservabilityMode::Standard) {
         return;
     }

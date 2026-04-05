@@ -310,6 +310,45 @@ fn resolution_failure_emits_standard_degraded_signal() {
     assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
 }
 
+#[test]
+fn full_mode_resolution_failure_does_not_emit_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["missing-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(
+        !stderr.contains("standard observability degraded before dispatch.complete"),
+        "{stderr}"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn pre_spawn_validation_failure_emits_standard_degraded_signal() {

@@ -1,6 +1,6 @@
-# schook Usage
+# sc-hooks Usage
 
-`schook` ships the `sc-hooks` CLI, which validates and executes hook/plugin
+`sc-hooks` ships the `sc-hooks` CLI, which validates and executes hook/plugin
 chains from a repository-local `.sc-hooks/` runtime layout.
 
 This guide covers:

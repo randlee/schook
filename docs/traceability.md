@@ -72,6 +72,7 @@ This table maps the most important documented requirements to current implementa
 | DEF-015 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires degraded-path tests proving hook outcomes do not change on logging or pruning failure | observability phase |
 | DEF-016 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase exit requires integration or soak validation for 50+ simultaneous agents without flaky unit-test expansion | observability phase |
 | DEF-017 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires full-audit coverage for zero-match and pre-dispatch failure paths | observability phase |
+| DEF-017a | planned | `docs/requirements.md`, `docs/observability-contract.md`, `docs/phase-observability-plan.md` | `full_mode_resolution_failure_does_not_emit_standard_degraded_signal` proves the current `full`-mode negative branch while `SC-LOG-S4` owns the future degraded-path contract | `SC-LOG-S4` |
 | DEF-018 | deferred | `docs/requirements.md`, `docs/phase-observability-plan.md` | kept out of the committed phase acceptance gate; future exporter defaults must not escalate to local `full` | observability follow-on |
 | DEF-019 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | naming-cleanup phase requires convergence on `sc-hooks` with `hooks` documented as alias only | observability phase |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

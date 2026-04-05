@@ -215,6 +215,9 @@ Implements:
   preparation, dispatch preflight, or plugin-input preparation failures before
   `dispatch.complete` emit one degraded stderr line of the form
   `sc-hooks: standard observability degraded before dispatch.complete: stage=<stage> hook=<hook> event=<event-or-*> mode=<mode> error=<err>`
+- the corresponding `full`-mode degraded-path contract is deferred on this
+  branch under `DEF-017a` / `SC-LOG-S4`; `mode = "full"` must not emit the
+  `standard` degraded stderr line yet
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
