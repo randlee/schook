@@ -553,6 +553,7 @@ Phase-close evidence on the `SC-LOG-S7` branch:
   green for:
   - `standard_mode_logger_init_failure_is_non_blocking`
   - `standard_mode_emit_failure_is_non_blocking`
+  - `full_mode_logger_init_failure_is_non_blocking`
   - `full_mode_append_failure_is_non_blocking`
   - `full_mode_prune_failure_is_non_blocking`
 

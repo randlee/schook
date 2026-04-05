@@ -21,6 +21,7 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - the closing tests are:
     - `standard_mode_logger_init_failure_is_non_blocking`
     - `standard_mode_emit_failure_is_non_blocking`
+    - `full_mode_logger_init_failure_is_non_blocking`
     - `full_mode_append_failure_is_non_blocking`
     - `full_mode_prune_failure_is_non_blocking`
   - those tests prove the degraded stderr fallback remains visible while hook
@@ -32,6 +33,6 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 - Owner area:
   - `sc-hooks-cli`, docs
 - Closure note:
-  - the same four integration tests above now prove logger-init, emit, append,
-    and prune failures are all best-effort and never change hook execution
-    outcomes
+  - the same five integration tests above now prove logger-init, emit,
+    append, and prune failures are all best-effort and never change hook
+    execution outcomes

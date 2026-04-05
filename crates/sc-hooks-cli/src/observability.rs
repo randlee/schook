@@ -1369,8 +1369,14 @@ mod tests {
         fn drop(&mut self) {
             for (key, value) in self.saved.drain(..) {
                 match value {
-                    Some(value) => unsafe { std::env::set_var(key, value) },
-                    None => unsafe { std::env::remove_var(key) },
+                    Some(value) => {
+                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::set_var(key, value) }
+                    }
+                    None => {
+                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::remove_var(key) }
+                    }
                 }
             }
         }
@@ -1387,8 +1393,14 @@ mod tests {
 
         for (key, value) in overrides {
             match value {
-                Some(value) => unsafe { std::env::set_var(key, value) },
-                None => unsafe { std::env::remove_var(key) },
+                Some(value) => {
+                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::set_var(key, value) }
+                }
+                None => {
+                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::remove_var(key) }
+                }
             }
         }
 
