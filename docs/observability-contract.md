@@ -13,7 +13,8 @@ Owning requirement IDs:
 - `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
 - `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
 - `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
-- `DEF-017` (`Added in SC-LOG-S4`; see §6; traceability: `docs/traceability.md`)
+- `DEF-017`, `DEF-017a` (`Added in SC-LOG-S4`; see §6; traceability:
+  `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -249,6 +250,10 @@ Current conditional lean fields are:
 - `degraded`
 
 ## 4.2 Full Audit Debug Record Shape
+
+Frozen Design Note (`DEF-013`):
+- the mandatory `debug`-profile field set was frozen in `SC-LOG-S4` before
+  implementation and is emitted on `SC-LOG-S5` debug records
 
 The `debug` profile extends the lean record shape; it does not replace it.
 

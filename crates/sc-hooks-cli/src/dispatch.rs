@@ -307,9 +307,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    PluginFailureKind::Other {
-                        error_type: "spawn-error",
-                    },
+                    PluginFailureKind::SpawnError,
                     "verify executable permissions and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -347,9 +345,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    PluginFailureKind::Other {
-                        error_type: "stdin-write-failed",
-                    },
+                    PluginFailureKind::StdinWriteFailed,
                     "ensure the plugin reads stdin correctly and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -434,9 +430,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    PluginFailureKind::Other {
-                        error_type: "wait-failed",
-                    },
+                    PluginFailureKind::WaitFailed,
                     "inspect plugin process behavior and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -472,9 +466,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                PluginFailureKind::Other {
-                    error_type: "stdout-read-failed",
-                },
+                PluginFailureKind::StdoutReadFailed,
                 "check plugin output handling and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -509,9 +501,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                PluginFailureKind::Other {
-                    error_type: "stderr-read-failed",
-                },
+                PluginFailureKind::StderrReadFailed,
                 "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -672,9 +662,7 @@ pub fn execute_chain(
                     )?;
                     let ai_message = ai_notification(
                         handler_name,
-                        PluginFailureKind::Other {
-                            error_type: "async-block",
-                        },
+                        PluginFailureKind::AsyncBlock,
                         "update plugin to return proceed/error only when mode=async.",
                     );
                     log_results.push(error_result(
@@ -730,9 +718,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    PluginFailureKind::Other {
-                        error_type: "action-error",
-                    },
+                    PluginFailureKind::ActionError,
                     "fix plugin logic and run 'sc-hooks test <plugin>'.",
                 );
                 let action_error_message = parsed
@@ -953,7 +939,13 @@ enum PluginFailureKind {
     InvalidJson,
     NonZeroExit,
     TimedOut { timeout_ms: u64 },
-    Other { error_type: &'static str },
+    SpawnError,
+    StdinWriteFailed,
+    WaitFailed,
+    StdoutReadFailed,
+    StderrReadFailed,
+    AsyncBlock,
+    ActionError,
 }
 
 fn ai_notification(handler_name: &str, failure_kind: PluginFailureKind, guidance: &str) -> String {
@@ -967,8 +959,26 @@ fn ai_notification(handler_name: &str, failure_kind: PluginFailureKind, guidance
         PluginFailureKind::TimedOut { timeout_ms } => format!(
             "hook {handler_name} timed out after {timeout_ms}ms — disabled. Run 'sc-hooks test {handler_name}' to diagnose.",
         ),
-        PluginFailureKind::Other { error_type } => {
-            format!("hook {handler_name} {error_type} — disabled. {guidance}")
+        PluginFailureKind::SpawnError => {
+            format!("hook {handler_name} spawn-error — disabled. {guidance}")
+        }
+        PluginFailureKind::StdinWriteFailed => {
+            format!("hook {handler_name} stdin-write-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::WaitFailed => {
+            format!("hook {handler_name} wait-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StdoutReadFailed => {
+            format!("hook {handler_name} stdout-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StderrReadFailed => {
+            format!("hook {handler_name} stderr-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::AsyncBlock => {
+            format!("hook {handler_name} async-block — disabled. {guidance}")
+        }
+        PluginFailureKind::ActionError => {
+            format!("hook {handler_name} action-error — disabled. {guidance}")
         }
     }
 }

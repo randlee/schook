@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -178,14 +179,34 @@ impl CaptureStdio {
 pub struct CapturePayloads(bool);
 
 impl CapturePayloads {
+    pub const fn enabled() -> Self {
+        Self(true)
+    }
+
+    pub const fn disabled() -> Self {
+        Self(false)
+    }
+
+    pub(crate) const fn from_bool(value: bool) -> Self {
+        if value {
+            Self::enabled()
+        } else {
+            Self::disabled()
+        }
+    }
+
     pub(crate) const fn is_enabled(self) -> bool {
         self.0
     }
 }
 
-impl From<bool> for CapturePayloads {
-    fn from(value: bool) -> Self {
-        Self(value)
+impl fmt::Display for CapturePayloads {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_enabled() {
+            f.write_str("enabled")
+        } else {
+            f.write_str("disabled")
+        }
     }
 }
 
@@ -342,7 +363,7 @@ impl ObservabilityConfig {
             self.debug_context.redaction_source = ConfigValueSource::Local;
         }
         if let Some(capture_payloads) = layer.capture_payloads {
-            self.capture_payloads = CapturePayloads::from(capture_payloads);
+            self.capture_payloads = CapturePayloads::from_bool(capture_payloads);
             self.debug_context.capture_payloads_source = ConfigValueSource::Local;
         }
         if let Some(capture_stdio) = layer.capture_stdio {
@@ -725,7 +746,7 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
     }
     if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_PAYLOADS)? {
         observability.capture_payloads =
-            CapturePayloads::from(parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
+            CapturePayloads::from_bool(parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
                 ConfigError::InvalidEnvOverride {
                     key: ENV_AUDIT_CAPTURE_PAYLOADS,
                     value,
@@ -1197,6 +1218,12 @@ redaction = "permissive"
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
         assert!(config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
+    }
+
+    #[test]
+    fn capture_payloads_display_and_constructors_match_state() {
+        assert_eq!(CapturePayloads::enabled().to_string(), "enabled");
+        assert_eq!(CapturePayloads::disabled().to_string(), "disabled");
     }
 
     #[test]

@@ -25,6 +25,8 @@ use crate::errors::CliError;
 use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
 use tempfile::NamedTempFile;
 const SERVICE_NAME: &str = "sc-hooks";
+/// Bound debug excerpts to 160 chars so audit records stay compact and the
+/// debug-profile tests can assert a fixed truncation boundary.
 const DEBUG_EXCERPT_LIMIT: usize = 160;
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
@@ -213,7 +215,7 @@ struct DecisionTrace {
     outcome: String,
     redaction: &'static str,
     capture_stdio: &'static str,
-    capture_payloads: bool,
+    capture_payloads: CapturePayloads,
     #[serde(skip_serializing_if = "Option::is_none")]
     stage: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -857,7 +859,7 @@ fn full_audit_decision_trace_summary(args: &FullAuditRecordArgs<'_>) -> Decision
         outcome: args.outcome.to_string(),
         redaction: args.observability.redaction.as_str(),
         capture_stdio: args.observability.capture_stdio.as_str(),
-        capture_payloads: args.observability.capture_payloads.is_enabled(),
+        capture_payloads: args.observability.capture_payloads,
         stage: args.stage.map(ToOwned::to_owned),
         result_count: args.results.map(<[HandlerResultRecord]>::len),
         handler_chain_count: args.handler_chain.map(<[String]>::len),
@@ -1180,7 +1182,7 @@ mod tests {
             full_profile: FullAuditProfile::Debug,
             redaction,
             capture_stdio,
-            capture_payloads: CapturePayloads::from(capture_payloads),
+            capture_payloads: CapturePayloads::from_bool(capture_payloads),
             ..ObservabilityConfig::default()
         }
     }

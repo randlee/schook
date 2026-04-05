@@ -485,8 +485,8 @@ Exit gate:
 - zero-match and pre-dispatch failure paths are accounted for in `full`
 - integration tests, not unit-test loops, prove the durable file contract
 - degraded append-failure fallback coverage is explicitly deferred to
-  `SC-LOG-S6`, where degraded-path hardening closes logger-init, emit, append,
-  and prune failure proof together
+  `SC-LOG-S6` as planned requirement `DEF-017a`, where degraded-path hardening
+  closes logger-init, emit, append, and prune failure proof together
 - the closed `debug` mandatory field list is frozen in docs before debug-profile
   implementation begins
 - the sealed internal sink-boundary rule is documented and preserved at the
@@ -511,6 +511,7 @@ Exit gate:
 - harden pruning and bounded retention
 - prove logger-init, emit, append, and prune failures stay non-blocking
 - preserve file-backed audit JSONL as the canonical machine-readable source
+- close deferred `DEF-017a` degraded pre-dispatch audit fallback proof
 
 Exit gate:
 
