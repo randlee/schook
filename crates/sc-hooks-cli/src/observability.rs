@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -305,12 +306,18 @@ fn env_flag(key: &str) -> Option<bool> {
         "1" | "true" | "yes" | "on" => Some(true),
         "0" | "false" | "no" | "off" => Some(false),
         _ => {
-            warn!(
+            emit_stderr_warning(format!(
                 "warning: unrecognized value for {key}: {value:?} (expected 1/true/yes/on or 0/false/no/off)"
-            );
+            ));
             None
         }
     }
+}
+
+pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
+    let message = message.as_ref();
+    warn!("{message}");
+    let _ = writeln!(std::io::stderr(), "{message}");
 }
 
 fn dispatch_level(

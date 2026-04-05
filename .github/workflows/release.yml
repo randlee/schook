@@ -112,6 +112,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: "1.94.1"
           targets: ${{ matrix.target }}
 
       - name: Ensure cross-compilation target
@@ -210,6 +211,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4
@@ -303,6 +306,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4
@@ -400,6 +405,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4
