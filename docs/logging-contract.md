@@ -9,6 +9,7 @@ Owning requirement IDs:
 - `OBS-006`
 - `OBS-007`
 - `OBS-008`
+- `OBS-009` (`Env override ownership and the layered `[observability]` surface are defined in `docs/observability-contract.md` §3.1; SC-LOG-S4 cross-reference`)
 
 This document defines the current JSONL dispatch-log contract for downstream
 consumers.

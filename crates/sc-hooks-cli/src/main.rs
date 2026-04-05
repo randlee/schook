@@ -259,7 +259,7 @@ fn run() -> Result<(), CliError> {
             if report.has_errors() {
                 return Err(CliError::audit_failure(format!(
                     "audit found {} error(s). see report output above.",
-                    report.errors.len()
+                    report.errors().len()
                 )));
             }
         }
