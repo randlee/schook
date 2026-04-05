@@ -26,6 +26,8 @@ It does not define:
 - CLI human-readable output
 - future observability sinks beyond the current file sink baseline and the
   contract-tested default console sink
+- full-audit debug-field semantics; those live in
+  `docs/observability-contract.md`
 
 Consistency note:
 - fallback stderr wording for observability-emission failures is owned by

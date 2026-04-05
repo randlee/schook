@@ -171,6 +171,7 @@ fn run() -> Result<(), CliError> {
                         args.event.as_deref(),
                         mode,
                         project_root,
+                        payload.as_ref(),
                     );
                 }
                 let handlers = resolution::resolve_chain(
@@ -194,13 +195,16 @@ fn run() -> Result<(), CliError> {
                     );
                     if let Some(project_root) = audit_project_root.as_ref() {
                         observability::emit_full_audit_pre_dispatch_failure(
-                            &config.observability,
-                            &args.hook,
-                            args.event.as_deref(),
-                            mode,
-                            project_root,
-                            "resolution",
-                            &cli_err,
+                            observability::FullAuditPreDispatchFailureArgs {
+                                observability: &config.observability,
+                                hook: &args.hook,
+                                event: args.event.as_deref(),
+                                mode,
+                                project_root,
+                                stage: "resolution",
+                                err: &cli_err,
+                                payload: payload.as_ref(),
+                            },
                         );
                     }
                     cli_err
@@ -214,6 +218,7 @@ fn run() -> Result<(), CliError> {
                             args.event.as_deref(),
                             mode,
                             project_root,
+                            payload.as_ref(),
                         );
                     }
                     return Ok(());

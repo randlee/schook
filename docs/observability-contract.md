@@ -10,6 +10,10 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
+- `DEF-010`
+- `DEF-011`
+- `DEF-013`
+- `DEF-014`
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -238,12 +242,11 @@ Current conditional lean fields are:
 - `ai_notification`
 - `degraded`
 
-## 4.2 Full Audit Debug Mandatory Fields
+## 4.2 Full Audit Debug Record Shape
 
 The `debug` profile extends the lean record shape; it does not replace it.
 
-The mandatory `debug`-only field set is frozen to this closed enumeration
-before debug-profile implementation begins:
+The implemented `debug`-only field set is frozen to this closed enumeration:
 
 - `config_source_summary`
 - `config_layer_resolution`
@@ -256,7 +259,15 @@ before debug-profile implementation begins:
 Rules:
 
 - these fields are in addition to all mandatory `lean` fields
-- payload excerpts remain gated behind separate payload-capture controls
+- `config_source_summary`, `config_layer_resolution`, `decision_trace_summary`,
+  `handler_stderr_excerpt`, `handler_stdout_excerpt`, `redaction_actions`, and
+  `payload_capture_state` are always present on `debug` records
+- `payload_excerpt` appears only when a separate payload-capture control is
+  enabled and a payload is present for the record
+- strict redaction is the default: strict mode summarizes sensitive text
+  instead of copying it verbatim into debug fields
+- permissive mode may emit bounded excerpts for stdio or payloads, but only
+  when the corresponding capture control is explicitly enabled
 - machine-readable bounded output remains mandatory even when `debug` is active
 
 ## 5. Handler Result Shape
