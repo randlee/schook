@@ -229,15 +229,16 @@ Current observability ownership follows the intended boundary directly:
 
 Next planned observability expansion:
 
-- keep the current file-sink JSONL contract as the release baseline
-- freeze the current file-sink JSONL contract as the baseline operational mode
-- plan a broader observability phase next, starting with naming cleanup and
-  layered global/local config before expanding coverage beyond the current
-  dispatch-complete events
-- keep console-sink verification as one work item inside that broader phase,
-  not as the sole next step
-- defer custom sink registration, structured live streaming, and exporter
-  integration until the naming and config surfaces are frozen
+- keep the current file-sink JSONL contract as the release baseline and the
+  baseline operational mode
+- commit the next observability phase to naming cleanup, layered
+  `[observability]` config, `off | standard | full` mode resolution, durable
+  full-audit files under `.sc-hooks/audit/`, redaction, retention, and
+  50-agent hardening
+- keep durable audit JSONL as the canonical machine-readable source for the
+  committed phase; the human console sink is operator-facing only
+- treat structured live streaming plus exporter, spans, metrics, and OTLP work
+  as explicit follow-on scope rather than observability-phase acceptance gates
 
 This boundary is current architecture, not deferred intent.
 
@@ -267,7 +268,7 @@ The current architecture does not aim to provide:
 - plugin hot reloading
 - plugin marketplace/distribution
 - merged editing of existing `.claude/settings.json` content
-- spans, metrics, or OTLP export in the current `schook` host
+- spans, metrics, or OTLP export in the current `sc-hooks` host
 
 ## 8. Enforcement Notes
 

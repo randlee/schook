@@ -209,7 +209,7 @@ Related deferred boundary:
 - `OBS-009` promotes env-flag sink toggles only; config-file sink routing,
   traces, metrics, and OTLP export remain outside the current release baseline
 
-Current `schook` observability does not yet provide:
+Current `sc-hooks` observability does not yet provide:
 - configurable sink routing from `.sc-hooks/config.toml`
 - console sink customization beyond the contract-tested default summary line
 - traces

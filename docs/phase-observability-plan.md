@@ -33,11 +33,16 @@ Authoritative current-state behavior remains in:
   - global config
   - repo-local config
   - environment overrides
-- global config may set defaults and future exporter wiring, but does not
-  enable `full` audit by itself
+- global config may set defaults, but does not enable `full` audit by itself
 - `full` audit is a repo-local or operator action
 - full audit failures and normal observability failures never affect hook
   execution outcomes
+- durable audit JSONL is the canonical machine-readable contract for the
+  committed phase
+- a dedicated live structured stream plus exporter or OTel transport work is
+  explicit follow-on scope after the committed phase closes
+- stress and soak validation belong in integration and phase-end QA coverage,
+  not in flaky or time-consuming unit tests
 
 ## 3. Mode Model
 
@@ -72,10 +77,10 @@ explicit opt-in layered on top of the selected profile.
 Global config at `~/.sc-hooks/config.toml` owns:
 
 - observability defaults
-- future exporter and OTel defaults
 - default sink selection for `off` or `standard`
 - default retention and rotation policy
 - global naming and path conventions where needed
+- optional default console-mirror behavior for operator sessions
 
 Global config does not own:
 
@@ -105,6 +110,54 @@ They are intended for:
 
 They are not the primary long-term contract surface.
 
+### 4.4 Planned Config Surface
+
+Global `~/.sc-hooks/config.toml`:
+
+```toml
+[observability]
+mode = "standard"            # allowed: "off", "standard"
+console_mirror = false
+retain_runs = 10
+retain_days = 14
+redaction = "strict"
+```
+
+Repo-local `.sc-hooks/config.toml`:
+
+```toml
+[observability]
+mode = "standard"            # allowed: "off", "standard", "full"
+full_profile = "lean"        # allowed: "lean", "debug"
+path = ".sc-hooks/audit"
+console_mirror = false
+retain_runs = 10
+retain_days = 14
+redaction = "strict"
+capture_payloads = false
+capture_stdio = "summary"    # allowed: "none", "summary", "bounded"
+```
+
+Environment overrides:
+
+- `SC_HOOKS_OBSERVABILITY_MODE`
+- `SC_HOOKS_AUDIT_PROFILE`
+- `SC_HOOKS_AUDIT_PATH`
+- `SC_HOOKS_AUDIT_REDACTION`
+- `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS`
+- `SC_HOOKS_AUDIT_CAPTURE_STDIO`
+- existing `SC_HOOKS_ENABLE_FILE_SINK` and `SC_HOOKS_ENABLE_CONSOLE_SINK`
+  remain operator-facing toggles for the standard sink family
+
+Phase rules:
+
+- `full` from global config alone is invalid
+- repo-local config may enable `full`
+- environment overrides may enable `full` for an operator session
+- relative audit paths resolve from immutable `ai_root_dir`
+- absolute audit paths are allowed only in repo-local config or environment
+  overrides
+
 ## 5. Output Model
 
 ### 5.1 Standard Operational Logging
@@ -127,7 +180,7 @@ Default root:
 .sc-hooks/audit/
 ```
 
-Recommended default layout:
+Required default layout:
 
 ```text
 .sc-hooks/audit/runs/<run-id>/events.jsonl
@@ -147,18 +200,16 @@ Path rules:
 - absolute paths are allowed only from repo-local config or environment
   overrides, not as a global forced path
 
-### 5.3 Machine-Readable Live Streaming
+### 5.3 Machine-Readable Boundary
 
 Human console output is not the machine contract.
 
-If live machine-readable processing is required, it should use a separate
-structured sink, not the human-readable console formatter.
-
-Planned sink split:
+Committed sink split:
 
 - human console sink: operator-facing
-- structured live stream: harness-facing
 - durable audit files: canonical source of truth for `full`
+
+Structured live streaming is not part of the committed phase acceptance gate.
 
 ## 6. Event Model
 
@@ -185,13 +236,28 @@ It keeps the current lower-volume posture.
 - degraded observability paths such as fallback-to-stderr
 - root-divergence sequencing when present
 
+Stable `full` event names:
+
+- `hook.invocation.received`
+- `hook.invocation.resolved`
+- `hook.invocation.zero_match`
+- `hook.dispatch.started`
+- `hook.dispatch.completed`
+- `hook.invocation.failed_pre_dispatch`
+- `hook.observability.degraded`
+- `hook.session.root_divergence`
+
 `lean` profile fields:
 
+- timestamp
+- service
+- run ID
 - invocation ID
 - session ID when present
 - hook name
 - hook event name
 - mode
+- full profile
 - project root
 - current dir when relevant
 - pid
@@ -206,6 +272,8 @@ It keeps the current lower-volume posture.
 - config-source and layer notes
 - more decision-point detail
 - optional payload excerpts only when a separate capture flag allows them
+- bounded per-handler stderr/stdout excerpts instead of unlimited dumps
+- redaction action markers so a reviewer can tell when masking happened
 
 ## 7. Redaction Model
 
@@ -230,8 +298,16 @@ Summarize by default:
 - plugin stdin payloads
 - plugin stdout and stderr beyond bounded excerpts
 
-This phase should freeze an explicit redaction policy before `debug` profile
-ships.
+Redaction levels:
+
+- `strict`
+  - default
+  - never records raw payloads
+  - always summarizes prompts, tool args, stdin, and oversized stdio
+- `permissive`
+  - still masks known secret patterns
+  - allows raw payloads or larger excerpts only when the separate capture flags
+    are enabled
 
 ## 8. Retention And Rotation
 
@@ -242,6 +318,12 @@ Recommended defaults:
 - apply an age cap
 - apply a size-aware cap for `debug` profile where needed
 - perform pruning best-effort only
+
+Committed defaults:
+
+- retain the newest 10 runs
+- prune runs older than 14 days
+- in `debug` profile, stop bounded stdio capture after 1 MiB per handler result
 
 Pruning failure rules:
 
@@ -261,6 +343,16 @@ Design consequences:
 - no blocking dependency on exporter availability
 - non-blocking failure semantics for audit and observability
 
+Implementation notes:
+
+- keep mode and profile transitions explicit through internal typestates such as
+  `ObservabilityMode` and `FullAuditProfile`
+- use semantic newtypes such as `RunId`, `AuditPath`, `RetentionCount`, and
+  `RetentionAge` at the CLI boundary
+- keep sink fan-out behind a sealed internal registration boundary
+- keep degraded logging behavior inside a dedicated `ObservabilityError` family
+  so recovery paths remain testable without leaking sink policy into lower crates
+
 Required validation before the phase closes:
 
 - concurrency soak coverage
@@ -272,29 +364,44 @@ Required validation before the phase closes:
 
 | Phase | Focus | Primary outcomes |
 | --- | --- | --- |
-| Observability Phase 0 | naming cleanup and namespace freeze | converge on `sc-hooks`, `hooks`, `.sc-hooks/` before more public surface is added |
-| Observability Phase 1 | layered config foundation | freeze global/local/env precedence and mode resolution |
-| Observability Phase 2 | standard coverage for all hook events | extend lower-volume observability to all hook event types |
-| Observability Phase 3 | full audit lean profile | durable run-scoped accounting for evals and harnesses |
-| Observability Phase 4 | full audit debug profile and redaction | richer troubleshooting output without losing safety controls |
-| Observability Phase 5 | structured live stream and exporter defaults | separate machine stream from human console and wire global exporter defaults |
-| Observability Phase 6 | concurrency and production hardening | prove 50+ simultaneous agents and operational safety |
+| `SC-LOG-S1` / Observability Phase 0 | naming cleanup and namespace freeze | converge on `sc-hooks`, `hooks`, `.sc-hooks/` before more public surface is added |
+| `SC-LOG-S2` / Observability Phase 1 | layered config foundation | freeze global/local/env precedence, config schema, and mode resolution |
+| `SC-LOG-S3` / Observability Phase 2 | standard coverage for all hook events | extend lower-volume observability to all hook event types |
+| `SC-LOG-S4` / Observability Phase 3 | full audit lean profile | durable run-scoped accounting for evals and harnesses |
+| `SC-LOG-S5` / Observability Phase 4 | full audit debug profile and redaction | richer troubleshooting output without losing safety controls |
+| `SC-LOG-S6` / Observability Phase 5 | retention, pruning, and degraded-path hardening | keep audit durable, bounded, and non-blocking under repeated runs |
+| `SC-LOG-S7` / Observability Phase 6 | concurrency and production hardening | prove 50+ simultaneous agents and operational safety |
 
-## 11. Sprint Highlights
+## 11. Phase Deliverables And Exit Gates
 
-### Observability Phase 0
+### `SC-LOG-S1` / Observability Phase 0
 
 - file the naming cleanup as release-blocking
 - replace `schook` drift in docs and public-facing surfaces
 - freeze `sc-hooks` plus `hooks` alias before adding more config or sink names
 
-### Observability Phase 1
+Exit gate:
+
+- requirements, architecture, project plan, and traceability all use
+  `sc-hooks` as the canonical name and `hooks` as alias-only language
+- no new public-facing plan text introduces `.schook/`, `hook`, or mixed binary
+  naming
+
+### `SC-LOG-S2` / Observability Phase 1
 
 - implement layered config loading
 - freeze which keys are global-only vs local-only
-- add mode resolution for `off`, `standard`, `full`
+- add mode resolution for `off`, `standard`, and `full`
+- amend `CFG-002` to add `[observability]`
+- freeze the environment-override names and precedence rules
 
-### Observability Phase 2
+Exit gate:
+
+- `[observability]` is the only planned config surface for observability
+- `full` is rejected from global config alone
+- config tests prove built-in < global < local < env precedence
+
+### `SC-LOG-S3` / Observability Phase 2
 
 - extend `standard` observability coverage beyond current dispatch-complete
   events
@@ -302,35 +409,64 @@ Required validation before the phase closes:
   enabled
 - update contracts and integration tests together
 
-### Observability Phase 3
+Exit gate:
+
+- every hook invocation that reaches runtime processing emits the documented
+  standard-mode operational record or degraded signal when `standard` is active
+- `standard` still avoids full zero-match accounting unless `full` is active
+
+### `SC-LOG-S4` / Observability Phase 3
 
 - add `full` lean profile
 - emit run-scoped durable audit files under `.sc-hooks/audit/`
 - support explicit local path override for evals and harnesses
 
-### Observability Phase 4
+Exit gate:
+
+- `full` lean profile writes JSONL under run-scoped directories
+- zero-match and pre-dispatch failure paths are accounted for in `full`
+- integration tests, not unit-test loops, prove the durable file contract
+
+### `SC-LOG-S5` / Observability Phase 4
 
 - add `debug` profile
 - freeze redaction policy
 - keep raw payload capture behind an additional explicit opt-in
 
-### Observability Phase 5
+Exit gate:
 
-- add structured machine-readable streaming if still required
-- wire global exporter defaults and future OTel configuration without
-  auto-enabling `full`
+- `strict` redaction is default
+- `permissive` never bypasses explicit payload-capture flags
+- debug output remains bounded and machine-readable
 
-### Observability Phase 6
+### `SC-LOG-S6` / Observability Phase 5
+
+- harden pruning and bounded retention
+- prove logger-init, emit, and prune failures stay non-blocking
+- preserve file-backed audit JSONL as the canonical machine-readable source
+
+Exit gate:
+
+- pruning keeps the newest 10 runs and the 14-day age cap by default
+- logger-init, emit, and prune failures never change hook execution outcomes
+- no committed phase behavior depends on live structured streaming or exporter
+  availability
+
+### `SC-LOG-S7` / Observability Phase 6
 
 - prove 50+ simultaneous agents
 - harden retention and pruning
 - confirm all degraded paths remain non-blocking
 
-## 12. Open Questions To Freeze Before Code
+Exit gate:
 
-- exact global config schema for exporter and transport keys
-- whether global config can impose explicit ceilings beyond the current
-  "cannot enable `full`" rule
-- exact field inventory for `lean` vs `debug`
-- whether absolute audit paths need additional repo-local restrictions
-- whether structured live streaming is needed in Phase 5 or can remain deferred
+- soak or integration runs prove 50+ simultaneous agents can write without
+  corruption or shared-file contention
+- the long-term QA path is documented separately from normal unit-test suites
+- phase-close evidence includes load-run results and degraded-path checks
+
+## 12. Out Of Scope For The Committed Phase
+
+- live structured streaming as a separate runtime sink
+- remote exporter, spans, metrics, OTLP transport, or broader OTel adoption
+- changing the static `sc-hooks audit` CLI into a runtime audit viewer

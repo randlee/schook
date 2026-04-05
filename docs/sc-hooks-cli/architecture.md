@@ -41,11 +41,24 @@ The upcoming observability phase keeps these future responsibilities inside
 
 - layered merge of built-in defaults, `~/.sc-hooks/config.toml`,
   `.sc-hooks/config.toml`, and environment overrides
+- authoritative resolution of the future `[observability]` section and any
+  corresponding environment overrides
 - observability-mode resolution for `off`, `standard`, and `full`
 - audit sink orchestration, run-scoped file layout, retention pruning, and
   degraded-path handling
-- any future machine-readable stream or exporter wiring at the CLI boundary
+- any later machine-readable stream or exporter wiring at the CLI boundary once
+  the committed audit phase closes
 
 The phase does not move sink ownership into lower crates.
 It also does not redefine the existing `sc-hooks audit` command, which remains
 the static-analysis command surface unless a later CLI plan says otherwise.
+
+Planned implementation notes for this boundary:
+
+- use explicit internal types such as `ObservabilityMode`, `FullAuditProfile`,
+  `AuditPath`, `RunId`, and `RetentionPolicy` rather than stringly typed
+  plumbing at call sites
+- keep sink registration behind a sealed internal extension boundary so later
+  sink additions do not leak a new public plugin-style sink API by accident
+- keep degraded-path handling in an internal `ObservabilityError` family that
+  reports fallback behavior without changing hook execution outcomes
