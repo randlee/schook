@@ -62,6 +62,12 @@ impl DispatchHarness {
         if let Some(session_id) = session_id {
             command.env("SC_HOOK_SESSION_ID", session_id);
         }
+        if extra_env
+            .iter()
+            .any(|(key, _)| *key == "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE")
+        {
+            command.env("SC_HOOKS_TEST_MODE", "1");
+        }
         for (key, value) in extra_env {
             command.env(key, value);
         }

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -189,6 +190,74 @@ impl From<bool> for CapturePayloads {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "u32", into = "u32")]
+pub struct RetainRunCount(u32);
+
+impl RetainRunCount {
+    pub(crate) const fn get(self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for RetainRunCount {
+    fn default() -> Self {
+        default_retain_runs()
+    }
+}
+
+impl TryFrom<u32> for RetainRunCount {
+    type Error = &'static str;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value < 1 {
+            Err("must be >= 1")
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl From<RetainRunCount> for u32 {
+    fn from(value: RetainRunCount) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "u32", into = "u32")]
+pub struct RetainDays(u32);
+
+impl RetainDays {
+    pub(crate) fn to_duration(self) -> Duration {
+        Duration::from_secs(u64::from(self.0) * 24 * 60 * 60)
+    }
+}
+
+impl Default for RetainDays {
+    fn default() -> Self {
+        default_retain_days()
+    }
+}
+
+impl TryFrom<u32> for RetainDays {
+    type Error = &'static str;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value < 1 {
+            Err("must be >= 1")
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl From<RetainDays> for u32 {
+    fn from(value: RetainDays) -> Self {
+        value.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigValueSource {
@@ -258,9 +327,9 @@ pub struct ObservabilityConfig {
     #[serde(default)]
     pub console_mirror: bool,
     #[serde(default = "default_retain_runs")]
-    pub retain_runs: u32,
+    pub retain_runs: RetainRunCount,
     #[serde(default = "default_retain_days")]
-    pub retain_days: u32,
+    pub retain_days: RetainDays,
     #[serde(default)]
     pub redaction: RedactionMode,
     #[serde(default)]
@@ -380,8 +449,8 @@ struct RawGlobalConfig {
 struct GlobalObservabilityConfigLayer {
     mode: Option<ObservabilityMode>,
     console_mirror: Option<bool>,
-    retain_runs: Option<u32>,
-    retain_days: Option<u32>,
+    retain_runs: Option<RetainRunCount>,
+    retain_days: Option<RetainDays>,
     redaction: Option<RedactionMode>,
 }
 
@@ -392,8 +461,8 @@ struct LocalObservabilityConfigLayer {
     full_profile: Option<FullAuditProfile>,
     path: Option<PathBuf>,
     console_mirror: Option<bool>,
-    retain_runs: Option<u32>,
-    retain_days: Option<u32>,
+    retain_runs: Option<RetainRunCount>,
+    retain_days: Option<RetainDays>,
     redaction: Option<RedactionMode>,
     capture_payloads: Option<bool>,
     capture_stdio: Option<CaptureStdio>,
@@ -694,22 +763,34 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
         observability.record_env_override(ENV_AUDIT_PATH);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_MAX_RUNS)? {
-        observability.retain_runs =
-            parse_env_u32(&value).ok_or(ConfigError::InvalidEnvOverride {
+        observability.retain_runs = RetainRunCount::try_from(parse_env_u32(&value).ok_or(
+            ConfigError::InvalidEnvOverride {
                 key: ENV_AUDIT_MAX_RUNS,
-                value,
-                expected: "non-negative integer",
-            })?;
+                value: value.clone(),
+                expected: "integer >= 1",
+            },
+        )?)
+        .map_err(|_| ConfigError::InvalidEnvOverride {
+            key: ENV_AUDIT_MAX_RUNS,
+            value,
+            expected: "integer >= 1",
+        })?;
         observability.debug_context.retain_runs_source = ConfigValueSource::Env;
         observability.record_env_override(ENV_AUDIT_MAX_RUNS);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_MAX_AGE_DAYS)? {
-        observability.retain_days =
-            parse_env_u32(&value).ok_or(ConfigError::InvalidEnvOverride {
+        observability.retain_days = RetainDays::try_from(parse_env_u32(&value).ok_or(
+            ConfigError::InvalidEnvOverride {
                 key: ENV_AUDIT_MAX_AGE_DAYS,
-                value,
-                expected: "non-negative integer",
-            })?;
+                value: value.clone(),
+                expected: "integer >= 1",
+            },
+        )?)
+        .map_err(|_| ConfigError::InvalidEnvOverride {
+            key: ENV_AUDIT_MAX_AGE_DAYS,
+            value,
+            expected: "integer >= 1",
+        })?;
         observability.debug_context.retain_days_source = ConfigValueSource::Env;
         observability.record_env_override(ENV_AUDIT_MAX_AGE_DAYS);
     }
@@ -774,12 +855,12 @@ fn default_audit_path() -> PathBuf {
     PathBuf::from(".sc-hooks/audit")
 }
 
-const fn default_retain_runs() -> u32 {
-    10
+const fn default_retain_runs() -> RetainRunCount {
+    RetainRunCount(10)
 }
 
-const fn default_retain_days() -> u32 {
-    14
+const fn default_retain_days() -> RetainDays {
+    RetainDays(14)
 }
 
 #[cfg(test)]
@@ -960,8 +1041,8 @@ capture_stdio = "bounded"
             PathBuf::from(".sc-hooks/custom-audit")
         );
         assert!(parsed.observability.console_mirror);
-        assert_eq!(parsed.observability.retain_runs, 7);
-        assert_eq!(parsed.observability.retain_days, 21);
+        assert_eq!(parsed.observability.retain_runs.get(), 7);
+        assert_eq!(u32::from(parsed.observability.retain_days), 21);
         assert_eq!(parsed.observability.redaction, RedactionMode::Permissive);
         assert!(parsed.observability.capture_payloads.is_enabled());
         assert_eq!(parsed.observability.capture_stdio, CaptureStdio::Bounded);
@@ -1192,8 +1273,8 @@ redaction = "permissive"
         assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
         assert_eq!(config.observability.path, PathBuf::from(&audit_env_path));
         assert!(config.observability.console_mirror);
-        assert_eq!(config.observability.retain_runs, 4);
-        assert_eq!(config.observability.retain_days, 45);
+        assert_eq!(config.observability.retain_runs.get(), 4);
+        assert_eq!(u32::from(config.observability.retain_days), 45);
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
         assert!(config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
@@ -1217,6 +1298,46 @@ redaction = "permissive"
                 }
             ),
             "expected invalid-env-override error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn zero_retention_environment_override_is_rejected() {
+        let _env = scoped_env(&[(ENV_AUDIT_MAX_RUNS, Some("0"))]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+
+        let err = load_layered_config(&local_path, None)
+            .expect_err("zero retain-runs env override must be rejected");
+        assert!(matches!(
+            err,
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_RUNS,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn zero_retention_in_local_config_is_rejected() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+retain_runs = 0
+"#;
+
+        let err = parse_config_str(config, "in-memory")
+            .expect_err("zero retain-runs local config must be rejected");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("must be >= 1"),
+            "unexpected zero-retention error: {rendered}"
         );
     }
 

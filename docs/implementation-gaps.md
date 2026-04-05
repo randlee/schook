@@ -8,19 +8,30 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 - [docs/project-plan.md](project-plan.md)
 - [docs/traceability.md](traceability.md)
 
-## Deferred Items
+## Closed Items
 
 ### DEF-009: Observability Failure Fallback Integration Test
 
-- Severity: `deferred`
+- Status: `closed in SC-LOG-S6`
 - Owner area:
   - `sc-hooks-cli`, docs
-- Current behavior:
-  - runtime code writes `sc-hooks: failed emitting observability event: {err}`
-    to `stderr` when structured observability emission fails during
-    `dispatch.complete` or `session.root_divergence`
-  - current integration coverage does not yet force an observability emit
-    failure and assert that fallback stderr path end to end
-- Exit condition:
-  - an integration test drives a real `sc-hooks-cli` dispatch through a forced
-    observability-emission failure and asserts the fallback stderr output
+- Closure note:
+  - integration coverage now forces logger-init, emit, append, and prune
+    degradation paths through the real `sc-hooks-cli` runtime
+  - the closing tests are:
+    - `standard_mode_logger_init_failure_is_non_blocking`
+    - `standard_mode_emit_failure_is_non_blocking`
+    - `full_mode_append_failure_is_non_blocking`
+    - `full_mode_prune_failure_is_non_blocking`
+  - those tests prove the degraded stderr fallback remains visible while hook
+    exits do not change
+
+### DEF-015: Non-Blocking Observability And Audit Failures
+
+- Status: `closed in SC-LOG-S6`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Closure note:
+  - the same four integration tests above now prove logger-init, emit, append,
+    and prune failures are all best-effort and never change hook execution
+    outcomes

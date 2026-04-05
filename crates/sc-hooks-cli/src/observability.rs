@@ -19,7 +19,7 @@ use thiserror::Error;
 
 use crate::config::{
     CapturePayloads, CaptureStdio, FullAuditProfile, ObservabilityConfig, ObservabilityMode,
-    RedactionMode,
+    RedactionMode, RetainDays, RetainRunCount,
 };
 use crate::errors::CliError;
 use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
@@ -32,6 +32,7 @@ static FULL_AUDIT_RUN: OnceLock<FullAuditRunState> = OnceLock::new();
 #[cfg(test)]
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
+const TEST_MODE_ENV: &str = "SC_HOOKS_TEST_MODE";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ForcedObservabilityFailure {
@@ -699,7 +700,7 @@ pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
 }
 
 fn forced_observability_failure() -> Option<ForcedObservabilityFailure> {
-    if !cfg!(debug_assertions) {
+    if !cfg!(test) && std::env::var_os(TEST_MODE_ENV).is_none() {
         return None;
     }
 
@@ -1004,6 +1005,8 @@ fn full_audit_run_state(
     };
     write_full_audit_meta(&state)?;
     if let Err(err) = prune_full_audit_runs(&root.join("runs"), &state.run_id, observability) {
+        // Pruning is best-effort: a failure to remove old runs should not block
+        // the current dispatch or change its hook outcome.
         emit_stderr_warning(format!("sc-hooks: full audit degraded: {err}"));
     }
     Ok(FULL_AUDIT_RUN.get_or_init(|| state))
@@ -1183,10 +1186,10 @@ fn parse_run_started_at(name: &str) -> Option<SystemTime> {
 fn prune_runs_older_than(
     runs: &mut Vec<FullAuditRunDir>,
     current_run_id: &str,
-    retain_days: u32,
+    retain_days: RetainDays,
 ) -> Result<(), CliError> {
     let cutoff = SystemTime::now()
-        .checked_sub(Duration::from_secs(u64::from(retain_days) * 24 * 60 * 60))
+        .checked_sub(retain_days.to_duration())
         .unwrap_or(UNIX_EPOCH);
     let mut kept = Vec::with_capacity(runs.len());
     for run in runs.drain(..) {
@@ -1208,7 +1211,7 @@ fn prune_runs_older_than(
 fn prune_runs_by_count(
     runs: &[FullAuditRunDir],
     current_run_id: &str,
-    retain_runs: u32,
+    retain_runs: RetainRunCount,
 ) -> Result<(), CliError> {
     let mut runs = runs.iter().collect::<Vec<_>>();
     runs.sort_by(|left, right| {
@@ -1218,7 +1221,8 @@ fn prune_runs_by_count(
             .then_with(|| right.name.cmp(&left.name))
     });
 
-    let keep_historical = usize::try_from(retain_runs.saturating_sub(1)).unwrap_or(usize::MAX);
+    let keep_historical =
+        usize::try_from(retain_runs.get().saturating_sub(1)).unwrap_or(usize::MAX);
     let mut kept_historical = 0usize;
     for run in runs {
         if run.name == current_run_id {
