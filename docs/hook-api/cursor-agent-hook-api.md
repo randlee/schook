@@ -26,7 +26,7 @@ Source of truth inputs:
 
 ## CLI Invocation
 
-Binary: `/Users/randlee/.local/bin/cursor-agent`
+Binary: `cursor-agent` (from PATH; e.g. `~/.local/bin/cursor-agent` on a typical install)
 
 ```
 cursor-agent [options] [prompt]
@@ -192,7 +192,7 @@ Informational only.
 | Config format | `settings.json` hooks array | `hooks.json` object |
 | Hook granularity | `PreToolUse` generic + matcher | Per-tool-type events |
 | Session lifecycle | `SessionStart` / `SessionEnd` | Not confirmed |
-| Response format | `proceed` / `block` + `reason` | `allow` / `deny` / `ask` + messages |
+| Response format | `decision: "allow"` / `decision: "block"` (or `continue: false`) | `allow` / `deny` / `ask` + messages |
 | Content pre-loading | No — hook fires, plugin reads path | Yes — `beforeReadFile` receives full content |
 | Sub-agent gating | `PreToolUse/Task` | No confirmed equivalent |
 | `continue` field | Not present | `continue: false` can stop agent loop |

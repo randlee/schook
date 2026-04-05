@@ -385,8 +385,9 @@ following fields: `event_type`, `agent`, `team`, `thread-id`, `turn-id`,
 
 ## Design Implications For `schook`
 
-- Codex uses `hooks.json` like Cursor, not `settings.json` like Claude or
-  Gemini. A future Codex adapter must handle this config path difference.
+- Codex uses `hooks.json` like Cursor, not `settings.json` like Claude Code
+  (not sc-hooks) or Gemini. A future Codex adapter must handle this config
+  path difference.
 - The `turn_id`, `model`, and `permission_mode` Codex extensions are not in the
   Claude contract; cross-platform hook code should treat them as optional.
 - Bash-only tool coverage means Codex hooks cannot gate non-shell operations.

@@ -400,7 +400,7 @@ use the hook payload `session_id` field for identity.
 | Dimension | Claude Code | Gemini |
 | --- | --- | --- |
 | Config format | `settings.json` hooks array | `settings.json` hooks object |
-| Common base fields | `session_id` | `session_id`, `transcript_path`, `cwd`, `timestamp` |
+| Common base fields | `session_id`, `transcript_path`, `cwd`, `hook_event_name` | `session_id`, `transcript_path`, `cwd`, `timestamp` |
 | Hook granularity | type + matcher regex | type-per-event |
 | Session start source | `init`, `compact` (verified) | `startup`, `resume`, `clear` |
 | Session end | no `reason` field | `reason` enum |
