@@ -241,6 +241,74 @@ mode = "off"
 }
 
 #[test]
+fn resolution_failure_emits_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "missing-plugin");
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("standard observability degraded before dispatch.complete"));
+    assert!(stderr.contains("stage=resolution"));
+    assert!(stderr.contains("hook=PreToolUse"));
+    assert!(stderr.contains("event=Write"));
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
+fn pre_spawn_validation_failure_emits_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{"required_field":{"type":"string","validate":"non_empty"}}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::VALIDATION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("standard observability degraded before dispatch.complete"));
+    assert!(stderr.contains("stage=input_preparation"));
+    assert!(stderr.contains("hook=PreToolUse"));
+    assert!(stderr.contains("event=Write"));
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
 fn blocked_dispatch_emits_warn_log_event() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();

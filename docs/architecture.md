@@ -235,13 +235,17 @@ Current observability ownership follows the intended boundary directly:
 - the current config surface is `[observability]`, not `[logging]`
 - `off` suppresses durable structured sink emission while leaving direct
   stderr warnings and degraded notices visible to the operator
+- when `standard` mode is active and a pre-dispatch failure prevents
+  `dispatch.complete`, `sc-hooks-cli` emits a deterministic degraded stderr
+  signal instead of silently losing observability for that runtime attempt
 
 Next planned observability expansion:
 
 - keep the current file-sink JSONL contract as the release baseline and the
   baseline operational mode
-- commit the remaining observability phase to durable full-audit files under
-  `.sc-hooks/audit/`, redaction, retention, and 50-agent hardening
+- commit the remaining observability phase to standard coverage for all runtime
+  hook types plus durable full-audit files under `.sc-hooks/audit/`,
+  redaction, retention, and 50-agent hardening
 - keep durable audit JSONL as the canonical machine-readable source for the
   committed phase; the human console sink is operator-facing only
 - treat structured live streaming plus exporter, spans, metrics, and OTLP work

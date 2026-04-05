@@ -45,6 +45,8 @@ Current observability ownership inside `sc-hooks-cli` now includes:
 - observability-mode resolution for `off`, `standard`, and `full`
 - standard sink selection and degraded-path handling for the current
   `sc-observability` integration
+- deterministic stderr degraded signals when a standard-mode pre-dispatch
+  failure prevents `dispatch.complete`
 
 Remaining observability-phase responsibilities also stay inside `sc-hooks-cli`:
 

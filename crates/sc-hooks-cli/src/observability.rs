@@ -181,6 +181,27 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
+pub fn emit_standard_degraded_signal(
+    observability: &ObservabilityConfig,
+    hook: &str,
+    event: Option<&str>,
+    mode: sc_hooks_core::dispatch::DispatchMode,
+    stage: &str,
+    err: &CliError,
+) {
+    if !matches!(observability.mode, ObservabilityMode::Standard) {
+        return;
+    }
+
+    let message = format!(
+        "sc-hooks: standard observability degraded before dispatch.complete: stage={stage} hook={hook} event={} mode={} error={err}",
+        event.unwrap_or("*"),
+        mode.as_str(),
+    );
+    warn!("{message}");
+    let _ = writeln!(std::io::stderr(), "{message}");
+}
+
 /// Emits the canonical `session.root_divergence` observability event.
 ///
 /// # Errors

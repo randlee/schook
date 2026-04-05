@@ -171,7 +171,19 @@ fn run() -> Result<(), CliError> {
                     payload.as_ref(),
                     args.async_bucket.as_deref(),
                     &disabled_plugins,
-                )?;
+                )
+                .map_err(|err| {
+                    let cli_err = CliError::from(err);
+                    observability::emit_standard_degraded_signal(
+                        &config.observability,
+                        &args.hook,
+                        args.event.as_deref(),
+                        mode,
+                        "resolution",
+                        &cli_err,
+                    );
+                    cli_err
+                })?;
 
                 if handlers.is_empty() {
                     return Ok(());

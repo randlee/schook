@@ -164,6 +164,10 @@ Implements:
 - if the resolved `[observability].mode` is `off`, `sc-hooks` suppresses
   durable structured observability emission while still allowing direct stderr
   warnings and degraded-path notices
+- if `standard` mode is active and resolution, metadata preparation, dispatch
+  preflight, or plugin-input preparation fails before `dispatch.complete`,
+  `sc-hooks` emits one degraded stderr line of the form
+  `sc-hooks: standard observability degraded before dispatch.complete: stage=<stage> hook=<hook> event=<event-or-*> mode=<mode> error=<err>`
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
