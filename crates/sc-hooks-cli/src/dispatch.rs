@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::io::Write;
 use std::time::Instant;
 use thiserror::Error;
 
@@ -739,7 +740,9 @@ fn emit_root_divergence_log_with_fallback(project_root: &AiRootDir, notice: &Roo
 }
 
 fn emit_observability_stderr_fallback(err: &CliError) {
-    error!("sc-hooks: failed emitting dispatch observability event: {err}");
+    let message = format!("sc-hooks: failed emitting observability event: {err}");
+    error!("{message}");
+    let _ = writeln!(std::io::stderr(), "{message}");
 }
 
 fn split_root_divergence_context(

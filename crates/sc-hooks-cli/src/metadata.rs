@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
-use log::warn;
 use sc_hooks_core::session::{AiRootDir, SessionId};
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
@@ -274,14 +273,19 @@ fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
             continue;
         };
         let Ok(age) = now.duration_since(modified) else {
-            warn!(
-                "metadata temp file clock skew detected for {} while sweeping stale files",
+            crate::observability::emit_stderr_warning(format!(
+                "warning: metadata temp file clock skew detected for {} while sweeping stale files",
                 path.display()
-            );
+            ));
             continue;
         };
-        if age >= max_age {
-            let _ = fs::remove_file(path);
+        if age >= max_age
+            && let Err(err) = fs::remove_file(&path)
+        {
+            crate::observability::emit_stderr_warning(format!(
+                "warning: failed removing stale metadata temp file {}: {err}",
+                path.display()
+            ));
         }
     }
 }

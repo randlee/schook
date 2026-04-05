@@ -151,9 +151,18 @@ Implements:
 - if a handler reports a root-divergence notice, `sc-hooks` also emits one `session.root_divergence` event before the enclosing `dispatch.complete` event
 - `session.root_divergence` emits with `level = Error`
 - if no handlers match, `sc-hooks` emits no observability event
-- if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting dispatch observability event: ...` instead of silently swallowing the failure
+- if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
+
+Formal amendment note (`SC-OBS-INTEGRATION-1-FIX-R1`):
+- the previous documented fallback text was
+  `sc-hooks: failed emitting dispatch observability event: ...`
+- the current fallback text is
+  `sc-hooks: failed emitting observability event: {err}`
+- rationale: the fallback helper is shared by both `dispatch.complete` and
+  `session.root_divergence` emission paths, so the older "dispatch" wording was
+  too narrow and could mislabel a root-divergence emission failure
 
 ## 7. Console Sink Expansion
 
