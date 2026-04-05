@@ -10,6 +10,8 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
+- `DEF-010`
+- `DEF-011`
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
