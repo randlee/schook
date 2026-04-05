@@ -187,14 +187,6 @@ impl CapturePayloads {
         Self(false)
     }
 
-    pub(crate) const fn from_bool(value: bool) -> Self {
-        if value {
-            Self::enabled()
-        } else {
-            Self::disabled()
-        }
-    }
-
     pub(crate) const fn is_enabled(self) -> bool {
         self.0
     }
@@ -745,14 +737,16 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
         observability.record_env_override(ENV_AUDIT_REDACTION);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_PAYLOADS)? {
-        observability.capture_payloads =
-            CapturePayloads::from_bool(parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
-                ConfigError::InvalidEnvOverride {
-                    key: ENV_AUDIT_CAPTURE_PAYLOADS,
-                    value,
-                    expected: "1/true/yes/on or 0/false/no/off",
-                },
-            )?);
+        observability.capture_payloads = if parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value)
+            .ok_or(ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_CAPTURE_PAYLOADS,
+                value,
+                expected: "1/true/yes/on or 0/false/no/off",
+            })? {
+            CapturePayloads::enabled()
+        } else {
+            CapturePayloads::disabled()
+        };
         observability.debug_context.capture_payloads_source = ConfigValueSource::Env;
         observability.record_env_override(ENV_AUDIT_CAPTURE_PAYLOADS);
     }

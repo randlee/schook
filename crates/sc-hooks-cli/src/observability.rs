@@ -164,9 +164,19 @@ struct FullAuditRecordArgs<'a> {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DebugExcerpt {
-    pub excerpt: String,
-    pub truncated: bool,
-    pub redacted: bool,
+    excerpt: String,
+    truncated: bool,
+    redacted: bool,
+}
+
+impl DebugExcerpt {
+    pub(crate) fn new(excerpt: String, truncated: bool, redacted: bool) -> Self {
+        Self {
+            excerpt,
+            truncated,
+            redacted,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -691,17 +701,9 @@ pub(crate) fn build_debug_excerpt(
 
     match observability.capture_stdio {
         CaptureStdio::None => None,
-        CaptureStdio::Summary => Some(DebugExcerpt {
-            excerpt: summary_excerpt(text),
-            truncated: false,
-            redacted: true,
-        }),
+        CaptureStdio::Summary => Some(DebugExcerpt::new(summary_excerpt(text), false, true)),
         CaptureStdio::Bounded => match observability.redaction {
-            RedactionMode::Strict => Some(DebugExcerpt {
-                excerpt: summary_excerpt(text),
-                truncated: false,
-                redacted: true,
-            }),
+            RedactionMode::Strict => Some(DebugExcerpt::new(summary_excerpt(text), false, true)),
             RedactionMode::Permissive => Some(bounded_debug_excerpt(text, false)),
         },
     }
@@ -717,11 +719,7 @@ fn build_debug_payload_excerpt(
     let payload = payload?;
     let serialized = serde_json::to_string(payload).ok()?;
     Some(match observability.redaction {
-        RedactionMode::Strict => DebugExcerpt {
-            excerpt: summary_excerpt(&serialized),
-            truncated: false,
-            redacted: true,
-        },
+        RedactionMode::Strict => DebugExcerpt::new(summary_excerpt(&serialized), false, true),
         RedactionMode::Permissive => bounded_debug_excerpt(&serialized, false),
     })
 }
@@ -729,11 +727,7 @@ fn build_debug_payload_excerpt(
 fn bounded_debug_excerpt(text: &str, redacted: bool) -> DebugExcerpt {
     let truncated = text.chars().count() > DEBUG_EXCERPT_LIMIT;
     let excerpt = text.chars().take(DEBUG_EXCERPT_LIMIT).collect();
-    DebugExcerpt {
-        excerpt,
-        truncated,
-        redacted,
-    }
+    DebugExcerpt::new(excerpt, truncated, redacted)
 }
 
 fn summary_excerpt(text: &str) -> String {
@@ -1182,7 +1176,11 @@ mod tests {
             full_profile: FullAuditProfile::Debug,
             redaction,
             capture_stdio,
-            capture_payloads: CapturePayloads::from_bool(capture_payloads),
+            capture_payloads: if capture_payloads {
+                CapturePayloads::enabled()
+            } else {
+                CapturePayloads::disabled()
+            },
             ..ObservabilityConfig::default()
         }
     }
