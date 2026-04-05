@@ -10,10 +10,10 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
-- `DEF-010`
-- `DEF-011`
-- `DEF-013`
-- `DEF-014`
+- `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
+- `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
+- `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
+- `DEF-017` (`Added in SC-LOG-S4`; see §6; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -268,6 +268,10 @@ Rules:
 - `config_source_summary`, `config_layer_resolution`, `decision_trace_summary`,
   `handler_stderr_excerpt`, `handler_stdout_excerpt`, `redaction_actions`, and
   `payload_capture_state` are always present on `debug` records
+- `decision_trace_summary` is one structured object describing the resolved
+  record/profile/redaction path, not an ad hoc key-value string list
+- `redaction_actions` is an array of typed action objects describing the
+  redaction and capture decisions applied to the record
 - `payload_excerpt` appears only when a separate payload-capture control is
   enabled and a payload is present for the record
 - strict redaction is the default: strict mode summarizes sensitive text
@@ -313,6 +317,10 @@ Implements:
   preflight, or plugin-input preparation fails before `dispatch.complete`,
   `sc-hooks` emits one degraded stderr line of the form
   `sc-hooks: standard observability degraded before dispatch.complete: stage=<stage> hook=<hook> event=<event-or-*> mode=<mode> error=<err>`
+- when the resolved mode is `full`, those same pre-dispatch failures are
+  recorded as `hook.invocation.failed_pre_dispatch` audit records instead of
+  the standard degraded stderr line; the standard degraded stderr line is
+  suppressed for `full` mode
 - if `full` mode is active, `sc-hooks` also appends:
   - `hook.invocation.received` at invocation start
   - `hook.invocation.zero_match` for zero-match fast paths
