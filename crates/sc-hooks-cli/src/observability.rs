@@ -18,7 +18,8 @@ use serde_json::{Map, Value};
 use thiserror::Error;
 
 use crate::config::{
-    CaptureStdio, FullAuditProfile, ObservabilityConfig, ObservabilityMode, RedactionMode,
+    CapturePayloads, CaptureStdio, FullAuditProfile, ObservabilityConfig, ObservabilityMode,
+    RedactionMode,
 };
 use crate::errors::CliError;
 use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
@@ -127,13 +128,13 @@ struct FullAuditRecord<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     config_layer_resolution: Option<FullAuditConfigLayerResolution>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    decision_trace_summary: Option<Vec<String>>,
+    decision_trace_summary: Option<DecisionTrace>,
     #[serde(skip_serializing_if = "Option::is_none")]
     handler_stderr_excerpt: Option<Vec<FullAuditHandlerExcerpt>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     handler_stdout_excerpt: Option<Vec<FullAuditHandlerExcerpt>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    redaction_actions: Option<Vec<String>>,
+    redaction_actions: Option<Vec<RedactionAction>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     payload_capture_state: Option<FullAuditPayloadCaptureState>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,9 +200,37 @@ struct FullAuditHandlerExcerpt {
 #[derive(Debug, Serialize)]
 struct FullAuditPayloadCaptureState {
     redaction: &'static str,
-    capture_payloads: bool,
+    capture_payloads: CapturePayloads,
     capture_stdio: &'static str,
     payloads_included: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct DecisionTrace {
+    record: &'static str,
+    mode: &'static str,
+    profile: &'static str,
+    outcome: String,
+    redaction: &'static str,
+    capture_stdio: &'static str,
+    capture_payloads: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    handler_chain_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    degraded: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+enum RedactionAction {
+    RedactionMode { mode: &'static str },
+    StdioCapture { capture: &'static str },
+    PayloadCaptureDisabled,
+    StrictModeSummarizesSensitiveText,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -820,35 +849,20 @@ fn full_audit_config_layer_resolution(
     }
 }
 
-fn full_audit_decision_trace_summary(args: &FullAuditRecordArgs<'_>) -> Vec<String> {
-    let mut trace = vec![
-        format!("record={}", args.name),
-        format!("mode={}", args.mode.as_str()),
-        format!("profile={}", args.observability.full_profile.as_str()),
-        format!("outcome={}", args.outcome),
-        format!("redaction={}", args.observability.redaction.as_str()),
-        format!(
-            "capture_stdio={}",
-            args.observability.capture_stdio.as_str()
-        ),
-        format!(
-            "capture_payloads={}",
-            args.observability.capture_payloads.is_enabled()
-        ),
-    ];
-    if let Some(stage) = args.stage {
-        trace.push(format!("stage={stage}"));
+fn full_audit_decision_trace_summary(args: &FullAuditRecordArgs<'_>) -> DecisionTrace {
+    DecisionTrace {
+        record: args.name,
+        mode: args.mode.as_str(),
+        profile: args.observability.full_profile.as_str(),
+        outcome: args.outcome.to_string(),
+        redaction: args.observability.redaction.as_str(),
+        capture_stdio: args.observability.capture_stdio.as_str(),
+        capture_payloads: args.observability.capture_payloads.is_enabled(),
+        stage: args.stage.map(ToOwned::to_owned),
+        result_count: args.results.map(<[HandlerResultRecord]>::len),
+        handler_chain_count: args.handler_chain.map(<[String]>::len),
+        degraded: args.degraded,
     }
-    if let Some(results) = args.results {
-        trace.push(format!("result_count={}", results.len()));
-    }
-    if let Some(handler_chain) = args.handler_chain {
-        trace.push(format!("handler_chain_count={}", handler_chain.len()));
-    }
-    if let Some(degraded) = args.degraded {
-        trace.push(format!("degraded={degraded}"));
-    }
-    trace
 }
 
 fn full_audit_handler_excerpts(
@@ -874,17 +888,18 @@ fn full_audit_handler_excerpts(
         .collect()
 }
 
-fn full_audit_redaction_actions(observability: &ObservabilityConfig) -> Vec<String> {
-    let mut actions = vec![format!("redaction={}", observability.redaction.as_str())];
+fn full_audit_redaction_actions(observability: &ObservabilityConfig) -> Vec<RedactionAction> {
+    let mut actions = vec![RedactionAction::RedactionMode {
+        mode: observability.redaction.as_str(),
+    }];
     if !observability.capture_payloads.is_enabled() {
-        actions.push("payload_capture_disabled".to_string());
+        actions.push(RedactionAction::PayloadCaptureDisabled);
     }
-    actions.push(format!(
-        "stdio_capture={}",
-        observability.capture_stdio.as_str()
-    ));
+    actions.push(RedactionAction::StdioCapture {
+        capture: observability.capture_stdio.as_str(),
+    });
     if matches!(observability.redaction, RedactionMode::Strict) {
-        actions.push("strict_mode_summarizes_sensitive_text".to_string());
+        actions.push(RedactionAction::StrictModeSummarizesSensitiveText);
     }
     actions
 }
@@ -895,7 +910,7 @@ fn full_audit_payload_capture_state(
 ) -> FullAuditPayloadCaptureState {
     FullAuditPayloadCaptureState {
         redaction: observability.redaction.as_str(),
-        capture_payloads: observability.capture_payloads.is_enabled(),
+        capture_payloads: observability.capture_payloads,
         capture_stdio: observability.capture_stdio.as_str(),
         payloads_included,
     }
@@ -1257,6 +1272,13 @@ mod tests {
     #[test]
     fn build_debug_excerpt_covers_all_stdio_redaction_combinations() {
         let text = "alpha\nbeta";
+        assert!(
+            build_debug_excerpt(
+                &debug_observability(RedactionMode::Strict, CaptureStdio::Summary, false),
+                ""
+            )
+            .is_none()
+        );
         let cases = [
             (CaptureStdio::None, RedactionMode::Strict, None, None, None),
             (
@@ -1313,6 +1335,15 @@ mod tests {
                 ),
             }
         }
+
+        let long_text = "x".repeat(DEBUG_EXCERPT_LIMIT + 25);
+        let bounded = build_debug_excerpt(
+            &debug_observability(RedactionMode::Permissive, CaptureStdio::Bounded, false),
+            &long_text,
+        )
+        .expect("bounded permissive excerpt should exist");
+        assert!(bounded.truncated);
+        assert_eq!(bounded.excerpt.chars().count(), DEBUG_EXCERPT_LIMIT);
     }
 
     #[test]
@@ -1362,5 +1393,14 @@ mod tests {
                 ),
             }
         }
+
+        let payload =
+            serde_json::json!({"tool_input": {"command": "y".repeat(DEBUG_EXCERPT_LIMIT + 40)}});
+        let observability =
+            debug_observability(RedactionMode::Permissive, CaptureStdio::Summary, true);
+        let excerpt = build_debug_payload_excerpt(&observability, Some(&payload))
+            .expect("payload excerpt should exist when capture is enabled");
+        assert!(excerpt.truncated);
+        assert_eq!(excerpt.excerpt.chars().count(), DEBUG_EXCERPT_LIMIT);
     }
 }

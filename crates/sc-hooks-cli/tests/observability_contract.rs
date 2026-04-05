@@ -462,7 +462,7 @@ JSON
     assert_eq!(dispatch_record["profile"], "debug");
     assert!(dispatch_record["config_source_summary"].is_object());
     assert!(dispatch_record["config_layer_resolution"].is_object());
-    assert!(dispatch_record["decision_trace_summary"].is_array());
+    assert!(dispatch_record["decision_trace_summary"].is_object());
     assert!(dispatch_record["handler_stderr_excerpt"].is_array());
     assert!(dispatch_record["handler_stdout_excerpt"].is_array());
     assert!(dispatch_record["redaction_actions"].is_array());
@@ -478,6 +478,14 @@ JSON
     assert_eq!(
         dispatch_record["payload_capture_state"]["payloads_included"],
         false
+    );
+    assert_eq!(
+        dispatch_record["decision_trace_summary"]["record"],
+        "hook.dispatch.completed"
+    );
+    assert_eq!(
+        dispatch_record["decision_trace_summary"]["profile"],
+        "debug"
     );
     assert!(dispatch_record.get("payload_excerpt").is_none());
     assert_eq!(
@@ -557,7 +565,7 @@ capture_payloads = false
             .as_array()
             .expect("redaction actions should be an array")
             .iter()
-            .any(|value| value == "payload_capture_disabled")
+            .any(|value| value["action"] == "payload_capture_disabled")
     );
 }
 
