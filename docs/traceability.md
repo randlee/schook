@@ -31,7 +31,7 @@ This table maps the most important documented requirements to current implementa
 | DSP-004 | implemented | `sc-hooks-cli/src/dispatch.rs`, `sc-hooks-cli/src/main.rs` | dispatch tests | |
 | DSP-006 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |
 | DSP-007 | implemented | `sc-hooks-cli/src/dispatch.rs` | dispatch tests | |
-| DSP-008 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/fire.rs` | fire tests, dispatch tests | |
+| DSP-008 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/fire.rs`, `sc-hooks-cli/src/observability.rs` | fire tests, dispatch tests, `off_mode_suppresses_durable_observability_output`, and `full_mode_zero_match_writes_audit_record` | |
 | TMO-001 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
 | TMO-002 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/dispatch.rs` | timeout tests | |
 | TMO-003 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
@@ -52,8 +52,8 @@ This table maps the most important documented requirements to current implementa
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-005 | implemented | `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | `sc-hooks-cli/src/audit.rs` test `audit_rejects_async_long_running_manifest` plus `sc-hooks-sdk/src/manifest.rs` test `rejects_async_long_running_manifest` | |
 | AUD-009 | implemented | `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | `sc-hooks-cli/src/audit.rs` test `audit_rejects_long_running_without_description` plus `sc-hooks-sdk/src/manifest.rs` test `rejects_long_running_manifest_without_description` | |
-| OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
-| OBS-002 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests, dispatch tests | |
+| OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs`, `sc-hooks-cli/src/main.rs` | observability tests, dispatch tests, and integration tests proving degraded stderr signals for pre-dispatch failures | |
+| OBS-002 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/config.rs` | observability tests, dispatch tests, and integration tests covering `mode = "off"` sink suppression | |
 | OBS-005 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests plus dispatch error-path tests covering `HandlerResultRecord` fields `handler_name`, `error_type`, elapsed time, and `disabled=true` | |
 | BND-001 | implemented | `plugins/*/src/main.rs`, `plugins/agent-session-foundation/tests/session_foundation.rs`, `plugins/atm-extension/tests/atm_extension.rs`, `plugins/agent-spawn-gates/src/lib.rs`, `plugins/tool-output-gates/src/lib.rs` | behavior tests plus source inspection | |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
@@ -66,12 +66,12 @@ This table maps the most important documented requirements to current implementa
 | DEF-008 | implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | |
 | DEF-010 | implemented | `sc-hooks-cli/src/config.rs`, `docs/requirements.md`, `docs/architecture.md` | `layered_config_applies_built_in_global_local_and_env_precedence`, `default_global_config_path_uses_userprofile_when_home_is_missing`, and `rejects_unknown_observability_field` prove built-in < global < local < env precedence and the supported key surface | |
 | DEF-011 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/observability.rs`, `docs/requirements.md`, `docs/architecture.md` | `rejects_full_mode_from_global_config_alone`, `off_mode_returns_before_logger_initialization`, and `off_mode_suppresses_durable_observability_output` prove mode resolution and durable-sink suppression semantics | |
-| DEF-012 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires run-scoped audit path rules plus path-resolution and file-layout tests | observability phase |
+| DEF-012 | implemented | `sc-hooks-cli/src/observability.rs`, `docs/observability-contract.md` | `full_mode_writes_run_scoped_audit_files_for_success_dispatch` and `full_mode_path_override_writes_pre_dispatch_failure_record` prove run-scoped file layout and repo-local path override behavior | |
 | DEF-013 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires frozen lean/debug field sets and profile-selection tests | observability phase |
 | DEF-014 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires default redaction proof and confirmation that audit JSONL, not console text, is the machine contract | observability phase |
 | DEF-015 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires degraded-path tests proving hook outcomes do not change on logging or pruning failure | observability phase |
 | DEF-016 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase exit requires integration or soak validation for 50+ simultaneous agents without flaky unit-test expansion | observability phase |
-| DEF-017 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires full-audit coverage for zero-match and pre-dispatch failure paths | observability phase |
+| DEF-017 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/dispatch.rs`, `sc-hooks-cli/src/observability.rs` | `full_mode_zero_match_writes_audit_record`, `full_mode_path_override_writes_pre_dispatch_failure_record`, and `resolution_failure_emits_standard_degraded_signal` prove full-mode attempt accounting while standard keeps the lower-volume path | |
 | DEF-018 | deferred | `docs/requirements.md`, `docs/phase-observability-plan.md` | kept out of the committed phase acceptance gate; future exporter defaults must not escalate to local `full` | observability follow-on |
 | DEF-019 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | naming-cleanup phase requires convergence on `sc-hooks` with `hooks` documented as alias only | observability phase |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

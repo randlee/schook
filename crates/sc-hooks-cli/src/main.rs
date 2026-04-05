@@ -154,6 +154,7 @@ fn run() -> Result<(), CliError> {
             let config = config::load_default_config()?;
             let payload = read_optional_payload_from_stdin()?;
             let mode = args.mode();
+            let audit_project_root = metadata::current_project_root().ok();
             let session_id = metadata::current_session_id();
             let disabled_plugins = session::load_disabled_plugins(
                 session_id
@@ -163,6 +164,15 @@ fn run() -> Result<(), CliError> {
             let is_session_end = args.hook == "SessionEnd";
 
             let run_result = (|| -> Result<(), CliError> {
+                if let Some(project_root) = audit_project_root.as_ref() {
+                    observability::emit_full_audit_invocation_received(
+                        &config.observability,
+                        &args.hook,
+                        args.event.as_deref(),
+                        mode,
+                        project_root,
+                    );
+                }
                 let handlers = resolution::resolve_chain(
                     &config,
                     &args.hook,
@@ -171,9 +181,41 @@ fn run() -> Result<(), CliError> {
                     payload.as_ref(),
                     args.async_bucket.as_deref(),
                     &disabled_plugins,
-                )?;
+                )
+                .map_err(|err| {
+                    let cli_err = CliError::from(err);
+                    observability::emit_standard_degraded_signal(
+                        &config.observability,
+                        &args.hook,
+                        args.event.as_deref(),
+                        mode,
+                        "resolution",
+                        &cli_err,
+                    );
+                    if let Some(project_root) = audit_project_root.as_ref() {
+                        observability::emit_full_audit_pre_dispatch_failure(
+                            &config.observability,
+                            &args.hook,
+                            args.event.as_deref(),
+                            mode,
+                            project_root,
+                            "resolution",
+                            &cli_err,
+                        );
+                    }
+                    cli_err
+                })?;
 
                 if handlers.is_empty() {
+                    if let Some(project_root) = audit_project_root.as_ref() {
+                        observability::emit_full_audit_zero_match(
+                            &config.observability,
+                            &args.hook,
+                            args.event.as_deref(),
+                            mode,
+                            project_root,
+                        );
+                    }
                     return Ok(());
                 }
 

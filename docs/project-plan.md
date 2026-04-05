@@ -81,8 +81,8 @@ Important planning rule:
 | S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
 | `SC-LOG-S1` / Observability Phase 0 | QA-pass pending merge | naming cleanup and namespace freeze | release blocker #88, `DEF-019` | `develop` baseline | naming docs, binary/service references, config/runtime namespace decisions |
 | `SC-LOG-S2` / Observability Phase 1 | In review | layered config foundation | `DEF-010`, `DEF-011` | `SC-LOG-S1` | `sc-hooks-cli` config loading, requirements/architecture docs, config tests |
-| `SC-LOG-S3` / Observability Phase 2 | Planned | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
-| `SC-LOG-S4` / Observability Phase 3 | Planned | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
+| `SC-LOG-S3` / Observability Phase 2 | In review | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
+| `SC-LOG-S4` / Observability Phase 3 | In review | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
 | `SC-LOG-S5` / Observability Phase 4 | Planned | full audit debug profile and redaction controls | `DEF-013`, `DEF-014`, `DEF-015` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
 | `SC-LOG-S6` / Observability Phase 5 | Planned | retention, pruning, and degraded-path hardening | `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
 | `SC-LOG-S7` / Observability Phase 6 | Planned | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |

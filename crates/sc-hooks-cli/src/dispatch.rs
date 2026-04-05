@@ -150,7 +150,29 @@ pub fn execute_chain(
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
-    let prepared = metadata::prepare_for_dispatch(config, hook, event, payload)?;
+    let audit_project_root = metadata::current_project_root().ok();
+    let prepared =
+        metadata::prepare_for_dispatch(config, hook, event, payload).inspect_err(|err| {
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                "metadata_preparation",
+                err,
+            );
+            if let Some(project_root) = audit_project_root.as_ref() {
+                observability::emit_full_audit_pre_dispatch_failure(
+                    &config.observability,
+                    hook,
+                    event,
+                    mode,
+                    project_root,
+                    "metadata_preparation",
+                    err,
+                );
+            }
+        })?;
     let started = Instant::now();
     let handler_chain: Vec<String> = handlers
         .iter()
@@ -173,14 +195,30 @@ pub fn execute_chain(
         let handler_started = Instant::now();
         let handler_name = &handler.name;
         if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
-            return Err(CliError::Resolution(
-                crate::errors::ResolutionError::HandlerRejected {
-                    plugin: handler_name.clone(),
-                    reason: "manifest long_running=true is only supported for sync handlers"
-                        .to_string(),
-                    source: None,
-                },
-            ));
+            let err = CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
+                plugin: handler_name.clone(),
+                reason: "manifest long_running=true is only supported for sync handlers"
+                    .to_string(),
+                source: None,
+            });
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                "dispatch_preflight",
+                &err,
+            );
+            observability::emit_full_audit_pre_dispatch_failure(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                &prepared.project_root,
+                "dispatch_preflight",
+                &err,
+            );
+            return Err(err);
         }
         let stdin_payload = sc_hooks_sdk::manifest::build_plugin_input(
             &handler.manifest,
@@ -218,6 +256,25 @@ pub fn execute_chain(
                 format!("failed to construct plugin input for `{handler_name}`"),
                 other,
             ),
+        })
+        .inspect_err(|err| {
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                "input_preparation",
+                err,
+            );
+            observability::emit_full_audit_pre_dispatch_failure(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                &prepared.project_root,
+                "input_preparation",
+                err,
+            );
         })?;
 
         let mut command = std::process::Command::new(&handler.executable_path);

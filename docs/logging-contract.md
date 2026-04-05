@@ -85,6 +85,8 @@ Current write model:
 - each line is one complete dispatch log record
 - no line is written when the resolved `[observability].mode` is `off`
 - if no handlers execute, no line is written
+- if a pre-dispatch failure triggers the standard-mode degraded stderr signal,
+  no JSONL line is written because `dispatch.complete` was never emitted
 
 ## 2.1 Sink Routing Environment Variables
 
@@ -102,6 +104,9 @@ Current rules:
 - the file sink remains the canonical structured logging surface
 - invalid values fall back to the documented default and emit a warning to
   `stderr`
+- standard-mode degraded stderr signals for pre-dispatch failures are owned by
+  `docs/observability-contract.md`; they are intentionally outside the JSONL
+  dispatch-log envelope contract described here
 
 ## 3. Top-Level Record Envelope
 

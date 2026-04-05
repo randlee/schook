@@ -138,7 +138,38 @@ Key-surface rules:
 - sink env toggles remain outside the TOML key surface because they are
   operator-session overrides rather than persisted config keys
 
-## 4. Event Shape
+## 3.3 Full Audit Lean File Layout
+
+When `[observability].mode = "full"`, `sc-hooks-cli` also writes the lean audit
+contract to the configured audit root.
+
+Default layout:
+
+```text
+.sc-hooks/audit/runs/<run-id>/meta.json
+.sc-hooks/audit/runs/<run-id>/events.jsonl
+```
+
+Path rules:
+
+- the default root is `.sc-hooks/audit`
+- repo-local config may override the root with a relative or absolute path
+- relative paths resolve from the immutable project root / `ai_root_dir`
+- each CLI invocation uses one run-scoped directory; there is no shared hot
+  audit file across runs
+
+`meta.json` currently carries:
+
+- `schema_version`
+- `service`
+- `run_id`
+- `invocation_id`
+- `profile`
+- `started_at`
+- `project_root`
+- `pid`
+
+## 4. Standard Event Shape
 
 Implements:
 - `OBS-001`
@@ -176,6 +207,58 @@ The `fields` object for `session.root_divergence` currently carries:
 - `session_id`
 - `hook_event`
 
+## 4.1 Full Audit Lean Record Shape
+
+Each line in `events.jsonl` is one lean audit JSON object.
+
+Current mandatory lean fields are:
+
+- `schema_version`
+- `timestamp`
+- `service`
+- `run_id`
+- `invocation_id`
+- `name`
+- `hook`
+- `mode`
+- `profile`
+- `project_root`
+- `pid`
+- `outcome`
+
+Current conditional lean fields are:
+
+- `hook_event`
+- `current_dir` when it differs from `project_root`
+- `stage` for pre-dispatch failure records
+- `handler_chain` and `handler_count` for completed dispatch records
+- `total_ms`
+- `exit`
+- `error`
+- `ai_notification`
+- `degraded`
+
+## 4.2 Full Audit Debug Mandatory Fields
+
+The `debug` profile extends the lean record shape; it does not replace it.
+
+The mandatory `debug`-only field set is frozen to this closed enumeration
+before debug-profile implementation begins:
+
+- `config_source_summary`
+- `config_layer_resolution`
+- `decision_trace_summary`
+- `handler_stderr_excerpt`
+- `handler_stdout_excerpt`
+- `redaction_actions`
+- `payload_capture_state`
+
+Rules:
+
+- these fields are in addition to all mandatory `lean` fields
+- payload excerpts remain gated behind separate payload-capture controls
+- machine-readable bounded output remains mandatory even when `debug` is active
+
 ## 5. Handler Result Shape
 
 Implements:
@@ -205,11 +288,22 @@ Implements:
 - if at least one handler executes, `sc-hooks` emits one dispatch-complete event
 - if a handler reports a root-divergence notice, `sc-hooks` also emits one `session.root_divergence` event before the enclosing `dispatch.complete` event
 - `session.root_divergence` emits with `level = Error`
-- if no handlers match, `sc-hooks` emits no observability event
+- if no handlers match, `sc-hooks` emits no standard `dispatch.complete` event
 - if the resolved `[observability].mode` is `off`, `sc-hooks` suppresses
   durable structured observability emission while still allowing direct stderr
   warnings and degraded-path notices
+- if `standard` mode is active and resolution, metadata preparation, dispatch
+  preflight, or plugin-input preparation fails before `dispatch.complete`,
+  `sc-hooks` emits one degraded stderr line of the form
+  `sc-hooks: standard observability degraded before dispatch.complete: stage=<stage> hook=<hook> event=<event-or-*> mode=<mode> error=<err>`
+- if `full` mode is active, `sc-hooks` also appends:
+  - `hook.invocation.received` at invocation start
+  - `hook.invocation.zero_match` for zero-match fast paths
+  - `hook.invocation.failed_pre_dispatch` for resolution, metadata preparation, dispatch preflight, and plugin-input preparation failures
+  - `hook.dispatch.completed` when a handler-executing dispatch completes
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
+- if full-audit append or run-file preparation fails, `sc-hooks` falls back to
+  `stderr` with `sc-hooks: full audit degraded: ...`
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
 

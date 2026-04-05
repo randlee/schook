@@ -103,6 +103,13 @@ impl FullAuditProfile {
     fn expected_values() -> &'static str {
         "lean, debug"
     }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Lean => "lean",
+            Self::Debug => "debug",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -631,7 +638,6 @@ fn parse_env_bool(_key: &'static str, value: &str) -> Option<bool> {
 fn parse_env_u32(value: &str) -> Option<u32> {
     value.trim().parse().ok()
 }
-
 fn default_audit_path() -> PathBuf {
     PathBuf::from(".sc-hooks/audit")
 }

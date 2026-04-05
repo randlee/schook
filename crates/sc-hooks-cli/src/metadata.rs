@@ -138,6 +138,20 @@ pub fn current_session_id() -> Option<SessionId> {
         .and_then(|value| SessionId::new(value).ok())
 }
 
+pub fn current_project_root() -> Result<AiRootDir, CliError> {
+    let runtime = RuntimeMetadata::discover()?;
+    AiRootDir::new(
+        runtime
+            .repo_path
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(runtime.working_dir)),
+    )
+    .map_err(|source| {
+        CliError::internal_with_source("failed to resolve absolute project root", source)
+    })
+}
+
 pub fn assemble_metadata(
     runtime: &RuntimeMetadata,
     context: &BTreeMap<String, TomlValue>,

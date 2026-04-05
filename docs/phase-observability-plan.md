@@ -472,6 +472,8 @@ Exit gate:
 - integration tests, not unit-test loops, prove the durable file contract
 - the closed `debug` mandatory field list is frozen in docs before debug-profile
   implementation begins
+- the sealed internal sink-boundary rule is documented and preserved at the
+  `sc-hooks-cli` boundary
 
 ### `SC-LOG-S5` / Observability Phase 4
 

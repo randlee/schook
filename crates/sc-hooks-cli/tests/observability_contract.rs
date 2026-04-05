@@ -127,6 +127,27 @@ fn stderr_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
 
+fn read_full_audit_run(audit_root: &Path) -> (std::path::PathBuf, Value, Vec<Value>) {
+    let runs_root = audit_root.join("runs");
+    let mut entries = fs::read_dir(&runs_root)
+        .expect("full audit runs dir should be readable")
+        .map(|entry| entry.expect("run entry should be readable").path())
+        .collect::<Vec<_>>();
+    entries.sort();
+    assert_eq!(entries.len(), 1, "expected exactly one full audit run dir");
+    let run_dir = entries.pop().expect("run dir should exist");
+    let meta = serde_json::from_str(
+        &fs::read_to_string(run_dir.join("meta.json")).expect("full audit meta should read"),
+    )
+    .expect("full audit meta should parse");
+    let events = fs::read_to_string(run_dir.join("events.jsonl"))
+        .expect("full audit events should read")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("full audit line should parse"))
+        .collect();
+    (run_dir, meta, events)
+}
+
 #[test]
 fn success_dispatch_emits_file_sink_log_event() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -238,6 +259,226 @@ mode = "off"
     );
     assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
     assert!(console_lines(&output).is_empty());
+}
+
+#[test]
+fn full_mode_writes_run_scoped_audit_files_for_success_dispatch() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+full_profile = "lean"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let (run_dir, meta, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    assert!(run_dir.starts_with(root.join(".sc-hooks/audit/runs")));
+    assert_eq!(meta["service"], "sc-hooks");
+    assert_eq!(meta["profile"], "lean");
+    let recorded_root = std::path::PathBuf::from(
+        meta["project_root"]
+            .as_str()
+            .expect("project_root should be a string"),
+    );
+    assert_eq!(
+        fs::canonicalize(recorded_root).expect("recorded root should canonicalize"),
+        fs::canonicalize(root).expect("temp root should canonicalize")
+    );
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["name"], "hook.invocation.received");
+    assert_eq!(events[1]["name"], "hook.dispatch.completed");
+    assert_eq!(events[1]["outcome"], "proceed");
+    assert_eq!(events[1]["handler_count"], 1);
+    assert_eq!(events[1]["mode"], "sync");
+}
+
+#[test]
+fn full_mode_zero_match_writes_audit_record() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Read"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["name"], "hook.invocation.received");
+    assert_eq!(events[1]["name"], "hook.invocation.zero_match");
+    assert_eq!(events[1]["outcome"], "zero_match");
+    assert_eq!(events[1]["exit"], sc_hooks_core::exit_codes::SUCCESS);
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
+fn full_mode_path_override_writes_pre_dispatch_failure_record() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+path = "tmp/evals"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{"required_field":{"type":"string","validate":"non_empty"}}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::VALIDATION_ERROR)
+    );
+    let (_, _, events) = read_full_audit_run(&root.join("tmp/evals"));
+    assert_eq!(events[0]["name"], "hook.invocation.received");
+    assert_eq!(events[1]["name"], "hook.invocation.failed_pre_dispatch");
+    assert_eq!(events[1]["stage"], "input_preparation");
+    assert_eq!(events[1]["outcome"], "error");
+    assert_eq!(events[1]["degraded"], true);
+    assert!(!root.join(".sc-hooks/audit").exists());
+}
+
+#[test]
+fn resolution_failure_emits_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "missing-plugin");
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("standard observability degraded before dispatch.complete"));
+    assert!(stderr.contains("stage=resolution"));
+    assert!(stderr.contains("hook=PreToolUse"));
+    assert!(stderr.contains("event=Write"));
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
+fn pre_spawn_validation_failure_emits_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{"required_field":{"type":"string","validate":"non_empty"}}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::VALIDATION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("standard observability degraded before dispatch.complete"));
+    assert!(stderr.contains("stage=input_preparation"));
+    assert!(stderr.contains("hook=PreToolUse"));
+    assert!(stderr.contains("event=Write"));
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
 }
 
 #[test]
