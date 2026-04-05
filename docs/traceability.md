@@ -5,7 +5,7 @@ This table maps the most important documented requirements to current implementa
 | Requirement ID | Status | Primary implementation | Primary tests | Gap |
 | --- | --- | --- | --- | --- |
 | CFG-001 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests plus `sc-hooks-cli/tests/runtime_layout_example.rs` proving the checked default `.sc-hooks/config.toml` layout | |
-| CFG-002 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
+| CFG-002 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests covering `[observability]`, layered precedence, and unknown-key rejection | |
 | CFG-003 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/dispatch.rs` | dispatch tests, config tests | |
 | CFG-004 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
 | CFG-008 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/audit.rs` | config tests, audit tests | |
@@ -64,8 +64,8 @@ This table maps the most important documented requirements to current implementa
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
 | OBS-009 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests plus contract/logging docs covering env-flag sink toggles | |
 | DEF-008 | implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | |
-| DEF-010 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires config-layer contract, precedence rules, and config tests before implementation closes | observability phase |
-| DEF-011 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires mode-resolution contract and global-vs-local enforcement tests | observability phase |
+| DEF-010 | implemented | `sc-hooks-cli/src/config.rs`, `docs/requirements.md`, `docs/architecture.md` | config tests prove built-in < global < local < env precedence and the supported key surface | |
+| DEF-011 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/observability.rs`, `docs/requirements.md`, `docs/architecture.md` | config tests prove `off | standard | full` resolution and global-only `full` rejection, while observability tests keep `off` non-emitting for durable sinks | |
 | DEF-012 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires run-scoped audit path rules plus path-resolution and file-layout tests | observability phase |
 | DEF-013 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires frozen lean/debug field sets and profile-selection tests | observability phase |
 | DEF-014 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires default redaction proof and confirmation that audit JSONL, not console text, is the machine contract | observability phase |

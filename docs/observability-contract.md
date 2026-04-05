@@ -63,7 +63,15 @@ This path comes from `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".
 
 ## 3.1 Sink Routing Environment Variables
 
-The host currently supports two observability sink toggles:
+The host currently supports one config-file mode selector plus two
+operator-facing sink toggles:
+
+- repo-local `.sc-hooks/config.toml` may set `[observability].mode` to `off`,
+  `standard`, or `full`
+- global `~/.sc-hooks/config.toml` may set `[observability].mode` to `off` or
+  `standard` only
+- the sink env flags below are evaluated only when the resolved mode is not
+  `off`
 
 | Variable | Default | Accepted true values | Accepted false values | Purpose |
 | --- | --- | --- | --- | --- |
@@ -71,6 +79,8 @@ The host currently supports two observability sink toggles:
 | `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the durable JSONL file sink |
 
 Current behavior:
+- when resolved `[observability].mode = "off"`, the host suppresses durable
+  structured sink emission regardless of the sink env flags
 - unrecognized values are ignored
 - the host emits a warning to `stderr` describing the accepted values
 - both sinks can be enabled at the same time
@@ -151,6 +161,9 @@ Implements:
 - if a handler reports a root-divergence notice, `sc-hooks` also emits one `session.root_divergence` event before the enclosing `dispatch.complete` event
 - `session.root_divergence` emits with `level = Error`
 - if no handlers match, `sc-hooks` emits no observability event
+- if the resolved `[observability].mode` is `off`, `sc-hooks` suppresses
+  durable structured observability emission while still allowing direct stderr
+  warnings and degraded-path notices
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract
@@ -195,6 +208,10 @@ Correction note:
   customization beyond the limited env-flag controls documented above
 
 Current environment controls (not non-goals):
+- `[observability].mode`
+  - repo-local accepted values: `off`, `standard`, `full`
+  - global accepted values: `off`, `standard`
+  - purpose: resolve whether structured observability sinks are active at all
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: off
@@ -210,7 +227,8 @@ Related deferred boundary:
   traces, metrics, and OTLP export remain outside the current release baseline
 
 Current `sc-hooks` observability does not yet provide:
-- configurable sink routing from `.sc-hooks/config.toml`
+- configurable third-party or exporter sink routing beyond the supported
+  `[observability]` mode surface and the two env-flag sink toggles
 - console sink customization beyond the contract-tested default summary line
 - traces
 - metrics

@@ -29,7 +29,7 @@ Current release scope does not include:
 - shipped runtime plugin behavior from the scaffold/reference crates under `plugins/`; all source crates under `plugins/` remain outside the current release scope
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
-- config-driven observability sink routing or a `[logging]` config section
+- a public sink-extension API, exporter/OTel transport configuration, or any `[logging]` section outside the supported `[observability]` surface
 
 ## 4. Functional Requirements
 
@@ -38,7 +38,7 @@ Current release scope does not include:
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | CFG-001 | Implemented | Must | The host shall load its default config from `.sc-hooks/config.toml` relative to the current repository. | `sc-hooks config` reads the default path through `load_default_config()`. |
-| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, and `[sandbox]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing. |
+| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, `[sandbox]`, and `[observability]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing, `[observability]` keys are validated against the frozen surface, and `sc-hooks config` renders the resolved observability settings. |
 | CFG-003 | Implemented | Must | `[hooks]` shall map hook names to ordered handler arrays. | Resolution and dispatch preserve config order. |
 | CFG-004 | Implemented | Must | `[context] team = "<name>"` shall map to `metadata.team.name`; other context keys remain top-level metadata fields. | `map_context_to_metadata()` applies the special-case mapping only for `team`. |
 | CFG-008 | Implemented | Should | `[sandbox]` shall allow per-plugin network and path overrides for audit validation. | `SandboxConfig` exposes `allow_network` and `allow_paths`. |
@@ -157,18 +157,18 @@ Retired observability IDs:
 | TST-008 | Implemented | Should | The Claude hook harness shall detect Claude CLI version bumps by comparing `claude --version` with the `claude_version` recorded in `test-harness/hooks/claude/fixtures/approved/manifest.json`; mismatches shall exit non-zero so maintainers rerun live schema validation before accepting provider-contract changes. | `python3 scripts/verify-claude-hook-api.py` exits `0` when `claude --version` matches the approved manifest's `claude_version`, and exits `1` with a warning when the installed Claude version differs. |
 | PRT-001 | Implemented | Must | The workspace shall build and test on Linux and macOS in CI. | `.github/workflows/ci.yml` runs build/test on Ubuntu and macOS. |
 
-## 6. Planned Observability Phase Requirements
+## 6. Observability Phase Requirements
 
-Phase-entry amendment rules for the committed observability phase:
+Observability Phase 1 completed these contract amendments:
 
-- Observability Phase 1 amends `CFG-002` so `[observability]` becomes a supported top-level section alongside the current config sections.
-- Observability Phase 1 amends `OBS-001` and `OBS-002` so `off` disables durable structured sinks while direct stderr warnings and failure notices remain visible.
+- `CFG-002` now includes `[observability]` as a supported top-level section.
+- `OBS-001` and `OBS-002` now treat `off` as suppressing durable structured sinks while direct stderr warnings and failure notices remain visible.
 - `DEF-006` is superseded. The project will not restore a `[logging]` section; the committed config surface is `[observability]`.
 
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
-| DEF-010 | Planned | Must | Observability configuration shall support deterministic layering across built-in defaults, global user config at `~/.sc-hooks/config.toml`, repo-local `.sc-hooks/config.toml`, and environment overrides. | The CLI loads both config layers with fixed precedence, the supported keys are documented, and tests prove repo-local overrides without breaking repo-relative plugin policy. |
-| DEF-011 | Planned | Must | Observability mode selection shall support `off`, `standard`, and `full`; global config may set defaults for `off` or `standard` only, while enabling `full` remains a repo-local or operator action. | The config contract documents mode semantics, tests prove mode resolution across global/local/env layers, and `full` is rejected when requested only from global scope. |
+| DEF-010 | Implemented | Must | Observability configuration shall support deterministic layering across built-in defaults, global user config at `~/.sc-hooks/config.toml`, repo-local `.sc-hooks/config.toml`, and environment overrides. | The CLI loads both config layers with fixed precedence, the supported keys are documented, and tests prove repo-local overrides without breaking repo-relative plugin policy. |
+| DEF-011 | Implemented | Must | Observability mode selection shall support `off`, `standard`, and `full`; global config may set defaults for `off` or `standard` only, while enabling `full` remains a repo-local or operator action. | The config contract documents mode semantics, tests prove mode resolution across global/local/env layers, and `full` is rejected when requested only from global scope. |
 | DEF-012 | Planned | Must | Full audit output shall default to `.sc-hooks/audit/`, use run-scoped durable files, and allow repo-local relative or absolute path overrides; relative paths resolve from the immutable project root. | The audit writer produces run-scoped files beneath the default root, local overrides resolve deterministically, and path-resolution tests prove project-root-relative behavior. |
 | DEF-013 | Planned | Must | Full audit shall support a lean profile for evals and harness runs plus a debug profile for deeper troubleshooting; raw payload capture remains a separate explicit opt-in. The debug-profile mandatory fields shall be frozen as a closed enumeration before debug implementation begins. | Docs freeze the mandatory fields for both profiles, tests cover profile selection, and payload capture cannot turn on implicitly with `full` alone. |
 | DEF-014 | Planned | Must | Full audit shall use strict redaction by default, never rely on the human console sink as a machine contract, and keep the durable audit JSONL files as the canonical machine-readable source for the phase. | Sensitive-field tests prove masking or summarization, audit JSONL remains the canonical machine-readable source, and the human console format is documented as non-contractual. |
@@ -242,7 +242,7 @@ If a behavior is required for release but not yet fully proved, it must appear i
 
 - `DEF-006`
   - prior text: config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current env-flag sink toggles
-  - current text: superseded by the planned `[observability]` surface in `DEF-010` through `DEF-017` plus the deferred exporter follow-on in `DEF-018`; the project will not restore `[logging]` as the committed next-phase contract
+  - current text: superseded by the implemented `[observability]` surface in `CFG-002`, `DEF-010`, and `DEF-011`, plus the deferred exporter follow-on in `DEF-018`; the project will not restore `[logging]` as the committed contract
   - authorizing phase: `SC-LOG-S2`
 - `DEF-008`
   - prior text: console-sink dispatch coverage remained an operator-facing follow-up inside the broader observability phase

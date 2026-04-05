@@ -43,6 +43,8 @@ Crate-local ADR delegation:
 
 The host:
 - loads `.sc-hooks/config.toml`
+- merges observability defaults from `~/.sc-hooks/config.toml`, repo-local
+  `.sc-hooks/config.toml`, and supported environment overrides
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -55,7 +57,8 @@ The host does not:
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
-- expose config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml`
+- expose a public sink-extension API, exporter/OTel transport config, or a
+  `[logging]` section outside the supported `[observability]` surface
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership
@@ -124,7 +127,9 @@ Important SDK boundary:
 
 ### 4.1 Config And Resolution
 
-1. `sc-hooks-cli` loads `.sc-hooks/config.toml`.
+1. `sc-hooks-cli` loads repo-local `.sc-hooks/config.toml`, merges supported
+   observability defaults from `~/.sc-hooks/config.toml`, and then applies the
+   supported environment overrides.
 2. The requested hook and optional event are matched against the configured handler chain.
 3. Handlers are resolved to `.sc-hooks/plugins/<name>`.
 4. Plugin manifests are loaded and cached within the current invocation.
@@ -221,20 +226,22 @@ Current behavior:
 Current observability ownership follows the intended boundary directly:
 
 - `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
+- `sc-hooks-cli` also owns layered `[observability]` config loading,
+  `off | standard | full` mode resolution, and sink-selection policy
 - the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
 - the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
-- there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
+- the current config surface is `[observability]`, not `[logging]`
+- `off` suppresses durable structured sink emission while leaving direct
+  stderr warnings and degraded notices visible to the operator
 
 Next planned observability expansion:
 
 - keep the current file-sink JSONL contract as the release baseline and the
   baseline operational mode
-- commit the next observability phase to naming cleanup, layered
-  `[observability]` config, `off | standard | full` mode resolution, durable
-  full-audit files under `.sc-hooks/audit/`, redaction, retention, and
-  50-agent hardening
+- commit the remaining observability phase to durable full-audit files under
+  `.sc-hooks/audit/`, redaction, retention, and 50-agent hardening
 - keep durable audit JSONL as the canonical machine-readable source for the
   committed phase; the human console sink is operator-facing only
 - treat structured live streaming plus exporter, spans, metrics, and OTLP work
