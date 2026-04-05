@@ -34,15 +34,23 @@ Consistency note:
 
 ## 1.1 Environment Controls
 
+- `[observability].mode`
+  - repo-local accepted values: `off`, `standard`, `full`
+  - global accepted values: `off`, `standard`
+  - when resolved to `off`, no durable dispatch log line is written and the
+    sink env flags below do not re-enable structured logging
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: off
-  - enables console-sink emission for operator/debugging workflows
+  - enables console-sink emission for operator/debugging workflows when the
+    resolved mode is not `off`
 - `SC_HOOKS_ENABLE_FILE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: on
   - controls durable JSONL file emission beneath the resolved observability root
-- when both are enabled, console and file sinks emit the same dispatch semantics while differing only in presentation/rendering
+    when the resolved mode is not `off`
+- when both are enabled, console and file sinks emit the same dispatch
+  semantics while differing only in presentation/rendering
 
 Important current reality:
 - the current implementation does not emit the old ad hoc `DispatchLogEntry`
@@ -75,6 +83,7 @@ Current default file path:
 Current write model:
 - the file is newline-delimited JSON
 - each line is one complete dispatch log record
+- no line is written when the resolved `[observability].mode` is `off`
 - if no handlers execute, no line is written
 
 ## 2.1 Sink Routing Environment Variables
@@ -87,6 +96,8 @@ The current host supports these sink-routing toggles:
 | `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the JSONL file sink at the contract path above |
 
 Current rules:
+- resolved `[observability].mode = "off"` suppresses durable dispatch logging
+  before the env-flag sink toggles are considered
 - both sinks may be enabled simultaneously
 - the file sink remains the canonical structured logging surface
 - invalid values fall back to the documented default and emit a warning to
