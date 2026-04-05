@@ -229,7 +229,7 @@ With event and filtered metadata:
 ```json
 {
   "team": {
-    "name": "schook"
+    "name": "sc-hooks"
   },
   "repo": {
     "branch": "feature/s7-doc-repair"
@@ -389,7 +389,7 @@ Provider-specific exception:
   plugin-runtime `HookResult` contract only
 - Claude Code `WorktreeCreate` / `WorktreeRemove` hooks use a different
   provider-level contract and are not interpreted through `HookResult` JSON
-- when `schook` documents or tests those surfaces, it does so as provider hook
+- when `sc-hooks` documents or tests those surfaces, it does so as provider hook
   semantics rather than as part of the generic host/plugin protocol
 
 ### 7.1 Runtime stdout Rules

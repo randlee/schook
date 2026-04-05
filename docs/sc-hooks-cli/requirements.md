@@ -19,6 +19,8 @@ responsibilities that satisfy the referenced product requirements.
 | `REQ-SHK-CLI-005` | Implemented | The CLI crate shall own static audit execution, install-plan generation, and the retained user-facing command surface. | `REQ-SHK-CLI-001`, `REQ-SHK-CLI-002`, `REQ-SHK-AUD-*` | `sc-hooks-cli/src/audit.rs`, `sc-hooks-cli/src/install.rs`, `sc-hooks-cli/src/main.rs` |
 | `REQ-SHK-CLI-006` | Implemented | The CLI crate shall remain the only workspace crate that initializes logging sinks and emits structured `sc-observability` dispatch events. | `REQ-SHK-OBS-*` | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` |
 | `REQ-SHK-CLI-007` | Implemented | The CLI crate shall provide the real host-dispatch path that the reusable compliance harness exercises. | `REQ-SHK-TST-007` | `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/tests/compliance_host.rs` |
+| `REQ-SHK-CLI-008` | Planned | The CLI crate shall own layered observability-config loading across built-in defaults, global `~/.sc-hooks/config.toml`, repo-local `.sc-hooks/config.toml`, and environment overrides. | `REQ-SHK-DEF-010`, `REQ-SHK-DEF-011` | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/main.rs`, future config tests |
+| `REQ-SHK-CLI-009` | Planned | The CLI crate shall own observability-mode selection, full-audit sink orchestration, retention pruning, and degraded-path handling without affecting hook execution; this audit-trail work remains distinct from the existing static `sc-hooks audit` command. | `REQ-SHK-DEF-012`, `REQ-SHK-DEF-013`, `REQ-SHK-DEF-014`, `REQ-SHK-DEF-015`, `REQ-SHK-DEF-016`, `REQ-SHK-DEF-017`, `REQ-SHK-DEF-019` | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs`, future audit tests |
 
 ## 3. Ownership Notes
 

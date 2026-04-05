@@ -229,14 +229,16 @@ Current observability ownership follows the intended boundary directly:
 
 Next planned observability expansion:
 
-- keep the current file-sink JSONL contract as the release baseline
-- add console-sink verification next, through the same real `sc-hooks-cli`
-  dispatch path used by the file-sink contract tests
-- treat console-sink coverage as the first operator-facing debugging expansion
-  because it is the most useful immediate surface for live multi-agent and
-  background-agent monitoring
-- defer custom sink registration coverage and multi-hook monitoring correlation
-  until console-sink behavior is frozen and documented
+- keep the current file-sink JSONL contract as the release baseline and the
+  baseline operational mode
+- commit the next observability phase to naming cleanup, layered
+  `[observability]` config, `off | standard | full` mode resolution, durable
+  full-audit files under `.sc-hooks/audit/`, redaction, retention, and
+  50-agent hardening
+- keep durable audit JSONL as the canonical machine-readable source for the
+  committed phase; the human console sink is operator-facing only
+- treat structured live streaming plus exporter, spans, metrics, and OTLP work
+  as explicit follow-on scope rather than observability-phase acceptance gates
 
 This boundary is current architecture, not deferred intent.
 
@@ -266,7 +268,7 @@ The current architecture does not aim to provide:
 - plugin hot reloading
 - plugin marketplace/distribution
 - merged editing of existing `.claude/settings.json` content
-- spans, metrics, or OTLP export in the current `schook` host
+- spans, metrics, or OTLP export in the current `sc-hooks` host
 
 ## 8. Enforcement Notes
 
@@ -451,3 +453,38 @@ Planning targets only for a later approved Cursor pass:
 
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.
+
+## 10. Observability Phase Planning Boundary
+
+The next observability phase is planned work only. It is not current
+architecture until code and contract docs land together.
+
+Planning direction frozen for that phase:
+
+- naming converges on `sc-hooks` as the canonical product/runtime/binary name
+  with `hooks` as a convenience CLI alias
+- filesystem/config namespace remains `.sc-hooks/`
+- observability config becomes layered:
+  - built-in defaults
+  - global user config at `~/.sc-hooks/config.toml`
+  - repo-local config at `.sc-hooks/config.toml`
+  - environment overrides for temporary operator control
+- observability modes are planned as:
+  - `off`
+  - `standard`
+  - `full`
+- global config may set defaults and future exporter wiring, but does not
+  enable `full` audit by itself
+- repo-local config owns plugin-specific settings, repo-specific observability
+  policy, and `full` audit activation
+- `full` audit uses durable file output under `.sc-hooks/audit/` by default,
+  with run-scoped files rather than one shared hot file
+- any future machine-readable live stream is a separate structured sink, not
+  the current human console renderer
+- audit and observability failures remain non-blocking for hook execution
+- the scale target for the phase is production readiness with at least 50
+  simultaneous agents on the same repo root without log corruption or
+  unbounded contention
+
+Detailed sequencing for that phase lives in
+`docs/phase-observability-plan.md` and `docs/project-plan.md`.

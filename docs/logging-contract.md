@@ -27,6 +27,11 @@ It does not define:
 - future observability sinks beyond the current file sink baseline and the
   contract-tested default console sink
 
+Consistency note:
+- fallback stderr wording for observability-emission failures is owned by
+  `docs/observability-contract.md`; this document intentionally does not repeat
+  the exact fallback string
+
 ## 1.1 Environment Controls
 
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document freezes the post-capture hook runtime design for `schook` before
+This document freezes the post-capture hook runtime design for `sc-hooks` before
 runtime implementation begins.
 
 It is subordinate to the three control docs:

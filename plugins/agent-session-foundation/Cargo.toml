@@ -1,7 +1,8 @@
 [package]
 name = "agent-session-foundation"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
+rust-version.workspace = true
 description = "Runtime-implementation sc-hooks plugin source crate"
 
 [dependencies]
