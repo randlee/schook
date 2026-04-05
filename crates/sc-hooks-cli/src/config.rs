@@ -10,6 +10,8 @@ pub const DEFAULT_CONFIG_PATH: &str = ".sc-hooks/config.toml";
 pub const ENV_OBSERVABILITY_MODE: &str = "SC_HOOKS_OBSERVABILITY_MODE";
 pub const ENV_AUDIT_PROFILE: &str = "SC_HOOKS_AUDIT_PROFILE";
 pub const ENV_AUDIT_PATH: &str = "SC_HOOKS_AUDIT_PATH";
+pub const ENV_AUDIT_MAX_RUNS: &str = "SC_HOOKS_AUDIT_MAX_RUNS";
+pub const ENV_AUDIT_MAX_AGE_DAYS: &str = "SC_HOOKS_AUDIT_MAX_AGE_DAYS";
 pub const ENV_AUDIT_REDACTION: &str = "SC_HOOKS_AUDIT_REDACTION";
 pub const ENV_AUDIT_CAPTURE_PAYLOADS: &str = "SC_HOOKS_AUDIT_CAPTURE_PAYLOADS";
 pub const ENV_AUDIT_CAPTURE_STDIO: &str = "SC_HOOKS_AUDIT_CAPTURE_STDIO";
@@ -533,7 +535,7 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
 }
 
 fn default_global_config_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     Some(
         PathBuf::from(home)
             .join(DEFAULT_GLOBAL_CONFIG_DIR)
@@ -562,6 +564,22 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
     }
     if let Some(value) = std::env::var_os(ENV_AUDIT_PATH) {
         observability.path = PathBuf::from(value);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_MAX_RUNS)? {
+        observability.retain_runs =
+            parse_env_u32(&value).ok_or(ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_RUNS,
+                value,
+                expected: "non-negative integer",
+            })?;
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_MAX_AGE_DAYS)? {
+        observability.retain_days =
+            parse_env_u32(&value).ok_or(ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_AGE_DAYS,
+                value,
+                expected: "non-negative integer",
+            })?;
     }
     if let Some(value) = env_override_value(ENV_AUDIT_REDACTION)? {
         observability.redaction =
@@ -608,6 +626,10 @@ fn parse_env_bool(_key: &'static str, value: &str) -> Option<bool> {
         "0" | "false" | "no" | "off" => Some(false),
         _ => None,
     }
+}
+
+fn parse_env_u32(value: &str) -> Option<u32> {
+    value.trim().parse().ok()
 }
 
 fn default_audit_path() -> PathBuf {
@@ -945,11 +967,33 @@ mode = "full"
     }
 
     #[test]
+    fn default_global_config_path_uses_userprofile_when_home_is_missing() {
+        let userprofile = std::env::temp_dir().join("sc-hooks-home-fallback");
+        let userprofile = userprofile
+            .to_str()
+            .expect("temp userprofile path should be valid utf-8")
+            .to_string();
+        let _env = scoped_env(&[("HOME", None), ("USERPROFILE", Some(userprofile.as_str()))]);
+
+        assert_eq!(
+            default_global_config_path(),
+            Some(PathBuf::from(userprofile).join(".sc-hooks/config.toml"))
+        );
+    }
+
+    #[test]
     fn layered_config_applies_built_in_global_local_and_env_precedence() {
+        let audit_env_path = std::env::temp_dir().join("sc-hooks-audit-env");
+        let audit_env_path = audit_env_path
+            .to_str()
+            .expect("temp audit path should be valid utf-8")
+            .to_string();
         let _env = scoped_env(&[
             (ENV_OBSERVABILITY_MODE, Some("full")),
             (ENV_AUDIT_PROFILE, Some("lean")),
-            (ENV_AUDIT_PATH, Some("/tmp/sc-hooks-audit-env")),
+            (ENV_AUDIT_PATH, Some(audit_env_path.as_str())),
+            (ENV_AUDIT_MAX_RUNS, Some("4")),
+            (ENV_AUDIT_MAX_AGE_DAYS, Some("45")),
             (ENV_AUDIT_REDACTION, Some("strict")),
             (ENV_AUDIT_CAPTURE_PAYLOADS, Some("true")),
             (ENV_AUDIT_CAPTURE_STDIO, Some("summary")),
@@ -992,13 +1036,10 @@ redaction = "permissive"
 
         assert_eq!(config.observability.mode, ObservabilityMode::Full);
         assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
-        assert_eq!(
-            config.observability.path,
-            PathBuf::from("/tmp/sc-hooks-audit-env")
-        );
+        assert_eq!(config.observability.path, PathBuf::from(&audit_env_path));
         assert!(config.observability.console_mirror);
-        assert_eq!(config.observability.retain_runs, 9);
-        assert_eq!(config.observability.retain_days, 30);
+        assert_eq!(config.observability.retain_runs, 4);
+        assert_eq!(config.observability.retain_days, 45);
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
         assert!(config.observability.capture_payloads);
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);

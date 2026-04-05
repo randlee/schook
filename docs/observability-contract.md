@@ -48,6 +48,14 @@ Current restored boundary:
   file locations without re-encoding them in multiple places
 - scaffold/reference plugin crates do not own `sc-observability`
 
+Sealed sink-boundary rule:
+- the sink-registration and sink-selection boundary remains sealed inside
+  `sc-hooks-cli`
+- this contract does not expose a public sink-plugin API, trait-extension
+  surface, or lower-crate logger lifecycle hook
+- `ADR-SHK-003` and `OBS-007` continue to require that lower crates stay
+  sink-agnostic even as layered config and future audit profiles expand
+
 ## 3. File Layout
 
 Implements:
@@ -61,22 +69,34 @@ Current default file sink path:
 
 This path comes from `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`.
 
-## 3.1 Sink Routing Environment Variables
+## 3.1 Environment Override Surface
 
-The host currently supports one config-file mode selector plus two
-operator-facing sink toggles:
+The host currently supports layered `[observability]` config plus operator
+environment overrides.
+
+Resolved mode rules:
 
 - repo-local `.sc-hooks/config.toml` may set `[observability].mode` to `off`,
   `standard`, or `full`
 - global `~/.sc-hooks/config.toml` may set `[observability].mode` to `off` or
   `standard` only
+- environment overrides are applied after built-in defaults, global config, and
+  repo-local config
 - the sink env flags below are evaluated only when the resolved mode is not
   `off`
 
-| Variable | Default | Accepted true values | Accepted false values | Purpose |
+| Variable | Default | Accepted values | Overrides | Notes |
 | --- | --- | --- | --- | --- |
-| `SC_HOOKS_ENABLE_CONSOLE_SINK` | `false` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the human-readable console sink for live operator/debugging output |
-| `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the durable JSONL file sink |
+| `SC_HOOKS_OBSERVABILITY_MODE` | `standard` | `off`, `standard`, `full` | `[observability].mode` | `full` remains invalid when it comes from global config alone; env may enable it for an operator session |
+| `SC_HOOKS_AUDIT_PROFILE` | `lean` | `lean`, `debug` | `[observability].full_profile` | applies only when mode resolves to `full` |
+| `SC_HOOKS_AUDIT_PATH` | `.sc-hooks/audit` | any path | `[observability].path` | relative paths remain repo-root relative |
+| `SC_HOOKS_AUDIT_MAX_RUNS` | `10` | non-negative integer | `[observability].retain_runs` | retention-count override for run pruning |
+| `SC_HOOKS_AUDIT_MAX_AGE_DAYS` | `14` | non-negative integer | `[observability].retain_days` | age-cap override for run pruning |
+| `SC_HOOKS_AUDIT_REDACTION` | `strict` | `strict`, `permissive` | `[observability].redaction` | redaction policy remains local/operator owned |
+| `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS` | `false` | `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off` | `[observability].capture_payloads` | payload capture remains separate from mode/profile selection |
+| `SC_HOOKS_AUDIT_CAPTURE_STDIO` | `summary` | `none`, `summary`, `bounded` | `[observability].capture_stdio` | stdio capture detail remains bounded by profile rules |
+| `SC_HOOKS_ENABLE_CONSOLE_SINK` | `false` | `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off` | sink toggle only | enables the human-readable console sink for live operator/debugging output |
+| `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off` | sink toggle only | enables the durable JSONL file sink |
 
 Current behavior:
 - when resolved `[observability].mode = "off"`, the host suppresses durable
@@ -92,6 +112,31 @@ Current behavior:
 Formal amendment note:
 - `OBS-009` was added in `S9-BONUS` to promote these env-flag sink toggles into
   the release-facing observability contract; see `docs/traceability.md`.
+
+## 3.2 `[observability]` Key Surface
+
+The layered config surface is frozen to the keys below.
+
+| Key | Type | Default | Global config | Repo-local config | Env mapping |
+| --- | --- | --- | --- | --- | --- |
+| `mode` | string enum | `standard` | yes: `off`, `standard` only | yes: `off`, `standard`, `full` | `SC_HOOKS_OBSERVABILITY_MODE` |
+| `full_profile` | string enum | `lean` | no | yes | `SC_HOOKS_AUDIT_PROFILE` |
+| `path` | path | `.sc-hooks/audit` | no | yes | `SC_HOOKS_AUDIT_PATH` |
+| `console_mirror` | boolean | `false` | yes | yes | none |
+| `retain_runs` | unsigned integer | `10` | yes | yes | `SC_HOOKS_AUDIT_MAX_RUNS` |
+| `retain_days` | unsigned integer | `14` | yes | yes | `SC_HOOKS_AUDIT_MAX_AGE_DAYS` |
+| `redaction` | string enum | `strict` | yes | yes | `SC_HOOKS_AUDIT_REDACTION` |
+| `capture_payloads` | boolean | `false` | no | yes | `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS` |
+| `capture_stdio` | string enum | `summary` | no | yes | `SC_HOOKS_AUDIT_CAPTURE_STDIO` |
+
+Key-surface rules:
+
+- unknown `[observability]` keys are rejected during config parsing
+- global config owns shared defaults only; repo-local config owns `full`
+  activation and payload/detail controls
+- there is no separate `[logging]` section in the committed contract
+- sink env toggles remain outside the TOML key surface because they are
+  operator-session overrides rather than persisted config keys
 
 ## 4. Event Shape
 
@@ -203,24 +248,15 @@ Current console sink line format:
 ## 8. Non-Goals
 
 Correction note:
-- section `3.1` documents current supported behavior, not a non-goal
+- sections `3.1` and `3.2` document current supported behavior, not a non-goal
 - the non-goal is broader config-file sink routing or console-sink
-  customization beyond the limited env-flag controls documented above
+  customization beyond the layered config and operator overrides documented above
 
-Current environment controls (not non-goals):
-- `[observability].mode`
-  - repo-local accepted values: `off`, `standard`, `full`
-  - global accepted values: `off`, `standard`
-  - purpose: resolve whether structured observability sinks are active at all
-- `SC_HOOKS_ENABLE_CONSOLE_SINK`
-  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
-  - default: off
-  - purpose: enable the operator-facing console sink in addition to the file sink
-- `SC_HOOKS_ENABLE_FILE_SINK`
-  - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
-  - default: on
-  - purpose: control durable JSONL file emission under the resolved observability root
-- both flags are evaluated by `sc-hooks-cli` at logger initialization time and use the same resolved observability root configuration
+Current supported controls (not non-goals):
+- the full persisted `[observability]` key surface is frozen in section `3.2`
+- the full operator override surface is frozen in section `3.1`
+- sink toggles are still evaluated by `sc-hooks-cli` at logger initialization
+  time and use the same resolved observability root configuration
 
 Related deferred boundary:
 - `OBS-009` promotes env-flag sink toggles only; config-file sink routing,
