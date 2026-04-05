@@ -44,9 +44,7 @@ fn run_command_hook(
                 Err(e) => panic!("hook script should spawn: {e}"),
             }
         }
-        result.unwrap_or_else(|| {
-            panic!("hook script should spawn: {}", last_err.unwrap())
-        })
+        result.unwrap_or_else(|| panic!("hook script should spawn: {}", last_err.unwrap()))
     };
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
