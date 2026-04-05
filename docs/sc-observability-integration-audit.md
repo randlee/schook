@@ -42,6 +42,9 @@ Checked areas:
    - Current behavior: the fallback writes the rendered error directly to
      `stderr` as documented, and the fallback text no longer incorrectly says
      "dispatch" when the failing event is `session.root_divergence`.
+   - Coverage note: this pass changes the runtime code path and the contract
+     docs, but there is not yet a dedicated integration test that forces an
+     observability emit failure and asserts the fallback stderr text.
 
 3. Stale metadata cleanup previously dropped removal failures.
    - Prior behavior: stale temp-file cleanup ignored `remove_file` failures,
@@ -67,6 +70,8 @@ Checked areas:
 
 - Dispatch-complete logging is implemented and contract-tested.
 - Root-divergence logging is implemented and contract-tested.
+- The shared observability-failure stderr fallback is implemented in code, but
+  dedicated integration coverage for that degraded path remains deferred.
 - File sink remains the canonical structured surface.
 - Console sink remains a debugging/operator surface.
 - The primary remaining non-release caveat is local worktree path ergonomics
