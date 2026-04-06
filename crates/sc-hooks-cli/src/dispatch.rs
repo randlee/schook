@@ -390,13 +390,21 @@ pub fn execute_chain(
         };
         let mut output_readers = OutputReaderGuard::default();
         output_readers.stdout = child.stdout.take().map(spawn_output_reader);
-        let _ = output_readers.stdout.as_ref().ok_or_else(|| {
-            CliError::internal(format!("child stdout pipe missing for `{handler_name}`"))
-        })?;
+        if output_readers.stdout.is_none() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::internal(format!(
+                "child stdout pipe missing for `{handler_name}`"
+            )));
+        }
         output_readers.stderr = child.stderr.take().map(spawn_output_reader);
-        let _ = output_readers.stderr.as_ref().ok_or_else(|| {
-            CliError::internal(format!("child stderr pipe missing for `{handler_name}`"))
-        })?;
+        if output_readers.stderr.is_none() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::internal(format!(
+                "child stderr pipe missing for `{handler_name}`"
+            )));
+        }
 
         if let Some(mut stdin) = child.stdin.take() {
             let body = match serde_json::to_vec(&stdin_payload) {
