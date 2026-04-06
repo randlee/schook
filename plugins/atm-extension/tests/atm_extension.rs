@@ -128,21 +128,22 @@ fn write_ended_session_record(
         .try_into_active()
         .expect("new session record should be active");
     let active_pid = active.active_pid();
+    let ai_root_dir = active.ai_root_dir().clone();
     let ai_current_dir = active.ai_current_dir().clone();
     let session_start_source = active.session_start_source();
     let record = active
-        .apply_hook_update(
+        .transition_to_ended(
             active_pid,
+            ai_root_dir,
             ai_current_dir,
             session_start_source,
-            AgentState::Ended,
             UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:00Z").expect("timestamp"),
             "SessionEnd",
             "session_ended",
-            Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z").expect("timestamp")),
+            UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:00Z").expect("timestamp"),
         )
-        .expect("ended session update should validate")
-        .into_record();
+        .expect("ended session transition should validate")
+        .into();
     store
         .persist(&record)
         .expect("ended session record should persist");

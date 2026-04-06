@@ -261,7 +261,31 @@ fn build_next_record(
                 return Ok(active.into_inner());
             }
 
-            if root_changed {
+            if resolved.transition.agent_state == AgentState::Ended {
+                let ended_at = resolved.transition.ended_at.clone().ok_or_else(|| {
+                    HookError::validation(
+                        "ended_at",
+                        "terminal session transition requires ended_at",
+                    )
+                })?;
+                let next_root = if root_changed {
+                    next_root.clone()
+                } else {
+                    active.ai_root_dir().clone()
+                };
+                active
+                    .transition_to_ended(
+                        resolved.active_pid,
+                        next_root,
+                        resolved.ai_current_dir.clone(),
+                        next_source,
+                        now,
+                        event_name,
+                        resolved.transition.state_reason.clone(),
+                        ended_at,
+                    )
+                    .map(Into::into)
+            } else if root_changed {
                 active
                     .rebuild_with_root_change(
                         resolved.active_pid,

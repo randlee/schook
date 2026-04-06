@@ -115,7 +115,7 @@ PostToolUse = ["guard-paths"]
             "zero-match fire elapsed {elapsed:?} exceeded 2ms target"
         );
         assert!(
-            !Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl").exists(),
+            !Path::new(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists(),
             "zero-match path should not write observability logs"
         );
     }

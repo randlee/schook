@@ -87,7 +87,7 @@ Implements:
 Current default file path:
 
 ```text
-.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl
+.sc-hooks/observability/logs/sc-hooks.log.jsonl
 ```
 
 Current write model:

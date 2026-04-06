@@ -1,7 +1,8 @@
 use serde_json::Value;
 use std::io::{self, Read, Write};
+use std::process::{Child, Command};
 use std::thread::{self, JoinHandle};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::config::ScHooksConfig;
@@ -18,6 +19,8 @@ use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
+const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -133,6 +136,25 @@ fn join_output_reader(
             "{stream_name} capture thread panicked"
         ))),
     }
+}
+
+fn spawn_plugin_command(command: &mut Command) -> io::Result<Child> {
+    let mut last_err = None;
+    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+        match command.spawn() {
+            Ok(child) => return Ok(child),
+            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
+                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+                    return Err(err);
+                }
+                last_err = Some(err);
+                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
 }
 
 impl PluginExecutionContextError {
@@ -347,14 +369,13 @@ pub fn execute_chain(
             );
         })?;
 
-        let mut command = std::process::Command::new(&handler.executable_path);
+        let mut command = Command::new(&handler.executable_path);
         metadata::inject_env_vars(&mut command, &prepared.env);
-        let mut child = match command
+        command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-        {
+            .stderr(std::process::Stdio::piped());
+        let mut child = match spawn_plugin_command(&mut command) {
             Ok(child) => child,
             Err(err) => {
                 disable_plugin_for_session(
@@ -1278,7 +1299,7 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
         assert!(matches!(outcome, DispatchOutcome::Proceed));
 
-        let log_path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let log_path = root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH);
         let rendered = fs::read_to_string(log_path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");

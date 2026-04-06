@@ -234,7 +234,7 @@ Current observability ownership follows the intended boundary directly:
   local validation may resolve them from the sibling `../sc-observability`
   checkout until crates.io publication finishes
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
-- the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- the current file sink path is `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
 - the current config surface is `[observability]`, not `[logging]`
 - `off` suppresses durable structured sink emission while leaving direct

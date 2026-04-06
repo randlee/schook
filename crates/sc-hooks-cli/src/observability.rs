@@ -11,7 +11,8 @@ use log::warn;
 use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
-    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+    ActionName, Level, LevelFilter, LogEvent, OutcomeLabel, ProcessIdentity, SchemaVersion,
+    ServiceName, TargetCategory,
 };
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -42,6 +43,18 @@ static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitE
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
 const TEST_MODE_ENV: &str = "SC_HOOKS_TEST_MODE";
+
+fn observation_schema_version() -> Result<SchemaVersion, CliError> {
+    SchemaVersion::new(sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION).map_err(
+        |source| CliError::internal_with_source("invalid observation schema version", source),
+    )
+}
+
+fn observation_outcome_label(outcome: &str) -> Result<OutcomeLabel, CliError> {
+    OutcomeLabel::new(outcome).map_err(|source| {
+        CliError::internal_with_source("invalid observation outcome label", source)
+    })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ForcedObservabilityFailure {
@@ -397,7 +410,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     }
 
     let event = LogEvent {
-        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        version: observation_schema_version()?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: dispatch_level(args.exit, args.results, args.ai_notification),
         service,
@@ -417,7 +430,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some(dispatch_outcome(args.exit).to_string()),
+        outcome: Some(observation_outcome_label(dispatch_outcome(args.exit))?),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -596,7 +609,7 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     );
 
     let event = LogEvent {
-        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        version: observation_schema_version()?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: Level::Error,
         service,
@@ -610,7 +623,7 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some("error".to_string()),
+        outcome: Some(observation_outcome_label("error")?),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -1501,7 +1514,7 @@ mod tests {
         emit_sample_dispatch(&project_root, &observability)
             .expect("observability event should emit");
 
-        let path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let path = root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH);
         let rendered = fs::read_to_string(path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value =
