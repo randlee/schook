@@ -47,6 +47,49 @@ impl DispatchHarness {
         self.run_sync_with_env(root, hook, event, payload, session_id, &[])
     }
 
+    fn run_async(
+        &self,
+        root: &Path,
+        hook: &str,
+        event: Option<&str>,
+        payload: Option<Value>,
+        session_id: Option<&str>,
+    ) -> Output {
+        let mut command = Command::new(&self.binary);
+        command
+            .current_dir(root)
+            .arg("run")
+            .arg(hook)
+            .arg("--async");
+        if let Some(event) = event {
+            command.arg(event);
+        }
+        if let Some(session_id) = session_id {
+            command.env("SC_HOOK_SESSION_ID", session_id);
+        }
+
+        if let Some(payload) = payload {
+            let mut child = command
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("dispatch child should spawn");
+            if let Some(mut stdin) = child.stdin.take() {
+                use std::io::Write;
+                let body = serde_json::to_vec(&payload).expect("payload should serialize");
+                stdin
+                    .write_all(&body)
+                    .expect("payload should write to stdin");
+            }
+            child
+                .wait_with_output()
+                .expect("dispatch output should be readable")
+        } else {
+            command.output().expect("dispatch command should execute")
+        }
+    }
+
     fn run_sync_with_env(
         &self,
         root: &Path,
@@ -586,6 +629,7 @@ full_profile = "lean"
     assert!(stderr.contains("forced observability logger init failure"));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 fn standard_mode_emit_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -1031,6 +1075,45 @@ fn resolution_failure_emits_standard_degraded_signal() {
 }
 
 #[test]
+fn full_mode_resolution_failure_does_not_emit_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["missing-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(
+        !stderr.contains("standard observability degraded before dispatch.complete"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn pre_spawn_validation_failure_emits_standard_degraded_signal() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();
@@ -1068,6 +1151,40 @@ PreToolUse = ["probe-plugin"]
     assert!(stderr.contains("standard observability degraded before dispatch.complete"));
     assert!(stderr.contains("stage=input_preparation"));
     assert!(stderr.contains("hook=PreToolUse"));
+    assert!(stderr.contains("event=Write"));
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+}
+
+#[test]
+fn dispatch_preflight_failure_emits_standard_degraded_signal() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PostToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"async","hooks":["PostToolUse"],"matchers":["Write"],"long_running":true,"description":"slow operation","requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_async(
+        root,
+        "PostToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::RESOLUTION_ERROR)
+    );
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("standard observability degraded before dispatch.complete"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("stage=dispatch_preflight"), "{stderr}");
+    assert!(stderr.contains("hook=PostToolUse"));
     assert!(stderr.contains("event=Write"));
     assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
 }

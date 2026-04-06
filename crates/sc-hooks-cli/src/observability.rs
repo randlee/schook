@@ -1395,10 +1395,11 @@ mod tests {
         let lock = observability_lock()
             .lock()
             .unwrap_or_else(|err| err.into_inner());
-        let saved = overrides
+        let mut saved = overrides
             .iter()
             .map(|(key, _)| (*key, std::env::var_os(key)))
             .collect::<Vec<_>>();
+        saved.push((TEST_MODE_ENV, std::env::var_os(TEST_MODE_ENV)));
 
         for (key, value) in overrides {
             match value {
@@ -1412,6 +1413,8 @@ mod tests {
                 }
             }
         }
+        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+        unsafe { std::env::set_var(TEST_MODE_ENV, "1") }
 
         EnvGuard { _lock: lock, saved }
     }
@@ -1584,6 +1587,7 @@ mod tests {
         );
     }
 
+    #[cfg(debug_assertions)]
     #[test]
     fn logger_state_from_cell_reuses_cached_init_failure() {
         let _forced = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))]);
@@ -1639,6 +1643,7 @@ mod tests {
         assert!(matches!(err, CliError::ObservabilityInit { .. }));
     }
 
+    #[cfg(debug_assertions)]
     #[test]
     fn full_mode_emit_failure_returns_error_from_emit_sample_dispatch() {
         let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("emit"))]);
@@ -1657,6 +1662,7 @@ mod tests {
         );
     }
 
+    #[cfg(debug_assertions)]
     #[test]
     fn full_mode_append_failure_returns_error_from_emit_full_audit_record() {
         let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_append"))]);
@@ -1690,6 +1696,7 @@ mod tests {
         assert!(err.to_string().contains("forced full audit append failure"));
     }
 
+    #[cfg(debug_assertions)]
     #[test]
     fn full_audit_run_state_with_cell_keeps_prune_failure_non_blocking() {
         let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_prune"))]);

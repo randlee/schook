@@ -19,6 +19,7 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
+use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
 
 use crate::errors::CliError;
@@ -174,41 +175,52 @@ fn run() -> Result<(), CliError> {
                         payload.as_ref(),
                     );
                 }
-                let handlers = resolution::resolve_chain(
-                    &config,
-                    &args.hook,
-                    args.event.as_deref(),
-                    mode,
-                    payload.as_ref(),
-                    args.async_bucket.as_deref(),
-                    &disabled_plugins,
-                )
-                .map_err(|err| {
-                    let cli_err = CliError::from(err);
-                    observability::emit_standard_degraded_signal(
-                        &config.observability,
+                let handlers =
+                    resolution::resolve_chain(
+                        &config,
                         &args.hook,
                         args.event.as_deref(),
                         mode,
-                        "resolution",
-                        &cli_err,
-                    );
-                    if let Some(project_root) = audit_project_root.as_ref() {
-                        observability::emit_full_audit_pre_dispatch_failure(
-                            observability::FullAuditPreDispatchFailureArgs {
-                                observability: &config.observability,
-                                hook: &args.hook,
-                                event: args.event.as_deref(),
-                                mode,
-                                project_root,
-                                stage: "resolution",
-                                err: &cli_err,
-                                payload: payload.as_ref(),
-                            },
+                        payload.as_ref(),
+                        args.async_bucket.as_deref(),
+                        &disabled_plugins,
+                    )
+                    .map_err(|err| {
+                        let stage = match &err {
+                            crate::errors::ResolutionError::ManifestLoadFailed {
+                                source:
+                                    ManifestLoadError::Manifest(
+                                        ManifestError::AsyncLongRunningUnsupported,
+                                    ),
+                                ..
+                            } => "dispatch_preflight",
+                            _ => "resolution",
+                        };
+                        let cli_err = CliError::from(err);
+                        observability::emit_standard_degraded_signal(
+                            &config.observability,
+                            &args.hook,
+                            args.event.as_deref(),
+                            mode,
+                            stage,
+                            &cli_err,
                         );
-                    }
-                    cli_err
-                })?;
+                        if let Some(project_root) = audit_project_root.as_ref() {
+                            observability::emit_full_audit_pre_dispatch_failure(
+                                observability::FullAuditPreDispatchFailureArgs {
+                                    observability: &config.observability,
+                                    hook: &args.hook,
+                                    event: args.event.as_deref(),
+                                    mode,
+                                    project_root,
+                                    stage,
+                                    err: &cli_err,
+                                    payload: payload.as_ref(),
+                                },
+                            );
+                        }
+                        cli_err
+                    })?;
 
                 if handlers.is_empty() {
                     if let Some(project_root) = audit_project_root.as_ref() {
