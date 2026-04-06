@@ -50,6 +50,7 @@ printf '%s\n' '{"action":"proceed"}'
         .output()
         .expect("run command should execute");
 
+    // INTENTIONAL: this test exercises the full timeout path; ~6s is expected.
     assert!(
         start.elapsed() >= Duration::from_millis(5_500),
         "sync long_running should not use the default 5000ms timeout"

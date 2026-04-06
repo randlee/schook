@@ -1233,6 +1233,7 @@ fn prune_runs_by_count(
     let keep_historical =
         usize::try_from(retain_runs.get().saturating_sub(1)).unwrap_or(usize::MAX);
     let mut kept_historical = 0usize;
+    let mut failures = Vec::new();
     for run in runs {
         if run.name == current_run_id {
             continue;
@@ -1241,12 +1242,15 @@ fn prune_runs_by_count(
             kept_historical += 1;
             continue;
         }
-        fs::remove_dir_all(&run.path).map_err(|source| {
-            CliError::internal_with_source(
-                format!("failed pruning full audit run at {}", run.path.display()),
-                source,
-            )
-        })?;
+        if let Err(source) = fs::remove_dir_all(&run.path) {
+            failures.push(format!("{}: {source}", run.path.display()));
+        }
+    }
+    if !failures.is_empty() {
+        return Err(CliError::Internal {
+            message: format!("failed pruning full audit run(s): {}", failures.join("; ")),
+            source: None,
+        });
     }
     Ok(())
 }

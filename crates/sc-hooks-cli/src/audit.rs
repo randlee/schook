@@ -112,7 +112,7 @@ impl AuditDiagnostic {
                 handler_name,
                 hook_name,
             } => format!("AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"),
-            Self::MatcherWarning { message } => format!("AUD-008 warning {message}"),
+            Self::MatcherWarning { message } => format!("AUD-008W warning {message}"),
             Self::MatcherError { message } => format!("AUD-008 {message}"),
             Self::InstallPlanWarning { message } => format!("AUD-007 {message}"),
             Self::InstallPlanGenerationFailed { error } => {
