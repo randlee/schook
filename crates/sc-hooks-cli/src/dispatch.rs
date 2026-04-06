@@ -1278,7 +1278,7 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
         assert!(matches!(outcome, DispatchOutcome::Proceed));
 
-        let log_path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let log_path = root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH);
         let rendered = fs::read_to_string(log_path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");
