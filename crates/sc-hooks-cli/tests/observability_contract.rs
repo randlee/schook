@@ -498,6 +498,7 @@ mode = "full"
     );
 }
 
+#[cfg(debug_assertions)]
 #[test]
 fn standard_mode_logger_init_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -527,6 +528,7 @@ fn standard_mode_logger_init_failure_is_non_blocking() {
     assert!(stderr.contains("forced observability logger init failure"));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 fn standard_mode_emit_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -556,6 +558,7 @@ fn standard_mode_emit_failure_is_non_blocking() {
     assert!(stderr.contains("forced observability emit failure"));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 fn full_mode_append_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
@@ -599,6 +602,7 @@ mode = "full"
     assert!(stderr.contains("forced full audit append failure"));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 fn full_mode_prune_failure_is_non_blocking() {
     let temp = tempfile::tempdir().expect("tempdir should create");
