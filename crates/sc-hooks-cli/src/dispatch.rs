@@ -30,6 +30,7 @@ struct DispatchLogBase<'a> {
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
     project_root: &'a AiRootDir,
+    observability: &'a crate::config::ObservabilityConfig,
 }
 
 #[derive(Debug, Error)]
@@ -162,6 +163,7 @@ pub fn execute_chain(
         mode,
         handler_chain: &handler_chain,
         project_root: &prepared.project_root,
+        observability: &config.observability,
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -529,7 +531,11 @@ pub fn execute_chain(
                 .map(RootDivergenceNotice::warning_message),
         );
         if let Some(notice) = root_divergence.as_ref() {
-            emit_root_divergence_log_with_fallback(log_base.project_root, notice);
+            emit_root_divergence_log_with_fallback(
+                log_base.project_root,
+                log_base.observability,
+                notice,
+            );
         }
 
         match parsed.action {
@@ -708,6 +714,7 @@ fn emit_dispatch_log(
         exit,
         ai_notification,
         project_root: base.project_root,
+        observability: base.observability,
     })
 }
 
@@ -725,16 +732,22 @@ fn emit_dispatch_log_with_fallback(
 
 fn emit_root_divergence_log(
     project_root: &AiRootDir,
+    observability_config: &crate::config::ObservabilityConfig,
     notice: &RootDivergenceNotice,
 ) -> Result<(), CliError> {
     observability::emit_root_divergence_event(observability::RootDivergenceEventArgs {
         notice,
         project_root,
+        observability: observability_config,
     })
 }
 
-fn emit_root_divergence_log_with_fallback(project_root: &AiRootDir, notice: &RootDivergenceNotice) {
-    if let Err(err) = emit_root_divergence_log(project_root, notice) {
+fn emit_root_divergence_log_with_fallback(
+    project_root: &AiRootDir,
+    observability_config: &crate::config::ObservabilityConfig,
+    notice: &RootDivergenceNotice,
+) {
+    if let Err(err) = emit_root_divergence_log(project_root, observability_config, notice) {
         emit_observability_stderr_fallback(&err);
     }
 }

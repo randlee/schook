@@ -5,7 +5,7 @@ This table maps the most important documented requirements to current implementa
 | Requirement ID | Status | Primary implementation | Primary tests | Gap |
 | --- | --- | --- | --- | --- |
 | CFG-001 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests plus `sc-hooks-cli/tests/runtime_layout_example.rs` proving the checked default `.sc-hooks/config.toml` layout | |
-| CFG-002 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
+| CFG-002 | implemented | `sc-hooks-cli/src/config.rs` | `parses_observability_section_with_local_only_fields`, `rejects_unknown_observability_field`, and `layered_config_applies_built_in_global_local_and_env_precedence` | |
 | CFG-003 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/dispatch.rs` | dispatch tests, config tests | |
 | CFG-004 | implemented | `sc-hooks-cli/src/config.rs` | `sc-hooks-cli/src/config.rs` tests | |
 | CFG-008 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/audit.rs` | config tests, audit tests | |
@@ -64,8 +64,8 @@ This table maps the most important documented requirements to current implementa
 | OBS-008 | implemented | `sc-hooks-cli/Cargo.toml` | dependency inspection | |
 | OBS-009 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests plus contract/logging docs covering env-flag sink toggles | |
 | DEF-008 | implemented | `sc-hooks-cli/tests/observability_contract.rs`, `docs/observability-contract.md`, `docs/logging-contract.md` | real dispatch-path observability tests prove both the JSONL file sink and the default console sink for success, block, invalid-json error, and timeout outcomes | |
-| DEF-010 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires config-layer contract, precedence rules, and config tests before implementation closes | observability phase |
-| DEF-011 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires mode-resolution contract and global-vs-local enforcement tests | observability phase |
+| DEF-010 | implemented | `sc-hooks-cli/src/config.rs`, `docs/requirements.md`, `docs/architecture.md` | `layered_config_applies_built_in_global_local_and_env_precedence`, `default_global_config_path_uses_userprofile_when_home_is_missing`, and `rejects_unknown_observability_field` prove built-in < global < local < env precedence and the supported key surface | |
+| DEF-011 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/observability.rs`, `docs/requirements.md`, `docs/architecture.md` | `rejects_full_mode_from_global_config_alone`, `off_mode_returns_before_logger_initialization`, and `off_mode_suppresses_durable_observability_output` prove mode resolution and durable-sink suppression semantics | |
 | DEF-012 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires run-scoped audit path rules plus path-resolution and file-layout tests | observability phase |
 | DEF-013 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires frozen lean/debug field sets and profile-selection tests | observability phase |
 | DEF-014 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires default redaction proof and confirmation that audit JSONL, not console text, is the machine contract | observability phase |
@@ -123,6 +123,22 @@ This table maps the most important documented requirements to current implementa
   - prior text: env-flag sink toggles were documented implementation details, not a named release-facing observability requirement
   - current text: env-flag sink toggles are promoted into the release-facing observability contract as `OBS-009`, with file sink canonical by default and console sink documented as the operator/debugging surface
   - authorizing sprint: `S9-BONUS`
+- `CFG-002`
+  - prior text: the top-level host config surface recognized `[meta]`, `[context]`, `[hooks]`, and `[sandbox]` only
+  - current text: the top-level host config surface also recognizes `[observability]`, with the detailed field surface frozen in the observability contract
+  - authorizing sprint: `SC-LOG-S2`
+- `DEF-006`
+  - prior text: observability config might return later as a separate `[logging]` section once the next planning pass defined the right surface
+  - current text: superseded; the committed config surface is `[observability]`, and the project will not restore `[logging]` as a parallel persisted contract
+  - authorizing sprint: `SC-LOG-S2`
+- `DEF-010`
+  - prior text: layered global/local/env observability config was part of the planned observability phase only
+  - current text: layered observability config is implemented with built-in < global < local < env precedence
+  - authorizing sprint: `SC-LOG-S2`
+- `DEF-011`
+  - prior text: `off | standard | full` mode resolution was part of the planned observability phase only
+  - current text: mode resolution is implemented, and `full` remains invalid when it comes from global config alone
+  - authorizing sprint: `SC-LOG-S2`
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
   - current text: ATM extension behavior shall enrich the canonical generic session-state record through extension fields and environment inheritance without redefining the generic lifecycle model

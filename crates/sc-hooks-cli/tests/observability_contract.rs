@@ -200,6 +200,47 @@ fn invalid_sink_toggle_warns_to_stderr_and_keeps_default_file_sink() {
 }
 
 #[test]
+fn off_mode_suppresses_durable_observability_output() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "off"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    assert!(!root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists());
+    assert!(console_lines(&output).is_empty());
+}
+
+#[test]
 fn blocked_dispatch_emits_warn_log_event() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();
