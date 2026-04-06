@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_hooks_core::events::HookType;
@@ -60,6 +61,12 @@ impl DispatchHarness {
         }
         if let Some(session_id) = session_id {
             command.env("SC_HOOK_SESSION_ID", session_id);
+        }
+        if extra_env
+            .iter()
+            .any(|(key, _)| *key == "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE")
+        {
+            command.env("SC_HOOKS_TEST_MODE", "1");
         }
         for (key, value) in extra_env {
             command.env(key, value);
@@ -146,6 +153,31 @@ fn read_full_audit_run(audit_root: &Path) -> (std::path::PathBuf, Value, Vec<Val
         .map(|line| serde_json::from_str(line).expect("full audit line should parse"))
         .collect();
     (run_dir, meta, events)
+}
+
+fn list_full_audit_run_names(audit_root: &Path) -> Vec<String> {
+    let mut entries = fs::read_dir(audit_root.join("runs"))
+        .expect("full audit runs dir should be readable")
+        .map(|entry| entry.expect("run entry should read").file_name())
+        .map(|name| name.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
+}
+
+fn create_fake_full_audit_run(audit_root: &Path, run_id: &str) {
+    let run_dir = audit_root.join("runs").join(run_id);
+    fs::create_dir_all(&run_dir).expect("fake run dir should create");
+    fs::write(run_dir.join("meta.json"), "{}\n").expect("fake meta should write");
+    fs::write(run_dir.join("events.jsonl"), "{}\n").expect("fake events should write");
+}
+
+fn fake_run_id(age: Duration, suffix: usize) -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("current time should follow unix epoch")
+        .as_nanos();
+    format!("{}-{suffix}", now.saturating_sub(age.as_nanos()))
 }
 
 #[test]
@@ -411,6 +443,210 @@ path = "tmp/evals"
     assert_eq!(events[1]["outcome"], "error");
     assert_eq!(events[1]["degraded"], true);
     assert!(!root.join(".sc-hooks/audit").exists());
+}
+
+#[test]
+fn full_mode_prunes_run_directories_by_age_and_count() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let audit_root = root.join(".sc-hooks/audit");
+    fs::create_dir_all(audit_root.join("runs")).expect("runs root should create");
+    for index in 0..10 {
+        create_fake_full_audit_run(&audit_root, &fake_run_id(Duration::from_secs(60), index));
+    }
+    let old_run_id = fake_run_id(Duration::from_secs(30 * 24 * 60 * 60), 99);
+    create_fake_full_audit_run(&audit_root, &old_run_id);
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let run_names = list_full_audit_run_names(&audit_root);
+    assert_eq!(run_names.len(), 10);
+    assert!(
+        !run_names.contains(&old_run_id),
+        "aged-out run should be pruned"
+    );
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn standard_mode_logger_init_failure_is_non_blocking() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE", "logger_init")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("sc-hooks: failed emitting observability event:"));
+    assert!(stderr.contains("forced observability logger init failure"));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn standard_mode_emit_failure_is_non_blocking() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE", "emit")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("sc-hooks: failed emitting observability event:"));
+    assert!(stderr.contains("forced observability emit failure"));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn full_mode_append_failure_is_non_blocking() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE", "audit_append")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("sc-hooks: full audit degraded:"));
+    assert!(stderr.contains("forced full audit append failure"));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+fn full_mode_prune_failure_is_non_blocking() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync_with_env(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+        &[("SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE", "audit_prune")],
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let stderr = stderr_text(&output);
+    assert!(stderr.contains("sc-hooks: full audit degraded:"));
+    assert!(stderr.contains("forced full audit prune failure"));
+
+    let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    assert_eq!(events[1]["name"], "hook.dispatch.completed");
 }
 
 #[test]

@@ -10,6 +10,7 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
+- `DEF-009`, `DEF-015` (`Added in SC-LOG-S6`; traceability: `docs/traceability.md`)
 - `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
 - `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
 - `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
@@ -95,8 +96,8 @@ Resolved mode rules:
 | `SC_HOOKS_OBSERVABILITY_MODE` | `standard` | `off`, `standard`, `full` | `[observability].mode` | `full` remains invalid when it comes from global config alone; env may enable it for an operator session |
 | `SC_HOOKS_AUDIT_PROFILE` | `lean` | `lean`, `debug` | `[observability].full_profile` | applies only when mode resolves to `full` |
 | `SC_HOOKS_AUDIT_PATH` | `.sc-hooks/audit` | any path | `[observability].path` | relative paths remain repo-root relative |
-| `SC_HOOKS_AUDIT_MAX_RUNS` | `10` | non-negative integer | `[observability].retain_runs` | retention-count override for run pruning |
-| `SC_HOOKS_AUDIT_MAX_AGE_DAYS` | `14` | non-negative integer | `[observability].retain_days` | age-cap override for run pruning |
+| `SC_HOOKS_AUDIT_MAX_RUNS` | `10` | integer `>= 1` | `[observability].retain_runs` | retention-count override for run pruning |
+| `SC_HOOKS_AUDIT_MAX_AGE_DAYS` | `14` | integer `>= 1` | `[observability].retain_days` | age-cap override for run pruning |
 | `SC_HOOKS_AUDIT_REDACTION` | `strict` | `strict`, `permissive` | `[observability].redaction` | redaction policy remains local/operator owned |
 | `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS` | `false` | `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off` | `[observability].capture_payloads` | payload capture remains separate from mode/profile selection |
 | `SC_HOOKS_AUDIT_CAPTURE_STDIO` | `summary` | `none`, `summary`, `bounded` | `[observability].capture_stdio` | stdio capture detail remains bounded by profile rules |
@@ -128,8 +129,8 @@ The layered config surface is frozen to the keys below.
 | `full_profile` | string enum | `lean` | no | yes | `SC_HOOKS_AUDIT_PROFILE` |
 | `path` | path | `.sc-hooks/audit` | no | yes | `SC_HOOKS_AUDIT_PATH` |
 | `console_mirror` | boolean | `false` | yes | yes | none |
-| `retain_runs` | unsigned integer | `10` | yes | yes | `SC_HOOKS_AUDIT_MAX_RUNS` |
-| `retain_days` | unsigned integer | `14` | yes | yes | `SC_HOOKS_AUDIT_MAX_AGE_DAYS` |
+| `retain_runs` | integer `>= 1` | `10` | yes | yes | `SC_HOOKS_AUDIT_MAX_RUNS` |
+| `retain_days` | integer `>= 1` | `14` | yes | yes | `SC_HOOKS_AUDIT_MAX_AGE_DAYS` |
 | `redaction` | string enum | `strict` | yes | yes | `SC_HOOKS_AUDIT_REDACTION` |
 | `capture_payloads` | boolean | `false` | no | yes | `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS` |
 | `capture_stdio` | string enum | `summary` | no | yes | `SC_HOOKS_AUDIT_CAPTURE_STDIO` |
@@ -332,7 +333,7 @@ Implements:
   - `hook.invocation.failed_pre_dispatch` for resolution, metadata preparation, dispatch preflight, and plugin-input preparation failures
   - `hook.dispatch.completed` when a handler-executing dispatch completes
 - if observability emission fails during dispatch completion or `session.root_divergence` emission, `sc-hooks` falls back to `stderr` with `sc-hooks: failed emitting observability event: ...` instead of silently swallowing the failure
-- if full-audit append or run-file preparation fails, `sc-hooks` falls back to
+- if full-audit append, run-file preparation, or pruning fails, `sc-hooks` falls back to
   `stderr` with `sc-hooks: full audit degraded: ...`
 - async aggregate output to stdout is unchanged and remains separate from observability emission
 - runtime plugin/protocol failures still map to the existing CLI exit-code contract

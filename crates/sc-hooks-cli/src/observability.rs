@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[cfg(test)]
 use std::sync::Mutex;
 use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use log::warn;
 use sc_hooks_core::errors::RootDivergenceNotice;
@@ -19,7 +19,7 @@ use thiserror::Error;
 
 use crate::config::{
     CapturePayloads, CaptureStdio, FullAuditProfile, ObservabilityConfig, ObservabilityMode,
-    RedactionMode,
+    RedactionMode, RetainDays, RetainRunCount,
 };
 use crate::errors::CliError;
 use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
@@ -33,6 +33,16 @@ static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
 static FULL_AUDIT_RUN: OnceLock<FullAuditRunState> = OnceLock::new();
 #[cfg(test)]
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
+const TEST_MODE_ENV: &str = "SC_HOOKS_TEST_MODE";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ForcedObservabilityFailure {
+    LoggerInit,
+    Emit,
+    AuditAppend,
+    AuditPrune,
+}
 
 #[derive(Debug, Error)]
 enum ObservabilityInitError {
@@ -387,6 +397,10 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         fields,
     };
 
+    if should_force_observability_failure(ForcedObservabilityFailure::Emit) {
+        return Err(CliError::internal("forced observability emit failure"));
+    }
+
     logger.emit(event).map_err(|source| {
         CliError::internal_with_source("failed emitting observability event", source)
     })?;
@@ -604,6 +618,12 @@ fn logger(
         return Ok(logger);
     }
 
+    if should_force_observability_failure(ForcedObservabilityFailure::LoggerInit) {
+        return Err(CliError::internal(
+            "forced observability logger init failure",
+        ));
+    }
+
     let service = ServiceName::new(SERVICE_NAME).map_err(|source| {
         CliError::internal_with_source(
             "failed to initialize observability logger",
@@ -685,10 +705,40 @@ fn env_flag(key: &str) -> Option<bool> {
     }
 }
 
+fn forced_failures_enabled() -> bool {
+    cfg!(debug_assertions)
+}
+
 pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
     let message = message.as_ref();
     warn!("{message}");
     let _ = writeln!(std::io::stderr(), "{message}");
+}
+
+fn forced_observability_failure() -> Option<ForcedObservabilityFailure> {
+    // RATIONALE: debug_assertions keeps forced-failure injection compiled out
+    // of release builds so test-only failure paths cannot leak into shipped
+    // binaries through environment variables.
+    if !forced_failures_enabled() {
+        return None;
+    }
+
+    std::env::var_os(TEST_MODE_ENV)?;
+
+    match std::env::var(TEST_FORCE_OBSERVABILITY_FAILURE_ENV)
+        .ok()?
+        .as_str()
+    {
+        "logger_init" => Some(ForcedObservabilityFailure::LoggerInit),
+        "emit" => Some(ForcedObservabilityFailure::Emit),
+        "audit_append" => Some(ForcedObservabilityFailure::AuditAppend),
+        "audit_prune" => Some(ForcedObservabilityFailure::AuditPrune),
+        _ => None,
+    }
+}
+
+fn should_force_observability_failure(kind: ForcedObservabilityFailure) -> bool {
+    forced_observability_failure() == Some(kind)
 }
 
 pub(crate) fn build_debug_excerpt(
@@ -951,7 +1001,7 @@ fn full_audit_run_state(
     let state = FullAuditRunState {
         run_id,
         invocation_id,
-        root,
+        root: root.clone(),
         events_path: run_dir.join("events.jsonl"),
         meta_path: run_dir.join("meta.json"),
         project_root: project_root.as_path().display().to_string(),
@@ -959,6 +1009,11 @@ fn full_audit_run_state(
         started_at: utc_timestamp_now(),
     };
     write_full_audit_meta(&state)?;
+    if let Err(err) = prune_full_audit_runs(&root.join("runs"), &state.run_id, observability) {
+        // Pruning is best-effort: a failure to remove old runs should not block
+        // the current dispatch or change its hook outcome.
+        emit_stderr_warning(format!("sc-hooks: full audit degraded: {err}"));
+    }
     Ok(FULL_AUDIT_RUN.get_or_init(|| state))
 }
 
@@ -1022,6 +1077,10 @@ fn write_full_audit_meta(state: &FullAuditRunState) -> Result<(), CliError> {
 }
 
 fn append_jsonl(path: &std::path::Path, record: &impl Serialize) -> Result<(), CliError> {
+    if should_force_observability_failure(ForcedObservabilityFailure::AuditAppend) {
+        return Err(CliError::internal("forced full audit append failure"));
+    }
+
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -1044,6 +1103,151 @@ fn append_jsonl(path: &std::path::Path, record: &impl Serialize) -> Result<(), C
     file.sync_data().map_err(|source| {
         CliError::internal_with_source("failed syncing full audit events file", source)
     })?;
+    Ok(())
+}
+
+#[derive(Debug)]
+struct FullAuditRunDir {
+    name: String,
+    path: PathBuf,
+    started_at: SystemTime,
+    sort_key_nanos: u128,
+}
+
+fn prune_full_audit_runs(
+    runs_root: &std::path::Path,
+    current_run_id: &str,
+    observability: &ObservabilityConfig,
+) -> Result<(), CliError> {
+    if should_force_observability_failure(ForcedObservabilityFailure::AuditPrune) {
+        return Err(CliError::internal("forced full audit prune failure"));
+    }
+    if !runs_root.exists() {
+        return Ok(());
+    }
+
+    let mut runs = list_full_audit_runs(runs_root)?;
+    prune_runs_older_than(&mut runs, current_run_id, observability.retain_days)?;
+    prune_runs_by_count(&runs, current_run_id, observability.retain_runs)
+}
+
+fn list_full_audit_runs(runs_root: &std::path::Path) -> Result<Vec<FullAuditRunDir>, CliError> {
+    let mut runs = Vec::new();
+    for entry in fs::read_dir(runs_root).map_err(|source| {
+        CliError::internal_with_source(
+            format!(
+                "failed reading full audit runs directory at {}",
+                runs_root.display()
+            ),
+            source,
+        )
+    })? {
+        let entry = entry.map_err(|source| {
+            CliError::internal_with_source("failed reading full audit run directory entry", source)
+        })?;
+        let file_type = entry.file_type().map_err(|source| {
+            CliError::internal_with_source("failed reading full audit run directory type", source)
+        })?;
+        if !file_type.is_dir() {
+            continue;
+        }
+
+        let name = entry.file_name().to_string_lossy().to_string();
+        let path = entry.path();
+        let metadata = entry.metadata().map_err(|source| {
+            CliError::internal_with_source("failed reading full audit run metadata", source)
+        })?;
+        let sort_key_nanos = parse_run_sort_key_nanos(&name).unwrap_or_else(|| {
+            metadata
+                .modified()
+                .ok()
+                .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+                .map(|duration| duration.as_nanos())
+                .unwrap_or(0)
+        });
+        let started_at = parse_run_started_at(&name)
+            .or_else(|| metadata.modified().ok())
+            .unwrap_or(UNIX_EPOCH);
+        runs.push(FullAuditRunDir {
+            name,
+            path,
+            started_at,
+            sort_key_nanos,
+        });
+    }
+    Ok(runs)
+}
+
+fn parse_run_sort_key_nanos(name: &str) -> Option<u128> {
+    name.split('-').next()?.parse().ok()
+}
+
+fn parse_run_started_at(name: &str) -> Option<SystemTime> {
+    let nanos = parse_run_sort_key_nanos(name)?;
+    let nanos = u64::try_from(nanos).ok()?;
+    Some(UNIX_EPOCH + Duration::from_nanos(nanos))
+}
+
+fn prune_runs_older_than(
+    runs: &mut Vec<FullAuditRunDir>,
+    current_run_id: &str,
+    retain_days: RetainDays,
+) -> Result<(), CliError> {
+    let cutoff = SystemTime::now()
+        .checked_sub(retain_days.to_duration())
+        .unwrap_or(UNIX_EPOCH);
+    let mut kept = Vec::with_capacity(runs.len());
+    for run in runs.drain(..) {
+        if run.name != current_run_id && run.started_at < cutoff {
+            fs::remove_dir_all(&run.path).map_err(|source| {
+                CliError::internal_with_source(
+                    format!("failed pruning full audit run at {}", run.path.display()),
+                    source,
+                )
+            })?;
+        } else {
+            kept.push(run);
+        }
+    }
+    *runs = kept;
+    Ok(())
+}
+
+fn prune_runs_by_count(
+    runs: &[FullAuditRunDir],
+    current_run_id: &str,
+    retain_runs: RetainRunCount,
+) -> Result<(), CliError> {
+    let mut runs = runs.iter().collect::<Vec<_>>();
+    runs.sort_by(|left, right| {
+        right
+            .sort_key_nanos
+            .cmp(&left.sort_key_nanos)
+            .then_with(|| right.name.cmp(&left.name))
+    });
+
+    let keep_historical =
+        usize::try_from(retain_runs.get().saturating_sub(1)).unwrap_or(usize::MAX);
+    let mut kept_historical = 0usize;
+    let mut failures = Vec::new();
+    for run in runs {
+        if run.name == current_run_id {
+            continue;
+        }
+        if kept_historical < keep_historical {
+            kept_historical += 1;
+            continue;
+        }
+        if let Err(source) = fs::remove_dir_all(&run.path) {
+            failures.push(format!("{}: {source}", run.path.display()));
+        }
+    }
+    if !failures.is_empty() {
+        return Err(CliError::Internal {
+            message: format!("failed pruning full audit run(s): {}", failures.join("; ")),
+            source: None,
+        });
+    }
     Ok(())
 }
 

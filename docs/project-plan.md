@@ -84,7 +84,7 @@ Important planning rule:
 | `SC-LOG-S3` / Observability Phase 2 | In review | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
 | `SC-LOG-S4` / Observability Phase 3 | In review | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
 | `SC-LOG-S5` / Observability Phase 4 | In review | full audit debug profile and redaction controls | `DEF-013`, `DEF-014` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
-| `SC-LOG-S6` / Observability Phase 5 | Planned | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015`, `DEF-017a` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
+| `SC-LOG-S6` / Observability Phase 5 | In review | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
 | `SC-LOG-S7` / Observability Phase 6 | Planned | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |
 
 ## 5. Execution Controls
@@ -204,25 +204,6 @@ Phase-wide fixed decisions:
 
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
-
-### `SC-LOG-S5` / Observability Phase 4
-
-Status:
-- in review
-
-Key deliverables:
-- introduce the `CapturePayloads` newtype-backed config surface for debug audit
-  payload gating
-- implement debug-profile observability config and field emission for
-  machine-readable troubleshooting
-- wire `LocalObservabilityConfigLayer.capture_payloads` as
-  `Option<CapturePayloads>` so repo-local config preserves the typed contract
-
-Acceptance criteria:
-- `cargo test --workspace` passes
-- `cargo clippy --all-targets --all-features -- -D warnings` passes
-- `LocalObservabilityConfigLayer.capture_payloads` remains
-  `Option<CapturePayloads>`
 
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 

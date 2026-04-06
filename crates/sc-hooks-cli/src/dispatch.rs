@@ -771,13 +771,13 @@ pub fn execute_chain(
         println!("{output}");
     }
 
-    emit_dispatch_log(
+    emit_dispatch_log_with_fallback(
         &log_base,
         &log_results,
         started.elapsed().as_millis(),
         sc_hooks_core::exit_codes::SUCCESS,
         None,
-    )?;
+    );
 
     Ok(DispatchOutcome::Proceed)
 }
