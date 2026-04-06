@@ -246,14 +246,14 @@ Current observability ownership follows the intended boundary directly:
   machine-readable config provenance, decision-trace, stdio-excerpt, redaction,
   and payload-capture fields without changing hook outcomes
 
-Next planned observability expansion:
+Current observability-phase result:
 
 - keep the current file-sink JSONL contract as the release baseline and the
   baseline operational mode
 - keep the new lean full-audit sink as the durable machine-readable source for
   audit-grade runs
-- complete the remaining observability phase with retention, pruning, degraded
-  path hardening, and 50-agent validation
+- retention, pruning, degraded-path hardening, and 50-agent validation are now
+  part of the committed observability baseline
 - keep durable audit JSONL as the canonical machine-readable source for the
   committed phase; the human console sink is operator-facing only
 - treat structured live streaming plus exporter, spans, metrics, and OTLP work
@@ -473,12 +473,12 @@ Planning targets only for a later approved Cursor pass:
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.
 
-## 10. Observability Phase Planning Boundary
+## 10. Observability Phase Design Boundary
 
-The next observability phase is planned work only. It is not current
-architecture until code and contract docs land together.
+The observability phase is now part of current architecture. The design
+direction below is the frozen shape that the code and contract docs implement.
 
-Planning direction frozen for that phase:
+Implemented phase shape:
 
 - naming converges on `sc-hooks` as the canonical product/runtime/binary name
   with `hooks` as a convenience CLI alias

@@ -529,6 +529,10 @@ Exit gate:
 - prove 50+ simultaneous agents
 - harden retention and pruning
 - confirm all degraded paths remain non-blocking
+- keep the concurrency proof in integration or soak coverage rather than the
+  fast unit-test suite
+- S4 merge-forward closure note: audit code paths rely on `AUD-008` and
+  `AUD-011` being present and unique; there is no runtime dedup set involved
 
 Exit gate:
 
@@ -536,6 +540,24 @@ Exit gate:
   corruption or shared-file contention
 - the long-term QA path is documented separately from normal unit-test suites
 - phase-close evidence includes load-run results and degraded-path checks
+
+Phase-close evidence on the `SC-LOG-S7` branch:
+
+- soak record: commit `fe66778` on 2026-04-05 kept the 64-agent
+  `CONC-001` integration proof green, with all 64 of 64 concurrent host
+  invocations producing one valid run-scoped audit directory each under a
+  shared audit root without JSON corruption
+- `cargo +1.94.1 test --workspace` includes
+  `full_mode_concurrent_agents_shard_runs_without_corruption`, which runs 64
+  concurrent host invocations against one shared audit root and verifies one
+  valid run-scoped audit directory per agent without JSON corruption
+- `cargo +1.94.1 test --workspace --release` keeps the degraded-path checks
+  green for:
+  - `standard_mode_logger_init_failure_is_non_blocking`
+  - `standard_mode_emit_failure_is_non_blocking`
+  - `full_mode_logger_init_failure_is_non_blocking`
+  - `full_mode_append_failure_is_non_blocking`
+  - `full_mode_prune_failure_is_non_blocking`
 
 ## 12. Out Of Scope For The Committed Phase
 

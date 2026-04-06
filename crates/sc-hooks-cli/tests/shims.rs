@@ -1,8 +1,11 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn write_mock_sc_hooks(path: &Path) {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent).expect("mock script parent should be creatable");
     let script = r#"#!/usr/bin/env bash
 set -eu
 printf "%s|%s|%s|%s\n" \
@@ -11,16 +14,29 @@ printf "%s|%s|%s|%s\n" \
   "${SC_HOOK_AGENT_PID:-}" \
   "$*" > "${SHIM_TEST_OUTPUT}"
 "#;
-    fs::write(path, script).expect("mock sc-hooks should be writable");
+    let mut temp =
+        tempfile::NamedTempFile::new_in(parent).expect("temporary mock script should create");
+    temp.write_all(script.as_bytes())
+        .expect("mock sc-hooks should be writable");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)
+        let mut perms = temp
+            .as_file()
+            .metadata()
             .expect("mock script metadata should be readable")
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(path, perms).expect("mock script should be executable");
+        temp.as_file()
+            .set_permissions(perms)
+            .expect("mock script should be executable");
     }
+    temp.as_file()
+        .sync_all()
+        .expect("mock script should sync before persist");
+    temp.into_temp_path()
+        .persist(path)
+        .expect("mock script should persist atomically");
 }
 
 fn shim_path(name: &str) -> PathBuf {

@@ -181,26 +181,40 @@ mod tests {
     use super::*;
     use crate::test_support;
     use std::fs;
+    use std::io::Write;
 
     fn make_plugin(path: &Path, manifest: &str) {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
-        }
+        let parent = path.parent().unwrap_or_else(|| Path::new("."));
+        fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
 
         let script = format!(
             "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\n  cat <<'JSON'\n{manifest}\nJSON\n  exit 0\nfi\ncat >/dev/null\ncat <<'JSON'\n{{\"action\":\"proceed\"}}\nJSON\n"
         );
-        fs::write(path, script).expect("plugin script should be writable");
+        let mut temp =
+            tempfile::NamedTempFile::new_in(parent).expect("temporary plugin file should create");
+        temp.write_all(script.as_bytes())
+            .expect("plugin script should be writable");
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)
+            let mut perms = temp
+                .as_file()
+                .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
             perms.set_mode(0o755);
-            fs::set_permissions(path, perms).expect("plugin should be executable");
+            temp.as_file()
+                .set_permissions(perms)
+                .expect("plugin should be executable");
         }
+
+        temp.as_file()
+            .sync_all()
+            .expect("plugin script should sync before persist");
+        temp.into_temp_path()
+            .persist(path)
+            .expect("plugin script should persist atomically");
     }
 
     #[test]

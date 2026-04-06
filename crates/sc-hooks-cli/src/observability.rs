@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::PathBuf;
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use log::warn;
@@ -28,9 +28,10 @@ const SERVICE_NAME: &str = "sc-hooks";
 /// Bound debug excerpts to 160 chars so audit records stay compact and the
 /// debug-profile tests can assert a fixed truncation boundary.
 const DEBUG_EXCERPT_LIMIT: usize = 160;
-static LOGGER: OnceLock<Logger> = OnceLock::new();
-static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
-static FULL_AUDIT_RUN: OnceLock<FullAuditRunState> = OnceLock::new();
+static LOGGER_STATE: OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitError>>> =
+    OnceLock::new();
+static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>> =
+    OnceLock::new();
 #[cfg(test)]
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
@@ -45,7 +46,7 @@ enum ForcedObservabilityFailure {
 }
 
 #[derive(Debug, Error)]
-enum ObservabilityInitError {
+pub(crate) enum ObservabilityInitError {
     #[error("invalid service name: {source}")]
     InvalidServiceName {
         #[source]
@@ -68,12 +69,31 @@ enum ObservabilityInitError {
         #[source]
         source: sc_observability_types::InitError,
     },
+    #[error("forced observability logger init failure")]
+    ForcedLoggerInit,
     #[error(
         "full audit root mismatch for cached run: initialized at {initialized}, requested {requested}"
     )]
     FullAuditRootMismatch {
         initialized: PathBuf,
         requested: PathBuf,
+    },
+    #[error("failed preparing full audit root at {path}")]
+    PrepareFullAuditRoot {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("failed preparing full audit run directory at {path}")]
+    PrepareFullAuditRunDirectory {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("failed writing full audit meta file")]
+    WriteFullAuditMeta {
+        #[source]
+        source: CliError,
     },
 }
 
@@ -603,47 +623,46 @@ fn logger(
     observability: &ObservabilityConfig,
 ) -> Result<&'static Logger, CliError> {
     let effective_root = effective_logger_root(project_root)?;
+    let logger_state = logger_state_from_cell(&LOGGER_STATE, &effective_root, observability)
+        .map_err(CliError::observability_init)?;
 
-    let initialized_root = LOGGER_ROOT.get_or_init(|| effective_root.clone());
-    if initialized_root != &effective_root {
-        return Err(CliError::internal_with_source(
-            "observability logger project root mismatch",
-            ObservabilityInitError::ProjectRootMismatch {
-                initialized: initialized_root.as_path().to_path_buf(),
-                requested: effective_root.as_path().to_path_buf(),
-            },
-        ));
-    }
-    if let Some(logger) = LOGGER.get() {
-        return Ok(logger);
-    }
+    Ok(&logger_state.1)
+}
 
+fn logger_state_from_cell<'a>(
+    cell: &'a OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitError>>>,
+    effective_root: &AiRootDir,
+    observability: &ObservabilityConfig,
+) -> Result<&'a (AiRootDir, Logger), Arc<ObservabilityInitError>> {
+    match cell.get_or_init(|| initialize_logger_state(effective_root, observability)) {
+        Ok(state) => {
+            if &state.0 != effective_root {
+                return Err(Arc::new(ObservabilityInitError::ProjectRootMismatch {
+                    initialized: state.0.as_path().to_path_buf(),
+                    requested: effective_root.as_path().to_path_buf(),
+                }));
+            }
+            Ok(state)
+        }
+        Err(err) => Err(Arc::clone(err)),
+    }
+}
+
+fn initialize_logger_state(
+    effective_root: &AiRootDir,
+    observability: &ObservabilityConfig,
+) -> Result<(AiRootDir, Logger), Arc<ObservabilityInitError>> {
     if should_force_observability_failure(ForcedObservabilityFailure::LoggerInit) {
-        return Err(CliError::internal(
-            "forced observability logger init failure",
-        ));
+        return Err(Arc::new(ObservabilityInitError::ForcedLoggerInit));
     }
 
-    let service = ServiceName::new(SERVICE_NAME).map_err(|source| {
-        CliError::internal_with_source(
-            "failed to initialize observability logger",
-            ObservabilityInitError::InvalidServiceName { source },
-        )
-    })?;
-    let config =
-        default_logger_config(service, initialized_root, observability).map_err(|source| {
-            CliError::internal_with_source(
-                "failed to initialize observability logger",
-                ObservabilityInitError::ResolveRoot { source },
-            )
-        })?;
-    let logger = Logger::new(config).map_err(|source| {
-        CliError::internal_with_source(
-            "failed to initialize observability logger",
-            ObservabilityInitError::LoggerInit { source },
-        )
-    })?;
-    Ok(LOGGER.get_or_init(|| logger))
+    let service = ServiceName::new(SERVICE_NAME)
+        .map_err(|source| Arc::new(ObservabilityInitError::InvalidServiceName { source }))?;
+    let config = default_logger_config(service, effective_root, observability)
+        .map_err(|source| Arc::new(ObservabilityInitError::ResolveRoot { source }))?;
+    let logger = Logger::new(config)
+        .map_err(|source| Arc::new(ObservabilityInitError::LoggerInit { source }))?;
+    Ok((effective_root.clone(), logger))
 }
 
 #[cfg(test)]
@@ -967,54 +986,72 @@ fn full_audit_run_state(
     observability: &ObservabilityConfig,
 ) -> Result<&'static FullAuditRunState, CliError> {
     let root = resolve_full_audit_root(project_root, observability);
-    if let Some(state) = FULL_AUDIT_RUN.get() {
-        if state.root != root {
-            return Err(CliError::internal_with_source(
-                "full audit root mismatch",
-                ObservabilityInitError::FullAuditRootMismatch {
-                    initialized: state.root.clone(),
-                    requested: root,
-                },
-            ));
-        }
-        return Ok(state);
-    }
+    full_audit_run_state_with_cell(&FULL_AUDIT_RUN, root, project_root, observability)
+}
 
+fn full_audit_run_state_with_cell<'a>(
+    cell: &'a OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>>,
+    root: PathBuf,
+    project_root: &AiRootDir,
+    observability: &ObservabilityConfig,
+) -> Result<&'a FullAuditRunState, CliError> {
+    let state = match cell
+        .get_or_init(|| initialize_full_audit_run_state(root.clone(), project_root, observability))
+    {
+        Ok(state) => {
+            if state.root != root {
+                return Err(CliError::observability_init(Arc::new(
+                    ObservabilityInitError::FullAuditRootMismatch {
+                        initialized: state.root.clone(),
+                        requested: root,
+                    },
+                )));
+            }
+            state
+        }
+        Err(err) => return Err(CliError::observability_init(Arc::clone(err))),
+    };
+    if let Err(err) = prune_full_audit_runs(&root.join("runs"), &state.run_id, observability) {
+        // Pruning is best-effort: a failure to remove old runs should not block
+        // the current dispatch or change its hook outcome.
+        emit_stderr_warning(format!("sc-hooks: full audit degraded: {err}"));
+    }
+    Ok(state)
+}
+
+fn initialize_full_audit_run_state(
+    root: PathBuf,
+    project_root: &AiRootDir,
+    observability: &ObservabilityConfig,
+) -> Result<FullAuditRunState, Arc<ObservabilityInitError>> {
     fs::create_dir_all(root.join("runs")).map_err(|source| {
-        CliError::internal_with_source(
-            format!("failed preparing full audit root at {}", root.display()),
+        Arc::new(ObservabilityInitError::PrepareFullAuditRoot {
+            path: root.clone(),
             source,
-        )
+        })
     })?;
     let run_id = generate_run_id();
     let invocation_id = format!("{run_id}-invocation");
     let run_dir = root.join("runs").join(&run_id);
     fs::create_dir_all(&run_dir).map_err(|source| {
-        CliError::internal_with_source(
-            format!(
-                "failed preparing full audit run directory at {}",
-                run_dir.display()
-            ),
+        Arc::new(ObservabilityInitError::PrepareFullAuditRunDirectory {
+            path: run_dir.clone(),
             source,
-        )
+        })
     })?;
     let state = FullAuditRunState {
         run_id,
         invocation_id,
-        root: root.clone(),
+        root,
         events_path: run_dir.join("events.jsonl"),
         meta_path: run_dir.join("meta.json"),
         project_root: project_root.as_path().display().to_string(),
         profile: observability.full_profile,
         started_at: utc_timestamp_now(),
     };
-    write_full_audit_meta(&state)?;
-    if let Err(err) = prune_full_audit_runs(&root.join("runs"), &state.run_id, observability) {
-        // Pruning is best-effort: a failure to remove old runs should not block
-        // the current dispatch or change its hook outcome.
-        emit_stderr_warning(format!("sc-hooks: full audit degraded: {err}"));
-    }
-    Ok(FULL_AUDIT_RUN.get_or_init(|| state))
+    write_full_audit_meta(&state)
+        .map_err(|source| Arc::new(ObservabilityInitError::WriteFullAuditMeta { source }))?;
+    Ok(state)
 }
 
 fn resolve_full_audit_root(
@@ -1029,9 +1066,6 @@ fn resolve_full_audit_root(
 }
 
 fn write_full_audit_meta(state: &FullAuditRunState) -> Result<(), CliError> {
-    if state.meta_path.exists() {
-        return Ok(());
-    }
     let meta = FullAuditMeta {
         schema_version: 1,
         service: SERVICE_NAME,
@@ -1306,6 +1340,7 @@ fn dispatch_message(
 mod tests {
     use super::*;
     use crate::config::CapturePayloads;
+    use std::ffi::OsString;
     use std::fs;
     use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -1332,6 +1367,53 @@ mod tests {
             .unwrap_or_else(|err| err.into_inner());
         let previous = (*guard).replace(path);
         LoggerRootOverrideGuard { previous }
+    }
+
+    struct EnvGuard {
+        _lock: MutexGuard<'static, ()>,
+        saved: Vec<(&'static str, Option<OsString>)>,
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (key, value) in self.saved.drain(..) {
+                match value {
+                    Some(value) => {
+                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::set_var(key, value) }
+                    }
+                    None => {
+                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::remove_var(key) }
+                    }
+                }
+            }
+        }
+    }
+
+    fn scoped_env(overrides: &[(&'static str, Option<&str>)]) -> EnvGuard {
+        let lock = observability_lock()
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
+        let saved = overrides
+            .iter()
+            .map(|(key, _)| (*key, std::env::var_os(key)))
+            .collect::<Vec<_>>();
+
+        for (key, value) in overrides {
+            match value {
+                Some(value) => {
+                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::set_var(key, value) }
+                }
+                None => {
+                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::remove_var(key) }
+                }
+            }
+        }
+
+        EnvGuard { _lock: lock, saved }
     }
 
     fn emit_sample_dispatch(
@@ -1454,9 +1536,14 @@ mod tests {
         emit_sample_dispatch(&project_root, &ObservabilityConfig::default())
             .expect("baseline observability event should initialize logger");
 
-        let initialized_root = LOGGER_ROOT
+        let initialized_root = LOGGER_STATE
             .get()
-            .map(|root| root.as_path().to_path_buf())
+            .and_then(|result| {
+                result
+                    .as_ref()
+                    .ok()
+                    .map(|state| state.0.as_path().to_path_buf())
+            })
             .unwrap_or_else(|| root.clone());
         let mismatch_root = tempfile::tempdir().expect("tempdir should create");
         assert_ne!(
@@ -1469,8 +1556,160 @@ mod tests {
         let err = emit_sample_dispatch(&project_root, &ObservabilityConfig::default())
             .expect_err("mismatched test root should fail");
         let rendered = err.to_string();
-        assert!(rendered.contains("observability logger project root mismatch"));
+        assert!(rendered.contains("observability initialization failed"));
         assert!(rendered.contains("project_root mismatch for cached logger"));
+    }
+
+    #[test]
+    fn logger_state_from_cell_reuses_cached_success_without_reinitializing() {
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root).expect("root should be absolute");
+        let cell = OnceLock::new();
+
+        let first = {
+            let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, None)]);
+            let state =
+                logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
+                    .expect("first logger init should succeed");
+            &state.1 as *const Logger
+        };
+        let _forced = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))]);
+        let state = logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
+            .expect("cached logger should be reused");
+        let second = &state.1 as *const Logger;
+
+        assert_eq!(
+            first, second,
+            "cached logger should reuse the same instance"
+        );
+    }
+
+    #[test]
+    fn logger_state_from_cell_reuses_cached_init_failure() {
+        let _forced = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))]);
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root).expect("root should be absolute");
+        let cell = OnceLock::new();
+
+        let first =
+            match logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default()) {
+                Ok(_) => panic!("forced init failure should be cached"),
+                Err(err) => err,
+            };
+        let second =
+            match logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default()) {
+                Ok(_) => panic!("cached init failure should be reused"),
+                Err(err) => err,
+            };
+
+        assert!(matches!(
+            first.as_ref(),
+            ObservabilityInitError::ForcedLoggerInit
+        ));
+        assert!(Arc::ptr_eq(&first, &second));
+    }
+
+    #[test]
+    fn full_audit_run_state_with_cell_reports_cached_root_mismatch() {
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let root_a = AiRootDir::new(temp.path().join("root-a")).expect("root should be absolute");
+        let root_b = AiRootDir::new(temp.path().join("root-b")).expect("root should be absolute");
+        let cell = OnceLock::new();
+        let observability = ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            ..ObservabilityConfig::default()
+        };
+
+        let state = full_audit_run_state_with_cell(
+            &cell,
+            resolve_full_audit_root(&root_a, &observability),
+            &root_a,
+            &observability,
+        )
+        .expect("first full audit state should initialize");
+        assert_eq!(state.root, resolve_full_audit_root(&root_a, &observability));
+
+        let err = full_audit_run_state_with_cell(
+            &cell,
+            resolve_full_audit_root(&root_b, &observability),
+            &root_b,
+            &observability,
+        )
+        .expect_err("mismatched root should fail");
+        assert!(matches!(err, CliError::ObservabilityInit { .. }));
+    }
+
+    #[test]
+    fn full_mode_emit_failure_returns_error_from_emit_sample_dispatch() {
+        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("emit"))]);
+        let root = crate::test_support::shared_observability_root();
+        let project_root = AiRootDir::new(root).expect("root should be absolute");
+        let observability = ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            ..ObservabilityConfig::default()
+        };
+
+        let err = emit_sample_dispatch(&project_root, &observability)
+            .expect_err("forced emit failure should return an error");
+        assert!(
+            err.to_string()
+                .contains("forced observability emit failure")
+        );
+    }
+
+    #[test]
+    fn full_mode_append_failure_returns_error_from_emit_full_audit_record() {
+        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_append"))]);
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let project_root =
+            AiRootDir::new(temp.path().to_path_buf()).expect("root should be absolute");
+        let observability = ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            ..ObservabilityConfig::default()
+        };
+
+        let err = emit_full_audit_record(FullAuditRecordArgs {
+            name: "hook.invocation.received",
+            hook: "PreToolUse",
+            event: Some("Write"),
+            mode: sc_hooks_core::dispatch::DispatchMode::Sync,
+            project_root: &project_root,
+            observability: &observability,
+            outcome: "received",
+            stage: None,
+            handler_chain: None,
+            total_ms: None,
+            exit: None,
+            error: None,
+            ai_notification: None,
+            degraded: None,
+            results: None,
+            payload: None,
+        })
+        .expect_err("forced full audit append failure should return an error");
+        assert!(err.to_string().contains("forced full audit append failure"));
+    }
+
+    #[test]
+    fn full_audit_run_state_with_cell_keeps_prune_failure_non_blocking() {
+        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_prune"))]);
+        let temp = tempfile::tempdir().expect("tempdir should create");
+        let project_root =
+            AiRootDir::new(temp.path().to_path_buf()).expect("root should be absolute");
+        let cell = OnceLock::new();
+        let observability = ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            ..ObservabilityConfig::default()
+        };
+
+        let state = full_audit_run_state_with_cell(
+            &cell,
+            resolve_full_audit_root(&project_root, &observability),
+            &project_root,
+            &observability,
+        )
+        .expect("prune failure should remain non-blocking");
+        assert!(state.events_path.exists() || !state.events_path.exists());
     }
 
     #[test]

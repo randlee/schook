@@ -14,8 +14,7 @@ Owning requirement IDs:
 - `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
 - `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
 - `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
-- `DEF-017`, `DEF-017a` (`Added in SC-LOG-S4`; see §6; traceability:
-  `docs/traceability.md`)
+- `DEF-017` (`Added in SC-LOG-S4`; see §6; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
