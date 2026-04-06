@@ -28,7 +28,24 @@ fn run_command_hook(
         command.env(key, value);
     }
 
-    let mut child = command.spawn().expect("hook script should spawn");
+    let mut child = {
+        let mut last_err = None;
+        let mut result = None;
+        for _ in 0..3 {
+            match command.spawn() {
+                Ok(child) => {
+                    result = Some(child);
+                    break;
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                    last_err = Some(err);
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                Err(err) => panic!("hook script should spawn: {err}"),
+            }
+        }
+        result.unwrap_or_else(|| panic!("hook script should spawn: {}", last_err.unwrap()))
+    };
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
         let body = serde_json::to_vec(&input).expect("hook input should serialize");
