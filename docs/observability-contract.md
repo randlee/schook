@@ -14,11 +14,13 @@ Owning requirement IDs:
 - `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
 - `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
 - `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
+- `DEF-016` (`Added in SC-LOG-S7`; traceability: `docs/traceability.md`)
 - `DEF-017` (`Added in SC-LOG-S4`; see §6; traceability: `docs/traceability.md`)
 
-`sc-hooks` currently emits structured observability events through the external
-`sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
-`../../../sc-observability/...`.
+`sc-hooks` currently emits structured observability events through version-pinned
+external `sc-observability` crates owned by `sc-hooks-cli`. Local validation may
+resolve those crates from the sibling `../sc-observability` checkout until the
+external publication sequence closes.
 
 This document defines the current JSONL file output owned by `sc-hooks-cli`.
 
@@ -249,7 +251,53 @@ Current conditional lean fields are:
 - `ai_notification`
 - `degraded`
 
-## 4.2 Full Audit Debug Record Shape
+## 4.2 Full Audit Serialized JSON Keys
+
+`FullAuditMeta` serialized key names are:
+
+- `schema_version`
+- `service`
+- `run_id`
+- `invocation_id`
+- `profile`
+- `started_at`
+- `project_root`
+- `pid`
+
+`FullAuditRecord` serialized key names are:
+
+- `schema_version`
+- `timestamp`
+- `service`
+- `run_id`
+- `invocation_id`
+- `name`
+- `hook`
+- `hook_event` when present
+- `mode`
+- `profile`
+- `project_root`
+- `current_dir` when present
+- `pid`
+- `outcome`
+- `stage` when present
+- `handler_chain` when present
+- `handler_count` when present
+- `total_ms` when present
+- `exit` when present
+- `error` when present
+- `ai_notification` when present
+- `degraded` when present
+- `config_source_summary` when present
+- `config_layer_resolution` when present
+- `decision_trace_summary` when present
+- `handler_stderr_excerpt` when present
+- `handler_stdout_excerpt` when present
+- `redaction_actions` when present
+- `payload_capture_state` when present
+- `payload_excerpt` when present
+
+## 4.3 Full Audit Debug Record Shape
 
 Frozen Design Note (`DEF-013`):
 - the mandatory `debug`-profile field set was frozen in `SC-LOG-S4` before

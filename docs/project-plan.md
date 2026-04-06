@@ -80,11 +80,11 @@ Important planning rule:
 | S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
 | S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
 | `SC-LOG-S1` / Observability Phase 0 | Merged | naming cleanup and namespace freeze | release blocker #88, `DEF-019` | `develop` baseline | naming docs, binary/service references, config/runtime namespace decisions |
-| `SC-LOG-S2` / Observability Phase 1 | In review | layered config foundation | `DEF-010`, `DEF-011` | `SC-LOG-S1` | `sc-hooks-cli` config loading, requirements/architecture docs, config tests |
-| `SC-LOG-S3` / Observability Phase 2 | In review | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
-| `SC-LOG-S4` / Observability Phase 3 | In review | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
-| `SC-LOG-S5` / Observability Phase 4 | In review | full audit debug profile and redaction controls | `DEF-013`, `DEF-014` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
-| `SC-LOG-S6` / Observability Phase 5 | In review | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
+| `SC-LOG-S2` / Observability Phase 1 | Merged | layered config foundation | `DEF-010`, `DEF-011` | `SC-LOG-S1` | `sc-hooks-cli` config loading, requirements/architecture docs, config tests |
+| `SC-LOG-S3` / Observability Phase 2 | Merged | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
+| `SC-LOG-S4` / Observability Phase 3 | Merged | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
+| `SC-LOG-S5` / Observability Phase 4 | Merged | full audit debug profile and redaction controls | `DEF-013`, `DEF-014` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
+| `SC-LOG-S6` / Observability Phase 5 | Merged | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
 | `SC-LOG-S7` / Observability Phase 6 | Completed | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |
 
 ## 5. Execution Controls
@@ -996,10 +996,10 @@ Deliverables:
   - `sc-hooks-core`
   - `sc-hooks-sdk`
   - `sc-hooks-test` (tracked, not published)
-  - `sc-hooks-cli`
+  - `sc-hooks-cli` (tracked for binary releases; crates.io publish deferred until external observability crates are published)
 - release workflows for preflight, tagged release, GitHub archives, Homebrew, and WinGet
 - release gate script for branch/clean-tree/version checks
-- docs that state the first crates.io publish only covers complete working crates, not scaffold/reference plugin crates
+- docs that state the current crates.io publish wave covers only the currently publishable working crates, not scaffold/reference plugin crates or the externally gated CLI crate
 
 Required tests:
 
@@ -1012,4 +1012,4 @@ Acceptance criteria:
 - the workspace uses `crates/<name>` paths for the four host crates
 - release infrastructure is manifest-driven rather than hardcoded in workflow YAML
 - `PUBLISHING.md` documents crates.io, GitHub Releases, Homebrew, and WinGet
-- the documented initial release scope excludes scaffold/reference plugin crates
+- the documented current crates.io release scope excludes scaffold/reference plugin crates and the externally gated CLI crate

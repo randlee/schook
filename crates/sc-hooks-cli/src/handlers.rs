@@ -123,7 +123,11 @@ fn discover_plugins() -> Result<Vec<PluginHandlerInfo>, CliError> {
                     name,
                     path,
                     mode: Some(manifest.mode.as_str().to_string()),
-                    matchers: manifest.matchers,
+                    matchers: manifest
+                        .matchers
+                        .into_iter()
+                        .map(|matcher| matcher.as_str().to_string())
+                        .collect(),
                     timeout,
                     manifest_error_kind: None,
                     manifest_error: None,

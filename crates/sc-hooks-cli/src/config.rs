@@ -499,6 +499,7 @@ pub enum ConfigError {
     #[error("failed to read config at {path}: {source}")]
     Read {
         path: PathBuf,
+        #[source]
         source: std::io::Error,
     },
 
@@ -752,10 +753,11 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
 }
 
 fn default_global_config_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
+    let home = std::env::var_os("ATM_HOME")
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)?;
     Some(
-        PathBuf::from(home)
-            .join(DEFAULT_GLOBAL_CONFIG_DIR)
+        home.join(DEFAULT_GLOBAL_CONFIG_DIR)
             .join(DEFAULT_GLOBAL_CONFIG_FILE),
     )
 }
@@ -1242,17 +1244,17 @@ mode = "full"
     }
 
     #[test]
-    fn default_global_config_path_uses_userprofile_when_home_is_missing() {
-        let userprofile = std::env::temp_dir().join("sc-hooks-home-fallback");
-        let userprofile = userprofile
+    fn default_global_config_path_prefers_atm_home_override() {
+        let atm_home = std::env::temp_dir().join("sc-hooks-home-fallback");
+        let atm_home = atm_home
             .to_str()
-            .expect("temp userprofile path should be valid utf-8")
+            .expect("temp ATM_HOME path should be valid utf-8")
             .to_string();
-        let _env = scoped_env(&[("HOME", None), ("USERPROFILE", Some(userprofile.as_str()))]);
+        let _env = scoped_env(&[("ATM_HOME", Some(atm_home.as_str()))]);
 
         assert_eq!(
             default_global_config_path(),
-            Some(PathBuf::from(userprofile).join(".sc-hooks/config.toml"))
+            Some(PathBuf::from(atm_home).join(".sc-hooks/config.toml"))
         );
     }
 

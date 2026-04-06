@@ -3,6 +3,12 @@ name = "sc-hooks-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme.workspace = true
+description = "Core types, state transitions, and persistence contracts for sc-hooks."
 
 [dependencies]
 dirs = "6.0.0"

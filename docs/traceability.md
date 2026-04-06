@@ -48,6 +48,10 @@ This table maps the most important documented requirements to current implementa
 | CLI-004 | implemented | `sc-hooks-cli/src/install.rs` | install tests plus `sc-hooks-cli/tests/runtime_layout_example.rs` proving the checked `.sc-hooks/` layout | |
 | CLI-005 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-core/src/exit_codes.rs` | config tests, handlers tests, exit-code table tests | |
 | CLI-007 | implemented | `sc-hooks-test/src/compliance.rs`, `sc-hooks-cli/src/testing.rs`, `sc-hooks-cli/src/main.rs` | `sc-hooks-cli/tests/compliance_host.rs` proves `sc-hooks-test::compliance::run_contract_behavior_suite` through the real CLI binary, while `testing.rs` remains the thin presentation wrapper | |
+| REQ-SHK-CLI-008 | implemented | `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/main.rs` | config tests covering layered defaults/global/local/env precedence and `[observability]` parsing | |
+| REQ-SHK-CLI-009 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs`, `sc-hooks-cli/src/main.rs` | `sc-hooks-cli/tests/observability_contract.rs` plus full-audit integration coverage | |
+| REQ-SHK-CLI-010 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/config.rs`, `sc-hooks-cli/src/dispatch.rs` | debug-profile observability tests covering redaction, stdio excerpts, and payload-capture gating | |
+| REQ-SHK-CLI-011 | implemented | `sc-hooks-cli/src/observability.rs`, `docs/observability-soak-runbook.md` | degraded-path integration tests plus `full_mode_concurrent_agents_shard_runs_without_corruption` and the soak runbook evidence | |
 | AUD-001 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-005 | implemented | `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | `sc-hooks-cli/src/audit.rs` test `audit_rejects_async_long_running_manifest` plus `sc-hooks-sdk/src/manifest.rs` test `rejects_async_long_running_manifest` | |

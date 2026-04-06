@@ -33,6 +33,8 @@ static LOGGER_STATE: OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitE
 static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>> =
     OnceLock::new();
 #[cfg(test)]
+// Test-only root override is protected by a mutex because multiple tests share the
+// same global logger cache and must serialize root swaps.
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
 const TEST_MODE_ENV: &str = "SC_HOOKS_TEST_MODE";
@@ -1362,6 +1364,9 @@ mod tests {
     }
 
     fn scoped_logger_root_override(path: PathBuf) -> LoggerRootOverrideGuard {
+        // Lock order invariant: tests acquire observability_lock() before they mutate
+        // the logger-root override so env mutation and root override changes never
+        // invert the shared test mutex order.
         let mut guard = test_logger_root_override()
             .lock()
             .unwrap_or_else(|err| err.into_inner());
@@ -1716,7 +1721,20 @@ mod tests {
             &observability,
         )
         .expect("prune failure should remain non-blocking");
-        assert!(state.events_path.exists() || !state.events_path.exists());
+        assert!(
+            state.meta_path.exists(),
+            "full audit meta file should still be initialized on prune failure"
+        );
+        assert_eq!(
+            state.events_path.parent(),
+            Some(
+                state
+                    .meta_path
+                    .parent()
+                    .expect("meta path should have a parent")
+            ),
+            "events and meta files should share the run directory"
+        );
     }
 
     #[test]

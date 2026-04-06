@@ -1,5 +1,6 @@
 use serde_json::Value;
-use std::io::Write;
+use std::io::{self, Read, Write};
+use std::thread::{self, JoinHandle};
 use std::time::Instant;
 use thiserror::Error;
 
@@ -12,6 +13,7 @@ use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 use log::error;
 use sc_hooks_core::errors::RootDivergenceNotice;
+use sc_hooks_core::events::HookType;
 use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
@@ -77,6 +79,29 @@ struct PluginExecutionContextError {
     context: String,
     #[source]
     source: Option<BoxedError>,
+}
+
+fn spawn_output_reader<R>(mut reader: R) -> JoinHandle<io::Result<Vec<u8>>>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    })
+}
+
+fn join_output_reader(
+    handle: JoinHandle<io::Result<Vec<u8>>>,
+    stream_name: &'static str,
+) -> io::Result<Vec<u8>> {
+    match handle.join() {
+        Ok(result) => result,
+        Err(_) => Err(io::Error::other(format!(
+            "{stream_name} capture thread panicked"
+        ))),
+    }
 }
 
 impl PluginExecutionContextError {
@@ -146,17 +171,18 @@ fn plugin_termination_error(
 pub fn execute_chain(
     handlers: &[ResolvedHandler],
     config: &ScHooksConfig,
-    hook: &str,
+    hook: HookType,
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
+    let hook_name = hook.as_str();
     let audit_project_root = metadata::current_project_root().ok();
     let prepared =
-        metadata::prepare_for_dispatch(config, hook, event, payload).inspect_err(|err| {
+        metadata::prepare_for_dispatch(config, hook_name, event, payload).inspect_err(|err| {
             observability::emit_standard_degraded_signal(
                 &config.observability,
-                hook,
+                hook_name,
                 event,
                 mode,
                 "metadata_preparation",
@@ -166,7 +192,7 @@ pub fn execute_chain(
                 observability::emit_full_audit_pre_dispatch_failure(
                     observability::FullAuditPreDispatchFailureArgs {
                         observability: &config.observability,
-                        hook,
+                        hook: hook_name,
                         event,
                         mode,
                         project_root,
@@ -183,7 +209,7 @@ pub fn execute_chain(
         .map(|handler| handler.name.clone())
         .collect();
     let log_base = DispatchLogBase {
-        hook,
+        hook: hook_name,
         event,
         matcher: event.unwrap_or("*"),
         mode,
@@ -208,7 +234,7 @@ pub fn execute_chain(
             });
             observability::emit_standard_degraded_signal(
                 &config.observability,
-                hook,
+                hook_name,
                 event,
                 mode,
                 "dispatch_preflight",
@@ -217,7 +243,7 @@ pub fn execute_chain(
             observability::emit_full_audit_pre_dispatch_failure(
                 observability::FullAuditPreDispatchFailureArgs {
                     observability: &config.observability,
-                    hook,
+                    hook: hook_name,
                     event,
                     mode,
                     project_root: &prepared.project_root,
@@ -268,7 +294,7 @@ pub fn execute_chain(
         .inspect_err(|err| {
             observability::emit_standard_degraded_signal(
                 &config.observability,
-                hook,
+                hook_name,
                 event,
                 mode,
                 "input_preparation",
@@ -277,7 +303,7 @@ pub fn execute_chain(
             observability::emit_full_audit_pre_dispatch_failure(
                 observability::FullAuditPreDispatchFailureArgs {
                     observability: &config.observability,
-                    hook,
+                    hook: hook_name,
                     event,
                     mode,
                     project_root: &prepared.project_root,
@@ -329,9 +355,22 @@ pub fn execute_chain(
                 return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
+        let stdout_reader = child
+            .stdout
+            .take()
+            .map(spawn_output_reader)
+            .ok_or_else(|| {
+                CliError::internal(format!("child stdout pipe missing for `{handler_name}`"))
+            })?;
+        let stderr_reader = child
+            .stderr
+            .take()
+            .map(spawn_output_reader)
+            .ok_or_else(|| {
+                CliError::internal(format!("child stderr pipe missing for `{handler_name}`"))
+            })?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
             let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
                 CliError::plugin_error_with_source("failed to serialize stdin payload", err)
             })?;
@@ -373,53 +412,8 @@ pub fn execute_chain(
             handler.manifest.timeout_ms,
             handler.manifest.long_running,
         );
-        let status = match wait_with_timeout(&mut child, timeout_ms) {
-            Ok(TimeoutOutcome::Completed(status)) => status,
-            Ok(TimeoutOutcome::TimedOut) => {
-                disable_plugin_for_session(
-                    prepared
-                        .session_id
-                        .as_ref()
-                        .map(sc_hooks_core::session::SessionId::as_str),
-                    handler_name,
-                )?;
-                let ai_message = ai_notification(
-                    handler_name,
-                    PluginFailureKind::TimedOut {
-                        timeout_ms: timeout_ms
-                            .expect("timeout outcome requires configured timeout"),
-                    },
-                    "increase timeout_ms or optimize plugin execution.",
-                );
-                log_results.push(error_result(
-                    handler_name,
-                    handler_started.elapsed().as_millis(),
-                    "timeout",
-                    None,
-                    Some(true),
-                    None,
-                    None,
-                ));
-                if mode == sc_hooks_core::dispatch::DispatchMode::Async {
-                    emit_dispatch_log_with_fallback(
-                        &log_base,
-                        &log_results,
-                        started.elapsed().as_millis(),
-                        sc_hooks_core::exit_codes::SUCCESS,
-                        Some(ai_message.as_str()),
-                    );
-                    async_system_message.push(ai_message);
-                    continue;
-                }
-                emit_dispatch_log_with_fallback(
-                    &log_base,
-                    &log_results,
-                    started.elapsed().as_millis(),
-                    sc_hooks_core::exit_codes::TIMEOUT,
-                    Some(ai_message.as_str()),
-                );
-                return Err(CliError::timeout(ai_message));
-            }
+        let wait_outcome = match wait_with_timeout(&mut child, timeout_ms) {
+            Ok(outcome) => outcome,
             Err(err) => {
                 disable_plugin_for_session(
                     prepared
@@ -452,79 +446,79 @@ pub fn execute_chain(
                 return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
-        use std::io::Read;
-        let mut stdout = Vec::new();
-        if let Some(mut out) = child.stdout.take()
-            && let Err(err) = out.read_to_end(&mut stdout)
-        {
-            disable_plugin_for_session(
-                prepared
-                    .session_id
-                    .as_ref()
-                    .map(sc_hooks_core::session::SessionId::as_str),
-                handler_name,
-            )?;
-            let ai_message = ai_notification(
-                handler_name,
-                PluginFailureKind::StdoutReadFailed,
-                "check plugin output handling and run 'sc-hooks test <plugin>'.",
-            );
-            log_results.push(error_result(
-                handler_name,
-                handler_started.elapsed().as_millis(),
-                "stdout_read_failed",
-                Some(err.to_string()),
-                Some(true),
-                None,
-                None,
-            ));
-            emit_dispatch_log_with_fallback(
-                &log_base,
-                &log_results,
-                started.elapsed().as_millis(),
-                sc_hooks_core::exit_codes::PLUGIN_ERROR,
-                Some(ai_message.as_str()),
-            );
-            return Err(CliError::plugin_error_with_source(ai_message, err));
-        }
 
-        let mut stderr = Vec::new();
-        if let Some(mut err) = child.stderr.take()
-            && let Err(read_err) = err.read_to_end(&mut stderr)
-        {
-            disable_plugin_for_session(
-                prepared
-                    .session_id
-                    .as_ref()
-                    .map(sc_hooks_core::session::SessionId::as_str),
-                handler_name,
-            )?;
-            let ai_message = ai_notification(
-                handler_name,
-                PluginFailureKind::StderrReadFailed,
-                "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
-            );
-            log_results.push(error_result(
-                handler_name,
-                handler_started.elapsed().as_millis(),
-                "stderr_read_failed",
-                Some(read_err.to_string()),
-                Some(true),
-                None,
-                None,
-            ));
-            emit_dispatch_log_with_fallback(
-                &log_base,
-                &log_results,
-                started.elapsed().as_millis(),
-                sc_hooks_core::exit_codes::PLUGIN_ERROR,
-                Some(ai_message.as_str()),
-            );
-            return Err(CliError::plugin_error_with_source(
-                ai_message,
-                StderrCaptureContextError::new(&stderr, read_err),
-            ));
-        }
+        let stdout = match join_output_reader(stdout_reader, "stdout") {
+            Ok(stdout) => stdout,
+            Err(err) => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::StdoutReadFailed,
+                    "check plugin output handling and run 'sc-hooks test <plugin>'.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "stdout_read_failed",
+                    Some(err.to_string()),
+                    Some(true),
+                    None,
+                    None,
+                ));
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::plugin_error_with_source(ai_message, err));
+            }
+        };
+
+        let stderr = match join_output_reader(stderr_reader, "stderr") {
+            Ok(stderr) => stderr,
+            Err(read_err) => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::StderrReadFailed,
+                    "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "stderr_read_failed",
+                    Some(read_err.to_string()),
+                    Some(true),
+                    None,
+                    None,
+                ));
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::plugin_error_with_source(
+                    ai_message,
+                    StderrCaptureContextError::new(&[], read_err),
+                ));
+            }
+        };
 
         let stdout_text = String::from_utf8_lossy(&stdout);
         let stderr_text =
@@ -534,6 +528,56 @@ pub fn execute_chain(
             observability::build_debug_excerpt(&config.observability, &stdout_text);
         let stderr_debug_excerpt = stderr_ref
             .and_then(|stderr| observability::build_debug_excerpt(&config.observability, stderr));
+
+        let status = match wait_outcome {
+            TimeoutOutcome::Completed(status) => status,
+            TimeoutOutcome::TimedOut => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::TimedOut {
+                        // Invariant: wait_with_timeout() only yields TimedOut when a concrete timeout was configured.
+                        timeout_ms: timeout_ms
+                            .expect("timeout outcome requires configured timeout"),
+                    },
+                    "increase timeout_ms or optimize plugin execution.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "timeout",
+                    stderr_text.clone(),
+                    Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
+                ));
+                if mode == sc_hooks_core::dispatch::DispatchMode::Async {
+                    emit_dispatch_log_with_fallback(
+                        &log_base,
+                        &log_results,
+                        started.elapsed().as_millis(),
+                        sc_hooks_core::exit_codes::SUCCESS,
+                        Some(ai_message.as_str()),
+                    );
+                    async_system_message.push(ai_message);
+                    continue;
+                }
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::TIMEOUT,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::timeout(ai_message));
+            }
+        };
 
         if !status.success() {
             disable_plugin_for_session(
@@ -1040,7 +1084,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1052,7 +1096,7 @@ PreToolUse = ["guard-paths"]
         let outcome = execute_chain(
             &handlers,
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1107,8 +1151,8 @@ PostToolUse = ["notify"]
                 contract_version: 1,
                 name: "notify".to_string(),
                 mode: sc_hooks_core::dispatch::DispatchMode::Async,
-                hooks: vec!["PostToolUse".to_string()],
-                matchers: vec!["*".to_string()],
+                hooks: vec![HookType::PostToolUse],
+                matchers: vec![sc_hooks_core::manifest::ManifestMatcher::from("*")],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: true,
@@ -1123,7 +1167,7 @@ PostToolUse = ["notify"]
         let err = execute_chain(
             &[handler],
             &cfg,
-            "PostToolUse",
+            HookType::PostToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Async,
             None,
@@ -1166,7 +1210,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1178,7 +1222,7 @@ PreToolUse = ["guard-paths"]
         let outcome = execute_chain(
             &handlers,
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1247,7 +1291,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1263,7 +1307,7 @@ PreToolUse = ["guard-paths"]
             let outcome = execute_chain(
                 &handlers,
                 &cfg,
-                "PreToolUse",
+                HookType::PreToolUse,
                 Some("Write"),
                 sc_hooks_core::dispatch::DispatchMode::Sync,
                 None,

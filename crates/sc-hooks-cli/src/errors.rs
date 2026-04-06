@@ -101,7 +101,9 @@ pub enum CliError {
 
     #[error("observability initialization failed: {source}")]
     ObservabilityInit {
-        #[source]
+        // Intentionally not marked as #[source] to avoid a circular error-source graph:
+        // ObservabilityInitError already owns lower-level causes, and feeding it back through
+        // CliError as a source would reintroduce the CLI/application boundary into that chain.
         source: Arc<ObservabilityInitError>,
     },
 

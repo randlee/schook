@@ -19,8 +19,10 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
+use sc_hooks_core::events::HookType;
 use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
+use std::str::FromStr;
 
 use crate::errors::CliError;
 
@@ -155,6 +157,8 @@ fn run() -> Result<(), CliError> {
             let config = config::load_default_config()?;
             let payload = read_optional_payload_from_stdin()?;
             let mode = args.mode();
+            let hook_type = HookType::from_str(&args.hook)
+                .map_err(|_| CliError::internal(format!("unknown hook type `{}`", args.hook)))?;
             let audit_project_root = metadata::current_project_root().ok();
             let session_id = metadata::current_session_id();
             let disabled_plugins = session::load_disabled_plugins(
@@ -178,7 +182,7 @@ fn run() -> Result<(), CliError> {
                 let handlers =
                     resolution::resolve_chain(
                         &config,
-                        &args.hook,
+                        hook_type,
                         args.event.as_deref(),
                         mode,
                         payload.as_ref(),
@@ -239,7 +243,7 @@ fn run() -> Result<(), CliError> {
                 match dispatch::execute_chain(
                     &handlers,
                     &config,
-                    &args.hook,
+                    hook_type,
                     args.event.as_deref(),
                     mode,
                     payload.as_ref(),

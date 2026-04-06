@@ -11,7 +11,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::{HookError, RootDivergenceNotice};
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
@@ -119,12 +119,12 @@ impl ManifestProvider for SessionFoundationHandler {
             name: "agent-session-foundation".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![
-                "SessionStart".to_string(),
-                "SessionEnd".to_string(),
-                "PreCompact".to_string(),
-                "Stop".to_string(),
+                HookType::SessionStart,
+                HookType::SessionEnd,
+                HookType::PreCompact,
+                HookType::Stop,
             ],
-            matchers: vec!["*".to_string()],
+            matchers: vec![ManifestMatcher::from("*")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
@@ -396,8 +396,8 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
 fn verify_project_root_env_matches(hook: HookType, expected_root: &Path) -> Option<HookError> {
     let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
         warn!(
-            "agent-session-foundation: CLAUDE_PROJECT_DIR missing during {}; preserving immutable ai_root_dir",
-            hook.as_str()
+            "agent-session-foundation: missing_env=CLAUDE_PROJECT_DIR hook={} preserving immutable ai_root_dir",
+            hook.as_str(),
         );
         return None;
     };

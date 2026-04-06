@@ -1,10 +1,12 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use serde_json::Value;
 
 use crate::config::ScHooksConfig;
 use crate::{events, install, metadata};
+use sc_hooks_core::events::HookType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AuditOptions {
@@ -143,7 +145,7 @@ impl AuditDiagnostic {
                 "SEC-002 `{handler_name}` declares sandbox path `{path}` that does not exist"
             ),
             Self::SandboxPathUnacknowledged { handler_name, path } => format!(
-                "SEC-004 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
+                "SEC-003 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
             ),
             Self::PluginsDirPermissive { path, mode } => {
                 format!("SEC-006 plugin directory `{path}` has permissive mode {mode:o}")
@@ -223,6 +225,15 @@ pub fn run(
     warn_on_plugins_dir_permissions(&mut report);
 
     for (hook_name, chain) in &config.hooks {
+        let hook = match HookType::from_str(hook_name) {
+            Ok(hook) => hook,
+            Err(_) => {
+                report.push_error(AuditDiagnostic::MatcherError {
+                    message: format!("unknown hook `{hook_name}` in config"),
+                });
+                continue;
+            }
+        };
         for handler_name in chain {
             let plugin_path = plugin_path(handler_name);
             if !plugin_path.exists() {
@@ -262,13 +273,13 @@ pub fn run(
                 }
             };
 
-            if !manifest.hooks.iter().any(|hook| hook == hook_name) {
+            if !manifest.hooks.contains(&hook) {
                 report.push_error(AuditDiagnostic::HookNotDeclared {
                     handler_name: handler_name.to_string(),
                     hook_name: hook_name.to_string(),
                 });
             }
-            let taxonomy = events::validate_matchers_for_hook(hook_name, &manifest.matchers);
+            let taxonomy = events::validate_matchers_for_hook(hook, &manifest.matchers);
             report.warnings.extend(
                 taxonomy
                     .warnings

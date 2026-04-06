@@ -5,7 +5,8 @@ use std::process::Command;
 use serde_json::{Map, Value};
 use thiserror::Error;
 
-use sc_hooks_core::manifest::{FieldRequirement, Manifest};
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::manifest::{FieldRequirement, Manifest, ManifestMatcher};
 use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
 /// Highest manifest contract version understood by the current host.
@@ -313,7 +314,7 @@ fn validate_field_specs(fields: &BTreeMap<String, FieldRequirement>) -> Result<(
 pub fn build_plugin_input(
     manifest: &Manifest,
     metadata: &Value,
-    hook_type: &str,
+    hook_type: HookType,
     event: Option<&str>,
     payload: Option<&Value>,
 ) -> Result<Value, ManifestError> {
@@ -338,7 +339,10 @@ pub fn build_plugin_input(
     }
 
     let mut hook = Map::new();
-    hook.insert("type".to_string(), Value::String(hook_type.to_string()));
+    hook.insert(
+        "type".to_string(),
+        Value::String(hook_type.as_str().to_string()),
+    );
     if let Some(event) = event {
         hook.insert("event".to_string(), Value::String(event.to_string()));
     }
@@ -509,7 +513,7 @@ impl ManifestBuilder {
                 name: name.into(),
                 mode,
                 hooks: Vec::new(),
-                matchers: vec!["*".to_string()],
+                matchers: vec![ManifestMatcher::from("*")],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: false,
@@ -523,14 +527,14 @@ impl ManifestBuilder {
     }
 
     /// Replaces the hook list.
-    pub fn hooks(mut self, hooks: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.manifest.hooks = hooks.into_iter().map(Into::into).collect();
+    pub fn hooks(mut self, hooks: impl IntoIterator<Item = HookType>) -> Self {
+        self.manifest.hooks = hooks.into_iter().collect();
         self
     }
 
     /// Replaces the matcher list.
-    pub fn matchers(mut self, matchers: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.manifest.matchers = matchers.into_iter().map(Into::into).collect();
+    pub fn matchers(mut self, matchers: impl IntoIterator<Item = ManifestMatcher>) -> Self {
+        self.manifest.matchers = matchers.into_iter().collect();
         self
     }
 
@@ -667,7 +671,7 @@ mod tests {
         let input = build_plugin_input(
             &manifest,
             &metadata,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Bash"),
             Some(&payload),
         )
@@ -687,21 +691,24 @@ mod tests {
     #[test]
     fn manifest_builder_creates_valid_manifest() {
         let manifest = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
-            .hooks(["PostToolUse"])
-            .matchers(["Write", "Bash"])
+            .hooks([HookType::PostToolUse])
+            .matchers([
+                ManifestMatcher::from("Write"),
+                ManifestMatcher::from("Bash"),
+            ])
             .response_time(100, 1000)
             .optional_field("team.name", FieldType::String, Some("non_empty"))
             .build()
             .expect("builder should produce valid manifest");
         assert_eq!(manifest.name, "notify");
         assert_eq!(manifest.mode, sc_hooks_core::dispatch::DispatchMode::Async);
-        assert_eq!(manifest.hooks, vec!["PostToolUse".to_string()]);
+        assert_eq!(manifest.hooks, vec![HookType::PostToolUse]);
     }
 
     #[test]
     fn rejects_async_long_running_manifest() {
         let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
-            .hooks(["PostToolUse"])
+            .hooks([HookType::PostToolUse])
             .long_running("wait for remote ack")
             .build()
             .expect_err("async long_running should be rejected");
@@ -711,7 +718,7 @@ mod tests {
     #[test]
     fn rejects_long_running_manifest_without_description() {
         let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Sync)
-            .hooks(["PostToolUse"])
+            .hooks([HookType::PostToolUse])
             .long_running("   ")
             .build()
             .expect_err("long_running manifest should require a non-empty description");

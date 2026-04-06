@@ -15,6 +15,8 @@ Scope note:
 - `DEF-010`, `DEF-011`, `DEF-012`, `DEF-013`, `DEF-017`, and `DEF-017a` are
   owned by `docs/observability-contract.md` and are intentionally excluded from
   this contract's owning-ID list
+- `session.root_divergence` is owned by `docs/observability-contract.md`; this
+  document covers the `dispatch.complete` log family only
 
 This document defines the current JSONL dispatch-log contract for downstream
 consumers.
@@ -133,7 +135,7 @@ Current dispatch records use:
 | `level` | string | current values are `Info`, `Warn`, or `Error` |
 | `service` | string | always `sc-hooks` |
 | `target` | string | always `hook` |
-| `action` | string | always `dispatch.complete` |
+| `action` | string | always `dispatch.complete` for the dispatch-log records covered by this contract |
 | `message` | string | currently always present |
 | `identity.hostname` | string or null | currently `null` |
 | `identity.pid` | integer or null | current process id |

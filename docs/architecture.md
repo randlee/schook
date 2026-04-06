@@ -78,7 +78,7 @@ Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are source-owned implementation or scaffold/reference crates in this repository, not the runtime discovery directory
-- the initial publish scope covers only the complete working crates under `crates/`: `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-cli`; `sc-hooks-test` remains tracked but unpublished, and no `plugins/` source crate is part of the first crates.io release
+- the current crates.io publish scope covers the complete working library crates under `crates/`: `sc-hooks-core` and `sc-hooks-sdk`; `sc-hooks-test` remains tracked but unpublished, `sc-hooks-cli` remains externally gated on published `sc-observability` crates, and no `plugins/` source crate is part of the current crates.io release
 - crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ### 3.2 Plugin Source Crates
@@ -230,7 +230,9 @@ Current observability ownership follows the intended boundary directly:
 - `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
 - `sc-hooks-cli` also owns layered `[observability]` config loading,
   `off | standard | full` mode resolution, and sink-selection policy
-- the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
+- the implementation uses version-pinned external `sc-observability` crates;
+  local validation may resolve them from the sibling `../sc-observability`
+  checkout until crates.io publication finishes
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
 - the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes

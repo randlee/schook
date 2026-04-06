@@ -38,7 +38,8 @@ pub trait AsyncHandler: ManifestProvider {
 mod tests {
     use super::*;
     use sc_hooks_core::dispatch::DispatchMode;
-    use sc_hooks_core::manifest::Manifest;
+    use sc_hooks_core::events::HookType;
+    use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
     use std::collections::BTreeMap;
 
     struct DummySync;
@@ -49,8 +50,8 @@ mod tests {
                 contract_version: 1,
                 name: "dummy-sync".to_string(),
                 mode: DispatchMode::Sync,
-                hooks: vec!["PreToolUse".to_string()],
-                matchers: vec!["Write".to_string()],
+                hooks: vec![HookType::PreToolUse],
+                matchers: vec![ManifestMatcher::from("Write")],
                 payload_conditions: Vec::new(),
                 timeout_ms: Some(1_000),
                 long_running: false,

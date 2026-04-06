@@ -6,6 +6,8 @@ use serde_json::Value;
 use crate::config::ScHooksConfig;
 use crate::errors::ResolutionError;
 use crate::events;
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::manifest::ManifestMatcher;
 
 #[derive(Debug)]
 pub struct ResolvedHandler {
@@ -16,14 +18,14 @@ pub struct ResolvedHandler {
 
 pub fn resolve_chain(
     config: &ScHooksConfig,
-    hook: &str,
+    hook: HookType,
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
     async_bucket: Option<&str>,
     disabled_plugins: &BTreeSet<String>,
 ) -> Result<Vec<ResolvedHandler>, ResolutionError> {
-    let Some(chain) = config.hooks.get(hook) else {
+    let Some(chain) = config.hooks.get(hook.as_str()) else {
         return Ok(Vec::new());
     };
 
@@ -65,7 +67,7 @@ pub fn resolve_chain(
             continue;
         }
 
-        if !manifest.hooks.iter().any(|declared| declared == hook) {
+        if !manifest.hooks.contains(&hook) {
             continue;
         }
 
@@ -137,13 +139,13 @@ fn plugin_path(handler_name: &str) -> PathBuf {
     Path::new(".sc-hooks").join("plugins").join(handler_name)
 }
 
-fn matches_event(matchers: &[String], event: Option<&str>) -> bool {
-    if matchers.iter().any(|matcher| matcher == "*") {
+fn matches_event(matchers: &[ManifestMatcher], event: Option<&str>) -> bool {
+    if matchers.iter().any(|matcher| matcher.as_str() == "*") {
         return true;
     }
 
     match event {
-        Some(event) => matchers.iter().any(|matcher| matcher == event),
+        Some(event) => matchers.iter().any(|matcher| matcher.as_str() == event),
         None => false,
     }
 }
@@ -154,8 +156,10 @@ mod tests {
     use crate::config;
     use crate::test_support;
     use std::fs;
+    use std::io::Write;
 
-    fn make_plugin(path: &Path, manifest: &str) {
+    fn make_plugin(path: impl AsRef<Path>, manifest: &str) {
+        let path = path.as_ref();
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
         }
@@ -163,20 +167,41 @@ mod tests {
         let script = format!(
             "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\n  cat <<'JSON'\n{manifest}\nJSON\n  exit 0\nfi\ncat >/dev/null\ncat <<'JSON'\n{{\"action\":\"proceed\"}}\nJSON\n"
         );
-        fs::write(path, script).expect("plugin script should be writable");
+        let mut temp =
+            tempfile::NamedTempFile::new_in(path.parent().unwrap_or_else(|| Path::new(".")))
+                .expect("temporary plugin file should create");
+        temp.write_all(script.as_bytes())
+            .expect("plugin script should be writable");
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)
+            let mut perms = temp
+                .as_file()
+                .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
             perms.set_mode(0o755);
-            fs::set_permissions(path, perms).expect("plugin should be made executable");
+            temp.as_file()
+                .set_permissions(perms)
+                .expect("plugin should be made executable");
         }
+
+        temp.as_file()
+            .sync_all()
+            .expect("plugin script should sync before persist");
+        temp.into_temp_path()
+            .persist(path)
+            .expect("plugin script should persist atomically");
     }
 
-    fn make_counting_manifest_plugin(path: &Path, manifest: &str, counter_path: &Path) {
+    fn make_counting_manifest_plugin(
+        path: impl AsRef<Path>,
+        manifest: &str,
+        counter_path: impl AsRef<Path>,
+    ) {
+        let path = path.as_ref();
+        let counter_path = counter_path.as_ref();
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
         }
@@ -188,30 +213,51 @@ mod tests {
             "#!/bin/sh\nCOUNT_FILE=\"{counter}\"\nif [ \"$1\" = \"--manifest\" ]; then\n  count=0\n  if [ -f \"$COUNT_FILE\" ]; then\n    count=$(cat \"$COUNT_FILE\")\n  fi\n  count=$((count + 1))\n  echo \"$count\" > \"$COUNT_FILE\"\n  cat <<'JSON'\n{manifest}\nJSON\n  exit 0\nfi\ncat >/dev/null\ncat <<'JSON'\n{{\"action\":\"proceed\"}}\nJSON\n",
             counter = counter_path.display()
         );
-        fs::write(path, script).expect("plugin script should be writable");
+        let mut temp =
+            tempfile::NamedTempFile::new_in(path.parent().unwrap_or_else(|| Path::new(".")))
+                .expect("temporary plugin file should create");
+        temp.write_all(script.as_bytes())
+            .expect("plugin script should be writable");
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)
+            let mut perms = temp
+                .as_file()
+                .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
             perms.set_mode(0o755);
-            fs::set_permissions(path, perms).expect("plugin should be made executable");
+            temp.as_file()
+                .set_permissions(perms)
+                .expect("plugin should be made executable");
         }
+
+        temp.as_file()
+            .sync_all()
+            .expect("plugin script should sync before persist");
+        temp.into_temp_path()
+            .persist(path)
+            .expect("plugin script should persist atomically");
     }
 
     #[test]
     fn wildcard_matcher_matches_any_event() {
-        assert!(matches_event(&["*".to_string()], Some("Write")));
-        assert!(matches_event(&["*".to_string()], None));
+        assert!(matches_event(&[ManifestMatcher::from("*")], Some("Write")));
+        assert!(matches_event(&[ManifestMatcher::from("*")], None));
     }
 
     #[test]
     fn explicit_matchers_require_event() {
-        assert!(matches_event(&["Write".to_string()], Some("Write")));
-        assert!(!matches_event(&["Write".to_string()], Some("Read")));
-        assert!(!matches_event(&["Write".to_string()], None));
+        assert!(matches_event(
+            &[ManifestMatcher::from("Write")],
+            Some("Write")
+        ));
+        assert!(!matches_event(
+            &[ManifestMatcher::from("Write")],
+            Some("Read")
+        ));
+        assert!(!matches_event(&[ManifestMatcher::from("Write")], None));
     }
 
     #[test]
@@ -247,7 +293,7 @@ PreToolUse = ["guard-paths"]
         let payload = serde_json::json!({"tool_input":{"command":"atm send"}});
         let handlers = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             Some(&payload),
@@ -292,7 +338,7 @@ PreToolUse = ["notify"]
 
         let mismatched = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Async,
             None,
@@ -304,7 +350,7 @@ PreToolUse = ["notify"]
 
         let matched = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Async,
             None,
@@ -347,7 +393,7 @@ PreToolUse = ["context-a"]
 
         let handlers = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Async,
             None,
@@ -391,7 +437,7 @@ PreToolUse = ["guard-paths"]
         disabled.insert("guard-paths".to_string());
         let handlers = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -428,7 +474,7 @@ PreToolUse = ["cached", "cached"]
 
         let handlers = resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,

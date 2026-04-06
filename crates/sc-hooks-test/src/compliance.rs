@@ -72,20 +72,35 @@ pub struct ContractScenarioResult {
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 /// Error returned by host-dispatch compliance probes.
 pub enum ProbeError {
-    /// Probe failure with a human-readable message.
-    #[error("{0}")]
-    Message(String),
+    /// Probe failure with structured stage context.
+    #[error("probe stage `{stage}` failed: {message}")]
+    Stage {
+        /// Probe stage that failed.
+        stage: &'static str,
+        /// Human-readable failure detail.
+        message: String,
+    },
+}
+
+impl ProbeError {
+    /// Builds a probe error tagged with the failing stage.
+    pub fn stage(stage: &'static str, message: impl Into<String>) -> Self {
+        Self::Stage {
+            stage,
+            message: message.into(),
+        }
+    }
 }
 
 impl From<String> for ProbeError {
     fn from(value: String) -> Self {
-        Self::Message(value)
+        Self::stage("probe", value)
     }
 }
 
 impl From<&str> for ProbeError {
     fn from(value: &str) -> Self {
-        Self::Message(value.to_string())
+        Self::stage("probe", value)
     }
 }
 
