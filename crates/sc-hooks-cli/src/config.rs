@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -132,6 +133,13 @@ impl RedactionMode {
     fn expected_values() -> &'static str {
         "strict, permissive"
     }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Strict => "strict",
+            Self::Permissive => "permissive",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -156,6 +164,100 @@ impl CaptureStdio {
     fn expected_values() -> &'static str {
         "none, summary, bounded"
     }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Summary => "summary",
+            Self::Bounded => "bounded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(transparent)]
+pub struct CapturePayloads(bool);
+
+impl CapturePayloads {
+    pub const fn enabled() -> Self {
+        Self(true)
+    }
+
+    pub const fn disabled() -> Self {
+        Self(false)
+    }
+
+    pub(crate) const fn is_enabled(self) -> bool {
+        self.0
+    }
+}
+
+impl fmt::Display for CapturePayloads {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_enabled() {
+            f.write_str("enabled")
+        } else {
+            f.write_str("disabled")
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigValueSource {
+    #[default]
+    BuiltIn,
+    Global,
+    Local,
+    Env,
+}
+
+impl ConfigValueSource {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::BuiltIn => "built_in",
+            Self::Global => "global",
+            Self::Local => "local",
+            Self::Env => "env",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ObservabilityDebugContext {
+    pub local_config_path: PathBuf,
+    pub global_config_path: Option<PathBuf>,
+    pub global_config_present: bool,
+    pub env_overrides: Vec<String>,
+    pub mode_source: ConfigValueSource,
+    pub full_profile_source: ConfigValueSource,
+    pub path_source: ConfigValueSource,
+    pub console_mirror_source: ConfigValueSource,
+    pub retain_runs_source: ConfigValueSource,
+    pub retain_days_source: ConfigValueSource,
+    pub redaction_source: ConfigValueSource,
+    pub capture_payloads_source: ConfigValueSource,
+    pub capture_stdio_source: ConfigValueSource,
+}
+
+impl Default for ObservabilityDebugContext {
+    fn default() -> Self {
+        Self {
+            local_config_path: PathBuf::from(DEFAULT_CONFIG_PATH),
+            global_config_path: default_global_config_path(),
+            global_config_present: false,
+            env_overrides: Vec::new(),
+            mode_source: ConfigValueSource::BuiltIn,
+            full_profile_source: ConfigValueSource::BuiltIn,
+            path_source: ConfigValueSource::BuiltIn,
+            console_mirror_source: ConfigValueSource::BuiltIn,
+            retain_runs_source: ConfigValueSource::BuiltIn,
+            retain_days_source: ConfigValueSource::BuiltIn,
+            redaction_source: ConfigValueSource::BuiltIn,
+            capture_payloads_source: ConfigValueSource::BuiltIn,
+            capture_stdio_source: ConfigValueSource::BuiltIn,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -175,9 +277,11 @@ pub struct ObservabilityConfig {
     #[serde(default)]
     pub redaction: RedactionMode,
     #[serde(default)]
-    pub capture_payloads: bool,
+    pub capture_payloads: CapturePayloads,
     #[serde(default)]
     pub capture_stdio: CaptureStdio,
+    #[serde(skip)]
+    pub debug_context: ObservabilityDebugContext,
 }
 
 impl Default for ObservabilityConfig {
@@ -190,8 +294,9 @@ impl Default for ObservabilityConfig {
             retain_runs: default_retain_runs(),
             retain_days: default_retain_days(),
             redaction: RedactionMode::Strict,
-            capture_payloads: false,
+            capture_payloads: CapturePayloads::default(),
             capture_stdio: CaptureStdio::Summary,
+            debug_context: ObservabilityDebugContext::default(),
         }
     }
 }
@@ -200,49 +305,67 @@ impl ObservabilityConfig {
     fn apply_global(&mut self, layer: GlobalObservabilityConfigLayer) {
         if let Some(mode) = layer.mode {
             self.mode = mode;
+            self.debug_context.mode_source = ConfigValueSource::Global;
         }
         if let Some(console_mirror) = layer.console_mirror {
             self.console_mirror = console_mirror;
+            self.debug_context.console_mirror_source = ConfigValueSource::Global;
         }
         if let Some(retain_runs) = layer.retain_runs {
             self.retain_runs = retain_runs;
+            self.debug_context.retain_runs_source = ConfigValueSource::Global;
         }
         if let Some(retain_days) = layer.retain_days {
             self.retain_days = retain_days;
+            self.debug_context.retain_days_source = ConfigValueSource::Global;
         }
         if let Some(redaction) = layer.redaction {
             self.redaction = redaction;
+            self.debug_context.redaction_source = ConfigValueSource::Global;
         }
     }
 
     fn apply_local(&mut self, layer: LocalObservabilityConfigLayer) {
         if let Some(mode) = layer.mode {
             self.mode = mode;
+            self.debug_context.mode_source = ConfigValueSource::Local;
         }
         if let Some(full_profile) = layer.full_profile {
             self.full_profile = full_profile;
+            self.debug_context.full_profile_source = ConfigValueSource::Local;
         }
         if let Some(path) = layer.path {
             self.path = path;
+            self.debug_context.path_source = ConfigValueSource::Local;
         }
         if let Some(console_mirror) = layer.console_mirror {
             self.console_mirror = console_mirror;
+            self.debug_context.console_mirror_source = ConfigValueSource::Local;
         }
         if let Some(retain_runs) = layer.retain_runs {
             self.retain_runs = retain_runs;
+            self.debug_context.retain_runs_source = ConfigValueSource::Local;
         }
         if let Some(retain_days) = layer.retain_days {
             self.retain_days = retain_days;
+            self.debug_context.retain_days_source = ConfigValueSource::Local;
         }
         if let Some(redaction) = layer.redaction {
             self.redaction = redaction;
+            self.debug_context.redaction_source = ConfigValueSource::Local;
         }
         if let Some(capture_payloads) = layer.capture_payloads {
             self.capture_payloads = capture_payloads;
+            self.debug_context.capture_payloads_source = ConfigValueSource::Local;
         }
         if let Some(capture_stdio) = layer.capture_stdio {
             self.capture_stdio = capture_stdio;
+            self.debug_context.capture_stdio_source = ConfigValueSource::Local;
         }
+    }
+
+    fn record_env_override(&mut self, key: &'static str) {
+        self.debug_context.env_overrides.push(key.to_string());
     }
 }
 
@@ -285,7 +408,7 @@ struct LocalObservabilityConfigLayer {
     retain_runs: Option<u32>,
     retain_days: Option<u32>,
     redaction: Option<RedactionMode>,
-    capture_payloads: Option<bool>,
+    capture_payloads: Option<CapturePayloads>,
     capture_stdio: Option<CaptureStdio>,
 }
 
@@ -366,11 +489,14 @@ pub fn load_layered_config(
     let local = parse_local_raw_config(&local_contents, local_location.clone())?;
 
     let mut observability = ObservabilityConfig::default();
+    observability.debug_context.local_config_path = local_path.to_path_buf();
+    observability.debug_context.global_config_path = global_path.map(Path::to_path_buf);
     if let Some(global_path) = global_path
         && let Some(global_contents) = read_optional_config(global_path)?
     {
         let global_location = global_path.display().to_string();
         let global = parse_global_raw_config(&global_contents, global_location.clone())?;
+        observability.debug_context.global_config_present = true;
         if matches!(global.observability.mode, Some(ObservabilityMode::Full)) {
             return Err(ConfigError::GlobalFullMode {
                 location: global_location,
@@ -396,9 +522,11 @@ pub fn parse_config_str(
     source_location: impl Into<String>,
 ) -> Result<ScHooksConfig, ConfigError> {
     let source_location = source_location.into();
-    let raw = parse_local_raw_config(input, source_location)?;
+    let raw = parse_local_raw_config(input, source_location.clone())?;
 
     let mut observability = ObservabilityConfig::default();
+    observability.debug_context.local_config_path = PathBuf::from(&source_location);
+    observability.debug_context.global_config_path = None;
     observability.apply_local(raw.observability);
 
     Ok(ScHooksConfig {
@@ -559,6 +687,8 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 expected: ObservabilityMode::expected_values(),
             }
         })?;
+        observability.debug_context.mode_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_OBSERVABILITY_MODE);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_PROFILE)? {
         observability.full_profile = FullAuditProfile::parse_token(&value).ok_or_else(|| {
@@ -568,9 +698,13 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 expected: FullAuditProfile::expected_values(),
             }
         })?;
+        observability.debug_context.full_profile_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_PROFILE);
     }
     if let Some(value) = std::env::var_os(ENV_AUDIT_PATH) {
         observability.path = PathBuf::from(value);
+        observability.debug_context.path_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_PATH);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_MAX_RUNS)? {
         observability.retain_runs =
@@ -579,6 +713,8 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 value,
                 expected: "non-negative integer",
             })?;
+        observability.debug_context.retain_runs_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_MAX_RUNS);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_MAX_AGE_DAYS)? {
         observability.retain_days =
@@ -587,6 +723,8 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 value,
                 expected: "non-negative integer",
             })?;
+        observability.debug_context.retain_days_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_MAX_AGE_DAYS);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_REDACTION)? {
         observability.redaction =
@@ -595,15 +733,22 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 value,
                 expected: RedactionMode::expected_values(),
             })?;
+        observability.debug_context.redaction_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_REDACTION);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_PAYLOADS)? {
-        observability.capture_payloads = parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value).ok_or(
-            ConfigError::InvalidEnvOverride {
+        observability.capture_payloads = if parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value)
+            .ok_or(ConfigError::InvalidEnvOverride {
                 key: ENV_AUDIT_CAPTURE_PAYLOADS,
                 value,
                 expected: "1/true/yes/on or 0/false/no/off",
-            },
-        )?;
+            })? {
+            CapturePayloads::enabled()
+        } else {
+            CapturePayloads::disabled()
+        };
+        observability.debug_context.capture_payloads_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_CAPTURE_PAYLOADS);
     }
     if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_STDIO)? {
         observability.capture_stdio =
@@ -612,6 +757,8 @@ fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), Co
                 value,
                 expected: CaptureStdio::expected_values(),
             })?;
+        observability.debug_context.capture_stdio_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_CAPTURE_STDIO);
     }
 
     Ok(())
@@ -735,7 +882,15 @@ PreToolUse = ["guard-paths"]
 
         assert_eq!(config.meta.version, 1);
         assert_eq!(config.sandbox, SandboxConfig::default());
-        assert_eq!(config.observability, ObservabilityConfig::default());
+        assert_eq!(config.observability.mode, ObservabilityMode::Standard);
+        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+        assert_eq!(config.observability.path, default_audit_path());
+        assert!(!config.observability.console_mirror);
+        assert_eq!(config.observability.retain_runs, default_retain_runs());
+        assert_eq!(config.observability.retain_days, default_retain_days());
+        assert_eq!(config.observability.redaction, RedactionMode::Strict);
+        assert!(!config.observability.capture_payloads.is_enabled());
+        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
         assert_eq!(
             config
                 .hooks
@@ -752,7 +907,15 @@ PreToolUse = ["guard-paths"]
 
         assert!(config.context.is_empty());
         assert_eq!(config.sandbox, SandboxConfig::default());
-        assert_eq!(config.observability, ObservabilityConfig::default());
+        assert_eq!(config.observability.mode, ObservabilityMode::Standard);
+        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+        assert_eq!(config.observability.path, default_audit_path());
+        assert!(!config.observability.console_mirror);
+        assert_eq!(config.observability.retain_runs, default_retain_runs());
+        assert_eq!(config.observability.retain_days, default_retain_days());
+        assert_eq!(config.observability.redaction, RedactionMode::Strict);
+        assert!(!config.observability.capture_payloads.is_enabled());
+        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
     }
 
     #[test]
@@ -815,7 +978,7 @@ capture_stdio = "bounded"
         assert_eq!(parsed.observability.retain_runs, 7);
         assert_eq!(parsed.observability.retain_days, 21);
         assert_eq!(parsed.observability.redaction, RedactionMode::Permissive);
-        assert!(parsed.observability.capture_payloads);
+        assert!(parsed.observability.capture_payloads.is_enabled());
         assert_eq!(parsed.observability.capture_stdio, CaptureStdio::Bounded);
     }
 
@@ -1047,8 +1210,14 @@ redaction = "permissive"
         assert_eq!(config.observability.retain_runs, 4);
         assert_eq!(config.observability.retain_days, 45);
         assert_eq!(config.observability.redaction, RedactionMode::Strict);
-        assert!(config.observability.capture_payloads);
+        assert!(config.observability.capture_payloads.is_enabled());
         assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
+    }
+
+    #[test]
+    fn capture_payloads_display_and_constructors_match_state() {
+        assert_eq!(CapturePayloads::enabled().to_string(), "enabled");
+        assert_eq!(CapturePayloads::disabled().to_string(), "disabled");
     }
 
     #[test]

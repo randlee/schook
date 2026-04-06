@@ -31,6 +31,7 @@ struct DispatchLogBase<'a> {
     handler_chain: &'a [String],
     project_root: &'a AiRootDir,
     observability: &'a crate::config::ObservabilityConfig,
+    payload: Option<&'a Value>,
 }
 
 #[derive(Debug, Error)]
@@ -163,13 +164,16 @@ pub fn execute_chain(
             );
             if let Some(project_root) = audit_project_root.as_ref() {
                 observability::emit_full_audit_pre_dispatch_failure(
-                    &config.observability,
-                    hook,
-                    event,
-                    mode,
-                    project_root,
-                    "metadata_preparation",
-                    err,
+                    observability::FullAuditPreDispatchFailureArgs {
+                        observability: &config.observability,
+                        hook,
+                        event,
+                        mode,
+                        project_root,
+                        stage: "metadata_preparation",
+                        err,
+                        payload,
+                    },
                 );
             }
         })?;
@@ -186,6 +190,7 @@ pub fn execute_chain(
         handler_chain: &handler_chain,
         project_root: &prepared.project_root,
         observability: &config.observability,
+        payload,
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -210,13 +215,16 @@ pub fn execute_chain(
                 &err,
             );
             observability::emit_full_audit_pre_dispatch_failure(
-                &config.observability,
-                hook,
-                event,
-                mode,
-                &prepared.project_root,
-                "dispatch_preflight",
-                &err,
+                observability::FullAuditPreDispatchFailureArgs {
+                    observability: &config.observability,
+                    hook,
+                    event,
+                    mode,
+                    project_root: &prepared.project_root,
+                    stage: "dispatch_preflight",
+                    err: &err,
+                    payload,
+                },
             );
             return Err(err);
         }
@@ -267,13 +275,16 @@ pub fn execute_chain(
                 err,
             );
             observability::emit_full_audit_pre_dispatch_failure(
-                &config.observability,
-                hook,
-                event,
-                mode,
-                &prepared.project_root,
-                "input_preparation",
-                err,
+                observability::FullAuditPreDispatchFailureArgs {
+                    observability: &config.observability,
+                    hook,
+                    event,
+                    mode,
+                    project_root: &prepared.project_root,
+                    stage: "input_preparation",
+                    err,
+                    payload,
+                },
             );
         })?;
 
@@ -305,6 +316,8 @@ pub fn execute_chain(
                     "spawn_error",
                     Some(err.to_string()),
                     Some(true),
+                    None,
+                    None,
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -341,6 +354,8 @@ pub fn execute_chain(
                     "stdin_write_failed",
                     Some(err.to_string()),
                     Some(true),
+                    None,
+                    None,
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -382,6 +397,8 @@ pub fn execute_chain(
                     "timeout",
                     None,
                     Some(true),
+                    None,
+                    None,
                 ));
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
                     emit_dispatch_log_with_fallback(
@@ -422,6 +439,8 @@ pub fn execute_chain(
                     "wait_failed",
                     Some(err.to_string()),
                     Some(true),
+                    None,
+                    None,
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -456,6 +475,8 @@ pub fn execute_chain(
                 "stdout_read_failed",
                 Some(err.to_string()),
                 Some(true),
+                None,
+                None,
             ));
             emit_dispatch_log_with_fallback(
                 &log_base,
@@ -489,6 +510,8 @@ pub fn execute_chain(
                 "stderr_read_failed",
                 Some(read_err.to_string()),
                 Some(true),
+                None,
+                None,
             ));
             emit_dispatch_log_with_fallback(
                 &log_base,
@@ -507,6 +530,10 @@ pub fn execute_chain(
         let stderr_text =
             (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
         let stderr_ref = stderr_text.as_deref();
+        let stdout_debug_excerpt =
+            observability::build_debug_excerpt(&config.observability, &stdout_text);
+        let stderr_debug_excerpt = stderr_ref
+            .and_then(|stderr| observability::build_debug_excerpt(&config.observability, stderr));
 
         if !status.success() {
             disable_plugin_for_session(
@@ -527,6 +554,8 @@ pub fn execute_chain(
                 "non_zero_exit",
                 stderr_text.clone(),
                 Some(true),
+                stderr_debug_excerpt.clone(),
+                stdout_debug_excerpt.clone(),
             ));
             emit_dispatch_log_with_fallback(
                 &log_base,
@@ -568,6 +597,8 @@ pub fn execute_chain(
                         stderr_ref.unwrap_or("")
                     )),
                     Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -607,6 +638,8 @@ pub fn execute_chain(
                     stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
+                    debug_stderr_excerpt: stderr_debug_excerpt.clone(),
+                    debug_stdout_excerpt: stdout_debug_excerpt.clone(),
                 });
 
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
@@ -638,6 +671,8 @@ pub fn execute_chain(
                         "async_block",
                         stderr_text.clone(),
                         Some(true),
+                        stderr_debug_excerpt.clone(),
+                        stdout_debug_excerpt.clone(),
                     ));
                     emit_dispatch_log_with_fallback(
                         &log_base,
@@ -661,6 +696,8 @@ pub fn execute_chain(
                     stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
+                    debug_stderr_excerpt: stderr_debug_excerpt.clone(),
+                    debug_stdout_excerpt: stdout_debug_excerpt.clone(),
                 });
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -693,6 +730,8 @@ pub fn execute_chain(
                     "action_error",
                     Some(action_error_message.clone()),
                     Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -774,6 +813,7 @@ fn emit_dispatch_log(
         ai_notification,
         project_root: base.project_root,
         observability: base.observability,
+        payload: base.payload,
     })
 }
 
@@ -868,6 +908,8 @@ fn error_result(
     error_type: &'static str,
     stderr: Option<String>,
     disabled: Option<bool>,
+    debug_stderr_excerpt: Option<observability::DebugExcerpt>,
+    debug_stdout_excerpt: Option<observability::DebugExcerpt>,
 ) -> HandlerResultRecord {
     HandlerResultRecord {
         handler: handler_name.to_string(),
@@ -877,6 +919,8 @@ fn error_result(
         stderr,
         warning: None,
         disabled,
+        debug_stderr_excerpt,
+        debug_stdout_excerpt,
     }
 }
 

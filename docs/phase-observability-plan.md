@@ -270,12 +270,12 @@ Implemented and contract-frozen `full` event names in `SC-LOG-S4`:
 - `hook.dispatch.completed`
 - `hook.invocation.failed_pre_dispatch`
 
-Planned future event names, not yet committed as stable contract surface:
+Planned future event names with explicit later-phase assignment:
 
-- `hook.invocation.resolved`
-- `hook.dispatch.started`
-- `hook.observability.degraded`
-- `hook.session.root_divergence`
+- `hook.invocation.resolved` in `SC-LOG-S6`
+- `hook.dispatch.started` in `SC-LOG-S6`
+- `hook.observability.degraded` in `SC-LOG-S6`
+- `hook.session.root_divergence` in `SC-LOG-S6`
 
 `lean` profile fields:
 
@@ -511,14 +511,16 @@ Exit gate:
 ### `SC-LOG-S6` / Observability Phase 5
 
 - harden pruning and bounded retention
-- prove logger-init, emit, and prune failures stay non-blocking
+- prove logger-init, emit, append, and prune failures stay non-blocking
 - preserve file-backed audit JSONL as the canonical machine-readable source
 - close deferred `DEF-017a` degraded pre-dispatch audit fallback proof
 
 Exit gate:
 
 - pruning keeps the newest 10 runs and the 14-day age cap by default
-- logger-init, emit, and prune failures never change hook execution outcomes
+- logger-init, emit, append, and prune failures never change hook execution outcomes
+- long-term integration coverage forces append and emit failures, keeps hook
+  exits unchanged, and asserts the documented degraded fallback text
 - no committed phase behavior depends on live structured streaming or exporter
   availability
 

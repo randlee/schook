@@ -414,6 +414,222 @@ path = "tmp/evals"
 }
 
 #[test]
+fn full_mode_debug_profile_emits_machine_readable_strict_debug_fields() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+full_profile = "debug"
+capture_stdio = "bounded"
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin_script(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"cat >/dev/null
+printf '%s\n' 'debug stderr detail should be summarized instead of copied verbatim' >&2
+cat <<'JSON'
+{"action":"proceed"}
+JSON
+"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "echo hi"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    let dispatch_record = &events[1];
+    assert_eq!(dispatch_record["profile"], "debug");
+    assert!(dispatch_record["config_source_summary"].is_object());
+    assert!(dispatch_record["config_layer_resolution"].is_object());
+    assert!(dispatch_record["decision_trace_summary"].is_object());
+    assert!(dispatch_record["handler_stderr_excerpt"].is_array());
+    assert!(dispatch_record["handler_stdout_excerpt"].is_array());
+    assert!(dispatch_record["redaction_actions"].is_array());
+    assert!(dispatch_record["payload_capture_state"].is_object());
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["redaction"],
+        "strict"
+    );
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["capture_payloads"],
+        false
+    );
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["payloads_included"],
+        false
+    );
+    assert_eq!(
+        dispatch_record["decision_trace_summary"]["record"],
+        "hook.dispatch.completed"
+    );
+    assert_eq!(
+        dispatch_record["decision_trace_summary"]["profile"],
+        "debug"
+    );
+    assert!(dispatch_record.get("payload_excerpt").is_none());
+    assert_eq!(
+        dispatch_record["handler_stderr_excerpt"][0]["redacted"],
+        true
+    );
+    assert!(
+        dispatch_record["handler_stderr_excerpt"][0]["excerpt"]
+            .as_str()
+            .expect("stderr excerpt should be a string")
+            .starts_with("summary(")
+    );
+    assert_eq!(
+        dispatch_record["handler_stdout_excerpt"][0]["redacted"],
+        true
+    );
+}
+
+#[test]
+fn full_mode_debug_profile_permissive_still_requires_payload_capture_opt_in() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+full_profile = "debug"
+redaction = "permissive"
+capture_stdio = "bounded"
+capture_payloads = false
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": "secret-value"}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    let dispatch_record = &events[1];
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["redaction"],
+        "permissive"
+    );
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["capture_payloads"],
+        false
+    );
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["payloads_included"],
+        false
+    );
+    assert!(dispatch_record.get("payload_excerpt").is_none());
+    assert!(
+        dispatch_record["redaction_actions"]
+            .as_array()
+            .expect("redaction actions should be an array")
+            .iter()
+            .any(|value| value["action"] == "payload_capture_disabled")
+    );
+}
+
+#[test]
+fn full_mode_debug_profile_payload_capture_is_bounded_when_enabled() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    fs::create_dir_all(root.join(".sc-hooks")).expect(".sc-hooks dir should create");
+    fs::write(
+        root.join(".sc-hooks/config.toml"),
+        r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["probe-plugin"]
+
+[observability]
+mode = "full"
+full_profile = "debug"
+redaction = "permissive"
+capture_stdio = "bounded"
+capture_payloads = true
+"#,
+    )
+    .expect("config should write");
+    fixtures::create_shell_plugin(
+        &fixtures::plugin_path(root, "probe-plugin"),
+        r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
+        r#"{"action":"proceed"}"#,
+    );
+
+    let long_secret = "s".repeat(220);
+    let output = DispatchHarness::new().run_sync(
+        root,
+        "PreToolUse",
+        Some("Write"),
+        Some(serde_json::json!({"tool_input": {"command": long_secret}})),
+        None,
+    );
+
+    assert_eq!(
+        output.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+    let (_, _, events) = read_full_audit_run(&root.join(".sc-hooks/audit"));
+    let dispatch_record = &events[1];
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["capture_payloads"],
+        true
+    );
+    assert_eq!(
+        dispatch_record["payload_capture_state"]["payloads_included"],
+        true
+    );
+    let excerpt = dispatch_record["payload_excerpt"]["excerpt"]
+        .as_str()
+        .expect("payload excerpt should be present");
+    assert!(excerpt.len() <= 160);
+    assert_eq!(dispatch_record["payload_excerpt"]["truncated"], true);
+    assert_eq!(dispatch_record["payload_excerpt"]["redacted"], false);
+}
+
+#[test]
 fn resolution_failure_emits_standard_degraded_signal() {
     let temp = tempfile::tempdir().expect("tempdir should create");
     let root = temp.path();

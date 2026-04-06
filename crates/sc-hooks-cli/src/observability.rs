@@ -17,11 +17,17 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use thiserror::Error;
 
-use crate::config::{FullAuditProfile, ObservabilityConfig, ObservabilityMode};
+use crate::config::{
+    CapturePayloads, CaptureStdio, FullAuditProfile, ObservabilityConfig, ObservabilityMode,
+    RedactionMode,
+};
 use crate::errors::CliError;
 use sc_hooks_core::session::{AiRootDir, UtcTimestamp, utc_timestamp_now};
 use tempfile::NamedTempFile;
 const SERVICE_NAME: &str = "sc-hooks";
+/// Bound debug excerpts to 160 chars so audit records stay compact and the
+/// debug-profile tests can assert a fixed truncation boundary.
+const DEBUG_EXCERPT_LIMIT: usize = 160;
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static LOGGER_ROOT: OnceLock<AiRootDir> = OnceLock::new();
 static FULL_AUDIT_RUN: OnceLock<FullAuditRunState> = OnceLock::new();
@@ -119,6 +125,22 @@ struct FullAuditRecord<'a> {
     ai_notification: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     degraded: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config_source_summary: Option<FullAuditConfigSourceSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config_layer_resolution: Option<FullAuditConfigLayerResolution>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    decision_trace_summary: Option<DecisionTrace>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    handler_stderr_excerpt: Option<Vec<FullAuditHandlerExcerpt>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    handler_stdout_excerpt: Option<Vec<FullAuditHandlerExcerpt>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    redaction_actions: Option<Vec<RedactionAction>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload_capture_state: Option<FullAuditPayloadCaptureState>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload_excerpt: Option<DebugExcerpt>,
 }
 
 struct FullAuditRecordArgs<'a> {
@@ -136,6 +158,91 @@ struct FullAuditRecordArgs<'a> {
     error: Option<String>,
     ai_notification: Option<&'a str>,
     degraded: Option<bool>,
+    results: Option<&'a [HandlerResultRecord]>,
+    payload: Option<&'a Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct DebugExcerpt {
+    excerpt: String,
+    truncated: bool,
+    redacted: bool,
+}
+
+impl DebugExcerpt {
+    pub(crate) fn new(excerpt: String, truncated: bool, redacted: bool) -> Self {
+        Self {
+            excerpt,
+            truncated,
+            redacted,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct FullAuditConfigSourceSummary {
+    local_config_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    global_config_path: Option<String>,
+    global_config_present: bool,
+    env_overrides: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct FullAuditConfigLayerResolution {
+    mode_source: &'static str,
+    full_profile_source: &'static str,
+    path_source: &'static str,
+    console_mirror_source: &'static str,
+    retain_runs_source: &'static str,
+    retain_days_source: &'static str,
+    redaction_source: &'static str,
+    capture_payloads_source: &'static str,
+    capture_stdio_source: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct FullAuditHandlerExcerpt {
+    handler: String,
+    excerpt: String,
+    truncated: bool,
+    redacted: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct FullAuditPayloadCaptureState {
+    redaction: &'static str,
+    capture_payloads: CapturePayloads,
+    capture_stdio: &'static str,
+    payloads_included: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct DecisionTrace {
+    record: &'static str,
+    mode: &'static str,
+    profile: &'static str,
+    outcome: String,
+    redaction: &'static str,
+    capture_stdio: &'static str,
+    capture_payloads: CapturePayloads,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stage: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    handler_chain_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    degraded: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+enum RedactionAction {
+    RedactionMode { mode: &'static str },
+    StdioCapture { capture: &'static str },
+    PayloadCaptureDisabled,
+    StrictModeSummarizesSensitiveText,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -152,6 +259,10 @@ pub struct HandlerResultRecord {
     pub warning: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disabled: Option<bool>,
+    #[serde(skip_serializing)]
+    pub debug_stderr_excerpt: Option<DebugExcerpt>,
+    #[serde(skip_serializing)]
+    pub debug_stdout_excerpt: Option<DebugExcerpt>,
 }
 
 /// Arguments required to emit one `dispatch.complete` observability event.
@@ -167,6 +278,7 @@ pub struct DispatchEventArgs<'a> {
     pub ai_notification: Option<&'a str>,
     pub project_root: &'a AiRootDir,
     pub observability: &'a ObservabilityConfig,
+    pub payload: Option<&'a Value>,
 }
 
 /// Arguments required to emit one `session.root_divergence` observability event.
@@ -174,6 +286,17 @@ pub struct RootDivergenceEventArgs<'a> {
     pub notice: &'a RootDivergenceNotice,
     pub project_root: &'a AiRootDir,
     pub observability: &'a ObservabilityConfig,
+}
+
+pub struct FullAuditPreDispatchFailureArgs<'a> {
+    pub observability: &'a ObservabilityConfig,
+    pub hook: &'a str,
+    pub event: Option<&'a str>,
+    pub mode: sc_hooks_core::dispatch::DispatchMode,
+    pub project_root: &'a AiRootDir,
+    pub stage: &'a str,
+    pub err: &'a CliError,
+    pub payload: Option<&'a Value>,
 }
 
 /// Emits the canonical `dispatch.complete` observability event for one host dispatch.
@@ -285,6 +408,8 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         error: None,
         ai_notification: args.ai_notification,
         degraded: None,
+        results: Some(args.results),
+        payload: args.payload,
     })?;
     Ok(())
 }
@@ -295,6 +420,7 @@ pub fn emit_full_audit_invocation_received(
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
     project_root: &AiRootDir,
+    payload: Option<&Value>,
 ) {
     emit_full_audit_record_with_fallback(FullAuditRecordArgs {
         name: "hook.invocation.received",
@@ -311,6 +437,8 @@ pub fn emit_full_audit_invocation_received(
         error: None,
         ai_notification: None,
         degraded: None,
+        results: None,
+        payload,
     });
 }
 
@@ -320,6 +448,7 @@ pub fn emit_full_audit_zero_match(
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
     project_root: &AiRootDir,
+    payload: Option<&Value>,
 ) {
     emit_full_audit_record_with_fallback(FullAuditRecordArgs {
         name: "hook.invocation.zero_match",
@@ -336,33 +465,29 @@ pub fn emit_full_audit_zero_match(
         error: None,
         ai_notification: None,
         degraded: None,
+        results: None,
+        payload,
     });
 }
 
-pub fn emit_full_audit_pre_dispatch_failure(
-    observability: &ObservabilityConfig,
-    hook: &str,
-    event: Option<&str>,
-    mode: sc_hooks_core::dispatch::DispatchMode,
-    project_root: &AiRootDir,
-    stage: &str,
-    err: &CliError,
-) {
+pub fn emit_full_audit_pre_dispatch_failure(args: FullAuditPreDispatchFailureArgs<'_>) {
     emit_full_audit_record_with_fallback(FullAuditRecordArgs {
         name: "hook.invocation.failed_pre_dispatch",
-        hook,
-        event,
-        mode,
-        project_root,
-        observability,
+        hook: args.hook,
+        event: args.event,
+        mode: args.mode,
+        project_root: args.project_root,
+        observability: args.observability,
         outcome: "error",
-        stage: Some(stage),
+        stage: Some(args.stage),
         handler_chain: None,
         total_ms: None,
-        exit: Some(err.exit_code()),
-        error: Some(err.to_string()),
+        exit: Some(args.err.exit_code()),
+        error: Some(args.err.to_string()),
         ai_notification: None,
         degraded: Some(true),
+        results: None,
+        payload: args.payload,
     });
 }
 
@@ -566,12 +691,86 @@ pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
     let _ = writeln!(std::io::stderr(), "{message}");
 }
 
+pub(crate) fn build_debug_excerpt(
+    observability: &ObservabilityConfig,
+    text: &str,
+) -> Option<DebugExcerpt> {
+    if text.is_empty() {
+        return None;
+    }
+
+    match observability.capture_stdio {
+        CaptureStdio::None => None,
+        CaptureStdio::Summary => Some(DebugExcerpt::new(summary_excerpt(text), false, true)),
+        CaptureStdio::Bounded => match observability.redaction {
+            RedactionMode::Strict => Some(DebugExcerpt::new(summary_excerpt(text), false, true)),
+            RedactionMode::Permissive => Some(bounded_debug_excerpt(text, false)),
+        },
+    }
+}
+
+fn build_debug_payload_excerpt(
+    observability: &ObservabilityConfig,
+    payload: Option<&Value>,
+) -> Option<DebugExcerpt> {
+    if !observability.capture_payloads.is_enabled() {
+        return None;
+    }
+    let payload = payload?;
+    let serialized = serde_json::to_string(payload).ok()?;
+    Some(match observability.redaction {
+        RedactionMode::Strict => DebugExcerpt::new(summary_excerpt(&serialized), false, true),
+        RedactionMode::Permissive => bounded_debug_excerpt(&serialized, false),
+    })
+}
+
+fn bounded_debug_excerpt(text: &str, redacted: bool) -> DebugExcerpt {
+    let truncated = text.chars().count() > DEBUG_EXCERPT_LIMIT;
+    let excerpt = text.chars().take(DEBUG_EXCERPT_LIMIT).collect();
+    DebugExcerpt::new(excerpt, truncated, redacted)
+}
+
+fn summary_excerpt(text: &str) -> String {
+    format!(
+        "summary(chars={}, lines={})",
+        text.chars().count(),
+        text.lines().count().max(1)
+    )
+}
+
 fn emit_full_audit_record(args: FullAuditRecordArgs<'_>) -> Result<(), CliError> {
     if !matches!(args.observability.mode, ObservabilityMode::Full) {
         return Ok(());
     }
 
     let state = full_audit_run_state(args.project_root, args.observability)?;
+    let (
+        config_source_summary,
+        config_layer_resolution,
+        decision_trace_summary,
+        handler_stderr_excerpt,
+        handler_stdout_excerpt,
+        redaction_actions,
+        payload_capture_state,
+        payload_excerpt,
+    ) = if matches!(state.profile, FullAuditProfile::Debug) {
+        let payload_excerpt = build_debug_payload_excerpt(args.observability, args.payload);
+        (
+            Some(full_audit_config_source_summary(args.observability)),
+            Some(full_audit_config_layer_resolution(args.observability)),
+            Some(full_audit_decision_trace_summary(&args)),
+            Some(full_audit_handler_excerpts(args.results, true)),
+            Some(full_audit_handler_excerpts(args.results, false)),
+            Some(full_audit_redaction_actions(args.observability)),
+            Some(full_audit_payload_capture_state(
+                args.observability,
+                payload_excerpt.is_some(),
+            )),
+            payload_excerpt,
+        )
+    } else {
+        (None, None, None, None, None, None, None, None)
+    };
     let current_dir = std::env::current_dir()
         .ok()
         .map(|path| path.display().to_string())
@@ -599,8 +798,118 @@ fn emit_full_audit_record(args: FullAuditRecordArgs<'_>) -> Result<(), CliError>
         error: args.error,
         ai_notification: args.ai_notification,
         degraded: args.degraded,
+        config_source_summary,
+        config_layer_resolution,
+        decision_trace_summary,
+        handler_stderr_excerpt,
+        handler_stdout_excerpt,
+        redaction_actions,
+        payload_capture_state,
+        payload_excerpt,
     };
     append_jsonl(&state.events_path, &record)
+}
+
+fn full_audit_config_source_summary(
+    observability: &ObservabilityConfig,
+) -> FullAuditConfigSourceSummary {
+    FullAuditConfigSourceSummary {
+        local_config_path: observability
+            .debug_context
+            .local_config_path
+            .display()
+            .to_string(),
+        global_config_path: observability
+            .debug_context
+            .global_config_path
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        global_config_present: observability.debug_context.global_config_present,
+        env_overrides: observability.debug_context.env_overrides.clone(),
+    }
+}
+
+fn full_audit_config_layer_resolution(
+    observability: &ObservabilityConfig,
+) -> FullAuditConfigLayerResolution {
+    FullAuditConfigLayerResolution {
+        mode_source: observability.debug_context.mode_source.as_str(),
+        full_profile_source: observability.debug_context.full_profile_source.as_str(),
+        path_source: observability.debug_context.path_source.as_str(),
+        console_mirror_source: observability.debug_context.console_mirror_source.as_str(),
+        retain_runs_source: observability.debug_context.retain_runs_source.as_str(),
+        retain_days_source: observability.debug_context.retain_days_source.as_str(),
+        redaction_source: observability.debug_context.redaction_source.as_str(),
+        capture_payloads_source: observability.debug_context.capture_payloads_source.as_str(),
+        capture_stdio_source: observability.debug_context.capture_stdio_source.as_str(),
+    }
+}
+
+fn full_audit_decision_trace_summary(args: &FullAuditRecordArgs<'_>) -> DecisionTrace {
+    DecisionTrace {
+        record: args.name,
+        mode: args.mode.as_str(),
+        profile: args.observability.full_profile.as_str(),
+        outcome: args.outcome.to_string(),
+        redaction: args.observability.redaction.as_str(),
+        capture_stdio: args.observability.capture_stdio.as_str(),
+        capture_payloads: args.observability.capture_payloads,
+        stage: args.stage.map(ToOwned::to_owned),
+        result_count: args.results.map(<[HandlerResultRecord]>::len),
+        handler_chain_count: args.handler_chain.map(<[String]>::len),
+        degraded: args.degraded,
+    }
+}
+
+fn full_audit_handler_excerpts(
+    results: Option<&[HandlerResultRecord]>,
+    use_stderr: bool,
+) -> Vec<FullAuditHandlerExcerpt> {
+    results
+        .into_iter()
+        .flat_map(|results| results.iter())
+        .filter_map(|result| {
+            let excerpt = if use_stderr {
+                result.debug_stderr_excerpt.as_ref()
+            } else {
+                result.debug_stdout_excerpt.as_ref()
+            }?;
+            Some(FullAuditHandlerExcerpt {
+                handler: result.handler.clone(),
+                excerpt: excerpt.excerpt.clone(),
+                truncated: excerpt.truncated,
+                redacted: excerpt.redacted,
+            })
+        })
+        .collect()
+}
+
+fn full_audit_redaction_actions(observability: &ObservabilityConfig) -> Vec<RedactionAction> {
+    let mut actions = vec![RedactionAction::RedactionMode {
+        mode: observability.redaction.as_str(),
+    }];
+    if !observability.capture_payloads.is_enabled() {
+        actions.push(RedactionAction::PayloadCaptureDisabled);
+    }
+    actions.push(RedactionAction::StdioCapture {
+        capture: observability.capture_stdio.as_str(),
+    });
+    if matches!(observability.redaction, RedactionMode::Strict) {
+        actions.push(RedactionAction::StrictModeSummarizesSensitiveText);
+    }
+    actions
+}
+
+fn full_audit_payload_capture_state(
+    observability: &ObservabilityConfig,
+    payloads_included: bool,
+) -> FullAuditPayloadCaptureState {
+    FullAuditPayloadCaptureState {
+        redaction: observability.redaction.as_str(),
+        capture_payloads: observability.capture_payloads,
+        capture_stdio: observability.capture_stdio.as_str(),
+        payloads_included,
+    }
 }
 
 fn full_audit_run_state(
@@ -792,6 +1101,7 @@ fn dispatch_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::CapturePayloads;
     use std::fs;
     use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -838,12 +1148,15 @@ mod tests {
                 stderr: None,
                 warning: None,
                 disabled: None,
+                debug_stderr_excerpt: None,
+                debug_stdout_excerpt: None,
             }],
             total_ms: 2,
             exit: sc_hooks_core::exit_codes::SUCCESS,
             ai_notification: None,
             project_root,
             observability,
+            payload: None,
         })
     }
 
@@ -851,6 +1164,25 @@ mod tests {
         fs::read_to_string(root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH))
             .map(|rendered| rendered.lines().count())
             .unwrap_or(0)
+    }
+
+    fn debug_observability(
+        redaction: RedactionMode,
+        capture_stdio: CaptureStdio,
+        capture_payloads: bool,
+    ) -> ObservabilityConfig {
+        ObservabilityConfig {
+            mode: ObservabilityMode::Full,
+            full_profile: FullAuditProfile::Debug,
+            redaction,
+            capture_stdio,
+            capture_payloads: if capture_payloads {
+                CapturePayloads::enabled()
+            } else {
+                CapturePayloads::disabled()
+            },
+            ..ObservabilityConfig::default()
+        }
     }
 
     #[test]
@@ -935,5 +1267,140 @@ mod tests {
         let rendered = err.to_string();
         assert!(rendered.contains("observability logger project root mismatch"));
         assert!(rendered.contains("project_root mismatch for cached logger"));
+    }
+
+    #[test]
+    fn build_debug_excerpt_covers_all_stdio_redaction_combinations() {
+        let text = "alpha\nbeta";
+        assert!(
+            build_debug_excerpt(
+                &debug_observability(RedactionMode::Strict, CaptureStdio::Summary, false),
+                ""
+            )
+            .is_none()
+        );
+        let cases = [
+            (CaptureStdio::None, RedactionMode::Strict, None, None, None),
+            (
+                CaptureStdio::Summary,
+                RedactionMode::Strict,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::Bounded,
+                RedactionMode::Strict,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::None,
+                RedactionMode::Permissive,
+                None,
+                None,
+                None,
+            ),
+            (
+                CaptureStdio::Summary,
+                RedactionMode::Permissive,
+                Some("summary(chars=10, lines=2)"),
+                Some(false),
+                Some(true),
+            ),
+            (
+                CaptureStdio::Bounded,
+                RedactionMode::Permissive,
+                Some("alpha\nbeta"),
+                Some(false),
+                Some(false),
+            ),
+        ];
+
+        for (capture_stdio, redaction, expected_excerpt, expected_truncated, expected_redacted) in
+            cases
+        {
+            let observability = debug_observability(redaction, capture_stdio, false);
+            let excerpt = build_debug_excerpt(&observability, text);
+            match (excerpt, expected_excerpt) {
+                (None, None) => {}
+                (Some(excerpt), Some(expected_excerpt)) => {
+                    assert_eq!(excerpt.excerpt, expected_excerpt);
+                    assert_eq!(Some(excerpt.truncated), expected_truncated);
+                    assert_eq!(Some(excerpt.redacted), expected_redacted);
+                }
+                other => panic!(
+                    "unexpected excerpt outcome for {capture_stdio:?}/{redaction:?}: {other:?}"
+                ),
+            }
+        }
+
+        let long_text = "x".repeat(DEBUG_EXCERPT_LIMIT + 25);
+        let bounded = build_debug_excerpt(
+            &debug_observability(RedactionMode::Permissive, CaptureStdio::Bounded, false),
+            &long_text,
+        )
+        .expect("bounded permissive excerpt should exist");
+        assert!(bounded.truncated);
+        assert_eq!(bounded.excerpt.chars().count(), DEBUG_EXCERPT_LIMIT);
+    }
+
+    #[test]
+    fn build_debug_payload_excerpt_covers_capture_and_redaction_combinations() {
+        let payload = serde_json::json!({"tool_input": {"command": "echo hi"}});
+        let serialized = serde_json::to_string(&payload).expect("payload should serialize");
+        let summary = summary_excerpt(&serialized);
+        let cases = [
+            (false, RedactionMode::Strict, None, None, None),
+            (
+                true,
+                RedactionMode::Strict,
+                Some(summary.as_str()),
+                Some(false),
+                Some(true),
+            ),
+            (false, RedactionMode::Permissive, None, None, None),
+            (
+                true,
+                RedactionMode::Permissive,
+                Some(serialized.as_str()),
+                Some(false),
+                Some(false),
+            ),
+        ];
+
+        for (
+            capture_payloads,
+            redaction,
+            expected_excerpt,
+            expected_truncated,
+            expected_redacted,
+        ) in cases
+        {
+            let observability =
+                debug_observability(redaction, CaptureStdio::Summary, capture_payloads);
+            let excerpt = build_debug_payload_excerpt(&observability, Some(&payload));
+            match (excerpt, expected_excerpt) {
+                (None, None) => {}
+                (Some(excerpt), Some(expected_excerpt)) => {
+                    assert_eq!(excerpt.excerpt, expected_excerpt);
+                    assert_eq!(Some(excerpt.truncated), expected_truncated);
+                    assert_eq!(Some(excerpt.redacted), expected_redacted);
+                }
+                other => panic!(
+                    "unexpected payload excerpt outcome for capture_payloads={capture_payloads} / {redaction:?}: {other:?}"
+                ),
+            }
+        }
+
+        let payload =
+            serde_json::json!({"tool_input": {"command": "y".repeat(DEBUG_EXCERPT_LIMIT + 40)}});
+        let observability =
+            debug_observability(RedactionMode::Permissive, CaptureStdio::Summary, true);
+        let excerpt = build_debug_payload_excerpt(&observability, Some(&payload))
+            .expect("payload excerpt should exist when capture is enabled");
+        assert!(excerpt.truncated);
+        assert_eq!(excerpt.excerpt.chars().count(), DEBUG_EXCERPT_LIMIT);
     }
 }

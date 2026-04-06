@@ -45,6 +45,9 @@ The host:
 - loads `.sc-hooks/config.toml`
 - merges observability defaults from `~/.sc-hooks/config.toml`, repo-local
   `.sc-hooks/config.toml`, and supported environment overrides
+- applies the supported `[observability]` config surface documented in
+  `docs/observability-contract.md` while keeping sink registration and logger
+  lifecycle internal to `sc-hooks-cli`
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -57,8 +60,7 @@ The host does not:
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
-- expose a public sink-extension API, exporter/OTel transport config, or a
-  `[logging]` section outside the supported `[observability]` surface
+- expose a public sink-extension API or exporter/OTel transport config
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership
@@ -240,6 +242,9 @@ Current observability ownership follows the intended boundary directly:
   signal instead of silently losing observability for that runtime attempt
 - when `full` mode is active, `sc-hooks-cli` also writes run-scoped audit files
   under `.sc-hooks/audit/runs/<run-id>/`
+- when `full` debug profile is active, `sc-hooks-cli` adds bounded
+  machine-readable config provenance, decision-trace, stdio-excerpt, redaction,
+  and payload-capture fields without changing hook outcomes
 
 Next planned observability expansion:
 
@@ -247,8 +252,8 @@ Next planned observability expansion:
   baseline operational mode
 - keep the new lean full-audit sink as the durable machine-readable source for
   audit-grade runs
-- complete the remaining observability phase with debug-profile fields,
-  redaction hardening, retention, and 50-agent hardening
+- complete the remaining observability phase with retention, pruning, degraded
+  path hardening, and 50-agent validation
 - keep durable audit JSONL as the canonical machine-readable source for the
   committed phase; the human console sink is operator-facing only
 - treat structured live streaming plus exporter, spans, metrics, and OTLP work

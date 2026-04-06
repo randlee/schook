@@ -10,8 +10,11 @@ Owning requirement IDs:
 - `OBS-007`
 - `OBS-008`
 - `OBS-009` (`Added in S9-BONUS`; traceability: `docs/traceability.md`)
-- `DEF-010` through `DEF-013`, `DEF-017`, `DEF-017a` (`Added in SC-LOG-S2`
-  through `SC-LOG-S4`; traceability: `docs/traceability.md`)
+- `DEF-010`, `DEF-011` (`Added in SC-LOG-S2`; traceability: `docs/traceability.md`)
+- `DEF-012` (`Added in SC-LOG-S4`; see §3.3; traceability: `docs/traceability.md`)
+- `DEF-013`, `DEF-014` (`Added in SC-LOG-S5`; traceability: `docs/traceability.md`)
+- `DEF-017`, `DEF-017a` (`Added in SC-LOG-S4`; see §6; traceability:
+  `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through the external
 `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at
@@ -246,16 +249,15 @@ Current conditional lean fields are:
 - `ai_notification`
 - `degraded`
 
-## 4.2 Full Audit Debug Mandatory Fields
+## 4.2 Full Audit Debug Record Shape
 
-Planned/Frozen Design (`DEF-013` Planned):
-- this header freezes the mandatory `debug`-profile field set for
-  `SC-LOG-S5`; the `SC-LOG-S4` branch does not emit these fields yet
+Frozen Design Note (`DEF-013`):
+- the mandatory `debug`-profile field set was frozen in `SC-LOG-S4` before
+  implementation and is emitted on `SC-LOG-S5` debug records
 
 The `debug` profile extends the lean record shape; it does not replace it.
 
-The mandatory `debug`-only field set is frozen to this closed enumeration
-before debug-profile implementation begins:
+The implemented `debug`-only field set is frozen to this closed enumeration:
 
 - `config_source_summary`
 - `config_layer_resolution`
@@ -268,7 +270,19 @@ before debug-profile implementation begins:
 Rules:
 
 - these fields are in addition to all mandatory `lean` fields
-- payload excerpts remain gated behind separate payload-capture controls
+- `config_source_summary`, `config_layer_resolution`, `decision_trace_summary`,
+  `handler_stderr_excerpt`, `handler_stdout_excerpt`, `redaction_actions`, and
+  `payload_capture_state` are always present on `debug` records
+- `decision_trace_summary` is one structured object describing the resolved
+  record/profile/redaction path, not an ad hoc key-value string list
+- `redaction_actions` is an array of typed action objects describing the
+  redaction and capture decisions applied to the record
+- `payload_excerpt` appears only when a separate payload-capture control is
+  enabled and a payload is present for the record
+- strict redaction is the default: strict mode summarizes sensitive text
+  instead of copying it verbatim into debug fields
+- permissive mode may emit bounded excerpts for stdio or payloads, but only
+  when the corresponding capture control is explicitly enabled
 - machine-readable bounded output remains mandatory even when `debug` is active
 
 ## 5. Handler Result Shape
