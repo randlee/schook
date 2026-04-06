@@ -16,8 +16,8 @@ use thiserror::Error;
 /// Standard executable entrypoint helper for Rust plugins.
 pub struct PluginRunner;
 
-#[derive(Debug, Error)]
 /// Errors raised while constructing hook context for SDK-based plugins.
+#[derive(Debug, Error)]
 pub enum RunnerError {
     /// No hook type was available from the environment or payload.
     #[error("missing hook type in SC_HOOK_TYPE and payload")]
