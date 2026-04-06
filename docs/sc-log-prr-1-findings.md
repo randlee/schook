@@ -1,5 +1,10 @@
 # SC-LOG-PRR-1 Findings
 
+> Historical note: this phase-end report was written before
+> `SC-LOG-CRATES-IO-1` switched `sc-observability` to crates.io `1.0.0`.
+> References below to the external observability publication gate are kept as
+> point-in-time findings, not current mainline state.
+
 Branch assessed: `integrate/logging-improvements`  
 Assessment scope: production-readiness review for the observability phase and
 first crates.io publication posture.
