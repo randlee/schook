@@ -150,6 +150,7 @@ pub fn execute_chain(
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
+    let audit_project_root = metadata::current_project_root().ok();
     let prepared =
         metadata::prepare_for_dispatch(config, hook, event, payload).inspect_err(|err| {
             observability::emit_standard_degraded_signal(
@@ -160,6 +161,17 @@ pub fn execute_chain(
                 "metadata_preparation",
                 err,
             );
+            if let Some(project_root) = audit_project_root.as_ref() {
+                observability::emit_full_audit_pre_dispatch_failure(
+                    &config.observability,
+                    hook,
+                    event,
+                    mode,
+                    project_root,
+                    "metadata_preparation",
+                    err,
+                );
+            }
         })?;
     let started = Instant::now();
     let handler_chain: Vec<String> = handlers
@@ -194,6 +206,15 @@ pub fn execute_chain(
                 hook,
                 event,
                 mode,
+                "dispatch_preflight",
+                &err,
+            );
+            observability::emit_full_audit_pre_dispatch_failure(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                &prepared.project_root,
                 "dispatch_preflight",
                 &err,
             );
@@ -245,6 +266,15 @@ pub fn execute_chain(
                 "input_preparation",
                 err,
             );
+            observability::emit_full_audit_pre_dispatch_failure(
+                &config.observability,
+                hook,
+                event,
+                mode,
+                &prepared.project_root,
+                "input_preparation",
+                err,
+            );
         })?;
 
         let mut command = std::process::Command::new(&handler.executable_path);
@@ -266,7 +296,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "spawn-error",
+                    PluginFailureKind::SpawnError,
                     "verify executable permissions and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -302,7 +332,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "stdin-write-failed",
+                    PluginFailureKind::StdinWriteFailed,
                     "ensure the plugin reads stdin correctly and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -338,11 +368,13 @@ pub fn execute_chain(
                         .map(sc_hooks_core::session::SessionId::as_str),
                     handler_name,
                 )?;
-                let ai_message = ai_notification_with_timeout(
+                let ai_message = ai_notification(
                     handler_name,
-                    "timed-out",
+                    PluginFailureKind::TimedOut {
+                        timeout_ms: timeout_ms
+                            .expect("timeout outcome requires configured timeout"),
+                    },
                     "increase timeout_ms or optimize plugin execution.",
-                    timeout_ms,
                 );
                 log_results.push(error_result(
                     handler_name,
@@ -381,7 +413,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "wait-failed",
+                    PluginFailureKind::WaitFailed,
                     "inspect plugin process behavior and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -415,7 +447,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                "stdout-read-failed",
+                PluginFailureKind::StdoutReadFailed,
                 "check plugin output handling and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -448,7 +480,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                "stderr-read-failed",
+                PluginFailureKind::StderrReadFailed,
                 "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -486,7 +518,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                "non-zero-exit",
+                PluginFailureKind::NonZeroExit,
                 "inspect plugin stderr and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -524,7 +556,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "invalid-json",
+                    PluginFailureKind::InvalidJson,
                     "ensure plugin writes a single valid JSON object to stdout.",
                 );
                 log_results.push(error_result(
@@ -597,7 +629,7 @@ pub fn execute_chain(
                     )?;
                     let ai_message = ai_notification(
                         handler_name,
-                        "async-block",
+                        PluginFailureKind::AsyncBlock,
                         "update plugin to return proceed/error only when mode=async.",
                     );
                     log_results.push(error_result(
@@ -649,7 +681,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "action-error",
+                    PluginFailureKind::ActionError,
                     "fix plugin logic and run 'sc-hooks test <plugin>'.",
                 );
                 let action_error_message = parsed
@@ -858,28 +890,52 @@ fn plugin_error_with_context(
     }
 }
 
-fn ai_notification(handler_name: &str, error_type: &str, guidance: &str) -> String {
-    ai_notification_with_timeout(handler_name, error_type, guidance, None)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluginFailureKind {
+    InvalidJson,
+    NonZeroExit,
+    TimedOut { timeout_ms: u64 },
+    SpawnError,
+    StdinWriteFailed,
+    WaitFailed,
+    StdoutReadFailed,
+    StderrReadFailed,
+    AsyncBlock,
+    ActionError,
 }
 
-fn ai_notification_with_timeout(
-    handler_name: &str,
-    error_type: &str,
-    guidance: &str,
-    timeout_ms: Option<u64>,
-) -> String {
-    match error_type {
-        "invalid-json" => {
-            format!("hook {handler_name} returned invalid JSON — disabled. Please notify user!")
+fn ai_notification(handler_name: &str, failure_kind: PluginFailureKind, guidance: &str) -> String {
+    match failure_kind {
+        PluginFailureKind::InvalidJson => {
+            format!("hook {handler_name} returned invalid JSON — disabled. {guidance}")
         }
-        "non-zero-exit" => {
-            format!("hook {handler_name} exited non-zero — disabled. Please notify user!")
+        PluginFailureKind::NonZeroExit => {
+            format!("hook {handler_name} exited non-zero — disabled. {guidance}")
         }
-        "timed-out" => format!(
-            "hook {handler_name} timed out after {}ms — disabled. Run 'sc-hooks test {handler_name}' to diagnose.",
-            timeout_ms.unwrap_or_default()
-        ),
-        _ => format!("hook {handler_name} {error_type} — disabled. {guidance}"),
+        PluginFailureKind::TimedOut { timeout_ms } => {
+            format!("hook {handler_name} timed out after {timeout_ms}ms — disabled. {guidance}",)
+        }
+        PluginFailureKind::SpawnError => {
+            format!("hook {handler_name} spawn-error — disabled. {guidance}")
+        }
+        PluginFailureKind::StdinWriteFailed => {
+            format!("hook {handler_name} stdin-write-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::WaitFailed => {
+            format!("hook {handler_name} wait-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StdoutReadFailed => {
+            format!("hook {handler_name} stdout-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StderrReadFailed => {
+            format!("hook {handler_name} stderr-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::AsyncBlock => {
+            format!("hook {handler_name} async-block — disabled. {guidance}")
+        }
+        PluginFailureKind::ActionError => {
+            format!("hook {handler_name} action-error — disabled. {guidance}")
+        }
     }
 }
 
@@ -1102,13 +1158,24 @@ PreToolUse = ["guard-paths"]
 
     #[test]
     fn timeout_ai_notification_includes_duration() {
-        let message = ai_notification_with_timeout(
+        let message = ai_notification(
             "guard-paths",
-            "timed-out",
+            PluginFailureKind::TimedOut { timeout_ms: 5000 },
             "increase timeout",
-            Some(5000),
         );
         assert!(message.contains("timed out after 5000ms"));
+        assert!(message.contains("increase timeout"));
+    }
+
+    #[test]
+    fn invalid_json_ai_notification_uses_guidance() {
+        let message = ai_notification(
+            "guard-paths",
+            PluginFailureKind::InvalidJson,
+            "ensure plugin writes valid JSON.",
+        );
+        assert!(message.contains("returned invalid JSON"));
+        assert!(message.contains("ensure plugin writes valid JSON."));
     }
 
     #[test]

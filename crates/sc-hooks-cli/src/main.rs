@@ -19,7 +19,6 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
-use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
 
 use crate::errors::CliError;
@@ -155,6 +154,7 @@ fn run() -> Result<(), CliError> {
             let config = config::load_default_config()?;
             let payload = read_optional_payload_from_stdin()?;
             let mode = args.mode();
+            let audit_project_root = metadata::current_project_root().ok();
             let session_id = metadata::current_session_id();
             let disabled_plugins = session::load_disabled_plugins(
                 session_id
@@ -164,40 +164,58 @@ fn run() -> Result<(), CliError> {
             let is_session_end = args.hook == "SessionEnd";
 
             let run_result = (|| -> Result<(), CliError> {
-                let handlers =
-                    resolution::resolve_chain(
-                        &config,
+                if let Some(project_root) = audit_project_root.as_ref() {
+                    observability::emit_full_audit_invocation_received(
+                        &config.observability,
                         &args.hook,
                         args.event.as_deref(),
                         mode,
-                        payload.as_ref(),
-                        args.async_bucket.as_deref(),
-                        &disabled_plugins,
-                    )
-                    .map_err(|err| {
-                        let stage = match &err {
-                            crate::errors::ResolutionError::ManifestLoadFailed {
-                                source:
-                                    ManifestLoadError::Manifest(
-                                        ManifestError::AsyncLongRunningUnsupported,
-                                    ),
-                                ..
-                            } => "dispatch_preflight",
-                            _ => "resolution",
-                        };
-                        let cli_err = CliError::from(err);
-                        observability::emit_standard_degraded_signal(
+                        project_root,
+                    );
+                }
+                let handlers = resolution::resolve_chain(
+                    &config,
+                    &args.hook,
+                    args.event.as_deref(),
+                    mode,
+                    payload.as_ref(),
+                    args.async_bucket.as_deref(),
+                    &disabled_plugins,
+                )
+                .map_err(|err| {
+                    let cli_err = CliError::from(err);
+                    observability::emit_standard_degraded_signal(
+                        &config.observability,
+                        &args.hook,
+                        args.event.as_deref(),
+                        mode,
+                        "resolution",
+                        &cli_err,
+                    );
+                    if let Some(project_root) = audit_project_root.as_ref() {
+                        observability::emit_full_audit_pre_dispatch_failure(
                             &config.observability,
                             &args.hook,
                             args.event.as_deref(),
                             mode,
-                            stage,
+                            project_root,
+                            "resolution",
                             &cli_err,
                         );
-                        cli_err
-                    })?;
+                    }
+                    cli_err
+                })?;
 
                 if handlers.is_empty() {
+                    if let Some(project_root) = audit_project_root.as_ref() {
+                        observability::emit_full_audit_zero_match(
+                            &config.observability,
+                            &args.hook,
+                            args.event.as_deref(),
+                            mode,
+                            project_root,
+                        );
+                    }
                     return Ok(());
                 }
 
@@ -241,7 +259,7 @@ fn run() -> Result<(), CliError> {
             if report.has_errors() {
                 return Err(CliError::audit_failure(format!(
                     "audit found {} error(s). see report output above.",
-                    report.errors.len()
+                    report.errors().len()
                 )));
             }
         }

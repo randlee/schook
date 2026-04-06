@@ -45,13 +45,17 @@ Current observability ownership inside `sc-hooks-cli` now includes:
 - observability-mode resolution for `off`, `standard`, and `full`
 - standard sink selection and degraded-path handling for the current
   `sc-observability` integration
+- lean full-audit sink orchestration with run-scoped durable files under the
+  configured audit root
+- full-mode attempt accounting for invocation-received, zero-match,
+  pre-dispatch failure, and completed-dispatch records
 - deterministic stderr degraded signals when a standard-mode pre-dispatch
   failure prevents `dispatch.complete`
 
 Remaining observability-phase responsibilities also stay inside `sc-hooks-cli`:
 
-- audit sink orchestration, run-scoped file layout, retention pruning, and
-  degraded-path handling
+- debug-profile expansion, redaction policy enforcement, retention pruning, and
+  higher-load hardening
 - any later machine-readable stream or exporter wiring at the CLI boundary once
   the committed audit phase closes
 
