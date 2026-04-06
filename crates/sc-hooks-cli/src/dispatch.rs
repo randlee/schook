@@ -399,9 +399,17 @@ pub fn execute_chain(
         })?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
-                CliError::plugin_error_with_source("failed to serialize stdin payload", err)
-            })?;
+            let body = match serde_json::to_vec(&stdin_payload) {
+                Ok(body) => body,
+                Err(err) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(CliError::plugin_error_with_source(
+                        "failed to serialize stdin payload",
+                        err,
+                    ));
+                }
+            };
             if let Err(err) = stdin.write_all(&body) {
                 let _ = child.kill();
                 let _ = child.wait();
