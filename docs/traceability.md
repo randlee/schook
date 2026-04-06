@@ -52,8 +52,8 @@ This table maps the most important documented requirements to current implementa
 | AUD-002 | implemented | `sc-hooks-cli/src/audit.rs` | audit tests | |
 | AUD-005 | implemented | `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | `sc-hooks-cli/src/audit.rs` test `audit_rejects_async_long_running_manifest` plus `sc-hooks-sdk/src/manifest.rs` test `rejects_async_long_running_manifest` | |
 | AUD-009 | implemented | `sc-hooks-cli/src/audit.rs`, `sc-hooks-sdk/src/manifest.rs` | `sc-hooks-cli/src/audit.rs` test `audit_rejects_long_running_without_description` plus `sc-hooks-sdk/src/manifest.rs` test `rejects_long_running_manifest_without_description` | |
-| OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests | |
-| OBS-002 | implemented | `sc-hooks-cli/src/observability.rs` | observability tests, dispatch tests | |
+| OBS-001 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs`, `sc-hooks-cli/src/main.rs` | observability tests, dispatch tests, and integration tests proving degraded stderr signals for pre-dispatch failures | |
+| OBS-002 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/config.rs` | observability tests, dispatch tests, and integration tests covering `mode = "off"` sink suppression | |
 | OBS-005 | implemented | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests plus dispatch error-path tests covering `HandlerResultRecord` fields `handler_name`, `error_type`, elapsed time, and `disabled=true` | |
 | BND-001 | implemented | `plugins/*/src/main.rs`, `plugins/agent-session-foundation/tests/session_foundation.rs`, `plugins/atm-extension/tests/atm_extension.rs`, `plugins/agent-spawn-gates/src/lib.rs`, `plugins/tool-output-gates/src/lib.rs` | behavior tests plus source inspection | |
 | BND-001a | implemented | `plugins/*/Cargo.toml`, README, architecture docs | source inventory inspection | |
@@ -72,6 +72,7 @@ This table maps the most important documented requirements to current implementa
 | DEF-015 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires degraded-path tests proving hook outcomes do not change on logging or pruning failure | observability phase |
 | DEF-016 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase exit requires integration or soak validation for 50+ simultaneous agents without flaky unit-test expansion | observability phase |
 | DEF-017 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | phase entry requires full-audit coverage for zero-match and pre-dispatch failure paths | observability phase |
+| DEF-017a | planned | `docs/requirements.md`, `docs/observability-contract.md`, `docs/phase-observability-plan.md` | `full_mode_resolution_failure_does_not_emit_standard_degraded_signal` proves the current `full`-mode negative branch while `SC-LOG-S4` owns the future degraded-path contract | `SC-LOG-S4` |
 | DEF-018 | deferred | `docs/requirements.md`, `docs/phase-observability-plan.md` | kept out of the committed phase acceptance gate; future exporter defaults must not escalate to local `full` | observability follow-on |
 | DEF-019 | planned | `docs/phase-observability-plan.md`, `docs/project-plan.md` | naming-cleanup phase requires convergence on `sc-hooks` with `hooks` documented as alias only | observability phase |
 | EXC-001 | implemented | `sc-hooks-cli/src/errors.rs`, `sc-hooks-core/src/exit_codes.rs` | exit-code table tests | |

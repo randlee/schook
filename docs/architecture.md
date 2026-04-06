@@ -235,6 +235,9 @@ Current observability ownership follows the intended boundary directly:
 - the current config surface is `[observability]`, not `[logging]`
 - `off` suppresses durable structured sink emission while leaving direct
   stderr warnings and degraded notices visible to the operator
+- when `standard` mode is active and a pre-dispatch failure prevents
+  `dispatch.complete`, `sc-hooks-cli` emits a deterministic degraded stderr
+  signal instead of silently losing observability for that runtime attempt
 
 Next planned observability expansion:
 
