@@ -86,6 +86,7 @@ Important planning rule:
 | `SC-LOG-S5` / Observability Phase 4 | Merged | full audit debug profile and redaction controls | `DEF-013`, `DEF-014` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
 | `SC-LOG-S6` / Observability Phase 5 | Merged | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
 | `SC-LOG-S7` / Observability Phase 6 | Completed | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |
+| `SC-LOG-PHASE-END` | In review | PRR closeout and QA follow-up corrections | `BP-TS-001`, `BP-TS-002`, coverage and phase-end release-readiness findings | `SC-LOG-S7` | targeted runtime guards, coverage hardening, release/docs corrections |
 
 ## 5. Execution Controls
 

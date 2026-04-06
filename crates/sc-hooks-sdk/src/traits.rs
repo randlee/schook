@@ -1,3 +1,5 @@
+//! Public trait contracts for Rust-authored `sc-hooks` plugins.
+
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::manifest::Manifest;

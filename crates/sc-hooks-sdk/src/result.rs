@@ -1,3 +1,5 @@
+//! Result helpers for Rust-authored `sc-hooks` plugins.
+
 use serde::{Deserialize, Serialize};
 
 use sc_hooks_core::errors::HookError;
@@ -145,7 +147,8 @@ mod tests {
             source: None,
         };
         let invalid_context = HookError::invalid_context("ctx");
-        let state_io = HookError::state_io("/tmp/state.json", std::io::Error::other("disk"));
+        let state_path = std::env::temp_dir().join("state.json");
+        let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
         let validation = HookError::validation("field", "bad");
         let root_divergence = HookError::root_divergence(
             sc_hooks_core::session::AiRootDir::new("/repo").expect("root"),

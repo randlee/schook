@@ -1151,10 +1151,11 @@ mod tests {
 
     #[test]
     fn apply_hook_update_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
         let err = active_record_fixture()
             .apply_hook_update(
                 ActivePid::new(13).expect("pid"),
-                AiCurrentDir::new("/tmp/repo").expect("current"),
+                AiCurrentDir::new(&repo).expect("current"),
                 SessionStartSource::Startup,
                 AgentState::Ended,
                 UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
@@ -1171,11 +1172,12 @@ mod tests {
 
     #[test]
     fn rebuild_with_root_change_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
         let err = active_record_fixture()
             .rebuild_with_root_change(
                 ActivePid::new(13).expect("pid"),
-                AiRootDir::new("/tmp/repo").expect("root"),
-                AiCurrentDir::new("/tmp/repo").expect("current"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
                 SessionStartSource::Resume,
                 AgentState::Ended,
                 "SessionEnd",
@@ -1192,11 +1194,12 @@ mod tests {
 
     #[test]
     fn transition_to_ended_returns_terminal_record() {
+        let repo = std::env::temp_dir().join("repo");
         let ended = active_record_fixture()
             .transition_to_ended(
                 ActivePid::new(13).expect("pid"),
-                AiRootDir::new("/tmp/repo").expect("root"),
-                AiCurrentDir::new("/tmp/repo").expect("current"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
                 SessionStartSource::Startup,
                 UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
                 "SessionEnd",

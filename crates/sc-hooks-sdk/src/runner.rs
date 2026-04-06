@@ -1,3 +1,5 @@
+//! Executable runner helpers for Rust-authored `sc-hooks` plugins.
+
 use std::borrow::Cow;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -74,6 +76,12 @@ impl From<RunnerError> for HookError {
 
 impl PluginRunner {
     /// Runs a synchronous handler from a standard `main()` function.
+    ///
+    /// # Errors
+    ///
+    /// This helper does not return Rust errors directly. Manifest rendering,
+    /// stdin decoding, hook-context construction, and handler failures are
+    /// converted into stderr output and the returned process exit code.
     pub fn run_sync<H: SyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
@@ -90,6 +98,12 @@ impl PluginRunner {
     }
 
     /// Runs an asynchronous handler from a standard `main()` function.
+    ///
+    /// # Errors
+    ///
+    /// This helper does not return Rust errors directly. Manifest rendering,
+    /// stdin decoding, hook-context construction, and handler failures are
+    /// converted into stderr output and the returned process exit code.
     pub fn run_async<H: AsyncHandler>(handler: &H) -> i32 {
         if is_manifest_request() {
             return print_manifest(&handler.manifest());
@@ -256,7 +270,6 @@ mod tests {
     use sc_hooks_core::{dispatch::DispatchMode, events::HookType};
     use std::collections::BTreeMap;
     use std::io;
-    use std::path::PathBuf;
 
     struct DummySync;
     struct DummyAsync;
@@ -379,7 +392,7 @@ mod tests {
 
     #[test]
     fn build_hook_context_uses_explicit_inputs() {
-        let metadata = Some(PathBuf::from("/tmp/test-metadata.json"));
+        let metadata = Some(std::env::temp_dir().join("test-metadata.json"));
         let context = build_hook_context(
             serde_json::json!({"payload": true}),
             Some("SessionStart".to_string()),

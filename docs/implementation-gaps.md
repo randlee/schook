@@ -53,19 +53,21 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-TS-001: Ended-State Transition Guard
 
-- Status: `active`
+- Status: `closed in SC-LOG-PRR-FIX-R6-TS`
 - Owner area:
   - `sc-hooks-core`, docs
-- Current note:
-  - `apply_hook_update()` and `rebuild_with_root_change()` still accept
-    `AgentState::Ended` without a type-level guard because HKR-009 requires
-    canonical session records to round-trip through file-backed state updates
-  - tightening that API to a non-ended newtype would force broader record
-    reconstruction changes across the persisted session path late in phase-end
-    closeout
-  - recommendation: keep the current validated runtime guard for this release
-    and decide in a follow-on whether a separate `ActiveAgentState` type is
-    worth the migration cost
+- Closure note:
+  - `ActiveSessionRecord::apply_hook_update()` and
+    `ActiveSessionRecord::rebuild_with_root_change()` now return a validation
+    error when asked to transition directly to `AgentState::Ended`
+  - `ActiveSessionRecord::transition_to_ended()` is the dedicated terminal
+    transition path, and `agent-session-foundation` now uses it for the
+    `SessionEnd` flow instead of routing terminal state through
+    `apply_hook_update()`
+  - decision rationale: keep runtime enforcement for this release so persisted
+    canonical records and resume flows remain stable, while explicitly blocking
+    implicit terminal transitions until a larger typestate redesign is
+    intentionally approved
 
 ### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
 
@@ -109,6 +111,21 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     observability/audit argument surface rather than a small mechanical patch
   - recommendation: keep the owned snapshot for now and revisit only if profiling
     shows it is a real hot-path cost
+
+### PRR-009: Missing `hooks` CLI Alias
+
+- Status: `active`
+- Owner area:
+  - packaging, install docs, release docs
+- Current note:
+  - the naming direction is frozen on `sc-hooks` as canonical with `hooks` as a
+    convenience alias, but this repo does not yet ship an alias wrapper,
+    symlink, or install-time alias mechanism
+  - release/docs work should not imply that invoking `hooks` is already a
+    guaranteed supported path until packaging or install output creates that
+    alias explicitly
+  - recommendation: implement the alias in release packaging/install flow or
+    downgrade any remaining “supported alias” language to planned follow-on text
 
 ## Closed Items
 

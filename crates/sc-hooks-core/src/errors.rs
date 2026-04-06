@@ -296,7 +296,8 @@ mod tests {
             }
         ));
 
-        let state_io = HookError::state_io("/tmp/state.json", std::io::Error::other("disk"));
+        let state_path = std::env::temp_dir().join("state.json");
+        let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
         assert!(matches!(state_io, HookError::StateIo { .. }));
 
         let divergence = HookError::root_divergence(
