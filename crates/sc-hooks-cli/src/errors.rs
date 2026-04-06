@@ -10,8 +10,8 @@ use sc_hooks_sdk::manifest::ManifestLoadError;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 
-#[derive(Debug, Error)]
 /// Resolution-time failures encountered before a handler is executed.
+#[derive(Debug, Error)]
 pub enum ResolutionError {
     /// A configured handler could not be mapped to a runtime plugin executable.
     #[error("handler `{handler}` could not be resolved")]
@@ -46,8 +46,8 @@ pub enum ResolutionError {
     },
 }
 
-#[derive(Debug, Error)]
 /// Validation failures for required handler metadata.
+#[derive(Debug, Error)]
 pub enum ValidationError {
     /// A handler-specific required field was not present in the prepared metadata.
     #[error("handler `{handler}` is missing required metadata field `{field}`")]
@@ -65,8 +65,8 @@ pub enum ValidationError {
     },
 }
 
-#[derive(Debug, Error)]
 /// Top-level CLI error taxonomy and exit-code mapping surface.
+#[derive(Debug, Error)]
 pub enum CliError {
     /// Configuration loading or parsing failed.
     #[error(transparent)]
