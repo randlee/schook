@@ -693,6 +693,10 @@ fn env_flag(key: &str) -> Option<bool> {
     }
 }
 
+fn forced_failures_enabled() -> bool {
+    cfg!(debug_assertions)
+}
+
 pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
     let message = message.as_ref();
     warn!("{message}");
@@ -700,9 +704,14 @@ pub(crate) fn emit_stderr_warning(message: impl AsRef<str>) {
 }
 
 fn forced_observability_failure() -> Option<ForcedObservabilityFailure> {
-    if !cfg!(test) && std::env::var_os(TEST_MODE_ENV).is_none() {
+    // RATIONALE: debug_assertions keeps forced-failure injection compiled out
+    // of release builds so test-only failure paths cannot leak into shipped
+    // binaries through environment variables.
+    if !forced_failures_enabled() {
         return None;
     }
+
+    std::env::var_os(TEST_MODE_ENV)?;
 
     match std::env::var(TEST_FORCE_OBSERVABILITY_FAILURE_ENV)
         .ok()?

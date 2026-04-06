@@ -194,6 +194,19 @@ impl From<bool> for CapturePayloads {
 #[serde(try_from = "u32", into = "u32")]
 pub struct RetainRunCount(u32);
 
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
+#[error("invalid retention value {value}: must be >= {minimum}")]
+pub struct RetentionBoundError {
+    value: u32,
+    minimum: u32,
+}
+
+impl RetentionBoundError {
+    const fn new(value: u32, minimum: u32) -> Self {
+        Self { value, minimum }
+    }
+}
+
 impl RetainRunCount {
     pub(crate) const fn get(self) -> u32 {
         self.0
@@ -207,11 +220,11 @@ impl Default for RetainRunCount {
 }
 
 impl TryFrom<u32> for RetainRunCount {
-    type Error = &'static str;
+    type Error = RetentionBoundError;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value < 1 {
-            Err("must be >= 1")
+            Err(RetentionBoundError::new(value, 1))
         } else {
             Ok(Self(value))
         }
@@ -241,11 +254,11 @@ impl Default for RetainDays {
 }
 
 impl TryFrom<u32> for RetainDays {
-    type Error = &'static str;
+    type Error = RetentionBoundError;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value < 1 {
-            Err("must be >= 1")
+            Err(RetentionBoundError::new(value, 1))
         } else {
             Ok(Self(value))
         }
@@ -1320,6 +1333,24 @@ redaction = "permissive"
     }
 
     #[test]
+    fn zero_retain_days_env_override_is_rejected() {
+        let _env = scoped_env(&[(ENV_AUDIT_MAX_AGE_DAYS, Some("0"))]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+
+        let err = load_layered_config(&local_path, None)
+            .expect_err("zero retain-days env override must be rejected");
+        assert!(matches!(
+            err,
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_AGE_DAYS,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn zero_retention_in_local_config_is_rejected() {
         let config = r#"
 [meta]
@@ -1338,6 +1369,28 @@ retain_runs = 0
         assert!(
             rendered.contains("must be >= 1"),
             "unexpected zero-retention error: {rendered}"
+        );
+    }
+
+    #[test]
+    fn zero_retain_days_in_local_config_is_rejected() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+retain_days = 0
+"#;
+
+        let err = parse_config_str(config, "in-memory")
+            .expect_err("zero retain-days local config must be rejected");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("must be >= 1"),
+            "unexpected zero retain-days error: {rendered}"
         );
     }
 
