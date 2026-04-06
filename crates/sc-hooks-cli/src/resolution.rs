@@ -109,12 +109,6 @@ pub fn resolve_chain(
     Ok(resolved)
 }
 
-fn response_time_range(
-    response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> AsyncBucketRange {
-    AsyncBucketRange::from_response_time(response_time)
-}
-
 fn bucket_matches_manifest(
     requested_bucket: &str,
     response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
@@ -122,7 +116,7 @@ fn bucket_matches_manifest(
     let Some((bucket_min, bucket_max)) = parse_bucket_range(requested_bucket) else {
         return false;
     };
-    let plugin_range = response_time_range(response_time);
+    let plugin_range = AsyncBucketRange::from_response_time(response_time);
     bucket_min <= plugin_range.max_ms && plugin_range.min_ms <= bucket_max.saturating_add(1)
 }
 

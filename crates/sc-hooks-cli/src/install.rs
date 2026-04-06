@@ -140,7 +140,7 @@ fn collect_specs_for_hook(
         specs.push(HandlerInstallSpec {
             mode: manifest.mode,
             matchers: manifest.matchers,
-            async_range: async_range_for_response_time(manifest.response_time.as_ref()),
+            async_range: AsyncBucketRange::from_response_time(manifest.response_time.as_ref()),
         });
     }
 
@@ -238,12 +238,6 @@ fn applies(spec: &HandlerInstallSpec, matcher: &str) -> bool {
             .matchers
             .iter()
             .any(|declared| declared.as_str() == matcher)
-}
-
-fn async_range_for_response_time(
-    response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> AsyncBucketRange {
-    AsyncBucketRange::from_response_time(response_time)
 }
 
 fn merged_async_buckets(ranges: &[AsyncBucketRange]) -> Vec<String> {

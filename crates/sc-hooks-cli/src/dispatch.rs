@@ -403,6 +403,8 @@ pub fn execute_chain(
                 CliError::plugin_error_with_source("failed to serialize stdin payload", err)
             })?;
             if let Err(err) = stdin.write_all(&body) {
+                let _ = child.kill();
+                let _ = child.wait();
                 disable_plugin_for_session(
                     prepared
                         .session_id
@@ -443,6 +445,8 @@ pub fn execute_chain(
         let wait_outcome = match wait_with_timeout(&mut child, timeout_ms) {
             Ok(outcome) => outcome,
             Err(err) => {
+                let _ = child.kill();
+                let _ = child.wait();
                 disable_plugin_for_session(
                     prepared
                         .session_id
