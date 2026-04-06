@@ -46,9 +46,11 @@ pub struct ManifestMatcher(String);
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 #[error("manifest matcher must be non-empty")]
+/// Error returned when a [`ManifestMatcher`] is constructed from an empty string.
 pub struct ManifestMatcherError;
 
 impl ManifestMatcher {
+    /// Creates a new [`ManifestMatcher`], returning [`ManifestMatcherError`] if `value` is empty or whitespace-only.
     pub fn new(value: impl Into<String>) -> Result<Self, ManifestMatcherError> {
         let value = value.into();
         if value.trim().is_empty() {
@@ -57,6 +59,7 @@ impl ManifestMatcher {
         Ok(Self(value))
     }
 
+    /// Returns the matcher string as a `&str`.
     pub fn as_str(&self) -> &str {
         &self.0
     }
