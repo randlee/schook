@@ -1,5 +1,6 @@
 //! Command-line entrypoint for the `sc-hooks` host runtime.
 
+mod async_bucket;
 mod audit;
 mod config;
 mod dispatch;

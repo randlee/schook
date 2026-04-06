@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
+use crate::async_bucket::AsyncBucketRange;
 use crate::config::ScHooksConfig;
 use crate::errors::ResolutionError;
 use crate::events;
@@ -110,11 +111,8 @@ pub fn resolve_chain(
 
 fn response_time_range(
     response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> (u64, u64) {
-    match response_time {
-        Some(range) => (range.min_ms, range.max_ms),
-        None => (0, 30_000),
-    }
+) -> AsyncBucketRange {
+    AsyncBucketRange::from_response_time(response_time)
 }
 
 fn bucket_matches_manifest(
@@ -124,8 +122,8 @@ fn bucket_matches_manifest(
     let Some((bucket_min, bucket_max)) = parse_bucket_range(requested_bucket) else {
         return false;
     };
-    let (plugin_min, plugin_max) = response_time_range(response_time);
-    bucket_min <= plugin_max && plugin_min <= bucket_max.saturating_add(1)
+    let plugin_range = response_time_range(response_time);
+    bucket_min <= plugin_range.max_ms && plugin_range.min_ms <= bucket_max.saturating_add(1)
 }
 
 fn parse_bucket_range(bucket: &str) -> Option<(u64, u64)> {

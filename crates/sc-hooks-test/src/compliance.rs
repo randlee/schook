@@ -1,3 +1,6 @@
+//! Shared manifest/protocol compliance helpers and host-dispatch probe traits
+//! used by `sc-hooks-test` consumers.
+
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -8,8 +11,8 @@ mod private {
     pub trait Sealed {}
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 /// Result of a single compliance assertion.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceCheck {
     /// Human-readable check name.
     pub name: String,
@@ -19,8 +22,8 @@ pub struct ComplianceCheck {
     pub detail: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 /// Summary report for manifest/protocol compliance checks against one plugin.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceReport {
     /// Display path to the plugin executable under test.
     pub plugin_path: String,
@@ -35,8 +38,8 @@ impl ComplianceReport {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Shared host-behavior scenarios exercised by the compliance harness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContractScenario {
     /// Dispatch with no payload object.
     AbsentPayload,
@@ -52,8 +55,8 @@ pub enum ContractScenario {
     Timeout,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// Captured host outcome for a contract-behavior scenario.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractScenarioResult {
     /// Process exit code.
     pub exit_code: i32,
@@ -69,8 +72,8 @@ pub struct ContractScenarioResult {
     pub marker_exists: bool,
 }
 
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
 /// Error returned by host-dispatch compliance probes.
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ProbeError {
     /// Probe failure with structured stage context.
     #[error("probe stage `{stage}` failed: {message}")]

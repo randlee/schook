@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use serde::Serialize;
 
+use crate::async_bucket::AsyncBucketRange;
 use crate::config::ScHooksConfig;
 use crate::errors::CliError;
 use crate::events;
@@ -44,22 +45,6 @@ struct HandlerInstallSpec {
     mode: sc_hooks_core::dispatch::DispatchMode,
     matchers: Vec<ManifestMatcher>,
     async_range: AsyncBucketRange,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct AsyncBucketRange {
-    min_ms: u64,
-    max_ms: u64,
-}
-
-impl AsyncBucketRange {
-    const fn new(min_ms: u64, max_ms: u64) -> Self {
-        Self { min_ms, max_ms }
-    }
-
-    fn as_bucket(self) -> String {
-        format!("{}-{}", self.min_ms, self.max_ms)
-    }
 }
 
 pub fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
@@ -258,10 +243,7 @@ fn applies(spec: &HandlerInstallSpec, matcher: &str) -> bool {
 fn async_range_for_response_time(
     response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
 ) -> AsyncBucketRange {
-    match response_time {
-        Some(range) => AsyncBucketRange::new(range.min_ms, range.max_ms),
-        None => AsyncBucketRange::new(0, 30_000),
-    }
+    AsyncBucketRange::from_response_time(response_time)
 }
 
 fn merged_async_buckets(ranges: &[AsyncBucketRange]) -> Vec<String> {

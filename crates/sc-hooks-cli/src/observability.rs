@@ -28,13 +28,17 @@ const SERVICE_NAME: &str = "sc-hooks";
 /// Bound debug excerpts to 160 chars so audit records stay compact and the
 /// debug-profile tests can assert a fixed truncation boundary.
 const DEBUG_EXCERPT_LIMIT: usize = 160;
+// Lock ordering for test-only global overrides is fixed: tests must acquire
+// observability_lock() before TEST_LOGGER_ROOT_OVERRIDE so env mutation and root
+// override state never invert the shared mutex order.
 static LOGGER_STATE: OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitError>>> =
     OnceLock::new();
 static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>> =
     OnceLock::new();
 #[cfg(test)]
-// Test-only root override is protected by a mutex because multiple tests share the
-// same global logger cache and must serialize root swaps.
+// Test-only root override is protected by a mutex because multiple tests share
+// the same global logger cache and must serialize root swaps. Lock order must
+// remain observability_lock() -> TEST_LOGGER_ROOT_OVERRIDE.
 static TEST_LOGGER_ROOT_OVERRIDE: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
 const TEST_FORCE_OBSERVABILITY_FAILURE_ENV: &str = "SC_HOOKS_TEST_FORCE_OBSERVABILITY_FAILURE";
 const TEST_MODE_ENV: &str = "SC_HOOKS_TEST_MODE";
@@ -356,17 +360,17 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         .map_err(|source| CliError::internal_with_source("invalid log action", source))?;
 
     let mut fields = Map::new();
-    fields.insert("hook".to_string(), Value::String(args.hook.to_string()));
+    fields.insert("hook".to_string(), Value::String(args.hook.to_owned()));
     if let Some(event) = args.event {
-        fields.insert("event".to_string(), Value::String(event.to_string()));
+        fields.insert("event".to_string(), Value::String(event.to_owned()));
     }
     fields.insert(
         "matcher".to_string(),
-        Value::String(args.matcher.to_string()),
+        Value::String(args.matcher.to_owned()),
     );
     fields.insert(
         "mode".to_string(),
-        Value::String(args.mode.as_str().to_string()),
+        Value::String(args.mode.as_str().to_owned()),
     );
     fields.insert(
         "handlers".to_string(),
@@ -388,7 +392,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     if let Some(ai_notification) = args.ai_notification {
         fields.insert(
             "ai_notification".to_string(),
-            Value::String(ai_notification.to_string()),
+            Value::String(ai_notification.to_owned()),
         );
     }
 
@@ -588,7 +592,7 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     );
     fields.insert(
         "hook_event".to_string(),
-        Value::String(args.notice.hook_event.as_str().to_string()),
+        Value::String(args.notice.hook_event.as_str().to_owned()),
     );
 
     let event = LogEvent {
@@ -1348,6 +1352,7 @@ mod tests {
 
     fn observability_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        // Lock order must remain observability_lock() -> TEST_LOGGER_ROOT_OVERRIDE.
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
@@ -1364,6 +1369,10 @@ mod tests {
     }
 
     fn scoped_logger_root_override(path: PathBuf) -> LoggerRootOverrideGuard {
+        debug_assert!(
+            observability_lock().try_lock().is_err(),
+            "tests must hold observability_lock() before mutating TEST_LOGGER_ROOT_OVERRIDE"
+        );
         // Lock order invariant: tests acquire observability_lock() before they mutate
         // the logger-root override so env mutation and root override changes never
         // invert the shared test mutex order.

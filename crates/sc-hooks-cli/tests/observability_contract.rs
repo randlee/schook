@@ -242,7 +242,7 @@ fn success_dispatch_emits_file_sink_log_event() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -285,7 +285,7 @@ fn invalid_sink_toggle_warns_to_stderr_and_keeps_default_file_sink() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -328,7 +328,7 @@ mode = "off"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -370,7 +370,7 @@ full_profile = "lean"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -428,7 +428,7 @@ mode = "full"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Read"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -475,7 +475,7 @@ path = "tmp/evals"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{"required_field":{"type":"string","validate":"non_empty"}}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -521,7 +521,7 @@ mode = "full"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -561,7 +561,7 @@ fn standard_mode_logger_init_failure_is_non_blocking() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -606,7 +606,7 @@ full_profile = "lean"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -636,7 +636,7 @@ fn standard_mode_emit_failure_is_non_blocking() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -680,7 +680,7 @@ mode = "full"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -724,7 +724,7 @@ mode = "full"
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -758,7 +758,7 @@ fn full_mode_concurrent_agents_shard_runs_without_corruption() {
     let root = Arc::new(temp.path().to_path_buf());
     write_full_observability_config(&root, "PreToolUse", "probe-plugin", AGENT_COUNT as u32 + 8);
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(&root, "probe-plugin"),
+        fixtures::plugin_path(root.as_ref(), "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -854,7 +854,7 @@ capture_stdio = "bounded"
     )
     .expect("config should write");
     fixtures::create_shell_plugin_script(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"cat >/dev/null
 printf '%s\n' 'debug stderr detail should be summarized instead of copied verbatim' >&2
@@ -947,7 +947,7 @@ capture_payloads = false
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -1012,7 +1012,7 @@ capture_payloads = true
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -1130,7 +1130,7 @@ PreToolUse = ["probe-plugin"]
     )
     .expect("config should write");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{"required_field":{"type":"string","validate":"non_empty"}}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -1161,7 +1161,7 @@ fn dispatch_preflight_failure_emits_standard_degraded_signal() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PostToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"async","hooks":["PostToolUse"],"matchers":["Write"],"long_running":true,"description":"slow operation","requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -1195,7 +1195,7 @@ fn blocked_dispatch_emits_warn_log_event() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"block","reason":"blocked by policy"}"#,
     );
@@ -1241,7 +1241,7 @@ fn invalid_json_dispatch_emits_error_log_and_disables_plugin() {
     let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         "cat >/dev/null\nprintf '%s' 'not-json'\n",
     );
@@ -1292,7 +1292,7 @@ fn timeout_dispatch_emits_error_log_and_disables_plugin() {
     let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"timeout_ms":50,"requires":{}}"#,
         r#"cat >/dev/null
 sleep 1
@@ -1355,7 +1355,7 @@ fn root_divergence_notice_emits_structured_log_event() {
     })
     .to_string();
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["Stop"],"matchers":["*"],"requires":{}}"#,
         &runtime_output,
     );
@@ -1404,7 +1404,7 @@ fn success_dispatch_emits_console_sink_line() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"proceed"}"#,
     );
@@ -1438,7 +1438,7 @@ fn blocked_dispatch_emits_console_sink_line() {
     let root = temp.path();
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         r#"{"action":"block","reason":"blocked by policy"}"#,
     );
@@ -1473,7 +1473,7 @@ fn invalid_json_dispatch_emits_console_sink_line() {
     let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"requires":{}}"#,
         "cat >/dev/null\nprintf '%s' 'not-json'\n",
     );
@@ -1510,7 +1510,7 @@ fn timeout_dispatch_emits_console_sink_line() {
     let state_root = temp.path().join(".sc-hooks/state");
     fixtures::write_minimal_config(root, "PreToolUse", "probe-plugin");
     fixtures::create_shell_plugin_script(
-        &fixtures::plugin_path(root, "probe-plugin"),
+        fixtures::plugin_path(root, "probe-plugin"),
         r#"{"contract_version":1,"name":"probe-plugin","mode":"sync","hooks":["PreToolUse"],"matchers":["Write"],"timeout_ms":50,"requires":{}}"#,
         r#"cat >/dev/null
 sleep 1

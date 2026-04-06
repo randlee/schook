@@ -51,6 +51,65 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - recommendation: decide the product-wide backtrace policy together with any
     future error-surface split so the public error contract changes once
 
+### RULING-NEEDED-TS-001: Ended-State Transition Guard
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-core`, docs
+- Current note:
+  - `apply_hook_update()` and `rebuild_with_root_change()` still accept
+    `AgentState::Ended` without a type-level guard because HKR-009 requires
+    canonical session records to round-trip through file-backed state updates
+  - tightening that API to a non-ended newtype would force broader record
+    reconstruction changes across the persisted session path late in phase-end
+    closeout
+  - recommendation: keep the current validated runtime guard for this release
+    and decide in a follow-on whether a separate `ActiveAgentState` type is
+    worth the migration cost
+
+### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Current note:
+  - hook types are now typed at the main resolution and dispatch boundaries, but
+    some CLI-facing plugin and matcher identifiers still remain `String`-backed
+    because they are assembled from config and manifest data used directly by
+    observability/audit output
+  - forcing a full newtype conversion in the phase-end fix pass would widen the
+    API churn beyond the targeted blocker set
+  - recommendation: schedule a focused cleanup if the team wants typed wrapper
+    boundaries for plugin names and matcher IDs, instead of doing it implicitly
+    in the observability closeout
+
+### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-test`, docs
+- Current note:
+  - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
+    shell fixture helpers stay reusable from one crate-local test surface
+  - moving it to `tests/` would force extra public helper exposure or duplicate
+    fixture wiring without changing the runtime contract being proved
+  - recommendation: keep the unix-gated library test module in place until a
+    larger `sc-hooks-test` surface split is approved
+
+### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Current note:
+  - `execute_chain()` still clones handler names into a `Vec<String>` because
+    dispatch-complete and full-audit emission need an owned chain snapshot that
+    survives independent result construction and error returns
+  - removing that allocation cleanly would require a broader change to the
+    observability/audit argument surface rather than a small mechanical patch
+  - recommendation: keep the owned snapshot for now and revisit only if profiling
+    shows it is a real hot-path cost
+
 ## Closed Items
 
 ### DEF-009: Observability Failure Fallback Integration Test

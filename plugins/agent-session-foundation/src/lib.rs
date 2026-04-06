@@ -395,9 +395,9 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
 
 fn verify_project_root_env_matches(hook: HookType, expected_root: &Path) -> Option<HookError> {
     let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
+        let hook = hook.as_str();
         warn!(
-            "agent-session-foundation: missing_env=CLAUDE_PROJECT_DIR hook={} preserving immutable ai_root_dir",
-            hook.as_str(),
+            "agent-session-foundation: missing_env=CLAUDE_PROJECT_DIR hook={hook} preserving immutable ai_root_dir",
         );
         return None;
     };

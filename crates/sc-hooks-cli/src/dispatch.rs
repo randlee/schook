@@ -81,6 +81,37 @@ struct PluginExecutionContextError {
     source: Option<BoxedError>,
 }
 
+#[derive(Default)]
+struct OutputReaderGuard {
+    stdout: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    stderr: Option<JoinHandle<io::Result<Vec<u8>>>>,
+}
+
+impl OutputReaderGuard {
+    fn take_stdout(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
+        self.stdout
+            .take()
+            .expect("stdout reader handle must be present before join")
+    }
+
+    fn take_stderr(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
+        self.stderr
+            .take()
+            .expect("stderr reader handle must be present before join")
+    }
+}
+
+impl Drop for OutputReaderGuard {
+    fn drop(&mut self) {
+        if let Some(handle) = self.stdout.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.stderr.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
 fn spawn_output_reader<R>(mut reader: R) -> JoinHandle<io::Result<Vec<u8>>>
 where
     R: Read + Send + 'static,
@@ -204,6 +235,8 @@ pub fn execute_chain(
             }
         })?;
     let started = Instant::now();
+    // This snapshot remains allocation-backed because observability and full-audit
+    // records serialize the full handler chain independently of handler lifetime.
     let handler_chain: Vec<String> = handlers
         .iter()
         .map(|handler| handler.name.clone())
@@ -355,20 +388,15 @@ pub fn execute_chain(
                 return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
-        let stdout_reader = child
-            .stdout
-            .take()
-            .map(spawn_output_reader)
-            .ok_or_else(|| {
-                CliError::internal(format!("child stdout pipe missing for `{handler_name}`"))
-            })?;
-        let stderr_reader = child
-            .stderr
-            .take()
-            .map(spawn_output_reader)
-            .ok_or_else(|| {
-                CliError::internal(format!("child stderr pipe missing for `{handler_name}`"))
-            })?;
+        let mut output_readers = OutputReaderGuard::default();
+        output_readers.stdout = child.stdout.take().map(spawn_output_reader);
+        let _ = output_readers.stdout.as_ref().ok_or_else(|| {
+            CliError::internal(format!("child stdout pipe missing for `{handler_name}`"))
+        })?;
+        output_readers.stderr = child.stderr.take().map(spawn_output_reader);
+        let _ = output_readers.stderr.as_ref().ok_or_else(|| {
+            CliError::internal(format!("child stderr pipe missing for `{handler_name}`"))
+        })?;
 
         if let Some(mut stdin) = child.stdin.take() {
             let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
@@ -447,7 +475,7 @@ pub fn execute_chain(
             }
         };
 
-        let stdout = match join_output_reader(stdout_reader, "stdout") {
+        let stdout = match join_output_reader(output_readers.take_stdout(), "stdout") {
             Ok(stdout) => stdout,
             Err(err) => {
                 disable_plugin_for_session(
@@ -482,7 +510,7 @@ pub fn execute_chain(
             }
         };
 
-        let stderr = match join_output_reader(stderr_reader, "stderr") {
+        let stderr = match join_output_reader(output_readers.take_stderr(), "stderr") {
             Ok(stderr) => stderr,
             Err(read_err) => {
                 disable_plugin_for_session(

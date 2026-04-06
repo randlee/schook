@@ -1,4 +1,6 @@
 #![cfg(unix)]
+//! Unix-only worktree hook behavior lives in the library test surface so the
+//! shared shell fixture helpers can be reused from one crate-local place.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -7,6 +9,11 @@ use sc_hooks_core::errors::HookError;
 use serde_json::json;
 
 use crate::fixtures;
+
+// Ubuntu can still return ETXTBSY briefly after atomic persist when a newly
+// written script is executed immediately, so worktree hook tests retry spawn on
+// ExecutableFileBusy with a short fixed backoff.
+const EXECUTABLE_FILE_BUSY_RETRY_DELAY_MS: u64 = 20;
 
 struct HookOutcome {
     exit_code: i32,
@@ -39,7 +46,9 @@ fn run_command_hook(
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy => {
                     last_err = Some(e);
-                    std::thread::sleep(std::time::Duration::from_millis(20));
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        EXECUTABLE_FILE_BUSY_RETRY_DELAY_MS,
+                    ));
                 }
                 Err(e) => panic!("hook script should spawn: {e}"),
             }
