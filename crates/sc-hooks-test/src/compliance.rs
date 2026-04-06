@@ -2,10 +2,15 @@
 //! used by `sc-hooks-test` consumers.
 
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
+use std::thread;
+use std::time::Duration;
 
 use serde::Serialize;
 use thiserror::Error;
+
+const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
+const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 mod private {
     pub trait Sealed {}
@@ -241,19 +246,19 @@ pub fn run_contract_behavior_suite(probe: &impl HostDispatchProbe) -> Vec<Compli
 }
 
 fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceCheck {
-    let output = Command::new(plugin_path)
+    let mut command = Command::new(plugin_path);
+    command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .and_then(|mut child| {
-            if let Some(mut stdin) = child.stdin.take() {
-                use std::io::Write;
-                let body = serde_json::to_vec(&input).map_err(std::io::Error::other)?;
-                stdin.write_all(&body)?;
-            }
-            child.wait_with_output()
-        });
+        .stderr(Stdio::piped());
+    let output = spawn_plugin_with_retry(&mut command).and_then(|mut child| {
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let body = serde_json::to_vec(&input).map_err(std::io::Error::other)?;
+            stdin.write_all(&body)?;
+        }
+        child.wait_with_output()
+    });
 
     match output {
         Ok(output) if output.status.success() => {
@@ -286,6 +291,25 @@ fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceChec
             detail: Some(err.to_string()),
         },
     }
+}
+
+fn spawn_plugin_with_retry(command: &mut Command) -> std::io::Result<Child> {
+    let mut last_err = None;
+    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+        match command.spawn() {
+            Ok(child) => return Ok(child),
+            Err(err) if err.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+                    return Err(err);
+                }
+                last_err = Some(err);
+                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
 }
 
 fn check_absent_payload(probe: &impl HostDispatchProbe) -> ComplianceCheck {
@@ -497,6 +521,6 @@ mod tests {
         );
 
         let report = run_compliance(&plugin);
-        assert!(report.passed());
+        assert!(report.passed(), "report={report:#?}");
     }
 }
