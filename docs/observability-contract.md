@@ -18,9 +18,7 @@ Owning requirement IDs:
 - `DEF-017` (`Added in SC-LOG-S4`; see §6; traceability: `docs/traceability.md`)
 
 `sc-hooks` currently emits structured observability events through version-pinned
-external `sc-observability` crates owned by `sc-hooks-cli`. Local validation may
-resolve those crates from the sibling `../sc-observability` checkout until the
-external publication sequence closes.
+external `sc-observability` crates from crates.io, owned by `sc-hooks-cli`.
 
 This document defines the current JSONL file output owned by `sc-hooks-cli`.
 

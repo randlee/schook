@@ -34,5 +34,3 @@ readme = "README.md"
 sc-hooks-core = { path = "crates/sc-hooks-core" }
 sc-hooks-sdk = { path = "crates/sc-hooks-sdk" }
 sc-hooks-test = { path = "crates/sc-hooks-test" }
-sc-observability = { path = "../sc-observability/crates/sc-observability" }
-sc-observability-types = { path = "../sc-observability/crates/sc-observability-types" }

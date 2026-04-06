@@ -997,10 +997,10 @@ Deliverables:
   - `sc-hooks-core`
   - `sc-hooks-sdk`
   - `sc-hooks-test` (tracked, not published)
-  - `sc-hooks-cli` (tracked for binary releases; crates.io publish deferred until external observability crates are published)
+  - `sc-hooks-cli` (tracked for binary releases; crates.io publish remains outside the current manifest wave)
 - release workflows for preflight, tagged release, GitHub archives, Homebrew, and WinGet
 - release gate script for branch/clean-tree/version checks
-- docs that state the current crates.io publish wave covers only the currently publishable working crates, not scaffold/reference plugin crates or the externally gated CLI crate
+- docs that state the current crates.io publish wave covers only the currently publishable working crates, not scaffold/reference plugin crates or the CLI crate still excluded by the current release manifest
 
 Required tests:
 
@@ -1013,4 +1013,4 @@ Acceptance criteria:
 - the workspace uses `crates/<name>` paths for the four host crates
 - release infrastructure is manifest-driven rather than hardcoded in workflow YAML
 - `PUBLISHING.md` documents crates.io, GitHub Releases, Homebrew, and WinGet
-- the documented current crates.io release scope excludes scaffold/reference plugin crates and the externally gated CLI crate
+- the documented current crates.io release scope excludes scaffold/reference plugin crates and the CLI crate still excluded by the current release manifest

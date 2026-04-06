@@ -16,27 +16,24 @@ workflows. Update the manifest instead.
   <https://github.com/randlee/homebrew-tap>
 - WinGet package: `randlee.sc-hooks`
 
-## Current External Dependency Gate
+## Current Crates.io Scope
 
-`sc-hooks-cli` now uses version-pinned sibling dependencies for
-`sc-observability` and `sc-observability-types`, but the types crate is not yet
-published on crates.io. Current release posture is therefore:
+`sc-hooks-cli` now uses published crates.io dependencies for
+`sc-observability` and `sc-observability-types`. Current release posture is:
 
-1. local and CI validation may use the sibling checkout under
-   `../sc-observability`
-2. `sc-hooks-core` and `sc-hooks-sdk` are the current crates.io publish set and
+1. `sc-hooks-core` and `sc-hooks-sdk` are the current crates.io publish set and
    are validated together in dependency order during preflight
-3. `sc-hooks-cli` crates.io publication remains blocked until the external
-   observability crates are published and the sibling-path patching can be
-   removed
+2. `sc-hooks-test` remains tracked for validation but is not published
+3. `sc-hooks-cli` remains outside the current crates.io wave recorded in
+   `release/publish-artifacts.toml`
 4. GitHub release archives may still ship the `sc-hooks` binary from this repo
-   before the CLI crate itself becomes crates.io-publishable
+   even while the CLI crate is outside the current crates.io wave
 
-Until that work is complete:
+Until the release manifest is widened:
 
 - you may run local release validation and publish-shape checks
 - you may update release docs/workflows
-- do not run the real crates.io publish workflow for `sc-hooks`
+- do not run the real crates.io publish workflow for `sc-hooks-cli`
 
 ## Workflows
 

@@ -132,11 +132,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq 'sc-observability(-types)?\s*=\s*\{[^}]*path\s*=[^}]*version\s*=' crates/sc-hooks-cli/Cargo.toml; then
-            echo "sc-hooks-cli uses version-pinned sibling sc-observability crates for local/CI validation." >&2
-            echo "crates.io publication still depends on the external sc-observability publish sequence closing." >&2
-          elif grep -Eq 'sc-observability(-types)?\s*=\s*\{[^}]*path\s*=' crates/sc-hooks-cli/Cargo.toml; then
-            echo "sc-hooks-cli has unpinned local sc-observability path crates." >&2
+          if rg -n '(^|\\s)(sc-observability(-types|-otlp)?|sc-observe)\\s*=\\s*\\{[^}]*\\b(path|git)\\s*=' --glob 'Cargo.toml' .; then
+            echo "Found path/git sourced sc-observability crates; crates.io sourcing is required." >&2
             exit 1
           fi
 
