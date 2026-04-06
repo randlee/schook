@@ -261,7 +261,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if rg -n '(^|\\s)(sc-observability(-types|-otlp)?|sc-observe)\\s*=\\s*\\{[^}]*\\b(path|git)\\s*=' --glob 'Cargo.toml' .; then
+          if rg -n '(^|\s)(sc-observability(-types|-otlp)?|sc-observe)\s*=\s*\{[^}]*\b(path|git)\s*=' --glob 'Cargo.toml' .; then
             echo "Found path/git sourced sc-observability crates; crates.io sourcing is required." >&2
             exit 1
           fi
