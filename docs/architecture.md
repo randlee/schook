@@ -43,6 +43,11 @@ Crate-local ADR delegation:
 
 The host:
 - loads `.sc-hooks/config.toml`
+- merges observability defaults from `~/.sc-hooks/config.toml`, repo-local
+  `.sc-hooks/config.toml`, and supported environment overrides
+- applies the supported `[observability]` config surface documented in
+  `docs/observability-contract.md` while keeping sink registration and logger
+  lifecycle internal to `sc-hooks-cli`
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -55,7 +60,7 @@ The host does not:
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
-- expose config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml`
+- expose a public sink-extension API or exporter/OTel transport config
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership
@@ -73,7 +78,7 @@ Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are source-owned implementation or scaffold/reference crates in this repository, not the runtime discovery directory
-- the initial publish scope covers only the complete working crates under `crates/`: `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-cli`; `sc-hooks-test` remains tracked but unpublished, and no `plugins/` source crate is part of the first crates.io release
+- the current crates.io publish scope covers the complete working library crates under `crates/`: `sc-hooks-core` and `sc-hooks-sdk`; `sc-hooks-test` remains tracked but unpublished, `sc-hooks-cli` remains outside the current publish wave recorded in the release manifest, and no `plugins/` source crate is part of the current crates.io release
 - crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ### 3.2 Plugin Source Crates
@@ -124,7 +129,9 @@ Important SDK boundary:
 
 ### 4.1 Config And Resolution
 
-1. `sc-hooks-cli` loads `.sc-hooks/config.toml`.
+1. `sc-hooks-cli` loads repo-local `.sc-hooks/config.toml`, merges supported
+   observability defaults from `~/.sc-hooks/config.toml`, and then applies the
+   supported environment overrides.
 2. The requested hook and optional event are matched against the configured handler chain.
 3. Handlers are resolved to `.sc-hooks/plugins/<name>`.
 4. Plugin manifests are loaded and cached within the current invocation.
@@ -221,20 +228,33 @@ Current behavior:
 Current observability ownership follows the intended boundary directly:
 
 - `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
-- the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
+- `sc-hooks-cli` also owns layered `[observability]` config loading,
+  `off | standard | full` mode resolution, and sink-selection policy
+- the implementation uses version-pinned external `sc-observability` crates
+  from crates.io
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
-- the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- the current file sink path is `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
-- there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
+- the current config surface is `[observability]`, not `[logging]`
+- `off` suppresses durable structured sink emission while leaving direct
+  stderr warnings and degraded notices visible to the operator
+- when `standard` mode is active and a pre-dispatch failure prevents
+  `dispatch.complete`, `sc-hooks-cli` emits a deterministic degraded stderr
+  signal instead of silently losing observability for that runtime attempt
+- when `full` mode is active, `sc-hooks-cli` also writes run-scoped audit files
+  under `.sc-hooks/audit/runs/<run-id>/`
+- when `full` debug profile is active, `sc-hooks-cli` adds bounded
+  machine-readable config provenance, decision-trace, stdio-excerpt, redaction,
+  and payload-capture fields without changing hook outcomes
 
-Next planned observability expansion:
+Current observability-phase result:
 
 - keep the current file-sink JSONL contract as the release baseline and the
   baseline operational mode
-- commit the next observability phase to naming cleanup, layered
-  `[observability]` config, `off | standard | full` mode resolution, durable
-  full-audit files under `.sc-hooks/audit/`, redaction, retention, and
-  50-agent hardening
+- keep the new lean full-audit sink as the durable machine-readable source for
+  audit-grade runs
+- retention, pruning, degraded-path hardening, and 50-agent validation are now
+  part of the committed observability baseline
 - keep durable audit JSONL as the canonical machine-readable source for the
   committed phase; the human console sink is operator-facing only
 - treat structured live streaming plus exporter, spans, metrics, and OTLP work
@@ -454,12 +474,12 @@ Planning targets only for a later approved Cursor pass:
 Those remain later follow-on work after the Claude ATM baseline is captured,
 reviewed, revised, and implemented.
 
-## 10. Observability Phase Planning Boundary
+## 10. Observability Phase Design Boundary
 
-The next observability phase is planned work only. It is not current
-architecture until code and contract docs land together.
+The observability phase is now part of current architecture. The design
+direction below is the frozen shape that the code and contract docs implement.
 
-Planning direction frozen for that phase:
+Implemented phase shape:
 
 - naming converges on `sc-hooks` as the canonical product/runtime/binary name
   with `hooks` as a convenience CLI alias

@@ -396,6 +396,12 @@ impl From<ActiveSessionRecord> for CanonicalSessionRecord {
     }
 }
 
+impl From<EndedSessionRecord> for CanonicalSessionRecord {
+    fn from(record: EndedSessionRecord) -> Self {
+        record.0
+    }
+}
+
 impl AsRef<CanonicalSessionRecord> for ActiveSessionRecord {
     fn as_ref(&self) -> &CanonicalSessionRecord {
         &self.0
@@ -676,6 +682,12 @@ impl ActiveSessionRecord {
         ended_at: Option<UtcTimestamp>,
         updated_at: UtcTimestamp,
     ) -> Result<SessionTransitionResult, HookError> {
+        if agent_state == AgentState::Ended {
+            return Err(HookError::validation(
+                "agent_state",
+                "AgentState::Ended must use transition_to_ended",
+            ));
+        }
         let last_hook_event = HookEventName::new(last_hook_event.into())?;
         let state_reason = StateReason::new(state_reason.into())?;
         let record = CanonicalSessionRecord {
@@ -736,6 +748,12 @@ impl ActiveSessionRecord {
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
     ) -> Result<SessionTransitionResult, HookError> {
+        if agent_state == AgentState::Ended {
+            return Err(HookError::validation(
+                "agent_state",
+                "AgentState::Ended must use transition_to_ended",
+            ));
+        }
         let mut next = self.0.clone();
         next.state_revision = StateRevision::new(next.state_revision.get() + 1)?;
         next.active_pid = active_pid;
@@ -757,6 +775,48 @@ impl ActiveSessionRecord {
                 ActiveSessionRecord::from_validated(next)?,
             ))
         }
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "terminal transition preserves canonical identity and timestamps under one validated constructor path"
+    )]
+    /// Transitions an active record into a terminal ended record.
+    pub fn transition_to_ended(
+        self,
+        active_pid: ActivePid,
+        ai_root_dir: AiRootDir,
+        ai_current_dir: AiCurrentDir,
+        session_start_source: SessionStartSource,
+        updated_at: UtcTimestamp,
+        last_hook_event: impl Into<String>,
+        state_reason: impl Into<String>,
+        ended_at: UtcTimestamp,
+    ) -> Result<EndedSessionRecord, HookError> {
+        let last_hook_event = HookEventName::new(last_hook_event.into())?;
+        let state_reason = StateReason::new(state_reason.into())?;
+        let record = CanonicalSessionRecord {
+            schema_version: self.0.schema_version,
+            provider: self.0.provider,
+            session_id: self.0.session_id.clone(),
+            active_pid,
+            parent_session_id: self.0.parent_session_id.clone(),
+            parent_active_pid: self.0.parent_active_pid,
+            ai_root_dir,
+            ai_current_dir,
+            session_start_source,
+            agent_state: AgentState::Ended,
+            state_revision: StateRevision::new(self.0.state_revision.get() + 1)?,
+            created_at: self.0.created_at.clone(),
+            updated_at: updated_at.clone(),
+            ended_at: Some(ended_at),
+            last_hook_event,
+            last_hook_event_at: updated_at,
+            state_reason,
+            extensions: self.0.extensions.clone(),
+        };
+        record.validate()?;
+        EndedSessionRecord::from_validated(record)
     }
 }
 
@@ -1068,6 +1128,91 @@ mod tests {
             err.to_string()
                 .contains("must be absent unless agent_state is ended"),
             "unexpected validation error: {err}"
+        );
+    }
+
+    fn active_record_fixture() -> ActiveSessionRecord {
+        let temp = tempfile::tempdir().expect("tempdir");
+        CanonicalSessionRecord::new(
+            Provider::Claude,
+            SessionId::new("session-active").expect("session id"),
+            ActivePid::new(12).expect("pid"),
+            AiRootDir::new(temp.path().join("repo")).expect("root"),
+            AiCurrentDir::new(temp.path().join("repo")).expect("current"),
+            SessionStartSource::Startup,
+            AgentState::Idle,
+            "Stop",
+            "turn_completed",
+        )
+        .expect("record should construct")
+        .try_into_active()
+        .expect("record should be active")
+    }
+
+    #[test]
+    fn apply_hook_update_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
+        let err = active_record_fixture()
+            .apply_hook_update(
+                ActivePid::new(13).expect("pid"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Startup,
+                AgentState::Ended,
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+                "SessionEnd",
+                "session_ended",
+                Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts")),
+            )
+            .expect_err("ended state should require the terminal transition helper");
+        assert!(
+            err.to_string()
+                .contains("AgentState::Ended must use transition_to_ended")
+        );
+    }
+
+    #[test]
+    fn rebuild_with_root_change_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
+        let err = active_record_fixture()
+            .rebuild_with_root_change(
+                ActivePid::new(13).expect("pid"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Resume,
+                AgentState::Ended,
+                "SessionEnd",
+                "session_ended",
+                Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts")),
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+            )
+            .expect_err("ended state should require the terminal transition helper");
+        assert!(
+            err.to_string()
+                .contains("AgentState::Ended must use transition_to_ended")
+        );
+    }
+
+    #[test]
+    fn transition_to_ended_returns_terminal_record() {
+        let repo = std::env::temp_dir().join("repo");
+        let ended = active_record_fixture()
+            .transition_to_ended(
+                ActivePid::new(13).expect("pid"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Startup,
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+                "SessionEnd",
+                "session_ended",
+                UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts"),
+            )
+            .expect("terminal transition should succeed");
+        assert_eq!(ended.agent_state(), AgentState::Ended);
+        assert_eq!(ended.last_hook_event(), "SessionEnd");
+        assert_eq!(ended.state_reason(), "session_ended");
+        assert_eq!(
+            ended.ended_at().map(UtcTimestamp::as_str),
+            Some("2026-03-30T00:00:01Z")
         );
     }
 }

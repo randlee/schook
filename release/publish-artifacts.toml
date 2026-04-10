@@ -18,7 +18,7 @@ cargo_toml = "crates/sc-hooks-sdk/Cargo.toml"
 required = true
 publish = true
 publish_order = 20
-preflight_check = "locked"
+preflight_check = "full"
 wait_after_publish_seconds = 60
 verify_install = false
 
@@ -38,9 +38,9 @@ artifact = "sc-hooks-cli"
 package = "sc-hooks-cli"
 cargo_toml = "crates/sc-hooks-cli/Cargo.toml"
 required = true
-publish = true
+publish = false
 publish_order = 40
-preflight_check = "locked"
+preflight_check = "full"
 wait_after_publish_seconds = 60
 verify_install = true
 

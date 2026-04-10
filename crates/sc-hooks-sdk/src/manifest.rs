@@ -1,16 +1,22 @@
 use std::collections::BTreeMap;
+use std::io;
 use std::path::Path;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 use serde_json::{Map, Value};
 use thiserror::Error;
 
-use sc_hooks_core::manifest::{FieldRequirement, Manifest};
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::manifest::{FieldRequirement, Manifest, ManifestMatcher};
 use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
 /// Highest manifest contract version understood by the current host.
 pub const HOST_CONTRACT_VERSION: u32 = 1;
 const STDERR_EXCERPT_LIMIT: usize = 4096;
+const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
+const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 /// Returns whether a plugin contract version is compatible with the host.
 pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
@@ -187,13 +193,14 @@ pub fn parse_manifest_str(input: &str) -> Result<Manifest, ManifestError> {
 
 /// Loads, parses, and validates a manifest from a plugin executable.
 pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLoadError> {
-    let output = Command::new(path)
-        .arg("--manifest")
-        .output()
-        .map_err(|source| ManifestLoadError::Spawn {
+    let mut command = Command::new(path);
+    command.arg("--manifest");
+    let output = command_output_with_spawn_retry(&mut command).map_err(|source| {
+        ManifestLoadError::Spawn {
             path: path.display().to_string(),
             source,
-        })?;
+        }
+    })?;
 
     if !output.status.success() {
         let path = path.display().to_string();
@@ -222,6 +229,25 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
 
     parse_manifest_str(&String::from_utf8_lossy(&output.stdout))
         .map_err(ManifestLoadError::Manifest)
+}
+
+fn command_output_with_spawn_retry(command: &mut Command) -> io::Result<std::process::Output> {
+    let mut last_err = None;
+    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+        match command.output() {
+            Ok(output) => return Ok(output),
+            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
+                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+                    return Err(err);
+                }
+                last_err = Some(err);
+                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
 }
 
 fn capped_stderr(stderr: &[u8]) -> String {
@@ -313,7 +339,7 @@ fn validate_field_specs(fields: &BTreeMap<String, FieldRequirement>) -> Result<(
 pub fn build_plugin_input(
     manifest: &Manifest,
     metadata: &Value,
-    hook_type: &str,
+    hook_type: HookType,
     event: Option<&str>,
     payload: Option<&Value>,
 ) -> Result<Value, ManifestError> {
@@ -338,7 +364,10 @@ pub fn build_plugin_input(
     }
 
     let mut hook = Map::new();
-    hook.insert("type".to_string(), Value::String(hook_type.to_string()));
+    hook.insert(
+        "type".to_string(),
+        Value::String(hook_type.as_str().to_string()),
+    );
     if let Some(event) = event {
         hook.insert("event".to_string(), Value::String(event.to_string()));
     }
@@ -509,7 +538,7 @@ impl ManifestBuilder {
                 name: name.into(),
                 mode,
                 hooks: Vec::new(),
-                matchers: vec!["*".to_string()],
+                matchers: vec![ManifestMatcher::from("*")],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: false,
@@ -523,14 +552,14 @@ impl ManifestBuilder {
     }
 
     /// Replaces the hook list.
-    pub fn hooks(mut self, hooks: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.manifest.hooks = hooks.into_iter().map(Into::into).collect();
+    pub fn hooks(mut self, hooks: impl IntoIterator<Item = HookType>) -> Self {
+        self.manifest.hooks = hooks.into_iter().collect();
         self
     }
 
     /// Replaces the matcher list.
-    pub fn matchers(mut self, matchers: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.manifest.matchers = matchers.into_iter().map(Into::into).collect();
+    pub fn matchers(mut self, matchers: impl IntoIterator<Item = ManifestMatcher>) -> Self {
+        self.manifest.matchers = matchers.into_iter().collect();
         self
     }
 
@@ -667,7 +696,7 @@ mod tests {
         let input = build_plugin_input(
             &manifest,
             &metadata,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Bash"),
             Some(&payload),
         )
@@ -687,21 +716,24 @@ mod tests {
     #[test]
     fn manifest_builder_creates_valid_manifest() {
         let manifest = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
-            .hooks(["PostToolUse"])
-            .matchers(["Write", "Bash"])
+            .hooks([HookType::PostToolUse])
+            .matchers([
+                ManifestMatcher::from("Write"),
+                ManifestMatcher::from("Bash"),
+            ])
             .response_time(100, 1000)
             .optional_field("team.name", FieldType::String, Some("non_empty"))
             .build()
             .expect("builder should produce valid manifest");
         assert_eq!(manifest.name, "notify");
         assert_eq!(manifest.mode, sc_hooks_core::dispatch::DispatchMode::Async);
-        assert_eq!(manifest.hooks, vec!["PostToolUse".to_string()]);
+        assert_eq!(manifest.hooks, vec![HookType::PostToolUse]);
     }
 
     #[test]
     fn rejects_async_long_running_manifest() {
         let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
-            .hooks(["PostToolUse"])
+            .hooks([HookType::PostToolUse])
             .long_running("wait for remote ack")
             .build()
             .expect_err("async long_running should be rejected");
@@ -711,7 +743,7 @@ mod tests {
     #[test]
     fn rejects_long_running_manifest_without_description() {
         let err = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Sync)
-            .hooks(["PostToolUse"])
+            .hooks([HookType::PostToolUse])
             .long_running("   ")
             .build()
             .expect_err("long_running manifest should require a non-empty description");

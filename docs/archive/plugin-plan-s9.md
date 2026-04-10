@@ -438,7 +438,7 @@ Rules:
 
 ## Hook Inventory
 
-| Hook behavior | Claude surface | Matcher/event | Python reference | Input fields consumed | Action logic | `schook` fit | Recommended crate |
+| Hook behavior | Claude surface | Matcher/event | Python reference | Input fields consumed | Action logic | `sc-hooks` fit | Recommended crate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Session start | `SessionStart` | `*` | `session-start.py` | `session_id`, `source`, `.atm.toml`, `ATM_TEAM`, `ATM_IDENTITY` | announce session, emit ATM start event, persist session record | fits current lifecycle hook model | `plugins/agent-session-foundation` |
 | Session end | `SessionEnd` | `*` | `session-end.py` | `session_id`, `.atm.toml` core routing | emit ATM end event, delete session record | fits current lifecycle hook model | `plugins/agent-session-foundation` |
@@ -452,7 +452,7 @@ Rules:
 
 ## Protocol Compatibility Analysis
 
-### Fully Compatible With Current `schook` Contract
+### Fully Compatible With Current `sc-hooks` Contract
 
 These behaviors fit the currently documented hook taxonomy and stdin payload
 model without requiring a new host protocol:
@@ -477,7 +477,7 @@ Why they fit:
 ### Design Gaps To Keep Explicit
 
 - Claude-specific routing context such as `.atm.toml`, `ATM_TEAM`, and
-  `ATM_IDENTITY` is external policy input, not part of the generic `schook`
+  `ATM_IDENTITY` is external policy input, not part of the generic `sc-hooks`
   protocol contract
 - command-sensitive Bash behavior depends on payload shape under
   `payload.tool_input.command`; this is compatible today, but the plan should
@@ -957,7 +957,7 @@ The relay hooks are lower design risk than the policy hooks. They mostly need:
   set
 - `PostCompact` reinjection until there is a verified hook payload and a clear
   persistence boundary
-- promoting Claude-only policy behavior into the generic `schook` public
+- promoting Claude-only policy behavior into the generic `sc-hooks` public
   contract without an explicit design decision
 
 ## Acceptance For This Plan

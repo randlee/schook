@@ -34,18 +34,30 @@ decisions that stay local to the host binary.
 | `ADR-SHK-CLI-002` | The CLI crate is the only logging boundary. | Lower crates expose typed data and errors; logger setup and sink ownership stay here. |
 | `ADR-SHK-CLI-003` | Audit remains static analysis, not simulated hook execution. | Audit checks config, manifest, metadata satisfiability, and install surfaces without executing live hook logic. |
 
-## 4. Planned Observability Phase Boundary
+## 4. Observability Boundary
 
-The upcoming observability phase keeps these future responsibilities inside
-`sc-hooks-cli`:
+Current observability ownership inside `sc-hooks-cli` now includes:
 
 - layered merge of built-in defaults, `~/.sc-hooks/config.toml`,
   `.sc-hooks/config.toml`, and environment overrides
-- authoritative resolution of the future `[observability]` section and any
-  corresponding environment overrides
+- authoritative resolution of the `[observability]` section and the supported
+  environment overrides
 - observability-mode resolution for `off`, `standard`, and `full`
-- audit sink orchestration, run-scoped file layout, retention pruning, and
-  degraded-path handling
+- standard sink selection and degraded-path handling for the current
+  `sc-observability` integration
+- lean full-audit sink orchestration with run-scoped durable files under the
+  configured audit root
+- debug-profile audit extensions with machine-readable config provenance,
+  decision-trace summaries, redaction markers, and explicit payload-capture
+  gating
+- full-mode attempt accounting for invocation-received, zero-match,
+  pre-dispatch failure, and completed-dispatch records
+- deterministic stderr degraded signals when a standard-mode pre-dispatch
+  failure prevents `dispatch.complete`
+
+Remaining observability follow-on responsibilities also stay inside
+`sc-hooks-cli`:
+
 - any later machine-readable stream or exporter wiring at the CLI boundary once
   the committed audit phase closes
 

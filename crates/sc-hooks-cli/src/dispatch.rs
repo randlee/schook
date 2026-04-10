@@ -1,6 +1,8 @@
 use serde_json::Value;
-use std::io::Write;
-use std::time::Instant;
+use std::io::{self, Read, Write};
+use std::process::{Child, Command};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::config::ScHooksConfig;
@@ -12,10 +14,13 @@ use crate::session;
 use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 use log::error;
 use sc_hooks_core::errors::RootDivergenceNotice;
+use sc_hooks_core::events::HookType;
 use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
+const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -30,6 +35,8 @@ struct DispatchLogBase<'a> {
     mode: sc_hooks_core::dispatch::DispatchMode,
     handler_chain: &'a [String],
     project_root: &'a AiRootDir,
+    observability: &'a crate::config::ObservabilityConfig,
+    payload: Option<&'a Value>,
 }
 
 #[derive(Debug, Error)]
@@ -75,6 +82,79 @@ struct PluginExecutionContextError {
     context: String,
     #[source]
     source: Option<BoxedError>,
+}
+
+#[derive(Default)]
+struct OutputReaderGuard {
+    stdout: Option<JoinHandle<io::Result<Vec<u8>>>>,
+    stderr: Option<JoinHandle<io::Result<Vec<u8>>>>,
+}
+
+impl OutputReaderGuard {
+    fn take_stdout(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
+        self.stdout
+            .take()
+            .expect("stdout reader handle must be present before join")
+    }
+
+    fn take_stderr(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
+        self.stderr
+            .take()
+            .expect("stderr reader handle must be present before join")
+    }
+}
+
+impl Drop for OutputReaderGuard {
+    fn drop(&mut self) {
+        if let Some(handle) = self.stdout.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.stderr.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+fn spawn_output_reader<R>(mut reader: R) -> JoinHandle<io::Result<Vec<u8>>>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut buffer = Vec::new();
+        reader.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    })
+}
+
+fn join_output_reader(
+    handle: JoinHandle<io::Result<Vec<u8>>>,
+    stream_name: &'static str,
+) -> io::Result<Vec<u8>> {
+    match handle.join() {
+        Ok(result) => result,
+        Err(_) => Err(io::Error::other(format!(
+            "{stream_name} capture thread panicked"
+        ))),
+    }
+}
+
+fn spawn_plugin_command(command: &mut Command) -> io::Result<Child> {
+    let mut last_err = None;
+    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+        match command.spawn() {
+            Ok(child) => return Ok(child),
+            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
+                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
+                    return Err(err);
+                }
+                last_err = Some(err);
+                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
 }
 
 impl PluginExecutionContextError {
@@ -144,24 +224,54 @@ fn plugin_termination_error(
 pub fn execute_chain(
     handlers: &[ResolvedHandler],
     config: &ScHooksConfig,
-    hook: &str,
+    hook: HookType,
     event: Option<&str>,
     mode: sc_hooks_core::dispatch::DispatchMode,
     payload: Option<&Value>,
 ) -> Result<DispatchOutcome, CliError> {
-    let prepared = metadata::prepare_for_dispatch(config, hook, event, payload)?;
+    let hook_name = hook.as_str();
+    let audit_project_root = metadata::current_project_root().ok();
+    let prepared =
+        metadata::prepare_for_dispatch(config, hook_name, event, payload).inspect_err(|err| {
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook_name,
+                event,
+                mode,
+                "metadata_preparation",
+                err,
+            );
+            if let Some(project_root) = audit_project_root.as_ref() {
+                observability::emit_full_audit_pre_dispatch_failure(
+                    observability::FullAuditPreDispatchFailureArgs {
+                        observability: &config.observability,
+                        hook: hook_name,
+                        event,
+                        mode,
+                        project_root,
+                        stage: "metadata_preparation",
+                        err,
+                        payload,
+                    },
+                );
+            }
+        })?;
     let started = Instant::now();
+    // This snapshot remains allocation-backed because observability and full-audit
+    // records serialize the full handler chain independently of handler lifetime.
     let handler_chain: Vec<String> = handlers
         .iter()
         .map(|handler| handler.name.clone())
         .collect();
     let log_base = DispatchLogBase {
-        hook,
+        hook: hook_name,
         event,
         matcher: event.unwrap_or("*"),
         mode,
         handler_chain: &handler_chain,
         project_root: &prepared.project_root,
+        observability: &config.observability,
+        payload,
     };
     let mut log_results: Vec<HandlerResultRecord> = Vec::new();
     let mut async_additional_context = Vec::new();
@@ -171,14 +281,33 @@ pub fn execute_chain(
         let handler_started = Instant::now();
         let handler_name = &handler.name;
         if mode == sc_hooks_core::dispatch::DispatchMode::Async && handler.manifest.long_running {
-            return Err(CliError::Resolution(
-                crate::errors::ResolutionError::HandlerRejected {
-                    plugin: handler_name.clone(),
-                    reason: "manifest long_running=true is only supported for sync handlers"
-                        .to_string(),
-                    source: None,
+            let err = CliError::Resolution(crate::errors::ResolutionError::HandlerRejected {
+                plugin: handler_name.clone(),
+                reason: "manifest long_running=true is only supported for sync handlers"
+                    .to_string(),
+                source: None,
+            });
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook_name,
+                event,
+                mode,
+                "dispatch_preflight",
+                &err,
+            );
+            observability::emit_full_audit_pre_dispatch_failure(
+                observability::FullAuditPreDispatchFailureArgs {
+                    observability: &config.observability,
+                    hook: hook_name,
+                    event,
+                    mode,
+                    project_root: &prepared.project_root,
+                    stage: "dispatch_preflight",
+                    err: &err,
+                    payload,
                 },
-            ));
+            );
+            return Err(err);
         }
         let stdin_payload = sc_hooks_sdk::manifest::build_plugin_input(
             &handler.manifest,
@@ -216,16 +345,37 @@ pub fn execute_chain(
                 format!("failed to construct plugin input for `{handler_name}`"),
                 other,
             ),
+        })
+        .inspect_err(|err| {
+            observability::emit_standard_degraded_signal(
+                &config.observability,
+                hook_name,
+                event,
+                mode,
+                "input_preparation",
+                err,
+            );
+            observability::emit_full_audit_pre_dispatch_failure(
+                observability::FullAuditPreDispatchFailureArgs {
+                    observability: &config.observability,
+                    hook: hook_name,
+                    event,
+                    mode,
+                    project_root: &prepared.project_root,
+                    stage: "input_preparation",
+                    err,
+                    payload,
+                },
+            );
         })?;
 
-        let mut command = std::process::Command::new(&handler.executable_path);
+        let mut command = Command::new(&handler.executable_path);
         metadata::inject_env_vars(&mut command, &prepared.env);
-        let mut child = match command
+        command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-        {
+            .stderr(std::process::Stdio::piped());
+        let mut child = match spawn_plugin_command(&mut command) {
             Ok(child) => child,
             Err(err) => {
                 disable_plugin_for_session(
@@ -237,7 +387,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "spawn-error",
+                    PluginFailureKind::SpawnError,
                     "verify executable permissions and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -246,6 +396,8 @@ pub fn execute_chain(
                     "spawn_error",
                     Some(err.to_string()),
                     Some(true),
+                    None,
+                    None,
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -257,13 +409,39 @@ pub fn execute_chain(
                 return Err(CliError::plugin_error_with_source(ai_message, err));
             }
         };
+        let mut output_readers = OutputReaderGuard::default();
+        output_readers.stdout = child.stdout.take().map(spawn_output_reader);
+        if output_readers.stdout.is_none() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::internal(format!(
+                "child stdout pipe missing for `{handler_name}`"
+            )));
+        }
+        output_readers.stderr = child.stderr.take().map(spawn_output_reader);
+        if output_readers.stderr.is_none() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CliError::internal(format!(
+                "child stderr pipe missing for `{handler_name}`"
+            )));
+        }
 
         if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            let body = serde_json::to_vec(&stdin_payload).map_err(|err| {
-                CliError::plugin_error_with_source("failed to serialize stdin payload", err)
-            })?;
+            let body = match serde_json::to_vec(&stdin_payload) {
+                Ok(body) => body,
+                Err(err) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(CliError::plugin_error_with_source(
+                        "failed to serialize stdin payload",
+                        err,
+                    ));
+                }
+            };
             if let Err(err) = stdin.write_all(&body) {
+                let _ = child.kill();
+                let _ = child.wait();
                 disable_plugin_for_session(
                     prepared
                         .session_id
@@ -273,7 +451,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "stdin-write-failed",
+                    PluginFailureKind::StdinWriteFailed,
                     "ensure the plugin reads stdin correctly and run 'sc-hooks test <plugin>'.",
                 );
                 log_results.push(error_result(
@@ -282,6 +460,8 @@ pub fn execute_chain(
                     "stdin_write_failed",
                     Some(err.to_string()),
                     Some(true),
+                    None,
+                    None,
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -299,9 +479,11 @@ pub fn execute_chain(
             handler.manifest.timeout_ms,
             handler.manifest.long_running,
         );
-        let status = match wait_with_timeout(&mut child, timeout_ms) {
-            Ok(TimeoutOutcome::Completed(status)) => status,
-            Ok(TimeoutOutcome::TimedOut) => {
+        let wait_outcome = match wait_with_timeout(&mut child, timeout_ms) {
+            Ok(outcome) => outcome,
+            Err(err) => {
+                let _ = child.kill();
+                let _ = child.wait();
                 disable_plugin_for_session(
                     prepared
                         .session_id
@@ -309,18 +491,140 @@ pub fn execute_chain(
                         .map(sc_hooks_core::session::SessionId::as_str),
                     handler_name,
                 )?;
-                let ai_message = ai_notification_with_timeout(
+                let ai_message = ai_notification(
                     handler_name,
-                    "timed-out",
+                    PluginFailureKind::WaitFailed,
+                    "inspect plugin process behavior and run 'sc-hooks test <plugin>'.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "wait_failed",
+                    Some(err.to_string()),
+                    Some(true),
+                    None,
+                    None,
+                ));
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::plugin_error_with_source(ai_message, err));
+            }
+        };
+
+        let stdout = match join_output_reader(output_readers.take_stdout(), "stdout") {
+            Ok(stdout) => stdout,
+            Err(err) => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::StdoutReadFailed,
+                    "check plugin output handling and run 'sc-hooks test <plugin>'.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "stdout_read_failed",
+                    Some(err.to_string()),
+                    Some(true),
+                    None,
+                    None,
+                ));
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::plugin_error_with_source(ai_message, err));
+            }
+        };
+
+        let stderr = match join_output_reader(output_readers.take_stderr(), "stderr") {
+            Ok(stderr) => stderr,
+            Err(read_err) => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::StderrReadFailed,
+                    "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
+                );
+                log_results.push(error_result(
+                    handler_name,
+                    handler_started.elapsed().as_millis(),
+                    "stderr_read_failed",
+                    Some(read_err.to_string()),
+                    Some(true),
+                    None,
+                    None,
+                ));
+                emit_dispatch_log_with_fallback(
+                    &log_base,
+                    &log_results,
+                    started.elapsed().as_millis(),
+                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
+                    Some(ai_message.as_str()),
+                );
+                return Err(CliError::plugin_error_with_source(
+                    ai_message,
+                    StderrCaptureContextError::new(&[], read_err),
+                ));
+            }
+        };
+
+        let stdout_text = String::from_utf8_lossy(&stdout);
+        let stderr_text =
+            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
+        let stderr_ref = stderr_text.as_deref();
+        let stdout_debug_excerpt =
+            observability::build_debug_excerpt(&config.observability, &stdout_text);
+        let stderr_debug_excerpt = stderr_ref
+            .and_then(|stderr| observability::build_debug_excerpt(&config.observability, stderr));
+
+        let status = match wait_outcome {
+            TimeoutOutcome::Completed(status) => status,
+            TimeoutOutcome::TimedOut => {
+                disable_plugin_for_session(
+                    prepared
+                        .session_id
+                        .as_ref()
+                        .map(sc_hooks_core::session::SessionId::as_str),
+                    handler_name,
+                )?;
+                let ai_message = ai_notification(
+                    handler_name,
+                    PluginFailureKind::TimedOut {
+                        // Invariant: wait_with_timeout() only yields TimedOut when a concrete timeout was configured.
+                        timeout_ms: timeout_ms
+                            .expect("timeout outcome requires configured timeout"),
+                    },
                     "increase timeout_ms or optimize plugin execution.",
-                    timeout_ms,
                 );
                 log_results.push(error_result(
                     handler_name,
                     handler_started.elapsed().as_millis(),
                     "timeout",
-                    None,
+                    stderr_text.clone(),
                     Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
                 ));
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
                     emit_dispatch_log_with_fallback(
@@ -342,110 +646,7 @@ pub fn execute_chain(
                 );
                 return Err(CliError::timeout(ai_message));
             }
-            Err(err) => {
-                disable_plugin_for_session(
-                    prepared
-                        .session_id
-                        .as_ref()
-                        .map(sc_hooks_core::session::SessionId::as_str),
-                    handler_name,
-                )?;
-                let ai_message = ai_notification(
-                    handler_name,
-                    "wait-failed",
-                    "inspect plugin process behavior and run 'sc-hooks test <plugin>'.",
-                );
-                log_results.push(error_result(
-                    handler_name,
-                    handler_started.elapsed().as_millis(),
-                    "wait_failed",
-                    Some(err.to_string()),
-                    Some(true),
-                ));
-                emit_dispatch_log_with_fallback(
-                    &log_base,
-                    &log_results,
-                    started.elapsed().as_millis(),
-                    sc_hooks_core::exit_codes::PLUGIN_ERROR,
-                    Some(ai_message.as_str()),
-                );
-                return Err(CliError::plugin_error_with_source(ai_message, err));
-            }
         };
-        use std::io::Read;
-        let mut stdout = Vec::new();
-        if let Some(mut out) = child.stdout.take()
-            && let Err(err) = out.read_to_end(&mut stdout)
-        {
-            disable_plugin_for_session(
-                prepared
-                    .session_id
-                    .as_ref()
-                    .map(sc_hooks_core::session::SessionId::as_str),
-                handler_name,
-            )?;
-            let ai_message = ai_notification(
-                handler_name,
-                "stdout-read-failed",
-                "check plugin output handling and run 'sc-hooks test <plugin>'.",
-            );
-            log_results.push(error_result(
-                handler_name,
-                handler_started.elapsed().as_millis(),
-                "stdout_read_failed",
-                Some(err.to_string()),
-                Some(true),
-            ));
-            emit_dispatch_log_with_fallback(
-                &log_base,
-                &log_results,
-                started.elapsed().as_millis(),
-                sc_hooks_core::exit_codes::PLUGIN_ERROR,
-                Some(ai_message.as_str()),
-            );
-            return Err(CliError::plugin_error_with_source(ai_message, err));
-        }
-
-        let mut stderr = Vec::new();
-        if let Some(mut err) = child.stderr.take()
-            && let Err(read_err) = err.read_to_end(&mut stderr)
-        {
-            disable_plugin_for_session(
-                prepared
-                    .session_id
-                    .as_ref()
-                    .map(sc_hooks_core::session::SessionId::as_str),
-                handler_name,
-            )?;
-            let ai_message = ai_notification(
-                handler_name,
-                "stderr-read-failed",
-                "check plugin stderr stream handling and run 'sc-hooks test <plugin>'.",
-            );
-            log_results.push(error_result(
-                handler_name,
-                handler_started.elapsed().as_millis(),
-                "stderr_read_failed",
-                Some(read_err.to_string()),
-                Some(true),
-            ));
-            emit_dispatch_log_with_fallback(
-                &log_base,
-                &log_results,
-                started.elapsed().as_millis(),
-                sc_hooks_core::exit_codes::PLUGIN_ERROR,
-                Some(ai_message.as_str()),
-            );
-            return Err(CliError::plugin_error_with_source(
-                ai_message,
-                StderrCaptureContextError::new(&stderr, read_err),
-            ));
-        }
-
-        let stdout_text = String::from_utf8_lossy(&stdout);
-        let stderr_text =
-            (!stderr.is_empty()).then(|| String::from_utf8_lossy(&stderr).into_owned());
-        let stderr_ref = stderr_text.as_deref();
 
         if !status.success() {
             disable_plugin_for_session(
@@ -457,7 +658,7 @@ pub fn execute_chain(
             )?;
             let ai_message = ai_notification(
                 handler_name,
-                "non-zero-exit",
+                PluginFailureKind::NonZeroExit,
                 "inspect plugin stderr and run 'sc-hooks test <plugin>'.",
             );
             log_results.push(error_result(
@@ -466,6 +667,8 @@ pub fn execute_chain(
                 "non_zero_exit",
                 stderr_text.clone(),
                 Some(true),
+                stderr_debug_excerpt.clone(),
+                stdout_debug_excerpt.clone(),
             ));
             emit_dispatch_log_with_fallback(
                 &log_base,
@@ -495,7 +698,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "invalid-json",
+                    PluginFailureKind::InvalidJson,
                     "ensure plugin writes a single valid JSON object to stdout.",
                 );
                 log_results.push(error_result(
@@ -507,6 +710,8 @@ pub fn execute_chain(
                         stderr_ref.unwrap_or("")
                     )),
                     Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -529,7 +734,11 @@ pub fn execute_chain(
                 .map(RootDivergenceNotice::warning_message),
         );
         if let Some(notice) = root_divergence.as_ref() {
-            emit_root_divergence_log_with_fallback(log_base.project_root, notice);
+            emit_root_divergence_log_with_fallback(
+                log_base.project_root,
+                log_base.observability,
+                notice,
+            );
         }
 
         match parsed.action {
@@ -542,6 +751,8 @@ pub fn execute_chain(
                     stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
+                    debug_stderr_excerpt: stderr_debug_excerpt.clone(),
+                    debug_stdout_excerpt: stdout_debug_excerpt.clone(),
                 });
 
                 if mode == sc_hooks_core::dispatch::DispatchMode::Async {
@@ -564,7 +775,7 @@ pub fn execute_chain(
                     )?;
                     let ai_message = ai_notification(
                         handler_name,
-                        "async-block",
+                        PluginFailureKind::AsyncBlock,
                         "update plugin to return proceed/error only when mode=async.",
                     );
                     log_results.push(error_result(
@@ -573,6 +784,8 @@ pub fn execute_chain(
                         "async_block",
                         stderr_text.clone(),
                         Some(true),
+                        stderr_debug_excerpt.clone(),
+                        stdout_debug_excerpt.clone(),
                     ));
                     emit_dispatch_log_with_fallback(
                         &log_base,
@@ -596,6 +809,8 @@ pub fn execute_chain(
                     stderr: stderr_text.clone(),
                     warning,
                     disabled: None,
+                    debug_stderr_excerpt: stderr_debug_excerpt.clone(),
+                    debug_stdout_excerpt: stdout_debug_excerpt.clone(),
                 });
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -616,7 +831,7 @@ pub fn execute_chain(
                 )?;
                 let ai_message = ai_notification(
                     handler_name,
-                    "action-error",
+                    PluginFailureKind::ActionError,
                     "fix plugin logic and run 'sc-hooks test <plugin>'.",
                 );
                 let action_error_message = parsed
@@ -628,6 +843,8 @@ pub fn execute_chain(
                     "action_error",
                     Some(action_error_message.clone()),
                     Some(true),
+                    stderr_debug_excerpt.clone(),
+                    stdout_debug_excerpt.clone(),
                 ));
                 emit_dispatch_log_with_fallback(
                     &log_base,
@@ -667,13 +884,13 @@ pub fn execute_chain(
         println!("{output}");
     }
 
-    emit_dispatch_log(
+    emit_dispatch_log_with_fallback(
         &log_base,
         &log_results,
         started.elapsed().as_millis(),
         sc_hooks_core::exit_codes::SUCCESS,
         None,
-    )?;
+    );
 
     Ok(DispatchOutcome::Proceed)
 }
@@ -708,6 +925,8 @@ fn emit_dispatch_log(
         exit,
         ai_notification,
         project_root: base.project_root,
+        observability: base.observability,
+        payload: base.payload,
     })
 }
 
@@ -725,16 +944,22 @@ fn emit_dispatch_log_with_fallback(
 
 fn emit_root_divergence_log(
     project_root: &AiRootDir,
+    observability_config: &crate::config::ObservabilityConfig,
     notice: &RootDivergenceNotice,
 ) -> Result<(), CliError> {
     observability::emit_root_divergence_event(observability::RootDivergenceEventArgs {
         notice,
         project_root,
+        observability: observability_config,
     })
 }
 
-fn emit_root_divergence_log_with_fallback(project_root: &AiRootDir, notice: &RootDivergenceNotice) {
-    if let Err(err) = emit_root_divergence_log(project_root, notice) {
+fn emit_root_divergence_log_with_fallback(
+    project_root: &AiRootDir,
+    observability_config: &crate::config::ObservabilityConfig,
+    notice: &RootDivergenceNotice,
+) {
+    if let Err(err) = emit_root_divergence_log(project_root, observability_config, notice) {
         emit_observability_stderr_fallback(&err);
     }
 }
@@ -796,6 +1021,8 @@ fn error_result(
     error_type: &'static str,
     stderr: Option<String>,
     disabled: Option<bool>,
+    debug_stderr_excerpt: Option<observability::DebugExcerpt>,
+    debug_stdout_excerpt: Option<observability::DebugExcerpt>,
 ) -> HandlerResultRecord {
     HandlerResultRecord {
         handler: handler_name.to_string(),
@@ -805,6 +1032,8 @@ fn error_result(
         stderr,
         warning: None,
         disabled,
+        debug_stderr_excerpt,
+        debug_stdout_excerpt,
     }
 }
 
@@ -818,28 +1047,52 @@ fn plugin_error_with_context(
     }
 }
 
-fn ai_notification(handler_name: &str, error_type: &str, guidance: &str) -> String {
-    ai_notification_with_timeout(handler_name, error_type, guidance, None)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluginFailureKind {
+    InvalidJson,
+    NonZeroExit,
+    TimedOut { timeout_ms: u64 },
+    SpawnError,
+    StdinWriteFailed,
+    WaitFailed,
+    StdoutReadFailed,
+    StderrReadFailed,
+    AsyncBlock,
+    ActionError,
 }
 
-fn ai_notification_with_timeout(
-    handler_name: &str,
-    error_type: &str,
-    guidance: &str,
-    timeout_ms: Option<u64>,
-) -> String {
-    match error_type {
-        "invalid-json" => {
-            format!("hook {handler_name} returned invalid JSON — disabled. Please notify user!")
+fn ai_notification(handler_name: &str, failure_kind: PluginFailureKind, guidance: &str) -> String {
+    match failure_kind {
+        PluginFailureKind::InvalidJson => {
+            format!("hook {handler_name} returned invalid JSON — disabled. {guidance}")
         }
-        "non-zero-exit" => {
-            format!("hook {handler_name} exited non-zero — disabled. Please notify user!")
+        PluginFailureKind::NonZeroExit => {
+            format!("hook {handler_name} exited non-zero — disabled. {guidance}")
         }
-        "timed-out" => format!(
-            "hook {handler_name} timed out after {}ms — disabled. Run 'sc-hooks test {handler_name}' to diagnose.",
-            timeout_ms.unwrap_or_default()
-        ),
-        _ => format!("hook {handler_name} {error_type} — disabled. {guidance}"),
+        PluginFailureKind::TimedOut { timeout_ms } => {
+            format!("hook {handler_name} timed out after {timeout_ms}ms — disabled. {guidance}",)
+        }
+        PluginFailureKind::SpawnError => {
+            format!("hook {handler_name} spawn-error — disabled. {guidance}")
+        }
+        PluginFailureKind::StdinWriteFailed => {
+            format!("hook {handler_name} stdin-write-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::WaitFailed => {
+            format!("hook {handler_name} wait-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StdoutReadFailed => {
+            format!("hook {handler_name} stdout-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::StderrReadFailed => {
+            format!("hook {handler_name} stderr-read-failed — disabled. {guidance}")
+        }
+        PluginFailureKind::AsyncBlock => {
+            format!("hook {handler_name} async-block — disabled. {guidance}")
+        }
+        PluginFailureKind::ActionError => {
+            format!("hook {handler_name} action-error — disabled. {guidance}")
+        }
     }
 }
 
@@ -900,7 +1153,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -912,7 +1165,7 @@ PreToolUse = ["guard-paths"]
         let outcome = execute_chain(
             &handlers,
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -967,8 +1220,8 @@ PostToolUse = ["notify"]
                 contract_version: 1,
                 name: "notify".to_string(),
                 mode: sc_hooks_core::dispatch::DispatchMode::Async,
-                hooks: vec!["PostToolUse".to_string()],
-                matchers: vec!["*".to_string()],
+                hooks: vec![HookType::PostToolUse],
+                matchers: vec![sc_hooks_core::manifest::ManifestMatcher::from("*")],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: true,
@@ -983,7 +1236,7 @@ PostToolUse = ["notify"]
         let err = execute_chain(
             &[handler],
             &cfg,
-            "PostToolUse",
+            HookType::PostToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Async,
             None,
@@ -1026,7 +1279,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1038,7 +1291,7 @@ PreToolUse = ["guard-paths"]
         let outcome = execute_chain(
             &handlers,
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1046,7 +1299,7 @@ PreToolUse = ["guard-paths"]
         .expect("dispatch should succeed");
         assert!(matches!(outcome, DispatchOutcome::Proceed));
 
-        let log_path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let log_path = root.join(sc_hooks_core::OBSERVABILITY_LOG_PATH);
         let rendered = fs::read_to_string(log_path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value = serde_json::from_str(line).expect("log line should parse");
@@ -1062,13 +1315,24 @@ PreToolUse = ["guard-paths"]
 
     #[test]
     fn timeout_ai_notification_includes_duration() {
-        let message = ai_notification_with_timeout(
+        let message = ai_notification(
             "guard-paths",
-            "timed-out",
+            PluginFailureKind::TimedOut { timeout_ms: 5000 },
             "increase timeout",
-            Some(5000),
         );
         assert!(message.contains("timed out after 5000ms"));
+        assert!(message.contains("increase timeout"));
+    }
+
+    #[test]
+    fn invalid_json_ai_notification_uses_guidance() {
+        let message = ai_notification(
+            "guard-paths",
+            PluginFailureKind::InvalidJson,
+            "ensure plugin writes valid JSON.",
+        );
+        assert!(message.contains("returned invalid JSON"));
+        assert!(message.contains("ensure plugin writes valid JSON."));
     }
 
     #[test]
@@ -1096,7 +1360,7 @@ PreToolUse = ["guard-paths"]
 
         let handlers = resolution::resolve_chain(
             &cfg,
-            "PreToolUse",
+            HookType::PreToolUse,
             Some("Write"),
             sc_hooks_core::dispatch::DispatchMode::Sync,
             None,
@@ -1112,7 +1376,7 @@ PreToolUse = ["guard-paths"]
             let outcome = execute_chain(
                 &handlers,
                 &cfg,
-                "PreToolUse",
+                HookType::PreToolUse,
                 Some("Write"),
                 sc_hooks_core::dispatch::DispatchMode::Sync,
                 None,

@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use sc_hooks_core::events::{EventTaxonomy, HookType};
+use sc_hooks_core::manifest::ManifestMatcher;
 
 pub const TOOL_EVENTS: [&str; 15] = [
     "Bash",
@@ -27,30 +28,34 @@ pub struct MatcherValidation {
     pub errors: Vec<String>,
 }
 
-pub fn validate_matchers_for_hook(hook: &str, matchers: &[String]) -> MatcherValidation {
+pub fn validate_matchers_for_hook(
+    hook: HookType,
+    matchers: &[ManifestMatcher],
+) -> MatcherValidation {
     let mut outcome = MatcherValidation::default();
-    let hook_type = HookType::from_str(hook).ok();
 
     for matcher in matchers {
-        if hook_type.is_some_and(is_wildcard_only_hook_type) && matcher != "*" {
+        let matcher_name = matcher.as_str();
+        if is_wildcard_only_hook_type(hook) && matcher_name != "*" {
             outcome.errors.push(format!(
-                "hook `{hook}` only supports wildcard matcher `*`, found `{matcher}`"
+                "hook `{}` only supports wildcard matcher `*`, found `{matcher_name}`",
+                hook.as_str()
             ));
             continue;
         }
 
-        if matches!(hook_type, Some(HookType::Notification))
-            && !NOTIFICATION_EVENTS.contains(&matcher.as_str())
-        {
+        if matches!(hook, HookType::Notification) && !NOTIFICATION_EVENTS.contains(&matcher_name) {
             outcome.warnings.push(format!(
-                "hook `{hook}` matcher `{matcher}` is unrecognized (forward-compatible warning)"
+                "hook `{}` matcher `{matcher_name}` is unrecognized (forward-compatible warning)",
+                hook.as_str()
             ));
             continue;
         }
 
-        if hook_type.is_some_and(is_tool_hook_type) && !TOOL_EVENTS.contains(&matcher.as_str()) {
+        if is_tool_hook_type(hook) && !TOOL_EVENTS.contains(&matcher_name) {
             outcome.warnings.push(format!(
-                "hook `{hook}` matcher `{matcher}` is unrecognized (forward-compatible warning)"
+                "hook `{}` matcher `{matcher_name}` is unrecognized (forward-compatible warning)",
+                hook.as_str()
             ));
         }
     }
@@ -150,8 +155,11 @@ mod tests {
     #[test]
     fn validates_tool_hook_matchers_with_warning_for_unknown() {
         let result = validate_matchers_for_hook(
-            "PreToolUse",
-            &["Write".to_string(), "FutureEvent".to_string()],
+            HookType::PreToolUse,
+            &[
+                ManifestMatcher::from("Write"),
+                ManifestMatcher::from("FutureEvent"),
+            ],
         );
 
         assert!(result.errors.is_empty());
@@ -161,8 +169,10 @@ mod tests {
 
     #[test]
     fn lifecycle_hooks_require_wildcard_only() {
-        let result =
-            validate_matchers_for_hook("SessionEnd", &["Write".to_string(), "*".to_string()]);
+        let result = validate_matchers_for_hook(
+            HookType::SessionEnd,
+            &[ManifestMatcher::from("Write"), ManifestMatcher::from("*")],
+        );
 
         assert_eq!(result.errors.len(), 1);
         assert!(result.errors[0].contains("only supports wildcard"));
@@ -171,8 +181,11 @@ mod tests {
     #[test]
     fn notification_allows_idle_prompt_and_warns_unknown() {
         let result = validate_matchers_for_hook(
-            "Notification",
-            &["idle_prompt".to_string(), "heartbeat".to_string()],
+            HookType::Notification,
+            &[
+                ManifestMatcher::from("idle_prompt"),
+                ManifestMatcher::from("heartbeat"),
+            ],
         );
 
         assert!(result.errors.is_empty());

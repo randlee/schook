@@ -48,6 +48,34 @@ Unknown-field rule:
 - manifest and runtime result deserialization currently ignore unknown JSON fields
 - unknown fields are dropped on deserialize/serialize round-trip rather than preserved
 
+## 2.1 Host Config Schema Boundary
+
+The host config schema is not part of the plugin stdin/stdout wire contract, but
+the current host surface is frozen by `CFG-002` and must stay documented where
+protocol readers can find it.
+
+Current top-level host config sections are:
+
+- `[meta]`
+- `[context]`
+- `[hooks]`
+- `[sandbox]`
+- `[observability]`
+
+Rules:
+
+- `[meta]` and `[hooks]` remain the only required top-level sections
+- `[observability]` is the implemented replacement for the earlier deferred
+  `[logging]` idea
+- unknown top-level sections are rejected during host config parsing
+- detailed field semantics for `[observability]` live in
+  `docs/observability-contract.md`
+
+Amendment note:
+
+- `CFG-002` was amended by `SC-LOG-S2` to add `[observability]` as a supported
+  top-level section and to retire any implied return to `[logging]`
+
 ## 3. Manifest Contract
 
 ### 3.1 Manifest Command

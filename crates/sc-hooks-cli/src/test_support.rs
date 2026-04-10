@@ -36,7 +36,7 @@ impl Drop for CurrentDirGuard {
 pub fn shared_observability_root() -> PathBuf {
     let root = OBSERVABILITY_ROOT
         .get_or_init(|| {
-            std::env::temp_dir().join(format!("schook-observability-{}", std::process::id()))
+            std::env::temp_dir().join(format!("sc-hooks-observability-{}", std::process::id()))
         })
         .clone();
     std::fs::create_dir_all(&root).expect("shared observability root should be creatable");

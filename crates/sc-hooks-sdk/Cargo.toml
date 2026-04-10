@@ -3,12 +3,18 @@ name = "sc-hooks-sdk"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme.workspace = true
+description = "SDK surface for building typed sc-hooks runtime plugins."
 
 [dependencies]
 glob = "0.3.3"
 log = "0.4.29"
 regex = "1.12.2"
-sc-hooks-core = { path = "../sc-hooks-core" }
+sc-hooks-core = { version = "0.1.0", path = "../sc-hooks-core" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 thiserror = "2.0.18"

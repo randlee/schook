@@ -213,3 +213,98 @@ impl HookError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::HookType;
+
+    #[test]
+    fn root_divergence_notice_round_trips_through_encode_and_decode() {
+        let notice = RootDivergenceNotice::new(
+            AiRootDir::new("/repo").expect("root"),
+            "/repo/subdir",
+            SessionId::new("session-1").expect("session"),
+            HookType::SessionStart,
+        )
+        .expect("notice should construct");
+
+        let encoded = notice.encode().expect("notice should encode");
+        let decoded = RootDivergenceNotice::decode(&encoded).expect("notice should decode");
+        assert_eq!(decoded, notice);
+    }
+
+    #[test]
+    fn root_divergence_notice_decode_rejects_unprefixed_payloads() {
+        assert!(RootDivergenceNotice::decode("{\"hook_event\":\"SessionStart\"}").is_none());
+    }
+
+    #[test]
+    fn root_divergence_notice_warning_message_mentions_all_key_fields() {
+        let notice = RootDivergenceNotice::new(
+            AiRootDir::new("/repo").expect("root"),
+            "/other",
+            SessionId::new("session-2").expect("session"),
+            HookType::PostToolUse,
+        )
+        .expect("notice should construct");
+
+        let warning = notice.warning_message();
+        assert!(warning.contains("/repo"));
+        assert!(warning.contains("/other"));
+        assert!(warning.contains("PostToolUse"));
+    }
+
+    #[test]
+    fn hook_error_constructors_cover_all_variants() {
+        let invalid_context = HookError::invalid_context("bad");
+        assert!(matches!(invalid_context, HookError::InvalidContext { .. }));
+
+        let invalid_context_with_source =
+            HookError::invalid_context_with_source("bad", std::io::Error::other("source"));
+        assert!(matches!(
+            invalid_context_with_source,
+            HookError::InvalidContext {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let validation = HookError::validation("field", "invalid");
+        assert!(matches!(validation, HookError::Validation { .. }));
+
+        let validation_with_source =
+            HookError::validation_with_source("field", "invalid", std::io::Error::other("source"));
+        assert!(matches!(
+            validation_with_source,
+            HookError::Validation {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let internal = HookError::internal("boom");
+        assert!(matches!(internal, HookError::Internal { .. }));
+
+        let internal_with_source =
+            HookError::internal_with_source("boom", std::io::Error::other("source"));
+        assert!(matches!(
+            internal_with_source,
+            HookError::Internal {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let state_path = std::env::temp_dir().join("state.json");
+        let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
+        assert!(matches!(state_io, HookError::StateIo { .. }));
+
+        let divergence = HookError::root_divergence(
+            AiRootDir::new("/repo").expect("root"),
+            "/repo/subdir",
+            HookType::SessionStart,
+        );
+        assert!(matches!(divergence, HookError::RootDivergence { .. }));
+    }
+}

@@ -25,9 +25,12 @@ fn main() {
         return;
     }
 
-    let mut input = String::new();
     use std::io::Read;
-    let _ = std::io::stdin().read_to_string(&mut input);
+    let mut input = String::new();
+    if let Err(err) = std::io::stdin().read_to_string(&mut input) {
+        eprintln!("failed to read stdin: {err}");
+        std::process::exit(1);
+    }
 
     let result = serde_json::json!({"action":"proceed"});
     print_json(&result, "result");

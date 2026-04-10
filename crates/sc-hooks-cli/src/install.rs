@@ -1,12 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use serde::Serialize;
 
+use crate::async_bucket::AsyncBucketRange;
 use crate::config::ScHooksConfig;
 use crate::errors::CliError;
 use crate::events;
+use sc_hooks_core::events::HookType;
+use sc_hooks_core::manifest::ManifestMatcher;
 
 const DEFAULT_SETTINGS_PATH: &str = ".claude/settings.json";
 
@@ -39,8 +43,8 @@ pub struct InstallPlan {
 #[derive(Debug, Clone)]
 struct HandlerInstallSpec {
     mode: sc_hooks_core::dispatch::DispatchMode,
-    matchers: Vec<String>,
-    async_range: (u64, u64),
+    matchers: Vec<ManifestMatcher>,
+    async_range: AsyncBucketRange,
 }
 
 pub fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
@@ -93,6 +97,11 @@ fn collect_specs_for_hook(
     chain: &[String],
     warnings: &mut Vec<String>,
 ) -> Result<Vec<HandlerInstallSpec>, CliError> {
+    let hook = HookType::from_str(hook_name).map_err(|_| {
+        CliError::internal(format!(
+            "unknown hook type `{hook_name}` in install settings build"
+        ))
+    })?;
     let mut specs = Vec::new();
     let mut manifest_cache: BTreeMap<PathBuf, sc_hooks_core::manifest::Manifest> = BTreeMap::new();
 
@@ -112,11 +121,11 @@ fn collect_specs_for_hook(
             loaded
         };
 
-        if !manifest.hooks.iter().any(|declared| declared == hook_name) {
+        if !manifest.hooks.contains(&hook) {
             continue;
         }
 
-        let validated = events::validate_matchers_for_hook(hook_name, &manifest.matchers);
+        let validated = events::validate_matchers_for_hook(hook, &manifest.matchers);
         warnings.extend(validated.warnings);
         if !validated.errors.is_empty() {
             return Err(CliError::Validation(
@@ -131,7 +140,7 @@ fn collect_specs_for_hook(
         specs.push(HandlerInstallSpec {
             mode: manifest.mode,
             matchers: manifest.matchers,
-            async_range: async_range_for_response_time(manifest.response_time.as_ref()),
+            async_range: AsyncBucketRange::from_response_time(manifest.response_time.as_ref()),
         });
     }
 
@@ -144,8 +153,8 @@ fn build_matcher_entries(hook_name: &str, specs: &[HandlerInstallSpec]) -> Vec<M
 
     for spec in specs {
         for matcher in &spec.matchers {
-            if matcher != "*" {
-                explicit_matchers.insert(matcher.clone());
+            if matcher.as_str() != "*" {
+                explicit_matchers.insert(matcher.as_str().to_string());
             }
         }
     }
@@ -222,47 +231,43 @@ fn applies(spec: &HandlerInstallSpec, matcher: &str) -> bool {
         return is_wildcard_only_spec(spec);
     }
 
-    spec.matchers.iter().any(|declared| declared == "*")
-        || spec.matchers.iter().any(|declared| declared == matcher)
+    spec.matchers
+        .iter()
+        .any(|declared| declared.as_str() == "*")
+        || spec
+            .matchers
+            .iter()
+            .any(|declared| declared.as_str() == matcher)
 }
 
-fn async_range_for_response_time(
-    response_time: Option<&sc_hooks_core::manifest::ResponseTimeRange>,
-) -> (u64, u64) {
-    match response_time {
-        Some(range) => (range.min_ms, range.max_ms),
-        None => (0, 30_000),
-    }
-}
-
-fn merged_async_buckets(ranges: &[(u64, u64)]) -> Vec<String> {
+fn merged_async_buckets(ranges: &[AsyncBucketRange]) -> Vec<String> {
     if ranges.is_empty() {
         return Vec::new();
     }
 
     let mut sorted = ranges.to_vec();
-    sorted.sort_by_key(|(min, max)| (*min, *max));
+    sorted.sort_by_key(|range| (range.min_ms, range.max_ms));
 
-    let mut merged: Vec<(u64, u64)> = Vec::new();
-    for (min, max) in sorted {
-        if let Some((last_min, last_max)) = merged.last_mut()
-            && min <= last_max.saturating_add(1)
+    let mut merged: Vec<AsyncBucketRange> = Vec::new();
+    for range in sorted {
+        if let Some(last) = merged.last_mut()
+            && range.min_ms <= last.max_ms.saturating_add(1)
         {
-            *last_min = (*last_min).min(min);
-            *last_max = (*last_max).max(max);
+            last.min_ms = last.min_ms.min(range.min_ms);
+            last.max_ms = last.max_ms.max(range.max_ms);
             continue;
         }
-        merged.push((min, max));
+        merged.push(range);
     }
 
     merged
         .into_iter()
-        .map(|(min, max)| format!("{min}-{max}"))
+        .map(AsyncBucketRange::as_bucket)
         .collect()
 }
 
 fn is_wildcard_only_spec(spec: &HandlerInstallSpec) -> bool {
-    spec.matchers.len() == 1 && spec.matchers[0] == "*"
+    spec.matchers.len() == 1 && spec.matchers[0].as_str() == "*"
 }
 
 fn plugin_path(handler_name: &str) -> PathBuf {

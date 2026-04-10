@@ -1,5 +1,9 @@
 # sc-observability Integration Audit
 
+> Historical note: this audit records the pre-publication sibling-checkout
+> integration pass. Current mainline `sc-hooks` now sources
+> `sc-observability` crates from crates.io `1.0.0`.
+
 ## Scope
 
 This note records the `SC-OBS-INTEGRATION-1` audit of the current `sc-hooks`

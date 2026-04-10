@@ -24,3 +24,13 @@ resolver = "2"
 edition = "2024"
 rust-version = "1.94.1"
 version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/randlee/schook"
+homepage = "https://github.com/randlee/schook"
+documentation = "https://github.com/randlee/schook/tree/develop/docs"
+readme = "README.md"
+
+[patch.crates-io]
+sc-hooks-core = { path = "crates/sc-hooks-core" }
+sc-hooks-sdk = { path = "crates/sc-hooks-sdk" }
+sc-hooks-test = { path = "crates/sc-hooks-test" }
