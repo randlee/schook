@@ -47,7 +47,7 @@ cargo run -p sc-hooks-cli -- --help
 The runtime shape is:
 - config: `.sc-hooks/config.toml`
 - runtime plugins: `.sc-hooks/plugins/<name>`
-- observability log: `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- observability log: `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 
 The checked example layout lives at:
 - [examples/runtime-layout/README.md](examples/runtime-layout/README.md)

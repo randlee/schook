@@ -43,9 +43,8 @@ The current runtime layout is:
   state/
     session.json
   observability/
-    sc-hooks/
-      logs/
-        sc-hooks.log.jsonl
+    logs/
+      sc-hooks.log.jsonl
 ```
 
 Checked example:
