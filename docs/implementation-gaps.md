@@ -25,6 +25,22 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     deliberate architecture change requiring a migration plan rather than a
     silent hardening pass
 
+### LOGR-POSTURE-001: Hook Runtime Control-Doc Reconciliation
+
+- Status: `closed in CDR-B-1`
+- Owner area:
+  - control docs, README
+- Closure note:
+  - `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`,
+    `docs/traceability.md`, and `README.md` now classify
+    `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and
+    `atm-extension` as production-track runtime implementation source crates
+    with direct tests
+  - Hook Phases 3 through 5 are now recorded as landed baseline work rather than
+    future-only planning targets
+  - the reconciled docs keep all `plugins/` crates source-owned and avoid any
+    bundled/preinstalled claim that the runtime/install docs do not prove
+
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 
 - Status: `active`

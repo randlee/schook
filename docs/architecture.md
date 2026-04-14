@@ -61,7 +61,9 @@ The host does not:
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
 - expose a public sink-extension API or exporter/OTel transport config
-- promise production-ready behavior for the reference plugin crates in `plugins/`
+- treat source-owned plugin crates as bundled or preinstalled runtime assets;
+  only four `plugins/` crates are current production-track runtime
+  implementation crates, and all remain source-owned
 
 ## 3. Crate Ownership
 
@@ -85,10 +87,10 @@ Important boundary:
 
 | Path | Classification | Notes |
 | --- | --- | --- |
-| `plugins/agent-session-foundation` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/agent-spawn-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/atm-extension` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/tool-output-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/agent-session-foundation` | Runtime implementation | Production-track source-owned runtime crate with direct tests; not bundled or preinstalled |
+| `plugins/agent-spawn-gates` | Runtime implementation | Production-track source-owned runtime crate with direct tests; not bundled or preinstalled |
+| `plugins/atm-extension` | Runtime implementation | Production-track source-owned runtime crate with direct tests; not bundled or preinstalled |
+| `plugins/tool-output-gates` | Runtime implementation | Production-track source-owned runtime crate with direct tests; not bundled or preinstalled |
 | `plugins/audit-logger` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/conditional-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/event-relay` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
@@ -297,25 +299,27 @@ The current architecture does not aim to provide:
 - JSON remains the only host/plugin contract because manifests and runtime results are serialized through serde-backed JSON.
 - Crate boundaries remain narrow because `sc-hooks-core` carries shared data only, `sc-hooks-sdk` is convenience code, and `sc-hooks-cli` owns orchestration.
 
-## 9. Hook Extension Planning Boundary
+## 9. Hook Extension Baseline And Follow-On Boundary
 
-The next hook-extension track is a planned architecture addition, not part of
-the current release implementation boundary above.
+The Claude/ATM hook baseline is now part of the current source inventory above.
+Future hook-extension work remains follow-on scope beyond that landed baseline.
 
 ### 9.1 Claude-First Development Gate
 
-The first hook-extension development path is:
+The Claude-first development path that produced the current baseline was:
 
 1. build a Claude-focused schema harness under `test-harness/hooks/`
 2. capture and validate real Claude hook payloads
 3. revise hook docs and the implementation plan from captured evidence
 4. implement the Claude ATM hook crates
 
-Until steps 1-3 are complete, hook runtime crates remain planning targets only.
+Steps 1 through 4 are now complete for the current Claude/ATM baseline. Any
+later hook work starts from these landed crates and docs rather than
+re-planning the already implemented baseline.
 
-### 9.2 Planned Harness Subsystem
+### 9.2 Current Harness Subsystem
 
-The planned hook harness owns:
+The current hook harness owns:
 
 - provider launch adapters
 - captured raw fixtures
@@ -333,12 +337,12 @@ Documented but deferred from the first harness pass:
 - Gemini
 - Cursor Agent
 
-### 9.2a Planned Version-Bump Detection Boundary
+### 9.2a Current Version-Bump Detection Boundary
 
 The hook harness must also track which AI CLI version produced the latest
 approved schema-drift artifacts.
 
-The planned boundary is:
+The current boundary is:
 
 - `scripts/verify-claude-hook-api.py` is a harness-side verification tool, not
   a runtime dispatcher component
@@ -354,12 +358,13 @@ Extensibility rule:
 - if other providers later need the same guardrail, the design must be revisited
   explicitly rather than inferred from a premature multi-provider detector
 
-### 9.3 Planned Hook Crate Targets
+### 9.3 Current Hook Runtime Crates
 
-These are planned hook-extension targets only. They are not current source
-inventory and are not current runtime crates.
+These are current source-inventory crates and current runtime implementation
+crates for the Claude/ATM hook baseline. They remain source-owned crates under
+`plugins/`, not bundled or preinstalled runtime assets.
 
-The post-capture intended split is:
+Current split:
 
 - generic hook utility layer
   - session lifecycle / session-record persistence
@@ -371,14 +376,14 @@ The post-capture intended split is:
   - temp identity-file behavior for `atm` Bash calls
   - teammate-idle / ATM relay emission behavior
 
-Recommended planned crate targets:
+Current runtime implementation crates:
 
 - `plugins/agent-session-foundation`
 - `plugins/agent-spawn-gates`
 - `plugins/tool-output-gates`
 - `plugins/atm-extension`
 
-Planned responsibility split:
+Current responsibility split:
 
 - `plugins/agent-session-foundation`
   - owns the canonical session-state file
@@ -395,7 +400,7 @@ Planned responsibility split:
   - owns ATM identity-file behavior for Bash `atm` calls
   - owns ATM relay emission and teammate-idle mapping
 
-Planned shared session-state schema rules:
+Current shared session-state schema rules:
 
 - one canonical session-state file per `session_id`
 - required base fields:
@@ -411,18 +416,15 @@ Planned shared session-state schema rules:
 - `session_id`, `active_pid`, and hook event identifiers should be represented
   as semantic newtypes in implementation code rather than bare primitives
 
-Planned trait-freeze rule before the first runtime crate lands:
+Current SDK trait boundary decision:
 
-- `sc-hooks-core` / `sc-hooks-sdk` must freeze a hook trait that exposes:
-  - normalized context
-  - raw provider payload
-  - typed result / failure posture
-  - fail-open versus fail-closed semantics per hook class
-- the frozen hook trait in `sc-hooks-core` shall be sealed (private supertrait
-  or mod-private pattern) so that only `sc-hooks-sdk` can provide base
-  implementations. Unsealed traits permit external plugin crates to bypass
-  normalized-context and fail-open/fail-closed invariants; retrofitting a seal
-  after downstream adoption is a breaking API change.
+- `sc-hooks-core` / `sc-hooks-sdk` provide the shared hook context, result, and
+  error surfaces used by the current runtime crates
+- `ManifestProvider`, `SyncHandler`, and `AsyncHandler` remain intentionally
+  unsealed; see `SEAL-001` in `docs/implementation-gaps.md`
+- sibling production-track plugin crates implement those SDK traits directly, so
+  future sealing would be a deliberate architecture change with an explicit
+  migration plan rather than a silent hardening pass
 - runtime crates must not define their own competing hook trait surfaces
 - `agent_state` remains a runtime enum rather than typestate because hook state
   persists across process boundaries and must round-trip through the canonical
@@ -435,22 +437,20 @@ Archived prototype crates remain reference-only inputs for design review:
 - `plugins/gate-agent-spawns`
 - `plugins/atm-state-relay`
 
-Planning rules for these targets:
+Current boundary rules for these crates:
 
 - ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md`
 - the generic implementation baseline remains the Claude hook API doc plus the
   captured Claude fixtures
-- these planned targets are not part of the current §3 source inventory
-  (`BND-001a`) and will not appear there until they land with code, tests, and
-  a same-PR architecture inventory update
-- no planned hook crate becomes current architecture until it lands with code,
-  tests, and the same-PR `docs/architecture.md` crate inventory update
+- these runtime crates are part of the current §3 source inventory
+  (`BND-001a`) and must remain documented as production-track runtime
+  implementation source crates with direct tests
 - archived prototype crates do not define the final crate split; they are
   reviewed only as reference against the post-capture design
 
-Planned fail posture by crate:
+Current fail posture by crate:
 
-| Planned crate | Default posture | Reason |
+| Runtime crate | Default posture | Reason |
 | --- | --- | --- |
 | `plugins/agent-session-foundation` | fail-open | session persistence loss should not prevent the host from continuing a Claude run |
 | `plugins/agent-spawn-gates` | fail-closed | malformed or policy-breaking subagent launches must be blocked deterministically |

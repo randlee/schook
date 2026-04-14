@@ -101,7 +101,7 @@ sc-hooks test guard-paths
 | `crates/sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
 | `crates/sc-hooks-sdk/` | Rust authoring conveniences for manifests, runner helpers, conditions, and results; not the release-defining contract |
 | `crates/sc-hooks-test/` | Reusable compliance harness and shell-based test fixtures |
-| `plugins/` | Source crates only; all current crates remain scaffold/reference only in the release docs and are not described as shipped runtime plugins |
+| `plugins/` | Source-owned plugin crates: four production-track runtime implementation crates with direct tests plus nine scaffold/reference crates; none are described as bundled/preinstalled runtime plugins |
 | `docs/` | Product requirements, architecture, protocol contracts, planning, and traceability |
 | `examples/` | Checked runtime layout example |
 | `shims/` | Thin adapters for Codex and Gemini |
@@ -111,9 +111,9 @@ Current source plugin inventory in `plugins/`:
 | Crate | Release posture |
 | --- | --- |
 | `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
-| `agent-session-foundation` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
-| `agent-spawn-gates` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
-| `atm-extension` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
+| `agent-session-foundation` | production-track runtime implementation source crate with direct tests; not bundled/preinstalled |
+| `agent-spawn-gates` | production-track runtime implementation source crate with direct tests; not bundled/preinstalled |
+| `atm-extension` | production-track runtime implementation source crate with direct tests; not bundled/preinstalled |
 | `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
 | `event-relay` | scaffold/reference only; not a shipped runtime plugin |
 | `guard-paths` | scaffold/reference only; not a shipped runtime plugin |
@@ -121,7 +121,7 @@ Current source plugin inventory in `plugins/`:
 | `notify` | scaffold/reference only; not a shipped runtime plugin |
 | `policy-enforcer` | scaffold/reference only; not a shipped runtime plugin |
 | `save-context` | scaffold/reference only; not a shipped runtime plugin |
-| `tool-output-gates` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
+| `tool-output-gates` | production-track runtime implementation source crate with direct tests; not bundled/preinstalled |
 | `template-source` | scaffold/reference only; not a shipped runtime plugin |
 
 ## Documentation

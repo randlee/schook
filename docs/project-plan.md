@@ -38,6 +38,8 @@ Already implemented and not future sprint work:
 - observability output documented in `docs/observability-contract.md`
 - removal of the old ad hoc logging path and builtin `log` handler path
 - release-doc alignment for requirements, architecture, traceability, and gaps
+- the mixed `plugins/` source inventory: four production-track runtime
+  implementation crates with direct tests plus nine scaffold/reference crates
 
 Explicit follow-up after the current file-sink contract work:
 - naming cleanup now precedes further observability surface growth so config,
@@ -69,12 +71,12 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
-| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
-| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
+| Hook Phase 0 | Completed | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
+| Hook Phase 1 | Completed | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
+| Hook Phase 2 | Completed | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
+| Hook Phase 3 | Completed | session foundation and canonical state baseline | `HKR-008`, `HKR-009`, `BND-001` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, control-doc inventory updates |
+| Hook Phase 4 | Completed | generic spawn and tool-gate baseline | `BND-001`, `BND-001a`, `GAP-003` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
+| Hook Phase 5 | Completed | ATM extension baseline | `HKR-011`, `HKR-013`, `BND-001a` | Hook Phase 4 | `plugins/atm-extension`, ATM relay and identity tests |
 | Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | S10-VERSION-BUMP-1 | Completed | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
 | S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
@@ -129,7 +131,7 @@ Before any sprint starts, record these items in the sprint handoff or working no
 | SDK public-looking surface | `sc-hooks-sdk/src/traits.rs` and `sc-hooks-sdk/src/runner.rs` can imply a richer or broader contract than the host actually guarantees | first decide keep-vs-retire posture, then align surviving SDK helpers and their documented limits with docs/tests | Sprint 1 then Sprint 3 | `GAP-002` and `TMO-004` close with one documented SDK posture |
 | Instruction docs drift | derived onboarding/agent docs can repeat superseded rules such as builtin handler precedence | correct derived instructions immediately and treat source-of-truth docs as authoritative for runtime behavior | Sprint 1 | README, `CLAUDE.md`, and source-of-truth docs make the same runtime claims |
 | Runtime setup guidance | source layout exists but contributor/runtime setup proof is incomplete | replace inference-only setup with a checked example or one canonical guide | Sprint 4 | `GAP-004` closes and a clean setup succeeds without source reading |
-| Plugin release claims | source crates under `plugins/` are not uniformly shippable runtime plugins | first freeze scaffold/reference posture, then promote only with tests/install docs if desired | Sprint 1 then Sprint 5 | `GAP-003` and `BND-002` are resolved without mixed claims |
+| Plugin release claims | control docs drifted on which `plugins/` crates are production-track runtime implementations versus scaffold/reference only | reconcile the four runtime implementation crates, retain the nine scaffold/reference crates, and keep bundled/preinstalled claims out | Sprint 5 plus Hook Phases 3-5 | `GAP-003`, `BND-001`, `BND-001a`, and `BND-002` agree without mixed claims |
 | Release handoff freeze | stale review-only notes can linger after implementation finishes even when the underlying work is done | remove stale review placeholders, confirm no open blocker gaps remain, and freeze one validation record for QA/review | Sprint 6 | final branch head has no stale review-only requirement notes |
 
 ## 9. Misalignment Coverage Signal
@@ -142,7 +144,7 @@ Current high-risk classes covered here:
 - duplicate compliance source-of-truth logic
 - SDK public-looking surface that can overstate the host contract
 - derived instruction docs that can drift from source-of-truth docs
-- scaffold plugin claims that can be mistaken for shipped runtime behavior
+- plugin maturity claims that can drift from the actual runtime implementation baseline
 - runtime layout/setup assumptions that are not yet proven by an example or guide
 - remaining merge-only review residue that can survive after the underlying issue is already resolved
 - naming drift across repo, binary, service, and filesystem surfaces
@@ -235,7 +237,8 @@ Deliverables:
 - verify or explicitly gap any remaining release-facing observability claims that are still advisory-only
 - align derived instruction docs such as `README.md` and `CLAUDE.md` to the current plugin-only runtime and JSON-defined public contract
 - document SDK helper limits anywhere the repo presents `sc-hooks-sdk` as an authoring path
-- freeze `plugins/` as scaffold/reference only unless and until a later sprint promotes a plugin with real runtime proof
+- document explicit plugin maturity in the same PR as runtime crate changes so
+  production-track source crates and scaffold/reference crates never drift apart
 
 Verification:
 - surviving compliance path is named explicitly in code and docs
@@ -433,33 +436,34 @@ Write scope:
 - packaging or install-proof checks tied to promoted plugins
 
 Early retire or replace:
-- release-facing language that implies a plugin ships when it is still scaffold/reference code
+- release-facing language that misclassifies a production-track runtime crate as scaffold/reference code
 - plugin inventory claims that are not backed by install/runtime proof
 
 Deliverables:
 - choose the release posture for each source crate under `plugins/`
-- if a plugin is promoted as shipped behavior, add runtime installation guidance and direct behavior tests
-- otherwise keep the crate clearly documented as scaffold/reference code
+- classify the four current runtime crates as production-track implementation source crates with direct tests
+- keep the remaining crates clearly documented as scaffold/reference code
+- if a plugin is later promoted as bundled/preinstalled behavior, add runtime installation guidance in the same sprint
 
 Verification:
-- each plugin named as shipped behavior has install/runtime proof
-- non-shipping plugins are explicitly scoped as scaffold/reference code in docs
+- the four runtime implementation crates are documented consistently across README, requirements, architecture, traceability, and plugin metadata
+- scaffold/reference crates remain explicitly scoped as non-bundled source crates in docs
 
 Acceptance criteria:
 - `GAP-003` is closed
-- `BND-002` is either satisfied for promoted plugins or avoided by keeping release claims scoped to scaffold/reference status only
+- `BND-001`, `BND-001a`, and `BND-002` are satisfied without unsupported bundled/preinstalled claims
 - README and docs agree on the exact plugin inventory and maturity level
 
 Definition of done:
-- plugin release posture is binary for every crate: shipped or scaffold/reference
+- plugin maturity is explicit for every crate: runtime implementation or scaffold/reference
 - no ambiguous maturity claims remain in docs
-- packaging and runtime behavior are verified for anything promoted
+- bundled/preinstalled claims remain absent unless separately proved
 
 QA checklist answers:
 - Which requirement IDs or gap IDs changed status?
-  Sprint 5 closes `GAP-003` and moves `BND-002` to implemented by freezing every current `plugins/` crate as scaffold/reference only.
+  Sprint 5 closes `GAP-003` and moves `BND-001`, `BND-001a`, and `BND-002` to implemented by documenting the four landed runtime crates separately from the nine scaffold/reference crates.
 - What code was removed early rather than left in parallel?
-  No runtime plugin behavior was promoted without proof; the sprint removed the remaining ambiguous shipped-plugin posture instead of leaving mixed release claims in parallel.
+  No runtime plugin behavior was removed. The sprint removed the remaining doc-level misclassification that treated landed runtime crates as scaffold/reference.
 - Which files/crates were the owned write scope for the sprint?
   `plugins/*/Cargo.toml`, `README.md`, `docs/architecture.md`, `docs/requirements.md`, `docs/implementation-gaps.md`, `docs/traceability.md`, and the Sprint 5 planning section.
 - What validation commands and direct tests proved the new contract?
@@ -603,10 +607,10 @@ Release preflight evidence:
 | Check | Status | Evidence |
 | --- | --- | --- |
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
-| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
+| removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), reconciled mixed plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
 | misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
-| release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
+| release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and mixed source-owned `plugins/` posture. |
 | branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
 | validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |
 
@@ -631,7 +635,7 @@ These items stay deferred unless product direction changes:
 - richer `fire` output beyond the current summary string
 - finer-grained resolution-time exit codes
 - SDK ergonomics beyond the current host-enforced contract
-- production-ready bundled plugin behavior beyond the scaffold/reference posture frozen in Sprint 5
+- bundled or preinstalled plugin behavior beyond the current source-owned plugin inventory
 
 ## 16. Release Gate
 
@@ -645,9 +649,11 @@ The release plan is complete only when:
 - exact validation commands are recorded on that frozen branch state
 - reviewer and QA signoff are recorded on the final branch state
 
-## 17. Post-Release Hook Extension Track
+## 17. Hook Extension Program Record
 
-This track begins only after the current release plan is accepted.
+This track began after the current release plan was accepted and now records the
+landed Claude/ATM hook-runtime baseline plus the remaining deferred follow-on
+work.
 
 Purpose:
 - extend `sc-hooks` toward the Claude ATM hook set without guessing hook schemas
@@ -657,7 +663,7 @@ Purpose:
 ### Hook Phase 0: Review Baseline
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
@@ -680,6 +686,9 @@ Acceptance criteria:
 - Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
 
 ### Hook Phase 1: Claude Schema Harness
+
+Status:
+- completed
 
 Focus:
 - build the first hook harness for Claude only and freeze the captured
@@ -718,6 +727,9 @@ Definition of done:
 
 ### Hook Phase 2: Plan Revision From Captured Claude Schema
 
+Status:
+- completed
+
 Focus:
 - revise the hook plan from captured evidence before implementation starts
 
@@ -753,8 +765,11 @@ Acceptance criteria:
 
 ### Hook Phase 3: Claude Session And Lifecycle Implementation
 
+Status:
+- completed
+
 Focus:
-- freeze the hook trait and implement the generic lifecycle/state foundation first
+- land the generic lifecycle/state foundation and canonical session-state baseline
 
 Write scope:
 
@@ -790,8 +805,11 @@ Acceptance criteria:
 
 ### Hook Phase 4: Claude Command And Spawn Gates
 
+Status:
+- completed
+
 Focus:
-- implement the generic spawn and tool-gate utilities
+- land the generic spawn and tool-gate baseline
 
 Write scope:
 
@@ -828,8 +846,11 @@ Acceptance criteria:
 
 ### Hook Phase 5: Claude Relay Hooks
 
+Status:
+- completed
+
 Focus:
-- implement ATM-specific extension behavior after the generic layer is stable
+- land ATM-specific extension behavior on top of the generic layer
 
 Write scope:
 
@@ -953,7 +974,8 @@ Deliverables:
 - README and usage examples with no `--sync` flag on `fire` invocations
 - explicit Unix-like-shell qualifier on install snippets
 - README plugin inventory aligned with the architecture baseline that treats
-  all current `plugins/` source crates as scaffold/reference only in release docs
+  four current `plugins/` source crates as production-track runtime
+  implementation crates and the remaining crates as scaffold/reference
 - a clear naming note that `docs/requirements.md` uses `sc-hooks` as the
   product command label while the current Cargo binary artifact in this repo is
   `sc-hooks-cli`
@@ -966,8 +988,8 @@ Required tests:
 Acceptance criteria:
 - no `fire` example in `README.md` or `USAGE.md` includes `--sync`
 - install snippets are explicitly scoped to Unix-like shells
-- README plugin table contains scaffold/reference-only language and no
-  `runtime-implementation` claims
+- README plugin table matches the reconciled four-runtime / nine-scaffold
+  inventory and avoids bundled/preinstalled claims
 - `S11-DOC.1` appears in the sprint table and this detail section
 
 ### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
@@ -1000,7 +1022,7 @@ Deliverables:
   - `sc-hooks-cli` (tracked for binary releases; crates.io publish remains outside the current manifest wave)
 - release workflows for preflight, tagged release, GitHub archives, Homebrew, and WinGet
 - release gate script for branch/clean-tree/version checks
-- docs that state the current crates.io publish wave covers only the currently publishable working crates, not scaffold/reference plugin crates or the CLI crate still excluded by the current release manifest
+- docs that state the current crates.io publish wave covers only the currently publishable working crates, not any source-owned plugin crate or the CLI crate still excluded by the current release manifest
 
 Required tests:
 
@@ -1013,4 +1035,4 @@ Acceptance criteria:
 - the workspace uses `crates/<name>` paths for the four host crates
 - release infrastructure is manifest-driven rather than hardcoded in workflow YAML
 - `PUBLISHING.md` documents crates.io, GitHub Releases, Homebrew, and WinGet
-- the documented current crates.io release scope excludes scaffold/reference plugin crates and the CLI crate still excluded by the current release manifest
+- the documented current crates.io release scope excludes all source-owned plugin crates and the CLI crate still excluded by the current release manifest
