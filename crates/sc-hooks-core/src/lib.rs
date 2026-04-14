@@ -25,6 +25,7 @@ pub mod tools;
 /// Validation-rule parsing and shared validators.
 pub mod validation;
 
+#[doc(inline)]
 pub use session::SessionStartSource;
 
 /// Default observability root used by the current CLI integration.

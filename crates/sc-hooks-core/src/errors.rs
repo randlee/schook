@@ -24,6 +24,11 @@ pub struct RootDivergenceNotice {
 
 impl RootDivergenceNotice {
     /// Builds a structured divergence notice from canonical runtime values.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the observed project directory cannot be validated
+    /// as an `AiCurrentDir`.
     pub fn new(
         immutable_root: AiRootDir,
         observed: impl Into<PathBuf>,
@@ -39,6 +44,11 @@ impl RootDivergenceNotice {
     }
 
     /// Serializes the notice into the prefixed string format used in logs and stderr.
+    ///
+    /// # Errors
+    ///
+    /// Returns an internal hook error when the notice cannot be serialized to
+    /// JSON.
     pub fn encode(&self) -> Result<String, HookError> {
         let encoded = serde_json::to_string(self).map_err(|source| {
             HookError::internal_with_source("failed to serialize root divergence notice", source)
@@ -71,8 +81,8 @@ pub enum PayloadError {
     InvalidPayload {
         /// Short excerpt of the offending input body.
         input_excerpt: String,
-        #[source]
         /// Underlying serde parser error when one is available.
+        #[source]
         source: Option<serde_json::Error>,
     },
 
@@ -81,8 +91,8 @@ pub enum PayloadError {
     InvalidContext {
         /// Human-readable validation message.
         message: String,
-        #[source]
         /// Underlying source error when one is available.
+        #[source]
         source: Option<BoxedError>,
     },
 
@@ -93,14 +103,18 @@ pub enum PayloadError {
         field: String,
         /// Human-readable validation message.
         message: String,
-        #[source]
         /// Underlying source error when one is available.
+        #[source]
         source: Option<BoxedError>,
     },
 }
 
 impl PayloadError {
     /// Creates an `InvalidPayload` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
         Self::InvalidPayload {
             input_excerpt: input_excerpt.into(),
@@ -109,6 +123,10 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidPayload` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_payload_with_source(
         input_excerpt: impl Into<String>,
         source: serde_json::Error,
@@ -120,6 +138,10 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidContext` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {
             message: message.into(),
@@ -128,6 +150,10 @@ impl PayloadError {
     }
 
     /// Creates a `Validation` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn validation(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Validation {
             field: field.into(),
@@ -137,6 +163,10 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidContext` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_context_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -148,6 +178,10 @@ impl PayloadError {
     }
 
     /// Creates a `Validation` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn validation_with_source(
         field: impl Into<String>,
         message: impl Into<String>,
@@ -169,11 +203,11 @@ pub enum RuntimeError {
     StateIo {
         /// State path involved in the failed operation.
         path: PathBuf,
-        #[source]
         /// Underlying filesystem error.
+        #[source]
         source: std::io::Error,
         /// Captured backtrace for diagnostics when backtraces are enabled.
-        captured_backtrace: Box<Backtrace>,
+        backtrace: Box<Backtrace>,
     },
 
     /// Added in S10-R2 to represent a mismatch between immutable
@@ -195,25 +229,33 @@ pub enum RuntimeError {
     Internal {
         /// Human-readable internal error message.
         message: String,
-        #[source]
         /// Underlying source error when one is available.
+        #[source]
         source: Option<BoxedError>,
         /// Captured backtrace for diagnostics when backtraces are enabled.
-        captured_backtrace: Box<Backtrace>,
+        backtrace: Box<Backtrace>,
     },
 }
 
 impl RuntimeError {
     /// Creates an `Internal` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
             source: None,
-            captured_backtrace: Box::new(Backtrace::capture()),
+            backtrace: Box::new(Backtrace::capture()),
         }
     }
 
     /// Creates a `RootDivergence` error from canonical root values.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn root_divergence(
         immutable_root: AiRootDir,
         observed: impl Into<PathBuf>,
@@ -227,6 +269,10 @@ impl RuntimeError {
     }
 
     /// Creates an `Internal` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn internal_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -234,28 +280,29 @@ impl RuntimeError {
         Self::Internal {
             message: message.into(),
             source: Some(Box::new(source)),
-            captured_backtrace: Box::new(Backtrace::capture()),
+            backtrace: Box::new(Backtrace::capture()),
         }
     }
 
     /// Creates a `StateIo` error for a concrete filesystem path.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         Self::StateIo {
             path: path.into(),
             source,
-            captured_backtrace: Box::new(Backtrace::capture()),
+            backtrace: Box::new(Backtrace::capture()),
         }
     }
 
     /// Returns the captured backtrace when one exists on this runtime error.
     pub fn backtrace(&self) -> Option<&Backtrace> {
         match self {
-            Self::StateIo {
-                captured_backtrace, ..
+            Self::StateIo { backtrace, .. } | Self::Internal { backtrace, .. } => {
+                Some(backtrace.as_ref())
             }
-            | Self::Internal {
-                captured_backtrace, ..
-            } => Some(captured_backtrace.as_ref()),
             Self::RootDivergence { .. } => None,
         }
     }
@@ -278,11 +325,19 @@ pub type HandlerError = HookError;
 
 impl HookError {
     /// Creates an `InvalidPayload` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
         PayloadError::invalid_payload(input_excerpt).into()
     }
 
     /// Creates an `InvalidPayload` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_payload_with_source(
         input_excerpt: impl Into<String>,
         source: serde_json::Error,
@@ -291,16 +346,28 @@ impl HookError {
     }
 
     /// Creates an `InvalidContext` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         PayloadError::invalid_context(message).into()
     }
 
     /// Creates a `Validation` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn validation(field: impl Into<String>, message: impl Into<String>) -> Self {
         PayloadError::validation(field, message).into()
     }
 
     /// Creates an `InvalidContext` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn invalid_context_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -309,6 +376,10 @@ impl HookError {
     }
 
     /// Creates a `Validation` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn validation_with_source(
         field: impl Into<String>,
         message: impl Into<String>,
@@ -318,11 +389,19 @@ impl HookError {
     }
 
     /// Creates an `Internal` error without a source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn internal(message: impl Into<String>) -> Self {
         RuntimeError::internal(message).into()
     }
 
     /// Creates a `RootDivergence` error from canonical root values.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn root_divergence(
         immutable_root: AiRootDir,
         observed: impl Into<PathBuf>,
@@ -332,6 +411,10 @@ impl HookError {
     }
 
     /// Creates an `Internal` error that preserves an underlying source.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn internal_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -340,6 +423,10 @@ impl HookError {
     }
 
     /// Creates a `StateIo` error for a concrete filesystem path.
+    ///
+    /// # Errors
+    ///
+    /// This function never returns `Err`.
     pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         RuntimeError::state_io(path, source).into()
     }
@@ -361,6 +448,8 @@ impl HookError {
     }
 
     /// Returns the captured backtrace when the wrapped runtime error carries one.
+    ///
+    /// Payload errors never carry a captured backtrace; only runtime errors do.
     pub fn backtrace(&self) -> Option<&Backtrace> {
         self.as_runtime().and_then(RuntimeError::backtrace)
     }
