@@ -1,16 +1,12 @@
 //! Shared shell-fixture helpers used by `sc-hooks-test` and host-path
 //! integration tests.
 
+use sc_hooks_core::process::retry_executable_file_busy;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::thread;
-use std::time::Duration;
-
-const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
-const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 /// Creates an executable script at the given path.
 ///
@@ -52,26 +48,14 @@ pub fn create_executable_script(path: impl AsRef<Path>, body: &str) {
 
 /// Spawns a shell fixture command with the short bounded retry used for freshly
 /// persisted test scripts on Unix-like systems.
+///
+/// # Errors
+///
+/// Returns any process-spawn error from the underlying command. Transient
+/// `ExecutableFileBusy` failures are retried through the shared runtime helper
+/// before the final error is returned to the caller.
 pub fn spawn_fixture_command(command: &mut Command) -> io::Result<Child> {
-    let mut last_err = None;
-    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-        match command.spawn() {
-            Ok(child) => return Ok(child),
-            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
-                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-                    return Err(err);
-                }
-                last_err = Some(err);
-                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
-            }
-            Err(err) => return Err(err),
-        }
-    }
-
-    // INVARIANT: the only fallthrough path is a retryable
-    // `ExecutableFileBusy` error, which stores the latest error in `last_err`
-    // before sleeping.
-    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
+    retry_executable_file_busy(|| command.spawn())
 }
 
 /// Creates a shell plugin script that echoes a fixed JSON runtime payload.

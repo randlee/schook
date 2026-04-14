@@ -133,6 +133,22 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - recommendation: implement the alias in release packaging/install flow or
     downgrade any remaining “supported alias” language to planned follow-on text
 
+### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
+
+- Status: `active with quality-mgr sign-off`
+- Owner area:
+  - `sc-hooks-core`, `sc-hooks-test`, docs
+- Current note:
+  - `retry_executable_file_busy()` now centralizes the bounded retry behavior
+    used by the host and test harness, but there is still no direct test that
+    proves the fully exhausted `ExecutableFileBusy` path returns the final
+    retryable error
+  - this is explicitly signed off for the current merge because the helper is
+    now single-owned, behaviorally simple, and already covered for successful
+    retry and immediate non-retryable failure
+  - recommendation: add one focused exhausted-retry-path unit test only if a
+    later change touches the helper behavior again
+
 ## Closed Items
 
 ### DEF-009: Observability Failure Fallback Integration Test

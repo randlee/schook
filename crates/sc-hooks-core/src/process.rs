@@ -13,6 +13,22 @@ const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 /// This centralizes the short bounded retry used when a freshly written script
 /// is executed immediately after creation and the platform still reports the
 /// executable as busy.
+///
+/// # Errors
+///
+/// Returns the first non-retryable error from `operation` immediately. If every
+/// attempt fails with `ExecutableFileBusy`, the final retryable error is
+/// returned after the bounded retry budget is exhausted.
+///
+/// # Examples
+///
+/// ```rust
+/// use sc_hooks_core::process::retry_executable_file_busy;
+/// use std::process::Command;
+///
+/// let mut command = Command::new("true");
+/// let _status = retry_executable_file_busy(|| command.status());
+/// ```
 pub fn retry_executable_file_busy<T>(
     mut operation: impl FnMut() -> io::Result<T>,
 ) -> io::Result<T> {
