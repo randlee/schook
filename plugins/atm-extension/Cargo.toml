@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Runtime-implementation sc-hooks plugin source crate"
+description = "ATM messaging extension hook plugin for sc-hooks runtime"
 publish = false
 
 [dependencies]

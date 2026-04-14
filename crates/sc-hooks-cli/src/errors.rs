@@ -132,7 +132,9 @@ pub enum CliError {
         source: Option<BoxedError>,
     },
 
-    /// Observability initialization failed before logging could begin.
+    /// Observability initialization failed before logging could begin, or a
+    /// cached observability configuration later rejected a per-call runtime
+    /// state conflict such as project-root divergence.
     #[error("observability initialization failed: {source}")]
     ObservabilityInit {
         #[source]

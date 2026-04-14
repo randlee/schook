@@ -9,7 +9,7 @@ use log::warn;
 use payloads::{PreCompactPayload, SessionEndPayload, SessionStartPayload, StopPayload};
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
-use sc_hooks_core::errors::{HookError, RootDivergenceNotice};
+use sc_hooks_core::errors::{HandlerError, HookError, RootDivergenceNotice, RuntimeError};
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
@@ -140,7 +140,7 @@ impl ManifestProvider for SessionFoundationHandler {
 }
 
 impl SyncHandler for SessionFoundationHandler {
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
+    fn handle(&self, context: HookContext) -> Result<HookResult, HandlerError> {
         let lifecycle_event = LifecycleEvent::try_from(context.hook)?;
         let state_root = resolve_state_root()?;
         let store = SessionStore::new(state_root);
@@ -440,11 +440,11 @@ fn root_divergence_hook_result(
     error: &HookError,
     resolved: &ResolvedRuntime,
 ) -> Result<HookResult, HookError> {
-    let HookError::RootDivergence {
+    let Some(RuntimeError::RootDivergence {
         immutable_root,
         observed,
         hook_event,
-    } = error
+    }) = error.as_runtime()
     else {
         return Ok(proceed());
     };

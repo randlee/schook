@@ -17,7 +17,7 @@
 
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
-use sc_hooks_core::errors::HookError;
+use sc_hooks_core::errors::{HandlerError, HookError};
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
@@ -193,7 +193,7 @@ impl ManifestProvider for AtmExtensionHandler {
 }
 
 impl SyncHandler for AtmExtensionHandler {
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
+    fn handle(&self, context: HookContext) -> Result<HookResult, HandlerError> {
         match context.hook {
             HookType::PreToolUse => handle_pre_tool_use(context),
             HookType::PostToolUse => handle_post_tool_use(context),

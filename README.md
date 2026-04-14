@@ -146,7 +146,10 @@ Important rule:
 - The runtime config file is `.sc-hooks/config.toml`, not YAML.
 - The dispatcher resolves only external plugins under `.sc-hooks/plugins/`; there are no builtin handler names in the current runtime.
 - SDK helpers are conveniences for Rust plugin authors; they do not override the executable/JSON contract.
-- Observability sink routing is not config-driven in the current release baseline.
+- Observability mode selection is config-driven through `[observability].mode`
+  (`off`, `standard`, `full`); see
+  [docs/observability-contract.md](docs/observability-contract.md) for the
+  current sink and fallback contract.
 
 ```bash
 sc-hooks config

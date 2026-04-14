@@ -66,10 +66,7 @@ impl From<RunnerError> for HookError {
             RunnerError::StdinParse {
                 input_excerpt,
                 source,
-            } => HookError::InvalidPayload {
-                input_excerpt,
-                source: Some(source),
-            },
+            } => HookError::invalid_payload_with_source(input_excerpt, source),
         }
     }
 }
@@ -264,7 +261,7 @@ fn write_result(result: &HookResult) -> i32 {
 mod tests {
     use super::*;
     use crate::traits::ManifestProvider;
-    use sc_hooks_core::errors::HookError;
+    use sc_hooks_core::errors::{HandlerError, HookError};
     use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
     use sc_hooks_core::results::HookAction;
     use sc_hooks_core::{dispatch::DispatchMode, events::HookType};
@@ -304,7 +301,7 @@ mod tests {
         fn handle_async(
             &self,
             _context: HookContext,
-        ) -> Result<crate::result::AsyncResult, HookError> {
+        ) -> Result<crate::result::AsyncResult, HandlerError> {
             Ok(crate::result::AsyncResult::with_system_message("done"))
         }
     }
@@ -432,7 +429,10 @@ mod tests {
         let io_hook_error = HookError::from(RunnerError::StdinRead {
             source: io::Error::other("boom"),
         });
-        assert!(matches!(io_hook_error, HookError::Internal { .. }));
+        assert!(matches!(
+            io_hook_error,
+            HookError::Runtime(sc_hooks_core::errors::RuntimeError::Internal { .. })
+        ));
 
         let parse_error =
             serde_json::from_str::<serde_json::Value>("{oops").expect_err("fixture should fail");
@@ -440,7 +440,10 @@ mod tests {
             input_excerpt: "{oops".to_string(),
             source: parse_error,
         });
-        assert!(matches!(parse_hook_error, HookError::InvalidPayload { .. }));
+        assert!(matches!(
+            parse_hook_error,
+            HookError::Payload(sc_hooks_core::errors::PayloadError::InvalidPayload { .. })
+        ));
     }
 
     #[test]
@@ -460,7 +463,7 @@ mod tests {
         }
 
         impl SyncHandler for FailingSync {
-            fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+            fn handle(&self, _context: HookContext) -> Result<HookResult, HandlerError> {
                 Err(HookError::invalid_context("bad context"))
             }
         }
@@ -487,7 +490,7 @@ mod tests {
         }
 
         impl SyncHandler for SuccessfulSync {
-            fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+            fn handle(&self, _context: HookContext) -> Result<HookResult, HandlerError> {
                 Ok(crate::result::block("retryable"))
             }
         }
@@ -514,7 +517,7 @@ mod tests {
             fn handle_async(
                 &self,
                 _context: HookContext,
-            ) -> Result<crate::result::AsyncResult, HookError> {
+            ) -> Result<crate::result::AsyncResult, HandlerError> {
                 Err(HookError::internal("async fail"))
             }
         }

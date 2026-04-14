@@ -1,7 +1,7 @@
 //! Public trait contracts for Rust-authored `sc-hooks` plugins.
 
 use sc_hooks_core::context::HookContext;
-use sc_hooks_core::errors::HookError;
+use sc_hooks_core::errors::HandlerError;
 use sc_hooks_core::manifest::Manifest;
 
 use crate::result::{AsyncResult, HookResult};
@@ -23,7 +23,7 @@ pub trait ManifestProvider {
 /// `docs/implementation-gaps.md`.
 pub trait SyncHandler: ManifestProvider {
     /// Handles one synchronous hook invocation.
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
+    fn handle(&self, context: HookContext) -> Result<HookResult, HandlerError>;
 }
 
 /// Async handler contract for runtime plugin crates.
@@ -33,7 +33,7 @@ pub trait SyncHandler: ManifestProvider {
 /// `docs/implementation-gaps.md`.
 pub trait AsyncHandler: ManifestProvider {
     /// Handles one asynchronous hook invocation.
-    fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
+    fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HandlerError>;
 }
 
 #[cfg(test)]
@@ -68,7 +68,7 @@ mod tests {
     }
 
     impl SyncHandler for DummySync {
-        fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+        fn handle(&self, _context: HookContext) -> Result<HookResult, HandlerError> {
             Ok(crate::result::proceed())
         }
     }
@@ -82,7 +82,7 @@ mod tests {
     }
 
     impl AsyncHandler for DummyAsync {
-        fn handle_async(&self, _context: HookContext) -> Result<AsyncResult, HookError> {
+        fn handle_async(&self, _context: HookContext) -> Result<AsyncResult, HandlerError> {
             Ok(AsyncResult::with_context("async-context"))
         }
     }

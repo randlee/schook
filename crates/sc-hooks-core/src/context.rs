@@ -45,10 +45,8 @@ impl HookContext {
     /// Deserializes the raw `payload` object into a typed payload struct.
     pub fn payload<T: DeserializeOwned>(&self) -> Result<T, HookError> {
         let payload = self.payload_value()?;
-        serde_json::from_value(payload.clone()).map_err(|source| HookError::InvalidPayload {
-            input_excerpt: excerpt(payload),
-            source: Some(source),
-        })
+        serde_json::from_value(payload.clone())
+            .map_err(|source| HookError::invalid_payload_with_source(excerpt(payload), source))
     }
 }
 

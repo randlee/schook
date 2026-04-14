@@ -75,10 +75,10 @@ impl SessionStore {
         let body = fs::read_to_string(&path)
             .map_err(|source| HookError::state_io(path.clone(), source))?;
         let record = serde_json::from_str::<CanonicalSessionRecord>(&body).map_err(|source| {
-            HookError::InvalidPayload {
-                input_excerpt: body.chars().take(120).collect(),
-                source: Some(source),
-            }
+            HookError::invalid_payload_with_source(
+                body.chars().take(120).collect::<String>(),
+                source,
+            )
         })?;
         record.validate()?;
         Ok(Some(record))
@@ -246,10 +246,10 @@ mod tests {
             .load(&session_id)
             .expect_err("invalid revision should fail");
         match err {
-            HookError::InvalidPayload {
+            HookError::Payload(crate::errors::PayloadError::InvalidPayload {
                 source: Some(source),
                 ..
-            } => assert!(source.to_string().contains("state_revision")),
+            }) => assert!(source.to_string().contains("state_revision")),
             other => panic!("unexpected error: {other}"),
         }
     }
@@ -287,10 +287,10 @@ mod tests {
             .load(&session_id)
             .expect_err("blank created_at should fail");
         match err {
-            HookError::InvalidPayload {
+            HookError::Payload(crate::errors::PayloadError::InvalidPayload {
                 source: Some(source),
                 ..
-            } => assert!(source.to_string().contains("created_at")),
+            }) => assert!(source.to_string().contains("created_at")),
             other => panic!("unexpected error: {other}"),
         }
     }

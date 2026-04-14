@@ -544,7 +544,9 @@ fn malformed_permission_suggestions_report_index_and_field() {
         .expect_err("malformed permission_suggestions should fail");
 
     match err {
-        sc_hooks_core::errors::HookError::Validation { field, message, .. } => {
+        sc_hooks_core::errors::HookError::Payload(
+            sc_hooks_core::errors::PayloadError::Validation { field, message, .. },
+        ) => {
             assert_eq!(field, "permission_suggestions[0].rules[0].toolName");
             assert_eq!(message, "must be a string");
         }

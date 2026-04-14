@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::path::PathBuf;
 
 use crate::events::HookType;
@@ -63,8 +64,8 @@ impl RootDivergenceNotice {
 }
 
 #[derive(Debug, Error)]
-/// Shared error type for hook parsing, validation, persistence, and runtime failures.
-pub enum HookError {
+/// Payload and validation failures surfaced across the hook runtime.
+pub enum PayloadError {
     /// Hook payload JSON could not be parsed or validated.
     #[error("invalid payload near {input_excerpt}")]
     InvalidPayload {
@@ -85,16 +86,6 @@ pub enum HookError {
         source: Option<BoxedError>,
     },
 
-    /// Session-state I/O failed for a specific path.
-    #[error("state I/O failed for {path}")]
-    StateIo {
-        /// State path involved in the failed operation.
-        path: PathBuf,
-        #[source]
-        /// Underlying filesystem error.
-        source: std::io::Error,
-    },
-
     /// A named field failed runtime validation.
     #[error("validation failed for {field}: {message}")]
     Validation {
@@ -106,32 +97,28 @@ pub enum HookError {
         /// Underlying source error when one is available.
         source: Option<BoxedError>,
     },
-    /// Added in S10-R2 to represent a mismatch between immutable
-    /// `ai_root_dir` and inbound `CLAUDE_PROJECT_DIR`. The runtime continues
-    /// with the immutable root, but dispatch must emit a prominent structured
-    /// observability event for investigation.
-    #[error("divergence in CLAUDE_PROJECT_DIR from {immutable_root} to {observed} on {hook_event}")]
-    RootDivergence {
-        /// Canonical immutable root recorded for the session.
-        immutable_root: AiRootDir,
-        /// Divergent project directory reported by the provider.
-        observed: PathBuf,
-        /// Hook event that surfaced the divergence.
-        hook_event: HookType,
-    },
-
-    /// Internal host failure that does not map to a more specific variant.
-    #[error("internal hook error: {message}")]
-    Internal {
-        /// Human-readable internal error message.
-        message: String,
-        #[source]
-        /// Underlying source error when one is available.
-        source: Option<BoxedError>,
-    },
 }
 
-impl HookError {
+impl PayloadError {
+    /// Creates an `InvalidPayload` error without a source.
+    pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
+        Self::InvalidPayload {
+            input_excerpt: input_excerpt.into(),
+            source: None,
+        }
+    }
+
+    /// Creates an `InvalidPayload` error that preserves an underlying source.
+    pub fn invalid_payload_with_source(
+        input_excerpt: impl Into<String>,
+        source: serde_json::Error,
+    ) -> Self {
+        Self::InvalidPayload {
+            input_excerpt: input_excerpt.into(),
+            source: Some(source),
+        }
+    }
+
     /// Creates an `InvalidContext` error without a source.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {
@@ -172,12 +159,57 @@ impl HookError {
             source: Some(Box::new(source)),
         }
     }
+}
 
+#[derive(Debug, Error)]
+/// Runtime and persistence failures surfaced across the hook runtime.
+pub enum RuntimeError {
+    /// Session-state I/O failed for a specific path.
+    #[error("state I/O failed for {path}")]
+    StateIo {
+        /// State path involved in the failed operation.
+        path: PathBuf,
+        #[source]
+        /// Underlying filesystem error.
+        source: std::io::Error,
+        /// Captured backtrace for diagnostics when backtraces are enabled.
+        captured_backtrace: Box<Backtrace>,
+    },
+
+    /// Added in S10-R2 to represent a mismatch between immutable
+    /// `ai_root_dir` and inbound `CLAUDE_PROJECT_DIR`. The runtime continues
+    /// with the immutable root, but dispatch must emit a prominent structured
+    /// observability event for investigation.
+    #[error("divergence in CLAUDE_PROJECT_DIR from {immutable_root} to {observed} on {hook_event}")]
+    RootDivergence {
+        /// Canonical immutable root recorded for the session.
+        immutable_root: AiRootDir,
+        /// Divergent project directory reported by the provider.
+        observed: PathBuf,
+        /// Hook event that surfaced the divergence.
+        hook_event: HookType,
+    },
+
+    /// Internal host failure that does not map to a more specific variant.
+    #[error("internal hook error: {message}")]
+    Internal {
+        /// Human-readable internal error message.
+        message: String,
+        #[source]
+        /// Underlying source error when one is available.
+        source: Option<BoxedError>,
+        /// Captured backtrace for diagnostics when backtraces are enabled.
+        captured_backtrace: Box<Backtrace>,
+    },
+}
+
+impl RuntimeError {
     /// Creates an `Internal` error without a source.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
             source: None,
+            captured_backtrace: Box::new(Backtrace::capture()),
         }
     }
 
@@ -202,6 +234,7 @@ impl HookError {
         Self::Internal {
             message: message.into(),
             source: Some(Box::new(source)),
+            captured_backtrace: Box::new(Backtrace::capture()),
         }
     }
 
@@ -210,7 +243,126 @@ impl HookError {
         Self::StateIo {
             path: path.into(),
             source,
+            captured_backtrace: Box::new(Backtrace::capture()),
         }
+    }
+
+    /// Returns the captured backtrace when one exists on this runtime error.
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        match self {
+            Self::StateIo {
+                captured_backtrace, ..
+            }
+            | Self::Internal {
+                captured_backtrace, ..
+            } => Some(captured_backtrace.as_ref()),
+            Self::RootDivergence { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+/// Compatibility wrapper that preserves the historical cross-crate hook error surface.
+pub enum HookError {
+    /// Payload or validation failure.
+    #[error(transparent)]
+    Payload(#[from] PayloadError),
+    /// Runtime or persistence failure.
+    #[error(transparent)]
+    Runtime(#[from] RuntimeError),
+}
+
+/// SDK handler-facing error alias retained while runtime crates migrate to the
+/// split taxonomy explicitly.
+pub type HandlerError = HookError;
+
+impl HookError {
+    /// Creates an `InvalidPayload` error without a source.
+    pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
+        PayloadError::invalid_payload(input_excerpt).into()
+    }
+
+    /// Creates an `InvalidPayload` error that preserves an underlying source.
+    pub fn invalid_payload_with_source(
+        input_excerpt: impl Into<String>,
+        source: serde_json::Error,
+    ) -> Self {
+        PayloadError::invalid_payload_with_source(input_excerpt, source).into()
+    }
+
+    /// Creates an `InvalidContext` error without a source.
+    pub fn invalid_context(message: impl Into<String>) -> Self {
+        PayloadError::invalid_context(message).into()
+    }
+
+    /// Creates a `Validation` error without a source.
+    pub fn validation(field: impl Into<String>, message: impl Into<String>) -> Self {
+        PayloadError::validation(field, message).into()
+    }
+
+    /// Creates an `InvalidContext` error that preserves an underlying source.
+    pub fn invalid_context_with_source(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        PayloadError::invalid_context_with_source(message, source).into()
+    }
+
+    /// Creates a `Validation` error that preserves an underlying source.
+    pub fn validation_with_source(
+        field: impl Into<String>,
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        PayloadError::validation_with_source(field, message, source).into()
+    }
+
+    /// Creates an `Internal` error without a source.
+    pub fn internal(message: impl Into<String>) -> Self {
+        RuntimeError::internal(message).into()
+    }
+
+    /// Creates a `RootDivergence` error from canonical root values.
+    pub fn root_divergence(
+        immutable_root: AiRootDir,
+        observed: impl Into<PathBuf>,
+        hook_event: HookType,
+    ) -> Self {
+        RuntimeError::root_divergence(immutable_root, observed, hook_event).into()
+    }
+
+    /// Creates an `Internal` error that preserves an underlying source.
+    pub fn internal_with_source(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        RuntimeError::internal_with_source(message, source).into()
+    }
+
+    /// Creates a `StateIo` error for a concrete filesystem path.
+    pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
+        RuntimeError::state_io(path, source).into()
+    }
+
+    /// Returns the payload/validation half of the split taxonomy when present.
+    pub fn as_payload(&self) -> Option<&PayloadError> {
+        match self {
+            Self::Payload(error) => Some(error),
+            Self::Runtime(_) => None,
+        }
+    }
+
+    /// Returns the runtime/persistence half of the split taxonomy when present.
+    pub fn as_runtime(&self) -> Option<&RuntimeError> {
+        match self {
+            Self::Payload(_) => None,
+            Self::Runtime(error) => Some(error),
+        }
+    }
+
+    /// Returns the captured backtrace when the wrapped runtime error carries one.
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        self.as_runtime().and_then(RuntimeError::backtrace)
     }
 }
 
@@ -258,53 +410,78 @@ mod tests {
     #[test]
     fn hook_error_constructors_cover_all_variants() {
         let invalid_context = HookError::invalid_context("bad");
-        assert!(matches!(invalid_context, HookError::InvalidContext { .. }));
+        assert!(matches!(
+            invalid_context,
+            HookError::Payload(PayloadError::InvalidContext { .. })
+        ));
 
         let invalid_context_with_source =
             HookError::invalid_context_with_source("bad", std::io::Error::other("source"));
         assert!(matches!(
             invalid_context_with_source,
-            HookError::InvalidContext {
+            HookError::Payload(PayloadError::InvalidContext {
                 source: Some(_),
                 ..
-            }
+            })
         ));
 
         let validation = HookError::validation("field", "invalid");
-        assert!(matches!(validation, HookError::Validation { .. }));
+        assert!(matches!(
+            validation,
+            HookError::Payload(PayloadError::Validation { .. })
+        ));
 
         let validation_with_source =
             HookError::validation_with_source("field", "invalid", std::io::Error::other("source"));
         assert!(matches!(
             validation_with_source,
-            HookError::Validation {
+            HookError::Payload(PayloadError::Validation {
                 source: Some(_),
                 ..
-            }
+            })
+        ));
+
+        let invalid_payload = HookError::invalid_payload("{oops");
+        assert!(matches!(
+            invalid_payload,
+            HookError::Payload(PayloadError::InvalidPayload { source: None, .. })
         ));
 
         let internal = HookError::internal("boom");
-        assert!(matches!(internal, HookError::Internal { .. }));
+        assert!(matches!(
+            internal,
+            HookError::Runtime(RuntimeError::Internal { .. })
+        ));
+        assert!(internal.backtrace().is_some());
 
         let internal_with_source =
             HookError::internal_with_source("boom", std::io::Error::other("source"));
         assert!(matches!(
             internal_with_source,
-            HookError::Internal {
+            HookError::Runtime(RuntimeError::Internal {
                 source: Some(_),
                 ..
-            }
+            })
         ));
+        assert!(internal_with_source.backtrace().is_some());
 
         let state_path = std::env::temp_dir().join("state.json");
         let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
-        assert!(matches!(state_io, HookError::StateIo { .. }));
+        assert!(matches!(
+            state_io,
+            HookError::Runtime(RuntimeError::StateIo { .. })
+        ));
+        assert!(state_io.backtrace().is_some());
 
         let divergence = HookError::root_divergence(
             AiRootDir::new("/repo").expect("root"),
             "/repo/subdir",
             HookType::SessionStart,
         );
-        assert!(matches!(divergence, HookError::RootDivergence { .. }));
+        assert!(matches!(
+            divergence,
+            HookError::Runtime(RuntimeError::RootDivergence { .. })
+        ));
+        assert!(divergence.backtrace().is_none());
     }
 }

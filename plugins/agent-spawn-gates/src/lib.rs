@@ -8,6 +8,7 @@ use std::path::Path;
 
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
+use sc_hooks_core::errors::HandlerError;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
@@ -78,7 +79,7 @@ impl ManifestProvider for AgentSpawnGatesHandler {
 }
 
 impl SyncHandler for AgentSpawnGatesHandler {
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
+    fn handle(&self, context: HookContext) -> Result<HookResult, HandlerError> {
         if context.hook != HookType::PreToolUse {
             return Ok(proceed());
         }

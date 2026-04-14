@@ -420,6 +420,9 @@ Current SDK trait boundary decision:
 
 - `sc-hooks-core` / `sc-hooks-sdk` provide the shared hook context, result, and
   error surfaces used by the current runtime crates
+- the shared error surface now separates payload and validation failures
+  (`PayloadError`) from runtime and persistence failures (`RuntimeError`),
+  while retaining `HookError` as a compatibility wrapper at the crate boundary
 - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` remain intentionally
   unsealed; see `SEAL-001` in `docs/implementation-gaps.md`
 - sibling production-track plugin crates implement those SDK traits directly, so
@@ -482,14 +485,15 @@ direction below is the frozen shape that the code and contract docs implement.
 Implemented phase shape:
 
 - naming converges on `sc-hooks` as the canonical product/runtime/binary name
-  with `hooks` as a convenience CLI alias
+  with `hooks` reserved as the convenience CLI alias name when packaging or
+  operator setup chooses to provide it
 - filesystem/config namespace remains `.sc-hooks/`
 - observability config becomes layered:
   - built-in defaults
   - global user config at `~/.sc-hooks/config.toml`
   - repo-local config at `.sc-hooks/config.toml`
   - environment overrides for temporary operator control
-- observability modes are planned as:
+- observability modes are:
   - `off`
   - `standard`
   - `full`

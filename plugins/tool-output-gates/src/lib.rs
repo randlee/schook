@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
-use sc_hooks_core::errors::HookError;
+use sc_hooks_core::errors::{HandlerError, HookError};
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
@@ -87,7 +87,7 @@ impl ManifestProvider for ToolOutputGatesHandler {
 }
 
 impl SyncHandler for ToolOutputGatesHandler {
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
+    fn handle(&self, context: HookContext) -> Result<HookResult, HandlerError> {
         if context.hook != HookType::PostToolUse {
             return Ok(proceed());
         }
@@ -135,12 +135,12 @@ fn resolve_schema(payload: &PostToolUseBashPayload) -> Result<Option<Value>, Hoo
 fn parse_inline_schema(schema: &Value) -> Result<Value, HookError> {
     match schema {
         Value::Object(_) | Value::Bool(_) => Ok(schema.clone()),
-        Value::String(body) => {
-            serde_json::from_str(body).map_err(|source| HookError::InvalidPayload {
-                input_excerpt: body.chars().take(120).collect(),
-                source: Some(source),
-            })
-        }
+        Value::String(body) => serde_json::from_str(body).map_err(|source| {
+            HookError::invalid_payload_with_source(
+                body.chars().take(120).collect::<String>(),
+                source,
+            )
+        }),
         other => Err(HookError::validation(
             "tool_input.schema",
             format!(
@@ -216,9 +216,8 @@ fn sibling_schema_candidates(path: &Path) -> Vec<PathBuf> {
 fn load_schema(path: &Path) -> Result<Value, HookError> {
     let body = fs::read_to_string(path)
         .map_err(|source| HookError::state_io(path.to_path_buf(), source))?;
-    serde_json::from_str(&body).map_err(|source| HookError::InvalidPayload {
-        input_excerpt: body.chars().take(120).collect(),
-        source: Some(source),
+    serde_json::from_str(&body).map_err(|source| {
+        HookError::invalid_payload_with_source(body.chars().take(120).collect::<String>(), source)
     })
 }
 

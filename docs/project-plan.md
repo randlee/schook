@@ -20,10 +20,10 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- naming cleanup before further public observability/global-config surface is
-  added
-- a multi-sprint observability phase that extends beyond the current
-  dispatch-only file-sink baseline
+- release-freeze and reviewer closeout on the already-landed dispatcher,
+  plugin-runtime, and observability baseline
+- publish and release-infrastructure closure for the current first-release
+  inventory
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -41,23 +41,21 @@ Already implemented and not future sprint work:
 - the mixed `plugins/` source inventory: four production-track runtime
   implementation crates with direct tests plus nine scaffold/reference crates
 
-Explicit follow-up after the current file-sink contract work:
-- naming cleanup now precedes further observability surface growth so config,
-  filesystem, binary, and service names converge on `sc-hooks`
-- console-sink coverage is already part of the proved baseline and no longer
-  stands alone as the next observability milestone
-- the committed observability phase covers naming cleanup, layered config, full
-  audit, redaction, retention, and production-load hardening
-- future exporter or OTel defaults remain follow-on scope after that committed
-  phase closes
+Current closeout focus after the landed observability and hook-runtime work:
+- the observability phase is complete; only `SC-LOG-PHASE-END` remains as QA
+  closeout on that merged baseline
+- console-sink coverage is part of the proved baseline and no longer a pending
+  milestone
+- future exporter or OTel defaults remain follow-on scope and are not part of
+  the current release-closeout gate
 
 Important planning rule:
 - `sc-observability` remains a requirement, but it is already implemented
 - therefore observability appears below first as a completed baseline sprint,
   not as pending build work
-- the planned observability phase extends that baseline with naming cleanup,
-  layered config, and audit-grade coverage; it does not reopen the original
-  `sc-observability` adoption decision
+- the completed observability phase below is historical implementation record,
+  not pending feature scope; remaining open work is closeout, release
+  infrastructure, and explicitly deferred follow-on items
 
 ## 4. Sprint Sequence
 
@@ -178,23 +176,21 @@ Acceptance criteria:
 - `GAP-005` and `GAP-007` are closed
 - `cargo fmt --check --all` and `cargo test --workspace` pass
 
-### Planned Track: Observability Phase
+### Completed Track: Observability Phase
 
 Status:
-- planned
+- completed
 
 Focus:
-- freeze naming and config surfaces before expanding observability volume
-- add a layered config model with global defaults at `~/.sc-hooks/config.toml`
-  and repo-local overrides at `.sc-hooks/config.toml`
-- preserve the current lower-volume `standard` dispatch log while adding an
-  explicitly local-only `full` audit mode
-- make the audit path durable, machine-readable, redaction-aware, and safe for
-  50+ simultaneous agents
+- record the phase decisions that the merged observability sprints now
+  implement
+- document the frozen naming, config, audit, and durability boundaries that the
+  release baseline already depends on
 
 Phase-wide fixed decisions:
 - canonical product/runtime/binary/docs name converges on `sc-hooks`
-- convenience CLI alias is `hooks`
+- convenience CLI alias name is `hooks` when packaging or operator setup
+  provides it; this plan does not claim an auto-installed alias artifact
 - filesystem namespace stays `.sc-hooks/`
 - `full` audit is never enabled from global config alone
 - observability or audit failure never changes hook execution behavior
@@ -609,7 +605,7 @@ Release preflight evidence:
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
 | removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), reconciled mixed plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
-| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
+| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 now limits active drivers to release closeout and publish infrastructure instead of stale in-progress observability scope. |
 | release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and mixed source-owned `plugins/` posture. |
 | branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
 | validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |

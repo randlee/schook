@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use sc_hooks_core::errors::HookError;
+use sc_hooks_core::errors::{HookError, PayloadError, RuntimeError};
 pub use sc_hooks_core::results::{HookAction, HookResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -87,12 +87,12 @@ pub fn error(message: impl Into<String>) -> HookResult {
 /// Converts a typed `HookError` into the public `HookResult` error shape.
 pub fn error_from_hook_error(error: &HookError) -> HookResult {
     let kind = match error {
-        HookError::InvalidPayload { .. } => "invalid_payload",
-        HookError::InvalidContext { .. } => "invalid_context",
-        HookError::StateIo { .. } => "state_io",
-        HookError::Validation { .. } => "validation",
-        HookError::RootDivergence { .. } => "root_divergence",
-        HookError::Internal { .. } => "internal",
+        HookError::Payload(PayloadError::InvalidPayload { .. }) => "invalid_payload",
+        HookError::Payload(PayloadError::InvalidContext { .. }) => "invalid_context",
+        HookError::Payload(PayloadError::Validation { .. }) => "validation",
+        HookError::Runtime(RuntimeError::StateIo { .. }) => "state_io",
+        HookError::Runtime(RuntimeError::RootDivergence { .. }) => "root_divergence",
+        HookError::Runtime(RuntimeError::Internal { .. }) => "internal",
     };
 
     HookResult {
@@ -142,10 +142,7 @@ mod tests {
 
     #[test]
     fn error_from_hook_error_maps_all_hook_error_kinds() {
-        let invalid_payload = HookError::InvalidPayload {
-            input_excerpt: "{oops".to_string(),
-            source: None,
-        };
+        let invalid_payload = HookError::invalid_payload("{oops");
         let invalid_context = HookError::invalid_context("ctx");
         let state_path = std::env::temp_dir().join("state.json");
         let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));

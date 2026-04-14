@@ -41,33 +41,34 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - the reconciled docs keep all `plugins/` crates source-owned and avoid any
     bundled/preinstalled claim that the runtime/install docs do not prove
 
-### RULING-NEEDED-ECR-001: `HookError` Surface Split
+### ECR-001: `HookError` Surface Split
 
-- Status: `active`
+- Status: `closed in CDR-B-FIX-1`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Current note:
-  - `HookError` is still a single cross-crate error enum spanning payload,
-    validation, state-I/O, divergence, and internal failures
-  - splitting it now would be a public API break across the core/sdk surface and
-    should not be done implicitly inside the observability closeout
-  - recommendation: take an explicit architecture ruling on whether the next
-    release track wants a stable multi-type error taxonomy or to freeze the
-    current monolithic enum deliberately
+- Closure note:
+  - `sc-hooks-core::errors` now distinguishes payload/validation failures
+    (`PayloadError`) from runtime/persistence failures (`RuntimeError`)
+  - `HookError` remains as a thin compatibility wrapper so existing helper APIs
+    and source-owned runtime crates can migrate without a second public-surface
+    break
+  - the SDK handler boundary now references the split taxonomy through the
+    handler-facing alias rather than treating the old monolithic enum as the
+    primary design
 
-### RULING-NEEDED-ECR-002: Backtrace Capture Policy
+### ECR-002: Backtrace Capture Policy
 
-- Status: `active`
+- Status: `closed in CDR-B-FIX-1`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Current note:
-  - adding `Backtrace` capture to public error types changes error layout,
-    serialization assumptions, and support expectations across the core/sdk
-    boundary
-  - the current release keeps source chaining intact without introducing a
-    partially scoped backtrace policy
-  - recommendation: decide the product-wide backtrace policy together with any
-    future error-surface split so the public error contract changes once
+- Closure note:
+  - `RuntimeError::StateIo` and `RuntimeError::Internal` now capture
+    `std::backtrace::Backtrace` at construction time
+  - backtrace rendering follows standard Rust behavior: capture occurs
+    unconditionally, while visible detail still depends on the operator’s
+    `RUST_BACKTRACE` environment policy
+  - payload/validation errors remain backtrace-free so the public error surface
+    does not imply stack traces for ordinary contract failures
 
 ### RULING-NEEDED-TS-001: Ended-State Transition Guard
 
