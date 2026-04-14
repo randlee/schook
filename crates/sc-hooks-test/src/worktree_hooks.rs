@@ -10,11 +10,6 @@ use serde_json::json;
 
 use crate::fixtures;
 
-// Ubuntu can still return ETXTBSY briefly after atomic persist when a newly
-// written script is executed immediately, so worktree hook tests retry spawn on
-// ExecutableFileBusy with a short fixed backoff.
-const EXECUTABLE_FILE_BUSY_RETRY_DELAY_MS: u64 = 20;
-
 struct HookOutcome {
     exit_code: i32,
     stdout: String,
@@ -35,26 +30,8 @@ fn run_command_hook(
         command.env(key, value);
     }
 
-    let mut child = {
-        let mut last_err = None;
-        let mut result = None;
-        for _ in 0..3 {
-            match command.spawn() {
-                Ok(c) => {
-                    result = Some(c);
-                    break;
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy => {
-                    last_err = Some(e);
-                    std::thread::sleep(std::time::Duration::from_millis(
-                        EXECUTABLE_FILE_BUSY_RETRY_DELAY_MS,
-                    ));
-                }
-                Err(e) => panic!("hook script should spawn: {e}"),
-            }
-        }
-        result.unwrap_or_else(|| panic!("hook script should spawn: {}", last_err.unwrap()))
-    };
+    let mut child =
+        fixtures::spawn_fixture_command(&mut command).expect("hook script should spawn");
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
         let body = serde_json::to_vec(&input).expect("hook input should serialize");

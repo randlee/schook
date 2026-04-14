@@ -24,6 +24,10 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     production-track plugin crates, and treat any future trait sealing as a
     deliberate architecture change requiring a migration plan rather than a
     silent hardening pass
+  - deferral note: sealed-trait migration is deferred until the public API
+    stabilization gate for the next release-track boundary; any new trait
+    methods must carry default implementations until that stabilization sprint is
+    explicitly scheduled
 
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 

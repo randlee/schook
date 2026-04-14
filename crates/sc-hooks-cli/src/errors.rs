@@ -132,7 +132,11 @@ pub enum CliError {
         source: Option<BoxedError>,
     },
 
-    /// Observability initialization failed before logging could begin.
+    /// Observability state resolution failed.
+    ///
+    /// This variant covers both cached logger/full-audit initialization failures
+    /// and later per-call conflicts discovered while reusing cached
+    /// observability state, such as project-root mismatch checks.
     #[error("observability initialization failed: {source}")]
     ObservabilityInit {
         #[source]
@@ -214,7 +218,8 @@ impl CliError {
         }
     }
 
-    /// Wraps a cached observability initialization error.
+    /// Wraps an observability-state error from cached initialization or later
+    /// cached-state validation.
     pub fn observability_init(source: impl Into<Arc<ObservabilityInitError>>) -> Self {
         Self::ObservabilityInit {
             source: source.into(),

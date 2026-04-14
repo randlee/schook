@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::io::{self, Read, Write};
 use std::process::{Child, Command};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use thiserror::Error;
 
 use crate::config::ScHooksConfig;
@@ -15,12 +15,11 @@ use crate::timeout::{TimeoutOutcome, resolve_timeout_ms, wait_with_timeout};
 use log::error;
 use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_hooks_core::events::HookType;
+use sc_hooks_core::process::retry_executable_file_busy;
 use sc_hooks_core::session::AiRootDir;
 use std::borrow::Cow;
 
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
-const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
-const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 #[derive(Debug)]
 pub enum DispatchOutcome {
@@ -143,24 +142,7 @@ fn join_output_reader(
 }
 
 fn spawn_plugin_command(command: &mut Command) -> io::Result<Child> {
-    let mut last_err = None;
-    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-        match command.spawn() {
-            Ok(child) => return Ok(child),
-            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
-                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-                    return Err(err);
-                }
-                last_err = Some(err);
-                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
-            }
-            Err(err) => return Err(err),
-        }
-    }
-
-    Err(last_err.unwrap_or_else(|| {
-        io::Error::other("executable-file-busy retry loop exhausted without a captured error")
-    }))
+    retry_executable_file_busy(|| command.spawn())
 }
 
 impl PluginExecutionContextError {

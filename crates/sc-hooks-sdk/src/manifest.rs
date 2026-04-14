@@ -2,21 +2,18 @@ use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
 use std::process::Command;
-use std::thread;
-use std::time::Duration;
 
 use serde_json::{Map, Value};
 use thiserror::Error;
 
 use sc_hooks_core::events::HookType;
 use sc_hooks_core::manifest::{FieldRequirement, Manifest, ManifestMatcher};
+use sc_hooks_core::process::retry_executable_file_busy;
 use sc_hooks_core::validation::{FieldType, parse_validation_rule};
 
 /// Highest manifest contract version understood by the current host.
 pub const HOST_CONTRACT_VERSION: u32 = 1;
 const STDERR_EXCERPT_LIMIT: usize = 4096;
-const EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS: usize = 3;
-const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 
 /// Returns whether a plugin contract version is compatible with the host.
 pub fn is_contract_compatible(host_version: u32, plugin_version: u32) -> bool {
@@ -232,24 +229,7 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
 }
 
 fn command_output_with_spawn_retry(command: &mut Command) -> io::Result<std::process::Output> {
-    let mut last_err = None;
-    for attempt in 0..EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-        match command.output() {
-            Ok(output) => return Ok(output),
-            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
-                if attempt + 1 == EXECUTABLE_FILE_BUSY_RETRY_ATTEMPTS {
-                    return Err(err);
-                }
-                last_err = Some(err);
-                thread::sleep(EXECUTABLE_FILE_BUSY_RETRY_DELAY);
-            }
-            Err(err) => return Err(err),
-        }
-    }
-
-    // INVARIANT: the only fallthrough path is a retryable `ExecutableFileBusy`
-    // error, which stores the latest error in `last_err` before sleeping.
-    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
+    retry_executable_file_busy(|| command.output())
 }
 
 fn capped_stderr(stderr: &[u8]) -> String {
