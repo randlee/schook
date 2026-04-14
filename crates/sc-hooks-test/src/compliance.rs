@@ -223,11 +223,15 @@ pub fn run_contract_behavior_suite(probe: &impl HostDispatchProbe) -> Vec<Compli
 }
 
 fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceCheck {
-    let output = Command::new(plugin_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let output = {
+        let mut command = Command::new(plugin_path);
+        command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        crate::fixtures::spawn_fixture_command(&mut command)
+    }
         .and_then(|mut child| {
             if let Some(mut stdin) = child.stdin.take() {
                 use std::io::Write;

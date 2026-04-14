@@ -1,4 +1,7 @@
 use std::fs;
+use std::process::{Child, Command};
+use std::thread;
+use std::time::Duration;
 use std::path::{Path, PathBuf};
 
 /// Creates an executable script at the given path.
@@ -7,17 +10,49 @@ pub fn create_executable_script(path: &Path, body: &str) {
         fs::create_dir_all(parent).expect("script parent directory should be creatable");
     }
 
-    fs::write(path, body).expect("script should be writable");
+    let temp_path = path.with_extension("tmp");
+    fs::write(&temp_path, body).expect("script should be writable");
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)
+        let mut perms = fs::metadata(&temp_path)
             .expect("script metadata should be available")
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(path, perms).expect("script should be executable");
+        fs::set_permissions(&temp_path, perms).expect("script should be executable");
     }
+
+    fs::rename(&temp_path, path).expect("script should move into place atomically");
+}
+
+/// Spawns a fixture command, retrying the transient Unix `ETXTBSY` race that
+/// can happen immediately after a script fixture is written.
+pub(crate) fn spawn_fixture_command(command: &mut Command) -> std::io::Result<Child> {
+    const MAX_ATTEMPTS: usize = 5;
+    const RETRY_DELAY_MS: u64 = 10;
+
+    for attempt in 1..=MAX_ATTEMPTS {
+        match command.spawn() {
+            Ok(child) => return Ok(child),
+            Err(err) if is_executable_file_busy(&err) && attempt < MAX_ATTEMPTS => {
+                thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
+    unreachable!("retry loop must return or error")
+}
+
+#[cfg(unix)]
+fn is_executable_file_busy(err: &std::io::Error) -> bool {
+    err.raw_os_error() == Some(26)
+}
+
+#[cfg(not(unix))]
+fn is_executable_file_busy(_err: &std::io::Error) -> bool {
+    false
 }
 
 /// Creates a shell plugin script that echoes a fixed JSON runtime payload.
