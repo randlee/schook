@@ -94,12 +94,16 @@ impl OutputReaderGuard {
     fn take_stdout(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
         self.stdout
             .take()
+            // INVARIANT: stdout is installed once during reader setup and this helper is
+            // only called from the success path that joins the handle exactly once.
             .expect("stdout reader handle must be present before join")
     }
 
     fn take_stderr(&mut self) -> JoinHandle<io::Result<Vec<u8>>> {
         self.stderr
             .take()
+            // INVARIANT: stderr is installed once during reader setup and this helper is
+            // only called from the success path that joins the handle exactly once.
             .expect("stderr reader handle must be present before join")
     }
 }
@@ -154,7 +158,9 @@ fn spawn_plugin_command(command: &mut Command) -> io::Result<Child> {
         }
     }
 
-    Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
+    Err(last_err.unwrap_or_else(|| {
+        io::Error::other("executable-file-busy retry loop exhausted without a captured error")
+    }))
 }
 
 impl PluginExecutionContextError {

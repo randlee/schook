@@ -270,3 +270,9 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
   - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
   - authorizing sprint: `S9-HP5`
+- `OBS-002`
+  - prior text: earlier observability output used the pre-service-layout file path
+    `.sc-hooks/logs/sc-hooks.log.jsonl`
+  - current text: observability output uses the service-scoped file-sink layout
+    `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+  - authorizing sprint: `SC-OBS-INTEGRATION-1-FIX-R1`

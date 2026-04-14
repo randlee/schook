@@ -865,14 +865,14 @@ fn validate_rfc3339_timestamp(field: &str, value: &str) -> Result<(), HookError>
 
 /// Returns the current UTC timestamp in RFC 3339 format.
 pub fn utc_timestamp_now() -> UtcTimestamp {
+    const FALLBACK_UTC_TIMESTAMP: &str = "1970-01-01T00:00:00Z";
+
     let now = OffsetDateTime::now_utc();
     let rendered = now
         .format(&Rfc3339)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
-    UtcTimestamp::from_field("utc_timestamp", rendered).unwrap_or_else(|_| {
-        UtcTimestamp::from_field("utc_timestamp", "1970-01-01T00:00:00Z")
-            .expect("fallback timestamp must be valid")
-    })
+        .unwrap_or_else(|_| FALLBACK_UTC_TIMESTAMP.to_string());
+    UtcTimestamp::from_field("utc_timestamp", rendered)
+        .unwrap_or_else(|_| UtcTimestamp(FALLBACK_UTC_TIMESTAMP.to_string()))
 }
 
 #[derive(Debug, Deserialize)]

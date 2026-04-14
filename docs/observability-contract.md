@@ -74,6 +74,12 @@ Current default file sink path:
 
 This path comes from `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`.
 
+Formal amendment note (`OBS-002`, `SC-OBS-INTEGRATION-1-FIX-R1`):
+- the default JSONL sink path moved from the earlier flat
+  `.sc-hooks/logs/sc-hooks.log.jsonl` layout to the service-scoped
+  `.sc-hooks/observability/logs/sc-hooks.log.jsonl` layout so the external
+  `sc-observability` sink directory matches the documented service root
+
 ## 3.1 Environment Override Surface
 
 The host currently supports layered `[observability]` config plus operator

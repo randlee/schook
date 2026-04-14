@@ -247,6 +247,8 @@ fn command_output_with_spawn_retry(command: &mut Command) -> io::Result<std::pro
         }
     }
 
+    // INVARIANT: the only fallthrough path is a retryable `ExecutableFileBusy`
+    // error, which stores the latest error in `last_err` before sleeping.
     Err(last_err.expect("executable-file-busy retry loop should capture the final error"))
 }
 

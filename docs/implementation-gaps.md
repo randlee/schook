@@ -12,16 +12,18 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### SEAL-001: SDK Trait-Sealing Decision
 
-- Status: `active`
+- Status: `closed in LOGR-COMP-FIX-1`
 - Owner area:
   - `sc-hooks-sdk`, docs
-- Current note:
+- Closure note:
   - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` remain intentionally
     unsealed because sibling runtime crates still implement them directly
   - the executable-plugin JSON contract is the current release boundary, but
     the SDK trait surface is still public for source-owned runtime crates
-  - any future trait sealing requires an explicit architecture ruling and a
-    migration plan for the in-repo runtime crates
+  - decision rationale: keep the current trait surface open for in-repo
+    production-track plugin crates, and treat any future trait sealing as a
+    deliberate architecture change requiring a migration plan rather than a
+    silent hardening pass
 
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 

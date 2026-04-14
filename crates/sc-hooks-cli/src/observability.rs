@@ -212,6 +212,7 @@ struct FullAuditRecordArgs<'a> {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// Redacted debug excerpt captured for bounded audit-side diagnostics.
 pub struct DebugExcerpt {
     excerpt: String,
     truncated: bool,
@@ -337,6 +338,7 @@ pub struct RootDivergenceEventArgs<'a> {
     pub observability: &'a ObservabilityConfig,
 }
 
+/// Arguments required to emit one full-audit pre-dispatch failure record.
 pub struct FullAuditPreDispatchFailureArgs<'a> {
     pub observability: &'a ObservabilityConfig,
     pub hook: &'a str,
@@ -467,6 +469,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     Ok(())
 }
 
+/// Emits the full-audit record for an accepted invocation before dispatch.
 pub fn emit_full_audit_invocation_received(
     observability: &ObservabilityConfig,
     hook: &str,
@@ -495,6 +498,7 @@ pub fn emit_full_audit_invocation_received(
     });
 }
 
+/// Emits the full-audit record for an invocation that matches no handlers.
 pub fn emit_full_audit_zero_match(
     observability: &ObservabilityConfig,
     hook: &str,
@@ -523,6 +527,7 @@ pub fn emit_full_audit_zero_match(
     });
 }
 
+/// Emits the full-audit record for a failure that occurs before dispatch starts.
 pub fn emit_full_audit_pre_dispatch_failure(args: FullAuditPreDispatchFailureArgs<'_>) {
     emit_full_audit_record_with_fallback(FullAuditRecordArgs {
         name: "hook.invocation.failed_pre_dispatch",
@@ -544,6 +549,7 @@ pub fn emit_full_audit_pre_dispatch_failure(args: FullAuditPreDispatchFailureArg
     });
 }
 
+/// Emits the degraded stderr signal used by standard observability mode.
 pub fn emit_standard_degraded_signal(
     observability: &ObservabilityConfig,
     hook: &str,
