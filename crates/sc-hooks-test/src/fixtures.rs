@@ -1,8 +1,8 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
-use std::path::{Path, PathBuf};
 
 /// Creates an executable script at the given path.
 pub fn create_executable_script(path: &Path, body: &str) {

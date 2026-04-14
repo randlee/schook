@@ -232,14 +232,14 @@ fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceChec
 
         crate::fixtures::spawn_fixture_command(&mut command)
     }
-        .and_then(|mut child| {
-            if let Some(mut stdin) = child.stdin.take() {
-                use std::io::Write;
-                let body = serde_json::to_vec(&input).map_err(std::io::Error::other)?;
-                stdin.write_all(&body)?;
-            }
-            child.wait_with_output()
-        });
+    .and_then(|mut child| {
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let body = serde_json::to_vec(&input).map_err(std::io::Error::other)?;
+            stdin.write_all(&body)?;
+        }
+        child.wait_with_output()
+    });
 
     match output {
         Ok(output) if output.status.success() => {
