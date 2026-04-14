@@ -9,8 +9,8 @@ use thiserror::Error;
 type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 const ROOT_DIVERGENCE_NOTICE_PREFIX: &str = "sc-hooks.root_divergence=";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 /// Structured notice emitted when inbound `CLAUDE_PROJECT_DIR` diverges from immutable root state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RootDivergenceNotice {
     /// Canonical immutable runtime root.
     pub immutable_root: AiRootDir,
@@ -73,8 +73,8 @@ impl RootDivergenceNotice {
     }
 }
 
-#[derive(Debug, Error)]
 /// Payload and validation failures surfaced across the hook runtime.
+#[derive(Debug, Error)]
 pub enum PayloadError {
     /// Hook payload JSON could not be parsed or validated.
     #[error("invalid payload near {input_excerpt}")]
@@ -111,10 +111,6 @@ pub enum PayloadError {
 
 impl PayloadError {
     /// Creates an `InvalidPayload` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
         Self::InvalidPayload {
             input_excerpt: input_excerpt.into(),
@@ -123,10 +119,6 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidPayload` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_payload_with_source(
         input_excerpt: impl Into<String>,
         source: serde_json::Error,
@@ -138,10 +130,6 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidContext` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {
             message: message.into(),
@@ -150,10 +138,6 @@ impl PayloadError {
     }
 
     /// Creates a `Validation` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn validation(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Validation {
             field: field.into(),
@@ -163,10 +147,6 @@ impl PayloadError {
     }
 
     /// Creates an `InvalidContext` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_context_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -178,10 +158,6 @@ impl PayloadError {
     }
 
     /// Creates a `Validation` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn validation_with_source(
         field: impl Into<String>,
         message: impl Into<String>,
@@ -195,8 +171,8 @@ impl PayloadError {
     }
 }
 
-#[derive(Debug, Error)]
 /// Runtime and persistence failures surfaced across the hook runtime.
+#[derive(Debug, Error)]
 pub enum RuntimeError {
     /// Session-state I/O failed for a specific path.
     #[error("state I/O failed for {path}")]
@@ -239,10 +215,6 @@ pub enum RuntimeError {
 
 impl RuntimeError {
     /// Creates an `Internal` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
@@ -252,10 +224,6 @@ impl RuntimeError {
     }
 
     /// Creates a `RootDivergence` error from canonical root values.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn root_divergence(
         immutable_root: AiRootDir,
         observed: impl Into<PathBuf>,
@@ -269,10 +237,6 @@ impl RuntimeError {
     }
 
     /// Creates an `Internal` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn internal_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -285,10 +249,6 @@ impl RuntimeError {
     }
 
     /// Creates a `StateIo` error for a concrete filesystem path.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         Self::StateIo {
             path: path.into(),
@@ -298,6 +258,9 @@ impl RuntimeError {
     }
 
     /// Returns the captured backtrace when one exists on this runtime error.
+    ///
+    /// `StateIo` and `Internal` always carry a captured backtrace;
+    /// `RootDivergence` never does.
     pub fn backtrace(&self) -> Option<&Backtrace> {
         match self {
             Self::StateIo { backtrace, .. } | Self::Internal { backtrace, .. } => {
@@ -308,8 +271,8 @@ impl RuntimeError {
     }
 }
 
-#[derive(Debug, Error)]
 /// Compatibility wrapper that preserves the historical cross-crate hook error surface.
+#[derive(Debug, Error)]
 pub enum HookError {
     /// Payload or validation failure.
     #[error(transparent)]
@@ -325,19 +288,11 @@ pub type HandlerError = HookError;
 
 impl HookError {
     /// Creates an `InvalidPayload` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_payload(input_excerpt: impl Into<String>) -> Self {
         PayloadError::invalid_payload(input_excerpt).into()
     }
 
     /// Creates an `InvalidPayload` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_payload_with_source(
         input_excerpt: impl Into<String>,
         source: serde_json::Error,
@@ -346,28 +301,16 @@ impl HookError {
     }
 
     /// Creates an `InvalidContext` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         PayloadError::invalid_context(message).into()
     }
 
     /// Creates a `Validation` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn validation(field: impl Into<String>, message: impl Into<String>) -> Self {
         PayloadError::validation(field, message).into()
     }
 
     /// Creates an `InvalidContext` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn invalid_context_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -376,10 +319,6 @@ impl HookError {
     }
 
     /// Creates a `Validation` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn validation_with_source(
         field: impl Into<String>,
         message: impl Into<String>,
@@ -389,19 +328,11 @@ impl HookError {
     }
 
     /// Creates an `Internal` error without a source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn internal(message: impl Into<String>) -> Self {
         RuntimeError::internal(message).into()
     }
 
     /// Creates a `RootDivergence` error from canonical root values.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn root_divergence(
         immutable_root: AiRootDir,
         observed: impl Into<PathBuf>,
@@ -411,10 +342,6 @@ impl HookError {
     }
 
     /// Creates an `Internal` error that preserves an underlying source.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn internal_with_source(
         message: impl Into<String>,
         source: impl std::error::Error + Send + Sync + 'static,
@@ -423,10 +350,6 @@ impl HookError {
     }
 
     /// Creates a `StateIo` error for a concrete filesystem path.
-    ///
-    /// # Errors
-    ///
-    /// This function never returns `Err`.
     pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         RuntimeError::state_io(path, source).into()
     }

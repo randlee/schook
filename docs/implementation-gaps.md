@@ -64,6 +64,12 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 - Closure note:
   - `RuntimeError::StateIo` and `RuntimeError::Internal` now capture
     `std::backtrace::Backtrace` at construction time
+  - the repository is pinned to stable Rust `1.94.1`, so those variants retain
+    `Box<Backtrace>` fields for now because unboxed `Backtrace` triggers
+    unstable `error_generic_member_access` paths through `thiserror`
+  - cleanup when the toolchain advances: unbox the field and remove the
+    `Box::new(Backtrace::capture())` wrapper once stable `thiserror`/compiler
+    support makes `Error::request_ref::<Backtrace>()` available
   - backtrace rendering follows standard Rust behavior: capture occurs
     unconditionally, while visible detail still depends on the operator’s
     `RUST_BACKTRACE` environment policy
