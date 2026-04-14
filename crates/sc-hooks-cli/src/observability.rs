@@ -140,10 +140,12 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     }
 
     let event = LogEvent {
-        version: SchemaVersion::new(sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION)
-            .map_err(|source| {
-                CliError::internal_with_source("invalid observation schema version", source)
-            })?,
+        version: SchemaVersion::new(
+            sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION,
+        )
+        .map_err(|source| {
+            CliError::internal_with_source("invalid observation schema version", source)
+        })?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: dispatch_level(args.exit, args.results, args.ai_notification),
         service,
@@ -163,9 +165,11 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some(OutcomeLabel::new(dispatch_outcome(args.exit)).map_err(|source| {
-            CliError::internal_with_source("invalid dispatch outcome label", source)
-        })?),
+        outcome: Some(
+            OutcomeLabel::new(dispatch_outcome(args.exit)).map_err(|source| {
+                CliError::internal_with_source("invalid dispatch outcome label", source)
+            })?,
+        ),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -214,10 +218,12 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     );
 
     let event = LogEvent {
-        version: SchemaVersion::new(sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION)
-            .map_err(|source| {
-                CliError::internal_with_source("invalid observation schema version", source)
-            })?,
+        version: SchemaVersion::new(
+            sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION,
+        )
+        .map_err(|source| {
+            CliError::internal_with_source("invalid observation schema version", source)
+        })?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: Level::Error,
         service,
