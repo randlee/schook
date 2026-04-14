@@ -26,8 +26,11 @@ const EXECUTABLE_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(20);
 /// use sc_hooks_core::process::retry_executable_file_busy;
 /// use std::process::Command;
 ///
-/// let mut command = Command::new("true");
-/// let _status = retry_executable_file_busy(|| command.status());
+/// fn main() -> std::io::Result<()> {
+///     let mut command = Command::new("true");
+///     let _status = retry_executable_file_busy(|| command.status())?;
+///     Ok(())
+/// }
 /// ```
 pub fn retry_executable_file_busy<T>(
     mut operation: impl FnMut() -> io::Result<T>,
