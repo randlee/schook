@@ -30,7 +30,7 @@ pub use session::SessionStartSource;
 /// Default observability root used by the current CLI integration.
 pub const OBSERVABILITY_ROOT: &str = ".sc-hooks/observability";
 /// Default JSONL dispatch log path used by the current CLI integration.
-pub const OBSERVABILITY_LOG_PATH: &str = ".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl";
+pub const OBSERVABILITY_LOG_PATH: &str = ".sc-hooks/observability/logs/sc-hooks.log.jsonl";
 
 #[cfg(test)]
 mod tests {

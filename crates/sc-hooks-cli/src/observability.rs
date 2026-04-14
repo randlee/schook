@@ -7,7 +7,8 @@ use log::warn;
 use sc_hooks_core::errors::RootDivergenceNotice;
 use sc_observability::{Logger, LoggerConfig};
 use sc_observability_types::{
-    ActionName, Level, LevelFilter, LogEvent, ProcessIdentity, ServiceName, TargetCategory,
+    ActionName, Level, LevelFilter, LogEvent, OutcomeLabel, ProcessIdentity, SchemaVersion,
+    ServiceName, TargetCategory,
 };
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -139,7 +140,10 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     }
 
     let event = LogEvent {
-        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        version: SchemaVersion::new(sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION)
+            .map_err(|source| {
+                CliError::internal_with_source("invalid observation schema version", source)
+            })?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: dispatch_level(args.exit, args.results, args.ai_notification),
         service,
@@ -159,7 +163,9 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some(dispatch_outcome(args.exit).to_string()),
+        outcome: Some(OutcomeLabel::new(dispatch_outcome(args.exit)).map_err(|source| {
+            CliError::internal_with_source("invalid dispatch outcome label", source)
+        })?),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -208,7 +214,10 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
     );
 
     let event = LogEvent {
-        version: sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION.to_string(),
+        version: SchemaVersion::new(sc_observability_types::constants::OBSERVATION_ENVELOPE_VERSION)
+            .map_err(|source| {
+                CliError::internal_with_source("invalid observation schema version", source)
+            })?,
         timestamp: sc_observability_types::Timestamp::now_utc(),
         level: Level::Error,
         service,
@@ -222,7 +231,9 @@ pub fn emit_root_divergence_event(args: RootDivergenceEventArgs<'_>) -> Result<(
         trace: None,
         request_id: None,
         correlation_id: None,
-        outcome: Some("error".to_string()),
+        outcome: Some(OutcomeLabel::new("error").map_err(|source| {
+            CliError::internal_with_source("invalid root divergence outcome label", source)
+        })?),
         diagnostic: None,
         state_transition: None,
         fields,
@@ -396,7 +407,7 @@ mod tests {
         })
         .expect("observability event should emit");
 
-        let path = root.join(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl");
+        let path = root.join(".sc-hooks/observability/logs/sc-hooks.log.jsonl");
         let rendered = fs::read_to_string(path).expect("log should be readable");
         let line = rendered.lines().last().expect("log line should exist");
         let parsed: serde_json::Value =
