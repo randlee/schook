@@ -20,6 +20,9 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
+- the Change Drift Remediation phase that closes the current build break,
+  code-review findings, and control-doc drift before broader release work
+  resumes
 - naming cleanup before further public observability/global-config surface is
   added
 - a multi-sprint observability phase that extends beyond the current
@@ -57,6 +60,20 @@ Important planning rule:
   layered config, and audit-grade coverage; it does not reopen the original
   `sc-observability` adoption decision
 
+Current remediation boundary:
+- the named remediation track is the Change Drift Remediation (`CDR`) phase
+- `CDR-A` is the build-unblock sprint that pins `sc-observability` to the
+  released crates.io API and removes the current compile break
+- `CDR-B` is the control-doc and inventory reconciliation sprint that promotes
+  `agent-session-foundation`, `agent-spawn-gates`, `tool-output-gates`, and
+  `atm-extension` to production-track where code and tests already justify that
+  posture
+- `CDR-C` is the follow-on code-quality sprint for the remaining non-build
+  review findings
+- the older Hook Phase 3-5 sections later in this document remain retained as
+  historical planning detail until `CDR-B` rewrites them against the landed
+  runtime crates and current traceability evidence
+
 ## 4. Sprint Sequence
 
 | Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
@@ -69,6 +86,9 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| `CDR-A` / Change Drift Remediation | In review - branch pushed | `sc-observability` crates.io pin and typed observability unblock | `F01`, `F08`, `CDR-B01`, `CDR-B02`, `CDR-B03`, `CDR-B04` | `develop` baseline | `crates/sc-hooks-cli/Cargo.toml`, `crates/sc-hooks-cli/src/observability.rs`, observability-path consumers and tests |
+| `CDR-C` / Change Drift Remediation | Planned | code-quality closeout for remaining runtime review findings | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | `CDR-A` | `crates/sc-hooks-cli`, `crates/sc-hooks-core`, `crates/sc-hooks-sdk`, `plugins/agent-session-foundation`, ATM error and path-validation tests |
+| `CDR-B` / Change Drift Remediation | Planned | control-doc, inventory, and phase-status reconciliation | `F02`, `F03`, `F04`, `F05`, `F06`, `F07`, `CDR-I01`, `CDR-I02`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-A`, `CDR-C` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `README.md`, `plugins/{agent-session-foundation,agent-spawn-gates,tool-output-gates,atm-extension}/Cargo.toml` |
 | Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
@@ -104,6 +124,12 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 depends on Sprint 2 because setup proof should reflect the surviving compliance/runtime path, not the pre-cleanup shape.
 - Sprint 5 must not start until Sprint 4 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 6 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
+- `CDR-A` must close before either `CDR-B` or `CDR-C`, because the remediation
+  phase starts from a clean buildable baseline pinned to the released
+  `sc-observability` API.
+- `CDR-C` should close before `CDR-B`, because the reconciliation sprint must
+  rewrite requirements, architecture, README, and plugin metadata against the
+  final post-remediation code shape rather than an intermediate review state.
 - `SC-LOG-S1` must close before any later observability sprint, because naming choices feed the binary name, config keys, service identity, and on-disk audit paths.
 - `SC-LOG-S2` must close before `SC-LOG-S3` through `SC-LOG-S7`, because mode resolution and layered config define which observability surfaces exist and where they are configured.
 - `SC-LOG-S4` must close before `SC-LOG-S5`, because the debug profile is an extension of the lean audit profile rather than a separate sink family.
