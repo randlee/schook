@@ -28,8 +28,8 @@ fn run_command_hook(
         command.env(key, value);
     }
 
-    let mut child = fixtures::spawn_fixture_command(&mut command)
-        .expect("hook script should spawn");
+    let mut child =
+        fixtures::spawn_fixture_command(&mut command).expect("hook script should spawn");
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
         let body = serde_json::to_vec(&input).expect("hook input should serialize");
