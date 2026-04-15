@@ -76,30 +76,36 @@ Delivered baseline from `integrate/logging-improvements`:
 
 Current remediation boundary:
 - the named remediation track is the Change Drift Remediation (`CDR`) phase
-- `CDR-A` remains recorded below as the historical build-unblock sprint; this
-  refresh does not reopen or rescope it
-- `CDR-B` is now narrowed to the remaining control-doc, inventory, and
-  release-posture reconciliation needed to make requirements, architecture,
-  traceability, README, and plugin metadata match the hardened merged baseline
-- `CDR-C` is now narrowed to only fresh non-observability runtime hardening
-  that still survives the refreshed gap review after `CDR-B`; the hardened
-  logging branch already absorbed the old observability and compliance hardening
-  assumptions
+- prior lettered remediation labels (`CDR-A`, `CDR-B`, `CDR-C`) are historical
+  planning residue only and are not the reporting model for current work
+- the authoritative execution model is one integration branch plus three
+  numbered sprint branches:
+  - integration branch: `integrate/cdr`
+  - planning branch: `feature/cdr-plan-phase`
+  - sprint branch/worktree `CDR-1`: `feature/cdr-1` at `../schook-worktrees/feature/cdr-1`
+  - sprint branch/worktree `CDR-2`: `feature/cdr-2` at `../schook-worktrees/feature/cdr-2`
+  - sprint branch/worktree `CDR-3`: `feature/cdr-3` at `../schook-worktrees/feature/cdr-3`
+- `integrate/cdr` must first absorb the hardened logging baseline before any
+  numbered sprint branch is created from it
 
-Refreshed CDR impact summary:
-- `CDR-B` fully covered by the hardened logging baseline: observability phase
-  completion status, Hook Phases 3 through 5 as landed code, and much of the
-  README/project-plan inventory posture
-- `CDR-B` partially covered: requirements, architecture, traceability, and
-  plugin metadata still need final reconciliation against the mixed plugin
-  maturity baseline already visible in code and direct tests
-- `CDR-C` fully covered by the hardened logging baseline: observability
-  S1 through S7 hardening, compliance harness improvements, retry
-  consolidation, and the related observability path and gap-ledger amendments
-- `CDR-C` partially covered: non-observability core/sdk/runtime review items
-  still need a fresh gap-by-gap ruling before they stay in release scope
-- `CDR-C` not covered by the hardened logging baseline: no additional runtime
-  hardening should be assumed without that refreshed ruling
+CDR phase scope after the logging-baseline refresh:
+- `CDR-1` establishes the authoritative execution baseline on `integrate/cdr`
+  by merging forward the hardened logging line, confirming the impact analysis,
+  and freezing the release-plan/control-doc reset against the real merged state
+- `CDR-2` performs the remaining control-doc, inventory, traceability, README,
+  and plugin-maturity reconciliation needed so the release docs match the code
+  and tests already landed on the integration branch
+- `CDR-3` is reserved for only the non-observability runtime/code gaps that
+  still survive the fresh gap review after `CDR-2`; no old observability or
+  compliance hardening work is automatically carried forward into this sprint
+
+Refreshed CDR impact summary from the hardened logging baseline:
+- already covered before the numbered sprints start: observability phase
+  completion, compliance harness hardening, retry consolidation, service-scoped
+  observability path amendments, and Hook Phases 3 through 5 as landed code
+- still required in the numbered phase: final control-doc reconciliation and
+  any genuinely remaining non-observability runtime hardening after the fresh
+  post-baseline gap review
 
 ## 4. Sprint Sequence
 
@@ -113,9 +119,9 @@ Refreshed CDR impact summary:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| `CDR-A` / Change Drift Remediation | In review - branch pushed | `sc-observability` crates.io pin and typed observability unblock | `F01`, `F08`, `CDR-B01`, `CDR-B02`, `CDR-B03`, `CDR-B04` | `develop` baseline | `crates/sc-hooks-cli/Cargo.toml`, `crates/sc-hooks-cli/src/observability.rs`, observability-path consumers and tests |
-| `CDR-C` / Change Drift Remediation | Planned | remaining non-observability runtime hardening confirmed by the refreshed gap pass | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | refreshed `CDR-B` scope | `crates/sc-hooks-core`, `crates/sc-hooks-sdk`, targeted `sc-hooks-cli` runtime surfaces, and any direct regression tests for still-open findings |
-| `CDR-B` / Change Drift Remediation | Planned | final control-doc, inventory, and release-posture reconciliation against the hardened logging baseline | `F02`, `F03`, `F04`, `F05`, `F06`, `F07`, `CDR-I01`, `CDR-I02`, `CDR-I03`, `CDR-I04`, `CDR-I05` | merged `integrate/logging-improvements` baseline | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and `plugins/{agent-session-foundation,agent-spawn-gates,tool-output-gates,atm-extension}/Cargo.toml` |
+| `CDR-1` / Change Drift Remediation | Planned | establish `integrate/cdr` from the hardened logging baseline and freeze the execution baseline for the numbered phase | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch merge state, `docs/project-plan.md`, and the first-pass release-baseline control docs |
+| `CDR-2` / Change Drift Remediation | Planned | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and `plugins/{agent-session-foundation,agent-spawn-gates,tool-output-gates,atm-extension}/Cargo.toml` |
+| `CDR-3` / Change Drift Remediation | Planned | only the non-observability runtime hardening that remains after the fresh post-`CDR-2` gap review | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | `CDR-2` gap review outcome | `crates/sc-hooks-core`, `crates/sc-hooks-sdk`, targeted `sc-hooks-cli` runtime surfaces, and any direct regression tests for still-open findings |
 | Hook Phase 0 | Completed | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Completed | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Hook Phase 2 | Completed | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
@@ -152,13 +158,13 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 depends on Sprint 2 because setup proof should reflect the surviving compliance/runtime path, not the pre-cleanup shape.
 - Sprint 5 must not start until Sprint 4 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 6 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
-- `CDR-B` now starts from the hardened logging baseline already merged into
-  this branch; do not use stale `integrate/cdr` or pre-hardening branches as
-  the planning baseline.
-- `CDR-B` must close before any remaining `CDR-C` items are frozen into the
-  release plan, because the refreshed control-doc pass defines which runtime
-  gaps are still real versus already absorbed by the hardened baseline.
-- `CDR-C` must stay limited to findings that remain open after that refreshed
+- `CDR-1` must refresh `integrate/cdr` from the hardened logging baseline
+  before any numbered execution sprint branches are cut from that integration
+  branch.
+- `CDR-2` must close before `CDR-3` scope is frozen, because the refreshed
+  control-doc pass defines which runtime gaps are still real versus already
+  absorbed by the hardened baseline.
+- `CDR-3` must stay limited to findings that remain open after that refreshed
   gap pass; observability-phase work already delivered by
   `integrate/logging-improvements` must not be reopened under a new label.
 - `SC-LOG-S1` must close before any later observability sprint, because naming choices feed the binary name, config keys, service identity, and on-disk audit paths.
@@ -661,8 +667,8 @@ Release preflight evidence:
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
 | removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), reconciled mixed plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
-| misalignment audit | in progress | The hardened logging baseline closed the old observability misalignment class, but the refreshed `CDR-B` pass remains open until requirements, architecture, traceability, README, and plugin metadata all match that merged baseline. |
-| release-doc audit | in progress | `docs/project-plan.md` and `README.md` now reflect the hardened logging baseline and mixed plugin posture; `CDR-B` remains the explicit sprint that will bring requirements, architecture, traceability, and plugin metadata to the same final release scope. |
+| misalignment audit | in progress | The hardened logging baseline closed the old observability misalignment class, but the numbered CDR phase remains open until `CDR-2` finishes reconciling requirements, architecture, traceability, README, and plugin metadata against the merged baseline. |
+| release-doc audit | in progress | `docs/project-plan.md` and `README.md` now reflect the hardened logging baseline and numbered phase model; `CDR-2` remains the explicit sprint that will bring requirements, architecture, traceability, and plugin metadata to the same final release scope. |
 | branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
 | validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |
 
