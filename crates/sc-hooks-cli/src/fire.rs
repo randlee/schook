@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::str::FromStr;
 
 use crate::config::ScHooksConfig;
 use crate::dispatch;
@@ -6,6 +7,7 @@ use crate::errors::CliError;
 use crate::metadata;
 use crate::resolution;
 use crate::session;
+use sc_hooks_core::events::HookType;
 
 pub fn run_fire(
     config: &ScHooksConfig,
@@ -13,6 +15,8 @@ pub fn run_fire(
     event: Option<&str>,
     payload: Option<&Value>,
 ) -> Result<String, CliError> {
+    let hook_type = HookType::from_str(hook)
+        .map_err(|_| CliError::internal(format!("unknown hook type `{hook}`")))?;
     let session_id = metadata::current_session_id();
     let disabled_plugins = session::load_disabled_plugins(
         session_id
@@ -21,7 +25,7 @@ pub fn run_fire(
     )?;
     let handlers = resolution::resolve_chain(
         config,
-        hook,
+        hook_type,
         event,
         sc_hooks_core::dispatch::DispatchMode::Sync,
         payload,
@@ -36,7 +40,7 @@ pub fn run_fire(
     match dispatch::execute_chain(
         &handlers,
         config,
-        hook,
+        hook_type,
         event,
         sc_hooks_core::dispatch::DispatchMode::Sync,
         payload,
@@ -111,7 +115,7 @@ PostToolUse = ["guard-paths"]
             "zero-match fire elapsed {elapsed:?} exceeded 2ms target"
         );
         assert!(
-            !Path::new(".sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl").exists(),
+            !Path::new(sc_hooks_core::OBSERVABILITY_LOG_PATH).exists(),
             "zero-match path should not write observability logs"
         );
     }

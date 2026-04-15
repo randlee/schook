@@ -9,6 +9,14 @@ Owning requirement IDs:
 - `OBS-006`
 - `OBS-007`
 - `OBS-008`
+- `OBS-009` (`Env override ownership and the layered `[observability]` surface are defined in `docs/observability-contract.md` §3.1; SC-LOG-S4 cross-reference`)
+
+Scope note:
+- `DEF-010`, `DEF-011`, `DEF-012`, `DEF-013`, `DEF-017`, and `DEF-017a` are
+  owned by `docs/observability-contract.md` and are intentionally excluded from
+  this contract's owning-ID list
+- `session.root_divergence` is owned by `docs/observability-contract.md`; this
+  document covers the `dispatch.complete` log family only
 
 This document defines the current JSONL dispatch-log contract for downstream
 consumers.
@@ -26,6 +34,8 @@ It does not define:
 - CLI human-readable output
 - future observability sinks beyond the current file sink baseline and the
   contract-tested default console sink
+- full-audit debug-field semantics; those live in
+  `docs/observability-contract.md`
 
 Consistency note:
 - fallback stderr wording for observability-emission failures is owned by
@@ -34,15 +44,23 @@ Consistency note:
 
 ## 1.1 Environment Controls
 
+- `[observability].mode`
+  - repo-local accepted values: `off`, `standard`, `full`
+  - global accepted values: `off`, `standard`
+  - when resolved to `off`, no durable dispatch log line is written and the
+    sink env flags below do not re-enable structured logging
 - `SC_HOOKS_ENABLE_CONSOLE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: off
-  - enables console-sink emission for operator/debugging workflows
+  - enables console-sink emission for operator/debugging workflows when the
+    resolved mode is not `off`
 - `SC_HOOKS_ENABLE_FILE_SINK`
   - accepted values: `1`, `true`, `yes`, `on`, `0`, `false`, `no`, `off`
   - default: on
   - controls durable JSONL file emission beneath the resolved observability root
-- when both are enabled, console and file sinks emit the same dispatch semantics while differing only in presentation/rendering
+    when the resolved mode is not `off`
+- when both are enabled, console and file sinks emit the same dispatch
+  semantics while differing only in presentation/rendering
 
 Important current reality:
 - the current implementation does not emit the old ad hoc `DispatchLogEntry`
@@ -51,7 +69,7 @@ Important current reality:
 - the file sink is the canonical structured contract; the console sink is a
   human-readable rendering of the same dispatch event for operator/debugging use
 
-## 1.1 Console Sink Relationship
+## 1.2 Console Sink Relationship
 
 - the default console sink renders one human-readable line per qualifying
   dispatch
@@ -69,13 +87,16 @@ Implements:
 Current default file path:
 
 ```text
-.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl
+.sc-hooks/observability/logs/sc-hooks.log.jsonl
 ```
 
 Current write model:
 - the file is newline-delimited JSON
 - each line is one complete dispatch log record
+- no line is written when the resolved `[observability].mode` is `off`
 - if no handlers execute, no line is written
+- if a pre-dispatch failure triggers the standard-mode degraded stderr signal,
+  no JSONL line is written because `dispatch.complete` was never emitted
 
 ## 2.1 Sink Routing Environment Variables
 
@@ -87,10 +108,15 @@ The current host supports these sink-routing toggles:
 | `SC_HOOKS_ENABLE_FILE_SINK` | `true` | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` | Enables the JSONL file sink at the contract path above |
 
 Current rules:
+- resolved `[observability].mode = "off"` suppresses durable dispatch logging
+  before the env-flag sink toggles are considered
 - both sinks may be enabled simultaneously
 - the file sink remains the canonical structured logging surface
 - invalid values fall back to the documented default and emit a warning to
   `stderr`
+- standard-mode degraded stderr signals for pre-dispatch failures are owned by
+  `docs/observability-contract.md`; they are intentionally outside the JSONL
+  dispatch-log envelope contract described here
 
 ## 3. Top-Level Record Envelope
 
@@ -109,7 +135,7 @@ Current dispatch records use:
 | `level` | string | current values are `Info`, `Warn`, or `Error` |
 | `service` | string | always `sc-hooks` |
 | `target` | string | always `hook` |
-| `action` | string | always `dispatch.complete` |
+| `action` | string | always `dispatch.complete` for the dispatch-log records covered by this contract |
 | `message` | string | currently always present |
 | `identity.hostname` | string or null | currently `null` |
 | `identity.pid` | integer or null | current process id |

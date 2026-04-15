@@ -40,6 +40,14 @@ fn stop_payload(session_id: &str, cwd: &Path) -> serde_json::Value {
     })
 }
 
+fn session_end_payload(session_id: &str, cwd: &Path, reason: Option<&str>) -> serde_json::Value {
+    serde_json::json!({
+        "session_id": session_id,
+        "cwd": cwd.to_str().expect("cwd utf8"),
+        "reason": reason,
+    })
+}
+
 fn test_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -635,4 +643,50 @@ fn missing_project_dir_preserves_root_without_divergence_context() {
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
     assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
     assert_eq!(parsed["agent_state"], "idle");
+}
+
+#[test]
+fn session_end_uses_terminal_transition_path() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let session_id = "session-ended";
+    fs::create_dir_all(&project_root).expect("project root");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "42"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("session start should persist");
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionEnd,
+                None,
+                session_end_payload(session_id, &project_root, Some("session_ended")),
+            ))
+            .expect("session end should persist terminal state");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["agent_state"], "ended");
+    assert_eq!(parsed["last_hook_event"], "SessionEnd");
+    assert_eq!(parsed["state_reason"], "session_ended");
+    assert!(parsed["ended_at"].as_str().is_some());
 }

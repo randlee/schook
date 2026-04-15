@@ -10,7 +10,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::{block, proceed};
@@ -69,8 +69,8 @@ impl ManifestProvider for ToolOutputGatesHandler {
             contract_version: 1,
             name: "tool-output-gates".to_string(),
             mode: DispatchMode::Sync,
-            hooks: vec!["PostToolUse".to_string()],
-            matchers: vec!["Bash".to_string()],
+            hooks: vec![HookType::PostToolUse],
+            matchers: vec![ManifestMatcher::from("Bash")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,

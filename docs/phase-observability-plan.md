@@ -149,6 +149,8 @@ Environment overrides:
 - `SC_HOOKS_OBSERVABILITY_MODE`
 - `SC_HOOKS_AUDIT_PROFILE`
 - `SC_HOOKS_AUDIT_PATH`
+- `SC_HOOKS_AUDIT_MAX_RUNS`
+- `SC_HOOKS_AUDIT_MAX_AGE_DAYS`
 - `SC_HOOKS_AUDIT_REDACTION`
 - `SC_HOOKS_AUDIT_CAPTURE_PAYLOADS`
 - `SC_HOOKS_AUDIT_CAPTURE_STDIO`
@@ -261,16 +263,19 @@ It keeps the current lower-volume posture.
 - degraded observability paths such as fallback-to-stderr
 - root-divergence sequencing when present
 
-Stable `full` event names:
+Implemented and contract-frozen `full` event names in `SC-LOG-S4`:
 
 - `hook.invocation.received`
-- `hook.invocation.resolved`
 - `hook.invocation.zero_match`
-- `hook.dispatch.started`
 - `hook.dispatch.completed`
 - `hook.invocation.failed_pre_dispatch`
-- `hook.observability.degraded`
-- `hook.session.root_divergence`
+
+Planned future event names with explicit later-phase assignment:
+
+- `hook.invocation.resolved` in `SC-LOG-S6`
+- `hook.dispatch.started` in `SC-LOG-S6`
+- `hook.observability.degraded` in `SC-LOG-S6`
+- `hook.session.root_divergence` in `SC-LOG-S6`
 
 `lean` profile fields:
 
@@ -278,7 +283,6 @@ Stable `full` event names:
 - service
 - run ID
 - invocation ID
-- session ID when present
 - hook name
 - hook event name
 - mode
@@ -290,6 +294,12 @@ Stable `full` event names:
 - outcome
 - timing
 - degraded-path flags
+
+Lean-field note:
+
+- `session_id` is intentionally not part of the committed `SC-LOG-S4` lean
+  schema; add it only through a later contract-and-implementation amendment if
+  session correlation becomes a required audit field
 
 `debug` mandatory fields, in addition to all `lean` fields, are:
 
@@ -303,6 +313,12 @@ Stable `full` event names:
 
 `debug` may add optional payload excerpts only when a separate capture flag
 allows them.
+
+Field-naming note:
+
+- the human-readable labels above are planning shorthand only
+- the authoritative serialized JSON key names live in
+  `docs/observability-contract.md` section `4.2`
 
 ## 7. Redaction Model
 
@@ -456,6 +472,8 @@ Exit gate:
 - every hook invocation that reaches runtime processing emits the documented
   standard-mode operational record or degraded signal when `standard` is active
 - `standard` still avoids full zero-match accounting unless `full` is active
+- full-mode zero-match accounting and full-mode degraded pre-dispatch signaling
+  are deferred to `SC-LOG-S4`
 
 ### `SC-LOG-S4` / Observability Phase 3
 
@@ -468,6 +486,9 @@ Exit gate:
 - `full` lean profile writes JSONL under run-scoped directories
 - zero-match and pre-dispatch failure paths are accounted for in `full`
 - integration tests, not unit-test loops, prove the durable file contract
+- degraded append-failure fallback coverage is explicitly deferred to
+  `SC-LOG-S6` as planned requirement `DEF-017a`, where degraded-path hardening
+  closes logger-init, emit, append, and prune failure proof together
 - the closed `debug` mandatory field list is frozen in docs before debug-profile
   implementation begins
 - the sealed internal sink-boundary rule is documented and preserved at the
@@ -490,13 +511,16 @@ Exit gate:
 ### `SC-LOG-S6` / Observability Phase 5
 
 - harden pruning and bounded retention
-- prove logger-init, emit, and prune failures stay non-blocking
+- prove logger-init, emit, append, and prune failures stay non-blocking
 - preserve file-backed audit JSONL as the canonical machine-readable source
+- close deferred `DEF-017a` degraded pre-dispatch audit fallback proof
 
 Exit gate:
 
 - pruning keeps the newest 10 runs and the 14-day age cap by default
-- logger-init, emit, and prune failures never change hook execution outcomes
+- logger-init, emit, append, and prune failures never change hook execution outcomes
+- long-term integration coverage forces append and emit failures, keeps hook
+  exits unchanged, and asserts the documented degraded fallback text
 - no committed phase behavior depends on live structured streaming or exporter
   availability
 
@@ -505,6 +529,10 @@ Exit gate:
 - prove 50+ simultaneous agents
 - harden retention and pruning
 - confirm all degraded paths remain non-blocking
+- keep the concurrency proof in integration or soak coverage rather than the
+  fast unit-test suite
+- S4 merge-forward closure note: audit code paths rely on `AUD-008` and
+  `AUD-011` being present and unique; there is no runtime dedup set involved
 
 Exit gate:
 
@@ -512,6 +540,24 @@ Exit gate:
   corruption or shared-file contention
 - the long-term QA path is documented separately from normal unit-test suites
 - phase-close evidence includes load-run results and degraded-path checks
+
+Phase-close evidence on the `SC-LOG-S7` branch:
+
+- soak record: commit `fe66778` on 2026-04-05 kept the 64-agent
+  `CONC-001` integration proof green, with all 64 of 64 concurrent host
+  invocations producing one valid run-scoped audit directory each under a
+  shared audit root without JSON corruption
+- `cargo +1.94.1 test --workspace` includes
+  `full_mode_concurrent_agents_shard_runs_without_corruption`, which runs 64
+  concurrent host invocations against one shared audit root and verifies one
+  valid run-scoped audit directory per agent without JSON corruption
+- `cargo +1.94.1 test --workspace --release` keeps the degraded-path checks
+  green for:
+  - `standard_mode_logger_init_failure_is_non_blocking`
+  - `standard_mode_emit_failure_is_non_blocking`
+  - `full_mode_logger_init_failure_is_non_blocking`
+  - `full_mode_append_failure_is_non_blocking`
+  - `full_mode_prune_failure_is_non_blocking`
 
 ## 12. Out Of Scope For The Committed Phase
 

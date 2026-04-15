@@ -19,7 +19,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{AgentState, CanonicalSessionRecord, SessionId, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
@@ -168,15 +168,15 @@ impl ManifestProvider for AtmExtensionHandler {
             name: "atm-extension".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![
-                "PreToolUse".to_string(),
-                "PostToolUse".to_string(),
-                "PermissionRequest".to_string(),
-                "Stop".to_string(),
-                "TeammateIdle".to_string(),
-                "SubagentStop".to_string(),
-                "Notification".to_string(),
+                HookType::PreToolUse,
+                HookType::PostToolUse,
+                HookType::PermissionRequest,
+                HookType::Stop,
+                HookType::TeammateIdle,
+                HookType::SubagentStop,
+                HookType::Notification,
             ],
-            matchers: vec!["*".to_string()],
+            matchers: vec![ManifestMatcher::from("*")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
@@ -208,10 +208,8 @@ impl SyncHandler for AtmExtensionHandler {
             _ => {
                 // Keep future hook additions fail-open here; ATM-specific relay work
                 // should only promote a new surface after the payload is captured.
-                log::debug!(
-                    "sc-hooks atm-extension: unhandled hook type {:?}, proceeding",
-                    context.hook
-                );
+                let hook_type = context.hook;
+                log::debug!("sc-hooks atm-extension: unhandled hook_type={hook_type} proceeding");
                 Ok(proceed())
             }
         }
@@ -246,10 +244,8 @@ fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     if is_atm_invocation(&payload.tool_input.command) {
         let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = write_identity_file(&identity_file, &record, &routing) {
-            log::error!(
-                "atm-extension: failed to write ATM identity file {}: {err}",
-                identity_file.display()
-            );
+            let identity_file = identity_file.display();
+            log::error!("atm-extension: failed to write identity_file={identity_file} error={err}");
         }
     }
 
@@ -284,9 +280,9 @@ fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
     if is_atm_invocation(&payload.tool_input.command) {
         let identity_file = identity_file_path(record.active_pid().get());
         if let Err(err) = delete_identity_file(&identity_file) {
+            let identity_file = identity_file.display();
             log::error!(
-                "atm-extension: failed to delete ATM identity file {}: {err}",
-                identity_file.display()
+                "atm-extension: failed to delete identity_file={identity_file} error={err}"
             );
         }
     }
@@ -661,9 +657,9 @@ fn execute_relay(
     if decision.cleanup_identity_file {
         let identity_file = identity_file_path(decision.relay.process_id);
         if let Err(err) = delete_identity_file(&identity_file) {
+            let identity_file = identity_file.display();
             log::error!(
-                "atm-extension: failed to delete ATM identity file {}: {err}",
-                identity_file.display()
+                "atm-extension: failed to delete identity_file={identity_file} error={err}"
             );
         }
     }
@@ -698,9 +694,9 @@ fn append_relay_event(root: Option<PathBuf>, event: Value) {
     })();
 
     if let Err(err) = result {
+        let relay_event_path = events_path.display();
         log::error!(
-            "atm-extension: failed to append relay event {}: {err}",
-            events_path.display()
+            "atm-extension: failed to append relay_event_path={relay_event_path} error={err}"
         );
     }
 }
@@ -751,7 +747,7 @@ fn delete_identity_file(path: &Path) -> std::io::Result<()> {
 fn is_atm_invocation(command: &str) -> bool {
     let tokens = shell_words::split(command).unwrap_or_else(|err| {
         log::warn!(
-            "[atm-extension] shell_words parse error for command {command:?}: {err}; falling back to whitespace split"
+            "[atm-extension] shell_words parse error command={command:?} error={err}; falling back to whitespace split"
         );
         command
             .split_whitespace()

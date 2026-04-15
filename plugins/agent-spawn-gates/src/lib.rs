@@ -10,7 +10,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{AgentState, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
@@ -60,8 +60,8 @@ impl ManifestProvider for AgentSpawnGatesHandler {
             contract_version: 1,
             name: "agent-spawn-gates".to_string(),
             mode: DispatchMode::Sync,
-            hooks: vec!["PreToolUse".to_string()],
-            matchers: vec!["Agent".to_string()],
+            hooks: vec![HookType::PreToolUse],
+            matchers: vec![ManifestMatcher::from("Agent")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
