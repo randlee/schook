@@ -1,4 +1,6 @@
 #![cfg(unix)]
+//! Unix-only worktree hook behavior lives in the library test surface so the
+//! shared shell fixture helpers can be reused from one crate-local place.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

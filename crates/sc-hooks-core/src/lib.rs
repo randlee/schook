@@ -14,6 +14,8 @@ pub mod events;
 pub mod exit_codes;
 /// Manifest schema types.
 pub mod manifest;
+/// Shared process-spawn helpers.
+pub mod process;
 /// Hook result schema types.
 pub mod results;
 /// Canonical session-state model and invariants.

@@ -1,26 +1,216 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use serde_json::Value;
 
 use crate::config::ScHooksConfig;
 use crate::{events, install, metadata};
+use sc_hooks_core::events::HookType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AuditOptions {
     pub strict: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuditDiagnostic {
+    UnresolvedHandler {
+        handler_name: String,
+    },
+    ManifestLoadFailed {
+        handler_name: String,
+        error: String,
+    },
+    MissingRequiredMetadataField {
+        handler_name: String,
+        field: String,
+    },
+    ValidationRuleFailed {
+        handler_name: String,
+        field: String,
+        rule: ValidationAuditRule,
+    },
+    AsyncLongRunningUnsupported {
+        handler_name: String,
+    },
+    HookNotDeclared {
+        handler_name: String,
+        hook_name: String,
+    },
+    MatcherWarning {
+        message: String,
+    },
+    MatcherError {
+        message: String,
+    },
+    InstallPlanWarning {
+        message: String,
+    },
+    InstallPlanGenerationFailed {
+        error: String,
+    },
+    InstallPlanEntry {
+        hook: String,
+        matcher: String,
+        has_sync: bool,
+        async_buckets: Vec<String>,
+    },
+    MissingLongRunningDescription {
+        handler_name: String,
+    },
+    SandboxNeedsNetworkAck {
+        handler_name: String,
+    },
+    SandboxPathMissing {
+        handler_name: String,
+        path: String,
+    },
+    SandboxPathUnacknowledged {
+        handler_name: String,
+        path: String,
+    },
+    PluginsDirPermissive {
+        path: String,
+        mode: u32,
+    },
+    PluginWorldWritable {
+        handler_name: String,
+        mode: u32,
+        path: String,
+    },
+    PluginWrongOwner {
+        handler_name: String,
+        path: String,
+    },
+}
+
+impl AuditDiagnostic {
+    pub fn render(&self) -> String {
+        match self {
+            Self::UnresolvedHandler { handler_name } => {
+                format!("AUD-001 unresolved handler `{handler_name}`")
+            }
+            Self::ManifestLoadFailed {
+                handler_name,
+                error,
+            } => format!("AUD-002 manifest load failed for `{handler_name}`: {error}"),
+            Self::MissingRequiredMetadataField {
+                handler_name,
+                field,
+            } => format!("AUD-003 `{handler_name}` missing required metadata field `{field}`"),
+            Self::ValidationRuleFailed {
+                handler_name,
+                field,
+                rule,
+            } => format!(
+                "AUD-004 `{handler_name}` {} failed for `{field}`",
+                rule.as_str()
+            ),
+            Self::AsyncLongRunningUnsupported { handler_name } => format!(
+                "AUD-005 handler `{handler_name}` long_running=true is only supported for sync handlers"
+            ),
+            Self::HookNotDeclared {
+                handler_name,
+                hook_name,
+            } => format!("AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"),
+            Self::MatcherWarning { message } => format!("AUD-008W warning {message}"),
+            Self::MatcherError { message } => format!("AUD-008 {message}"),
+            Self::InstallPlanWarning { message } => format!("AUD-007 {message}"),
+            Self::InstallPlanGenerationFailed { error } => {
+                format!("AUD-007 install plan generation failed: {error}")
+            }
+            Self::InstallPlanEntry {
+                hook,
+                matcher,
+                has_sync,
+                async_buckets,
+            } => {
+                let bucket_summary = if async_buckets.is_empty() {
+                    "none".to_string()
+                } else {
+                    async_buckets.join(",")
+                };
+                format!(
+                    "AUD-007 {hook}/{matcher} -> sync={has_sync}, async_buckets={bucket_summary}"
+                )
+            }
+            Self::MissingLongRunningDescription { handler_name } => format!(
+                "AUD-009 handler `{handler_name}` long_running requires non-empty description"
+            ),
+            Self::SandboxNeedsNetworkAck { handler_name } => format!(
+                "SEC-004 `{handler_name}` requires network but is not listed in [sandbox].allow_network"
+            ),
+            Self::SandboxPathMissing { handler_name, path } => format!(
+                "SEC-002 `{handler_name}` declares sandbox path `{path}` that does not exist"
+            ),
+            Self::SandboxPathUnacknowledged { handler_name, path } => format!(
+                "SEC-003 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
+            ),
+            Self::PluginsDirPermissive { path, mode } => {
+                format!("SEC-006 plugin directory `{path}` has permissive mode {mode:o}")
+            }
+            Self::PluginWorldWritable {
+                handler_name,
+                mode,
+                path,
+            } => format!("SEC-005 plugin `{handler_name}` is world-writable ({mode:o}) at {path}"),
+            Self::PluginWrongOwner { handler_name, path } => {
+                format!("SEC-005 plugin `{handler_name}` is not owned by current user at {path}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationAuditRule {
+    DirExists,
+    FileExists,
+}
+
+impl ValidationAuditRule {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::DirExists => "dir_exists",
+            Self::FileExists => "file_exists",
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct AuditReport {
-    pub errors: Vec<String>,
-    pub warnings: Vec<String>,
-    pub install_summary: Vec<String>,
+    errors: Vec<AuditDiagnostic>,
+    warnings: Vec<AuditDiagnostic>,
+    install_summary: Vec<AuditDiagnostic>,
 }
 
 impl AuditReport {
     pub fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
+        !self.errors().is_empty()
+    }
+
+    pub fn errors(&self) -> &[AuditDiagnostic] {
+        &self.errors
+    }
+
+    pub fn warnings(&self) -> &[AuditDiagnostic] {
+        &self.warnings
+    }
+
+    pub fn install_summary(&self) -> &[AuditDiagnostic] {
+        &self.install_summary
+    }
+
+    pub fn push_error(&mut self, diagnostic: AuditDiagnostic) {
+        self.errors.push(diagnostic);
+    }
+
+    pub fn push_warning(&mut self, diagnostic: AuditDiagnostic) {
+        self.warnings.push(diagnostic);
+    }
+
+    pub fn push_install_summary(&mut self, diagnostic: AuditDiagnostic) {
+        self.install_summary.push(diagnostic);
     }
 }
 
@@ -35,12 +225,21 @@ pub fn run(
     warn_on_plugins_dir_permissions(&mut report);
 
     for (hook_name, chain) in &config.hooks {
+        let hook = match HookType::from_str(hook_name) {
+            Ok(hook) => hook,
+            Err(_) => {
+                report.push_error(AuditDiagnostic::MatcherError {
+                    message: format!("unknown hook `{hook_name}` in config"),
+                });
+                continue;
+            }
+        };
         for handler_name in chain {
             let plugin_path = plugin_path(handler_name);
             if !plugin_path.exists() {
-                report
-                    .errors
-                    .push(format!("AUD-001 unresolved handler `{handler_name}`"));
+                report.push_error(AuditDiagnostic::UnresolvedHandler {
+                    handler_name: handler_name.to_string(),
+                });
                 continue;
             }
 
@@ -52,44 +251,46 @@ pub fn run(
                 Err(sc_hooks_sdk::manifest::ManifestLoadError::Manifest(
                     sc_hooks_sdk::manifest::ManifestError::AsyncLongRunningUnsupported,
                 )) => {
-                    report.errors.push(format!(
-                        "AUD-005 handler `{handler_name}` long_running=true is only supported for sync handlers"
-                    ));
+                    report.push_error(AuditDiagnostic::AsyncLongRunningUnsupported {
+                        handler_name: handler_name.to_string(),
+                    });
                     continue;
                 }
                 Err(sc_hooks_sdk::manifest::ManifestLoadError::Manifest(
                     sc_hooks_sdk::manifest::ManifestError::MissingLongRunningDescription,
                 )) => {
-                    report.errors.push(format!(
-                        "AUD-009 handler `{handler_name}` long_running requires non-empty description"
-                    ));
+                    report.push_error(AuditDiagnostic::MissingLongRunningDescription {
+                        handler_name: handler_name.to_string(),
+                    });
                     continue;
                 }
                 Err(err) => {
-                    report.errors.push(format!(
-                        "AUD-002 manifest load failed for `{handler_name}`: {err}"
-                    ));
+                    report.push_error(AuditDiagnostic::ManifestLoadFailed {
+                        handler_name: handler_name.to_string(),
+                        error: err.to_string(),
+                    });
                     continue;
                 }
             };
 
-            if !manifest.hooks.iter().any(|hook| hook == hook_name) {
-                report.errors.push(format!(
-                    "AUD-006 handler `{handler_name}` does not declare hook `{hook_name}`"
-                ));
+            if !manifest.hooks.contains(&hook) {
+                report.push_error(AuditDiagnostic::HookNotDeclared {
+                    handler_name: handler_name.to_string(),
+                    hook_name: hook_name.to_string(),
+                });
             }
-            let taxonomy = events::validate_matchers_for_hook(hook_name, &manifest.matchers);
+            let taxonomy = events::validate_matchers_for_hook(hook, &manifest.matchers);
             report.warnings.extend(
                 taxonomy
                     .warnings
                     .into_iter()
-                    .map(|warning| format!("AUD-008 warning {warning}")),
+                    .map(|warning| AuditDiagnostic::MatcherWarning { message: warning }),
             );
             report.errors.extend(
                 taxonomy
                     .errors
                     .into_iter()
-                    .map(|error| format!("AUD-008 {error}")),
+                    .map(|error| AuditDiagnostic::MatcherError { message: error }),
             );
 
             validate_sandbox_requirements(
@@ -104,9 +305,10 @@ pub fn run(
                 metadata::assemble_metadata(&runtime, &context, hook_name, None, None)?;
             for (field, requirement) in &manifest.requires {
                 let Some(value) = value_by_path(&metadata_value, field) else {
-                    report.errors.push(format!(
-                        "AUD-003 `{handler_name}` missing required metadata field `{field}`"
-                    ));
+                    report.push_error(AuditDiagnostic::MissingRequiredMetadataField {
+                        handler_name: handler_name.to_string(),
+                        field: field.to_string(),
+                    });
                     continue;
                 };
 
@@ -116,16 +318,20 @@ pub fn run(
                     match rule {
                         sc_hooks_core::validation::ValidationRule::DirExists => {
                             if value.as_str().is_none_or(|path| !Path::new(path).is_dir()) {
-                                report.errors.push(format!(
-                                    "AUD-004 `{handler_name}` dir_exists failed for `{field}`"
-                                ));
+                                report.push_error(AuditDiagnostic::ValidationRuleFailed {
+                                    handler_name: handler_name.to_string(),
+                                    field: field.to_string(),
+                                    rule: ValidationAuditRule::DirExists,
+                                });
                             }
                         }
                         sc_hooks_core::validation::ValidationRule::FileExists => {
                             if value.as_str().is_none_or(|path| !Path::new(path).is_file()) {
-                                report.errors.push(format!(
-                                    "AUD-004 `{handler_name}` file_exists failed for `{field}`"
-                                ));
+                                report.push_error(AuditDiagnostic::ValidationRuleFailed {
+                                    handler_name: handler_name.to_string(),
+                                    field: field.to_string(),
+                                    rule: ValidationAuditRule::FileExists,
+                                });
                             }
                         }
                         _ => {}
@@ -140,7 +346,7 @@ pub fn run(
             report.warnings.extend(
                 plan.warnings
                     .into_iter()
-                    .map(|warning| format!("AUD-007 {warning}")),
+                    .map(|warning| AuditDiagnostic::InstallPlanWarning { message: warning }),
             );
 
             for (hook, entries) in &plan.settings.hooks {
@@ -158,22 +364,19 @@ pub fn run(
                         }
                     }
 
-                    let bucket_summary = if async_buckets.is_empty() {
-                        "none".to_string()
-                    } else {
-                        async_buckets.into_iter().collect::<Vec<_>>().join(",")
-                    };
-                    report.install_summary.push(format!(
-                        "AUD-007 {hook}/{matcher} -> sync={has_sync}, async_buckets={bucket_summary}",
-                        matcher = entry.matcher
-                    ));
+                    report.push_install_summary(AuditDiagnostic::InstallPlanEntry {
+                        hook: hook.to_string(),
+                        matcher: entry.matcher.clone(),
+                        has_sync,
+                        async_buckets: async_buckets.into_iter().collect(),
+                    });
                 }
             }
         }
         Err(err) => {
-            report
-                .errors
-                .push(format!("AUD-007 install plan generation failed: {err}"));
+            report.push_error(AuditDiagnostic::InstallPlanGenerationFailed {
+                error: err.to_string(),
+            });
         }
     }
 
@@ -183,27 +386,37 @@ pub fn run(
 pub fn render(report: &AuditReport) -> String {
     let mut lines = Vec::new();
     lines.push("Audit report".to_string());
-    if report.errors.is_empty() {
+    if report.errors().is_empty() {
         lines.push("errors: 0".to_string());
     } else {
-        lines.push(format!("errors: {}", report.errors.len()));
-        lines.extend(report.errors.iter().map(|error| format!("- {error}")));
+        lines.push(format!("errors: {}", report.errors().len()));
+        lines.extend(
+            report
+                .errors()
+                .iter()
+                .map(|error| format!("- {}", error.render())),
+        );
     }
 
-    if report.warnings.is_empty() {
+    if report.warnings().is_empty() {
         lines.push("warnings: 0".to_string());
     } else {
-        lines.push(format!("warnings: {}", report.warnings.len()));
-        lines.extend(report.warnings.iter().map(|warning| format!("- {warning}")));
+        lines.push(format!("warnings: {}", report.warnings().len()));
+        lines.extend(
+            report
+                .warnings()
+                .iter()
+                .map(|warning| format!("- {}", warning.render())),
+        );
     }
 
-    if !report.install_summary.is_empty() {
+    if !report.install_summary().is_empty() {
         lines.push("install plan:".to_string());
         lines.extend(
             report
-                .install_summary
+                .install_summary()
                 .iter()
-                .map(|entry| format!("- {entry}")),
+                .map(|entry| format!("- {}", entry.render())),
         );
     }
 
@@ -231,9 +444,9 @@ fn validate_sandbox_requirements(
         push_sandbox_exceeded(
             report,
             strict,
-            format!(
-                "SEC-004 `{handler_name}` requires network but is not listed in [sandbox].allow_network"
-            ),
+            AuditDiagnostic::SandboxNeedsNetworkAck {
+                handler_name: handler_name.to_string(),
+            },
         );
     }
 
@@ -246,28 +459,30 @@ fn validate_sandbox_requirements(
 
     for path in &sandbox.paths {
         if !Path::new(path).exists() {
-            report.errors.push(format!(
-                "SEC-002 `{handler_name}` declares sandbox path `{path}` that does not exist"
-            ));
+            report.push_error(AuditDiagnostic::SandboxPathMissing {
+                handler_name: handler_name.to_string(),
+                path: path.clone(),
+            });
         }
 
         if !allowed_paths.iter().any(|allowed| allowed == path) {
             push_sandbox_exceeded(
                 report,
                 strict,
-                format!(
-                    "SEC-004 `{handler_name}` sandbox path `{path}` is not acknowledged in [sandbox].allow_paths"
-                ),
+                AuditDiagnostic::SandboxPathUnacknowledged {
+                    handler_name: handler_name.to_string(),
+                    path: path.clone(),
+                },
             );
         }
     }
 }
 
-fn push_sandbox_exceeded(report: &mut AuditReport, strict: bool, message: String) {
+fn push_sandbox_exceeded(report: &mut AuditReport, strict: bool, diagnostic: AuditDiagnostic) {
     if strict {
-        report.errors.push(message);
+        report.push_error(diagnostic);
     } else {
-        report.warnings.push(message);
+        report.push_warning(diagnostic);
     }
 }
 
@@ -280,11 +495,10 @@ fn warn_on_plugins_dir_permissions(report: &mut AuditReport) {
         if let Ok(metadata) = std::fs::metadata(plugin_dir) {
             let mode = metadata.permissions().mode();
             if mode & 0o022 != 0 {
-                report.warnings.push(format!(
-                    "SEC-006 plugin directory `{}` has permissive mode {:o}",
-                    plugin_dir.display(),
-                    mode
-                ));
+                report.push_warning(AuditDiagnostic::PluginsDirPermissive {
+                    path: plugin_dir.display().to_string(),
+                    mode,
+                });
             }
         }
     }
@@ -298,20 +512,20 @@ fn warn_on_plugin_integrity(handler_name: &str, plugin_path: &Path, report: &mut
         if let Ok(metadata) = std::fs::metadata(plugin_path) {
             let mode = metadata.permissions().mode();
             if mode & 0o002 != 0 {
-                report.warnings.push(format!(
-                    "SEC-005 plugin `{handler_name}` is world-writable ({:o}) at {}",
+                report.push_warning(AuditDiagnostic::PluginWorldWritable {
+                    handler_name: handler_name.to_string(),
                     mode,
-                    plugin_path.display()
-                ));
+                    path: plugin_path.display().to_string(),
+                });
             }
 
             // SAFETY: `geteuid` has no preconditions and returns the current effective UID.
             let effective_uid = unsafe { nix::libc::geteuid() };
             if metadata.uid() != effective_uid {
-                report.warnings.push(format!(
-                    "SEC-005 plugin `{handler_name}` is not owned by current user ({})",
-                    plugin_path.display()
-                ));
+                report.push_warning(AuditDiagnostic::PluginWrongOwner {
+                    handler_name: handler_name.to_string(),
+                    path: plugin_path.display().to_string(),
+                });
             }
         }
     }
@@ -345,26 +559,40 @@ mod tests {
     use crate::config;
     use crate::test_support;
     use std::fs;
+    use std::io::Write;
 
     fn make_plugin(path: &Path, manifest: &str) {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
-        }
+        let parent = path.parent().unwrap_or_else(|| Path::new("."));
+        fs::create_dir_all(parent).expect("plugin parent directory should be creatable");
 
         let script = format!(
             "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\n  cat <<'JSON'\n{manifest}\nJSON\n  exit 0\nfi\ncat >/dev/null\ncat <<'JSON'\n{{\"action\":\"proceed\"}}\nJSON\n"
         );
-        fs::write(path, script).expect("plugin script should be writable");
+        let mut temp =
+            tempfile::NamedTempFile::new_in(parent).expect("temporary plugin file should create");
+        temp.write_all(script.as_bytes())
+            .expect("plugin script should be writable");
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)
+            let mut perms = temp
+                .as_file()
+                .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
             perms.set_mode(0o755);
-            fs::set_permissions(path, perms).expect("plugin should be made executable");
+            temp.as_file()
+                .set_permissions(perms)
+                .expect("plugin should be made executable");
         }
+
+        temp.as_file()
+            .sync_all()
+            .expect("plugin script should sync before persist");
+        temp.into_temp_path()
+            .persist(path)
+            .expect("plugin script should persist atomically");
     }
 
     #[test]
@@ -386,7 +614,12 @@ PreToolUse = ["missing-plugin"]
 
         let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
         assert!(report.has_errors());
-        assert!(report.errors.iter().any(|entry| entry.contains("AUD-001")));
+        assert!(
+            report
+                .errors()
+                .iter()
+                .any(|entry| matches!(entry, AuditDiagnostic::UnresolvedHandler { .. }))
+        );
     }
 
     #[test]
@@ -439,7 +672,13 @@ PostToolUse = ["notify"]
         .expect("config should parse");
 
         let report = run(&cfg, AuditOptions { strict: true }).expect("audit should execute");
-        assert!(report.errors.iter().any(|entry| entry.contains("SEC-004")));
+        assert!(report.errors().iter().any(|entry| {
+            matches!(
+                entry,
+                AuditDiagnostic::SandboxNeedsNetworkAck { .. }
+                    | AuditDiagnostic::SandboxPathUnacknowledged { .. }
+            )
+        }));
     }
 
     #[test]
@@ -467,9 +706,9 @@ PostToolUse = ["notify"]
         let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
         assert!(
             report
-                .errors
+                .errors()
                 .iter()
-                .any(|entry| entry.contains("AUD-005") && entry.contains("long_running=true"))
+                .any(|entry| matches!(entry, AuditDiagnostic::AsyncLongRunningUnsupported { .. }))
         );
     }
 
@@ -497,10 +736,10 @@ PostToolUse = ["notify"]
 
         let report = run(&cfg, AuditOptions::default()).expect("audit should execute");
         assert!(
-            report
-                .errors
-                .iter()
-                .any(|entry| entry.contains("AUD-009") && entry.contains("non-empty description"))
+            report.errors().iter().any(|entry| matches!(
+                entry,
+                AuditDiagnostic::MissingLongRunningDescription { .. }
+            ))
         );
     }
 }

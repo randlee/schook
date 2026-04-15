@@ -13,6 +13,18 @@ pub struct CurrentDirGuard {
     original: PathBuf,
 }
 
+/// Switches the process current directory for one scoped test section.
+///
+/// # Panics
+///
+/// Panics if the current directory cannot be read before switching or if the
+/// requested test directory cannot be entered.
+///
+/// # Safety
+///
+/// This helper mutates process-global current-directory state. Callers rely on
+/// the global [`cwd_lock`] invariant so only one scoped current-directory change
+/// is active at a time within the test process.
 pub fn scoped_current_dir(path: &Path) -> CurrentDirGuard {
     let lock = cwd_lock().lock().unwrap_or_else(|e| e.into_inner());
     let original = std::env::current_dir().expect("cwd should resolve");
@@ -36,7 +48,7 @@ impl Drop for CurrentDirGuard {
 pub fn shared_observability_root() -> PathBuf {
     let root = OBSERVABILITY_ROOT
         .get_or_init(|| {
-            std::env::temp_dir().join(format!("schook-observability-{}", std::process::id()))
+            std::env::temp_dir().join(format!("sc-hooks-observability-{}", std::process::id()))
         })
         .clone();
     std::fs::create_dir_all(&root).expect("shared observability root should be creatable");

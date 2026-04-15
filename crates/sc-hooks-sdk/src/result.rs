@@ -1,3 +1,5 @@
+//! Result helpers for Rust-authored `sc-hooks` plugins.
+
 use serde::{Deserialize, Serialize};
 
 use sc_hooks_core::errors::HookError;
@@ -105,11 +107,69 @@ pub fn error_from_hook_error(error: &HookError) -> HookResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sc_hooks_core::errors::HookError;
 
     #[test]
     fn async_result_converts_to_proceed_hook_result() {
         let result = AsyncResult::with_context("hello").into_hook_result();
         assert_eq!(result.action, HookAction::Proceed);
         assert_eq!(result.additional_context, Some("hello".to_string()));
+    }
+
+    #[test]
+    fn async_result_helpers_cover_empty_and_system_message() {
+        assert_eq!(AsyncResult::empty().additional_context, None);
+        assert_eq!(
+            AsyncResult::with_system_message("system").system_message,
+            Some("system".to_string())
+        );
+    }
+
+    #[test]
+    fn hook_result_constructors_set_expected_fields() {
+        let proceed_result = proceed();
+        assert_eq!(proceed_result.action, HookAction::Proceed);
+        assert_eq!(proceed_result.reason, None);
+
+        let block_result = block("retry");
+        assert_eq!(block_result.action, HookAction::Block);
+        assert_eq!(block_result.reason.as_deref(), Some("retry"));
+
+        let error_result = error("boom");
+        assert_eq!(error_result.action, HookAction::Error);
+        assert_eq!(error_result.message.as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn error_from_hook_error_maps_all_hook_error_kinds() {
+        let invalid_payload = HookError::InvalidPayload {
+            input_excerpt: "{oops".to_string(),
+            source: None,
+        };
+        let invalid_context = HookError::invalid_context("ctx");
+        let state_path = std::env::temp_dir().join("state.json");
+        let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
+        let validation = HookError::validation("field", "bad");
+        let root_divergence = HookError::root_divergence(
+            sc_hooks_core::session::AiRootDir::new("/repo").expect("root"),
+            "/other",
+            sc_hooks_core::events::HookType::SessionStart,
+        );
+        let internal = HookError::internal("internal");
+
+        let cases = [
+            (invalid_payload, "hook_error_kind=invalid_payload"),
+            (invalid_context, "hook_error_kind=invalid_context"),
+            (state_io, "hook_error_kind=state_io"),
+            (validation, "hook_error_kind=validation"),
+            (root_divergence, "hook_error_kind=root_divergence"),
+            (internal, "hook_error_kind=internal"),
+        ];
+
+        for (error, expected_context) in cases {
+            let result = error_from_hook_error(&error);
+            assert_eq!(result.action, HookAction::Error);
+            assert_eq!(result.additional_context.as_deref(), Some(expected_context));
+        }
     }
 }

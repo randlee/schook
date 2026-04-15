@@ -1,3 +1,6 @@
+//! Shared manifest/protocol compliance helpers and host-dispatch probe traits
+//! used by `sc-hooks-test` consumers.
+
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -8,8 +11,8 @@ mod private {
     pub trait Sealed {}
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 /// Result of a single compliance assertion.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceCheck {
     /// Human-readable check name.
     pub name: String,
@@ -19,8 +22,8 @@ pub struct ComplianceCheck {
     pub detail: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 /// Summary report for manifest/protocol compliance checks against one plugin.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ComplianceReport {
     /// Display path to the plugin executable under test.
     pub plugin_path: String,
@@ -35,8 +38,8 @@ impl ComplianceReport {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Shared host-behavior scenarios exercised by the compliance harness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContractScenario {
     /// Dispatch with no payload object.
     AbsentPayload,
@@ -52,8 +55,8 @@ pub enum ContractScenario {
     Timeout,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// Captured host outcome for a contract-behavior scenario.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractScenarioResult {
     /// Process exit code.
     pub exit_code: i32,
@@ -69,23 +72,38 @@ pub struct ContractScenarioResult {
     pub marker_exists: bool,
 }
 
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
 /// Error returned by host-dispatch compliance probes.
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ProbeError {
-    /// Probe failure with a human-readable message.
-    #[error("{0}")]
-    Message(String),
+    /// Probe failure with structured stage context.
+    #[error("probe stage `{stage}` failed: {message}")]
+    Stage {
+        /// Probe stage that failed.
+        stage: &'static str,
+        /// Human-readable failure detail.
+        message: String,
+    },
+}
+
+impl ProbeError {
+    /// Builds a probe error tagged with the failing stage.
+    pub fn stage(stage: &'static str, message: impl Into<String>) -> Self {
+        Self::Stage {
+            stage,
+            message: message.into(),
+        }
+    }
 }
 
 impl From<String> for ProbeError {
     fn from(value: String) -> Self {
-        Self::Message(value)
+        Self::stage("probe", value)
     }
 }
 
 impl From<&str> for ProbeError {
     fn from(value: &str) -> Self {
-        Self::Message(value.to_string())
+        Self::stage("probe", value)
     }
 }
 
@@ -223,16 +241,12 @@ pub fn run_contract_behavior_suite(probe: &impl HostDispatchProbe) -> Vec<Compli
 }
 
 fn invoke_plugin(plugin_path: &Path, input: serde_json::Value) -> ComplianceCheck {
-    let output = {
-        let mut command = Command::new(plugin_path);
-        command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        crate::fixtures::spawn_fixture_command(&mut command)
-    }
-    .and_then(|mut child| {
+    let mut command = Command::new(plugin_path);
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let output = crate::fixtures::spawn_fixture_command(&mut command).and_then(|mut child| {
         if let Some(mut stdin) = child.stdin.take() {
             use std::io::Write;
             let body = serde_json::to_vec(&input).map_err(std::io::Error::other)?;
@@ -483,6 +497,6 @@ mod tests {
         );
 
         let report = run_compliance(&plugin);
-        assert!(report.passed());
+        assert!(report.passed(), "report={report:#?}");
     }
 }
