@@ -101,7 +101,7 @@ sc-hooks test guard-paths
 | `crates/sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
 | `crates/sc-hooks-sdk/` | Rust authoring conveniences for manifests, runner helpers, conditions, and results; not the release-defining contract |
 | `crates/sc-hooks-test/` | Reusable compliance harness and shell-based test fixtures |
-| `plugins/` | Source crates only; all current crates remain scaffold/reference only in the release docs and are not described as shipped runtime plugins |
+| `plugins/` | Source-owned plugin crates: four production-track runtime implementation crates with direct tests plus nine scaffold/reference crates; none are described as bundled/preinstalled runtime plugins |
 | `docs/` | Product requirements, architecture, protocol contracts, planning, and traceability |
 | `examples/` | Checked runtime layout example |
 | `shims/` | Thin adapters for Codex and Gemini |
@@ -146,7 +146,9 @@ Important rule:
 - The runtime config file is `.sc-hooks/config.toml`, not YAML.
 - The dispatcher resolves only external plugins under `.sc-hooks/plugins/`; there are no builtin handler names in the current runtime.
 - SDK helpers are conveniences for Rust plugin authors; they do not override the executable/JSON contract.
-- Observability sink routing is not config-driven in the current release baseline.
+- Observability mode selection is config-driven through `[observability].mode`
+  (`off`, `standard`, `full`); see `docs/requirements.md` and
+  `docs/observability-contract.md` for the current contract.
 
 ```bash
 sc-hooks config
