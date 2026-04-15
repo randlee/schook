@@ -154,9 +154,13 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - `sc-hooks-sdk`, source-owned runtime crates, docs
 - Closure note:
   - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` now require the
-    SDK-owned `traits::private::Sealed` marker
+    SDK-owned `traits::private::Sealed` marker directly
+  - the marker module is `pub(crate)`, so external crates cannot name or
+    implement the sealing trait directly
+  - the current source-owned runtime crates opt in through the SDK-exported
+    hidden marker alias used by the workspace runtime implementations
   - the in-repo runtime implementation crates opt into that marker explicitly,
-    keeping the trait-implementation path source-owned and intentional
+    keeping the trait-implementation path source-owned and compiler-enforced
   - the executable-plugin JSON contract remains the release boundary; the
     sealed marker closes the older gap entry about leaving the SDK trait surface
     open by accident

@@ -25,7 +25,7 @@ use sc_hooks_core::session::{AgentState, CanonicalSessionRecord, SessionId, utc_
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::proceed;
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
+use sc_hooks_sdk::traits::{ManifestProvider, RuntimePluginSealed as Sealed, SyncHandler};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;

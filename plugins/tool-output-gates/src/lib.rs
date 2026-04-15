@@ -14,7 +14,7 @@ use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::{block, proceed};
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
+use sc_hooks_sdk::traits::{ManifestProvider, RuntimePluginSealed as Sealed, SyncHandler};
 use serde::Deserialize;
 use serde_json::Value;
 

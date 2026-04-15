@@ -19,7 +19,7 @@ use sc_hooks_core::session::{
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
+use sc_hooks_sdk::traits::{ManifestProvider, RuntimePluginSealed as Sealed, SyncHandler};
 
 /// Sync lifecycle handler that owns canonical session-state persistence for the
 /// verified Claude hook lifecycle surfaces.

@@ -7,9 +7,12 @@ use sc_hooks_core::manifest::Manifest;
 use crate::result::{AsyncResult, HookResult};
 
 #[doc(hidden)]
-pub mod private {
+pub(crate) mod private {
     pub trait Sealed {}
 }
+
+#[doc(hidden)]
+pub use private::Sealed as RuntimePluginSealed;
 
 /// Public manifest provider surface used by runtime plugin crates.
 ///
@@ -24,7 +27,7 @@ pub trait ManifestProvider: private::Sealed {
 ///
 /// Source-owned runtime crates implement the SDK-owned sealed marker before
 /// implementing this trait; see `SEAL-001` in `docs/implementation-gaps.md`.
-pub trait SyncHandler: ManifestProvider {
+pub trait SyncHandler: ManifestProvider + private::Sealed {
     /// Handles one synchronous hook invocation.
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
 }
@@ -33,7 +36,7 @@ pub trait SyncHandler: ManifestProvider {
 ///
 /// Source-owned runtime crates implement the SDK-owned sealed marker before
 /// implementing this trait; see `SEAL-001` in `docs/implementation-gaps.md`.
-pub trait AsyncHandler: ManifestProvider {
+pub trait AsyncHandler: ManifestProvider + private::Sealed {
     /// Handles one asynchronous hook invocation.
     fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
 }
