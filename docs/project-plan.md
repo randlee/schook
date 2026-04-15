@@ -25,6 +25,24 @@ Current open release-relevant drivers are:
 - a multi-sprint observability phase that extends beyond the current
   dispatch-only file-sink baseline
 
+Current remediation boundary:
+- the named remediation track is the Change Drift Remediation (`CDR`) phase
+- the authoritative execution model is one integration branch plus three
+  numbered sprint branches:
+  - integration branch: `integrate/cdr`
+  - planning branch: `feature/cdr-plan-phase`
+  - sprint branch/worktree `CDR-1`: `feature/cdr-1` at
+    `../schook-worktrees/feature/cdr-1`
+  - sprint branch/worktree `CDR-2`: `feature/cdr-2` at
+    `../schook-worktrees/feature/cdr-2`
+  - sprint branch/worktree `CDR-3`: `feature/cdr-3` at
+    `../schook-worktrees/feature/cdr-3`
+- `integrate/cdr` is now confirmed at hardened logging baseline commit
+  `3b6181e`
+- `CDR-1` is an inventory-only sprint: it freezes the authoritative baseline
+  and gap map but does not perform the broader control-doc reconciliation work
+  reserved for `CDR-2`
+
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
 - `DEF-002`
@@ -69,6 +87,9 @@ Important planning rule:
 | Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
 | Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
+| `CDR-2` / Change Drift Remediation | Planned | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
+| `CDR-3` / Change Drift Remediation | Planned | only the non-observability runtime hardening that still survives the post-`CDR-2` gap review | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | `CDR-2` | targeted runtime crates plus direct regression tests for still-open findings |
 | Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
@@ -205,6 +226,75 @@ Phase-wide fixed decisions:
 
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
+
+### `CDR-1`: Baseline And Final Gap Inventory
+
+Status:
+- completed
+
+Focus:
+- confirm the hardened execution baseline on `integrate/cdr`
+- inventory control-doc claims against actual code, tests, and plugin metadata
+- freeze the authoritative gap map for `CDR-2`
+
+Baseline confirmation:
+- `feature/cdr-1` and `origin/integrate/cdr` both resolve to `3b6181e`
+- the hardened logging baseline from `integrate/logging-improvements` is
+  present on that integration branch
+
+Confirmed-correct baseline:
+- observability hardening is landed and still proved by
+  `crates/sc-hooks-cli/tests/observability_contract.rs`, including `off`,
+  `standard`, and `full` mode coverage, degraded-path behavior, retention, and
+  concurrent full-audit sharding
+- plugin metadata under `plugins/*/Cargo.toml` already distinguishes the four
+  runtime implementation source crates
+  (`agent-session-foundation`, `agent-spawn-gates`, `atm-extension`,
+  `tool-output-gates`) from the remaining scaffold/reference crates
+- direct hook-runtime tests already exist for the production-track plugin set,
+  including `plugins/agent-session-foundation/tests/session_foundation.rs`,
+  `plugins/atm-extension/tests/atm_extension.rs`, and the library/test surfaces
+  in `agent-spawn-gates` and `tool-output-gates`
+- `docs/implementation-gaps.md` correctly keeps the remaining signed-off or
+  ruling-needed items explicit instead of implying they are already closed,
+  including `RULING-NEEDED-ECR-001`, `RULING-NEEDED-ECR-002`, `PRR-009`, and
+  `LOGR-QA-004`
+
+Confirmed drift requiring `CDR-2` reconciliation:
+- this branch's `docs/project-plan.md` still carries the older pre-`CDR`
+  planning model, stale Hook Phase status rows, and outdated observability
+  follow-on language outside the inventory recorded here
+- `docs/requirements.md` still states that the control docs classify the
+  `plugins/` source crates as scaffold/reference for the current release scope,
+  which conflicts with the landed runtime plugin crates and their direct tests
+- `docs/architecture.md` still classifies
+  `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, and
+  `tool-output-gates` as planned scaffold/reference crates
+- `README.md` is internally inconsistent: one section still describes
+  `plugins/` as scaffold/reference only while the plugin table already marks the
+  four runtime implementation crates separately
+- `docs/traceability.md` is closer to the real code state than the control
+  docs, but its plugin-maturity and release-posture claims still need a single
+  reconciled control-doc baseline
+
+Authoritative open gap map after `CDR-1`:
+- `CDR-2` shall reconcile `docs/requirements.md`, `docs/architecture.md`,
+  `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and the runtime
+  plugin metadata so they all describe the same baseline
+- `CDR-2` shall normalize the documented hook-phase/runtime status so landed
+  code is not still described as planned future work
+- `CDR-2` shall make future/deferred language explicit anywhere the code is not
+  actually present, rather than relying on mixed "implemented but planned"
+  wording
+- `CDR-3` remains intentionally unfrozen until the post-`CDR-2` gap review;
+  this inventory did not confirm any new mandatory runtime blocker beyond the
+  already tracked implementation-gap items, so no extra code sprint scope is
+  authorized yet
+
+Acceptance criteria:
+- `integrate/cdr` baseline confirmed at `3b6181e`
+- first-pass control-doc inventory completed against code/tests
+- authoritative gap map recorded here for `CDR-2`
 
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
