@@ -20,12 +20,16 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
+use mimalloc::MiMalloc;
 use sc_hooks_core::events::HookType;
 use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
 use std::str::FromStr;
 
 use crate::errors::CliError;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Debug, Parser)]
 #[command(name = "sc-hooks")]

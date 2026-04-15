@@ -19,7 +19,7 @@ use sc_hooks_core::session::{
 };
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
 
 /// Sync lifecycle handler that owns canonical session-state persistence for the
 /// verified Claude hook lifecycle surfaces.
@@ -138,6 +138,8 @@ impl ManifestProvider for SessionFoundationHandler {
         }
     }
 }
+
+impl Sealed for SessionFoundationHandler {}
 
 impl SyncHandler for SessionFoundationHandler {
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {

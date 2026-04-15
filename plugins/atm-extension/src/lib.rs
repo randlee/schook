@@ -25,7 +25,7 @@ use sc_hooks_core::session::{AgentState, CanonicalSessionRecord, SessionId, utc_
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::proceed;
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
@@ -90,6 +90,18 @@ impl SuggestionType {
 impl RuleContent {
     fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl std::fmt::Display for SuggestionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::fmt::Display for RuleContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -191,6 +203,8 @@ impl ManifestProvider for AtmExtensionHandler {
         }
     }
 }
+
+impl Sealed for AtmExtensionHandler {}
 
 impl SyncHandler for AtmExtensionHandler {
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
@@ -350,7 +364,13 @@ fn handle_teammate_idle(context: HookContext) -> Result<HookResult, HookError> {
     let process_id = record_ref
         .map(|record| record.active_pid().get())
         .or_else(resolve_process_id_from_env)
-        .unwrap_or_else(std::process::id);
+        .unwrap_or_else(|| {
+            let dispatcher_pid = std::process::id();
+            log::warn!(
+                "atm-extension: teammate-idle relay missing agent pid; using dispatcher pid={dispatcher_pid} as source"
+            );
+            dispatcher_pid
+        });
 
     if let Some((store, record)) = loaded {
         persist_atm_update(

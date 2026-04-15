@@ -14,7 +14,7 @@ use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::tools::ToolName;
 use sc_hooks_sdk::result::{block, proceed};
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -22,6 +22,29 @@ use serde_json::Value;
 /// validation.
 #[derive(Debug, Default)]
 pub struct ToolOutputGatesHandler;
+
+#[derive(Debug)]
+enum FencedJsonError {
+    NoneFound,
+    TooMany(usize),
+    InvalidJson(serde_json::Error),
+}
+
+impl FencedJsonError {
+    fn into_retryable_reason(self) -> String {
+        match self {
+            Self::NoneFound => {
+                "Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout.".to_string()
+            }
+            Self::TooMany(count) => format!(
+                "Tool output blocked: expected exactly one fenced `json` block, found {count}. Retry by emitting a single ```json ... ``` block to stdout."
+            ),
+            Self::InvalidJson(err) => format!(
+                "Tool output blocked: fenced `json` block is invalid JSON ({err}). Retry by emitting exactly one fenced `json` block that matches the declared schema."
+            ),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 struct BashToolInput {
@@ -86,6 +109,8 @@ impl ManifestProvider for ToolOutputGatesHandler {
     }
 }
 
+impl Sealed for ToolOutputGatesHandler {}
+
 impl SyncHandler for ToolOutputGatesHandler {
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
         if context.hook != HookType::PostToolUse {
@@ -104,7 +129,7 @@ impl SyncHandler for ToolOutputGatesHandler {
         let stdout = payload.tool_response.stdout.as_deref().unwrap_or("");
         let json_value = match extract_single_fenced_json(stdout) {
             Ok(value) => value,
-            Err(reason) => return Ok(block(reason)),
+            Err(reason) => return Ok(block(reason.into_retryable_reason())),
         };
         if let Err(reason) = validate_against_schema(&schema, &json_value, "$") {
             return Ok(block(format!(
@@ -222,18 +247,12 @@ fn load_schema(path: &Path) -> Result<Value, HookError> {
     })
 }
 
-fn extract_single_fenced_json(stdout: &str) -> Result<Value, String> {
+fn extract_single_fenced_json(stdout: &str) -> Result<Value, FencedJsonError> {
     let blocks = extract_fenced_json_blocks(stdout);
     match blocks.len() {
-        0 => Err("Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout.".to_string()),
-        1 => serde_json::from_str::<Value>(&blocks[0]).map_err(|err| {
-            format!(
-                "Tool output blocked: fenced `json` block is invalid JSON ({err}). Retry by emitting exactly one fenced `json` block that matches the declared schema."
-            )
-        }),
-        count => Err(format!(
-            "Tool output blocked: expected exactly one fenced `json` block, found {count}. Retry by emitting a single ```json ... ``` block to stdout."
-        )),
+        0 => Err(FencedJsonError::NoneFound),
+        1 => serde_json::from_str::<Value>(&blocks[0]).map_err(FencedJsonError::InvalidJson),
+        count => Err(FencedJsonError::TooMany(count)),
     }
 }
 

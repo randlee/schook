@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 log = "0.4.29"
+mimalloc = "0.1.43"
 sc-hooks-core = { version = "0.1.0", path = "../../crates/sc-hooks-core" }
 sc-hooks-sdk = { version = "0.1.0", path = "../../crates/sc-hooks-sdk" }
 serde = { version = "1.0.228", features = ["derive"] }

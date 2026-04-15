@@ -16,7 +16,7 @@ use sc_hooks_core::session::{AgentState, utc_timestamp_now};
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_core::tools::{SpawnKind, ToolName};
 use sc_hooks_sdk::result::{block, proceed};
-use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler, private::Sealed};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -76,6 +76,8 @@ impl ManifestProvider for AgentSpawnGatesHandler {
         }
     }
 }
+
+impl Sealed for AgentSpawnGatesHandler {}
 
 impl SyncHandler for AgentSpawnGatesHandler {
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError> {
