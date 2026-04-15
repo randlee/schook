@@ -8,6 +8,17 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 - [docs/project-plan.md](project-plan.md)
 - [docs/traceability.md](traceability.md)
 
+Post-`CDR-2` reconciliation note:
+
+- the plugin-maturity and hook-phase control-doc drift identified in `CDR-1`
+  is now closed in the control docs; those items no longer require separate gap
+  entries here
+- the remaining active items below are deliberate ruling-needed decisions,
+  packaging/release follow-on work, or explicitly signed-off test debt
+- `CDR-3` reviewed the residual non-observability runtime scope and did not
+  confirm any additional mandatory runtime code changes beyond the active items
+  already recorded below
+
 ## Active Items
 
 ### SEAL-001: SDK Trait-Sealing Decision

@@ -89,7 +89,7 @@ Important planning rule:
 | Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
 | `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
 | `CDR-2` / Change Drift Remediation | Completed | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
-| `CDR-3` / Change Drift Remediation | Planned | only the non-observability runtime hardening that still survives the post-`CDR-2` gap review | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | `CDR-2` | targeted runtime crates plus direct regression tests for still-open findings |
+| `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`, `CDR-B06`, `CDR-B07`, `CDR-B08`, `CDR-I06`, `CDR-I07`, `CDR-I08`, `CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md`, and runtime-scope review only when a still-open finding proves it is necessary |
 | Hook Phase 0 | Completed | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
 | Hook Phase 1 | Completed | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
 | Hook Phase 2 | Completed | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
@@ -253,12 +253,13 @@ Confirmed-correct baseline:
   `tool-output-gates`) from the remaining scaffold/reference crates
 - direct hook-runtime tests already exist for the production-track plugin set,
   including `plugins/agent-session-foundation/tests/session_foundation.rs`,
-  `plugins/atm-extension/tests/atm_extension.rs`, and the library/test surfaces
-  in `agent-spawn-gates` and `tool-output-gates`
+  `plugins/atm-extension/tests/atm_extension.rs`, plus inline `#[cfg(test)]`
+  unit-test modules in `agent-spawn-gates` and `tool-output-gates`
 - `docs/implementation-gaps.md` correctly keeps the remaining signed-off or
   ruling-needed items explicit instead of implying they are already closed,
-  including `RULING-NEEDED-ECR-001`, `RULING-NEEDED-ECR-002`, `PRR-009`, and
-  `LOGR-QA-004`
+  including `RULING-NEEDED-ECR-001`, `RULING-NEEDED-ECR-002`,
+  `RULING-NEEDED-NT-CLI-002`, `RULING-NEEDED-HRN-005`,
+  `RULING-NEEDED-COW-003`, `PRR-009`, and `LOGR-QA-004`
 
 Confirmed drift requiring `CDR-2` reconciliation:
 - this branch's `docs/project-plan.md` still carries the older pre-`CDR`
@@ -286,15 +287,45 @@ Authoritative open gap map after `CDR-1`:
 - `CDR-2` shall make future/deferred language explicit anywhere the code is not
   actually present, rather than relying on mixed "implemented but planned"
   wording
-- `CDR-3` remains intentionally unfrozen until the post-`CDR-2` gap review;
-  this inventory did not confirm any new mandatory runtime blocker beyond the
-  already tracked implementation-gap items, so no extra code sprint scope is
-  authorized yet
+- `CDR-3` was intentionally left unfrozen pending the post-`CDR-2` gap review;
+  that review is now complete and did not confirm any new mandatory runtime
+  blocker beyond the already tracked implementation-gap items, so no additional
+  runtime code sprint scope was required
 
 Acceptance criteria:
 - `integrate/cdr` baseline confirmed at `3b6181e`
 - first-pass control-doc inventory completed against code/tests
 - authoritative gap map recorded here for `CDR-2`
+
+### `CDR-3`: Gap Ledger Reconciliation And Residual Runtime Review
+
+Status:
+- completed
+
+Focus:
+- reconcile the gap ledger against the post-`CDR-2` control-doc baseline
+- make the remaining ruling-needed and signed-off items explicit in this plan
+- confirm whether any residual non-observability runtime code changes are still
+  required
+
+Results:
+- `docs/implementation-gaps.md` now records that the plugin-maturity and
+  hook-phase drift identified in `CDR-1` was closed by `CDR-2`
+- the remaining ruling-needed inventory for this release track is:
+  - `RULING-NEEDED-ECR-001`
+  - `RULING-NEEDED-ECR-002`
+  - `RULING-NEEDED-NT-CLI-002`
+  - `RULING-NEEDED-HRN-005`
+  - `RULING-NEEDED-COW-003`
+- the remaining signed-off follow-on items are `PRR-009` and `LOGR-QA-004`
+- targeted review of the `CDR-B05` through `CDR-B08` and `CDR-I06` through
+  `CDR-I09` runtime scope did not identify any additional mandatory runtime
+  code changes beyond those already documented active items
+
+Acceptance criteria:
+- gap ledger reconciled against the `CDR-2` baseline
+- remaining ruling-needed and signed-off items enumerated clearly
+- explicit closure statement recorded for the residual runtime review
 
 ### Sprint 1: Baseline Alignment And Code Retirement (In Review)
 
@@ -734,6 +765,9 @@ These items stay deferred unless product direction changes:
 - SDK ergonomics beyond the current host-enforced contract
 - production-ready bundled plugin behavior beyond the current source-owned,
   non-bundled plugin posture
+- any future sealed-trait migration remains deferred per `SEAL-001`; if the
+  repo later closes the SDK trait surface, that work needs its own migration
+  sprint and must not be smuggled into release-gate cleanup
 
 ## 16. Release Gate
 
