@@ -149,21 +149,25 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### SEAL-001: SDK Trait-Sealing Decision
 
-- Status: `closed in CDR-2-FIX-1`
+- Status: `closed in CDR-2-FIX-3`
 - Owner area:
   - `sc-hooks-sdk`, source-owned runtime crates, docs
 - Closure note:
   - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` now require the
     SDK-owned `traits::private::Sealed` marker directly
-  - the marker module is `pub(crate)`, so external crates cannot name or
-    implement the sealing trait directly
-  - the current source-owned runtime crates opt in through the SDK-exported
-    hidden marker alias used by the workspace runtime implementations
-  - the in-repo runtime implementation crates opt into that marker explicitly,
-    keeping the trait-implementation path source-owned and compiler-enforced
+  - `traits::private` is `pub(crate)`, so the sealing trait cannot be named
+    directly outside `sc-hooks-sdk`
+  - `RuntimePluginSealed` is the intentional `#[doc(hidden)]` re-export used by
+    the workspace runtime crates as their opt-in mechanism
+  - this leaves the design semi-sealed: workspace-internal plugin crates have a
+    supported hidden path, and external crates are discouraged but not
+    compiler-rejected if they discover and use the alias
+  - this is the intended tradeoff for the current repo shape because the four
+    production-track runtime plugins live in separate workspace crates that
+    need legitimate access to the sealing marker
   - the executable-plugin JSON contract remains the release boundary; the
-    sealed marker closes the older gap entry about leaving the SDK trait surface
-    open by accident
+    hidden alias keeps the opt-in path source-owned without claiming impossible
+    full compiler enforcement across sibling crates
 
 ### DEF-009: Observability Failure Fallback Integration Test
 
