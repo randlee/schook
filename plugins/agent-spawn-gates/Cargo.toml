@@ -5,10 +5,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Runtime-implementation sc-hooks plugin source crate"
+description = "Gate hook plugin enforcing agent spawn policies for sc-hooks runtime"
 publish = false
 
 [dependencies]
+mimalloc = "0.1.43"
 sc-hooks-core = { version = "0.1.0", path = "../../crates/sc-hooks-core" }
 sc-hooks-sdk = { version = "0.1.0", path = "../../crates/sc-hooks-sdk" }
 serde = { version = "1.0.228", features = ["derive"] }

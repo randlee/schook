@@ -10,25 +10,6 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ## Active Items
 
-### SEAL-001: SDK Trait-Sealing Decision
-
-- Status: `closed in LOGR-COMP-FIX-1`
-- Owner area:
-  - `sc-hooks-sdk`, docs
-- Closure note:
-  - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` remain intentionally
-    unsealed because sibling runtime crates still implement them directly
-  - the executable-plugin JSON contract is the current release boundary, but
-    the SDK trait surface is still public for source-owned runtime crates
-  - decision rationale: keep the current trait surface open for in-repo
-    production-track plugin crates, and treat any future trait sealing as a
-    deliberate architecture change requiring a migration plan rather than a
-    silent hardening pass
-  - deferral note: sealed-trait migration is deferred until the public API
-    stabilization gate for the next release-track boundary; any new trait
-    methods must carry default implementations until that stabilization sprint is
-    explicitly scheduled
-
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 
 - Status: `active`
@@ -150,6 +131,43 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     later change touches the helper behavior again
 
 ## Closed Items
+
+### CDR-2: Plugin Maturity Reconciliation
+
+- Status: `closed in CDR-2`
+- Owner area:
+  - release docs, plugin metadata
+- Closure note:
+  - `CDR-2` reconciled `GAP-003`, `BND-001`, and `BND-001a` across the control
+    docs and plugin metadata
+  - the current baseline now consistently distinguishes four
+    production-track runtime implementation source crates from the nine
+    scaffold/reference crates under `plugins/`
+  - the resolved posture is documented in `docs/requirements.md`,
+    `docs/architecture.md`, `docs/traceability.md`, `docs/project-plan.md`,
+    `README.md`, and the four production-track plugin `Cargo.toml` files
+
+### SEAL-001: SDK Trait-Sealing Decision
+
+- Status: `closed in CDR-2-FIX-3`
+- Owner area:
+  - `sc-hooks-sdk`, source-owned runtime crates, docs
+- Closure note:
+  - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` now require the
+    SDK-owned `traits::private::Sealed` marker directly
+  - `traits::private` is `pub(crate)`, so the sealing trait cannot be named
+    directly outside `sc-hooks-sdk`
+  - `RuntimePluginSealed` is the intentional `#[doc(hidden)]` re-export used by
+    the workspace runtime crates as their opt-in mechanism
+  - this leaves the design semi-sealed: workspace-internal plugin crates have a
+    supported hidden path, and external crates are discouraged but not
+    compiler-rejected if they discover and use the alias
+  - this is the intended tradeoff for the current repo shape because the four
+    production-track runtime plugins live in separate workspace crates that
+    need legitimate access to the sealing marker
+  - the executable-plugin JSON contract remains the release boundary; the
+    hidden alias keeps the opt-in path source-owned without claiming impossible
+    full compiler enforcement across sibling crates
 
 ### DEF-009: Observability Failure Fallback Integration Test
 
