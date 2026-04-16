@@ -6,32 +6,37 @@ use sc_hooks_core::manifest::Manifest;
 
 use crate::result::{AsyncResult, HookResult};
 
+#[doc(hidden)]
+pub(crate) mod private {
+    pub trait Sealed {}
+}
+
+#[doc(hidden)]
+pub use private::Sealed as RuntimePluginSealed;
+
 /// Public manifest provider surface used by runtime plugin crates.
 ///
-/// This trait remains intentionally unsealed because handler implementations
-/// live in sibling workspace crates rather than inside `sc-hooks-sdk` itself;
-/// see `SEAL-001` in `docs/implementation-gaps.md`.
-pub trait ManifestProvider {
+/// Source-owned runtime crates implement the SDK-owned sealed marker before
+/// implementing this trait; see `SEAL-001` in `docs/implementation-gaps.md`.
+pub trait ManifestProvider: private::Sealed {
     /// Returns the manifest advertised by this handler.
     fn manifest(&self) -> Manifest;
 }
 
 /// Sync handler contract for runtime plugin crates.
 ///
-/// This trait remains intentionally unsealed so sibling workspace crates can
-/// implement the host-facing trait surface; see `SEAL-001` in
-/// `docs/implementation-gaps.md`.
-pub trait SyncHandler: ManifestProvider {
+/// Source-owned runtime crates implement the SDK-owned sealed marker before
+/// implementing this trait; see `SEAL-001` in `docs/implementation-gaps.md`.
+pub trait SyncHandler: ManifestProvider + private::Sealed {
     /// Handles one synchronous hook invocation.
     fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
 }
 
 /// Async handler contract for runtime plugin crates.
 ///
-/// This trait remains intentionally unsealed so sibling workspace crates can
-/// implement the host-facing trait surface; see `SEAL-001` in
-/// `docs/implementation-gaps.md`.
-pub trait AsyncHandler: ManifestProvider {
+/// Source-owned runtime crates implement the SDK-owned sealed marker before
+/// implementing this trait; see `SEAL-001` in `docs/implementation-gaps.md`.
+pub trait AsyncHandler: ManifestProvider + private::Sealed {
     /// Handles one asynchronous hook invocation.
     fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
 }
@@ -46,6 +51,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     struct DummySync;
+
+    impl private::Sealed for DummySync {}
 
     impl ManifestProvider for DummySync {
         fn manifest(&self) -> Manifest {
@@ -74,6 +81,8 @@ mod tests {
     }
 
     struct DummyAsync;
+
+    impl private::Sealed for DummyAsync {}
 
     impl ManifestProvider for DummyAsync {
         fn manifest(&self) -> Manifest {

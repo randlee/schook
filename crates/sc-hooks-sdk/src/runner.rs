@@ -263,7 +263,7 @@ fn write_result(result: &HookResult) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::ManifestProvider;
+    use crate::traits::{ManifestProvider, private};
     use sc_hooks_core::errors::HookError;
     use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
     use sc_hooks_core::results::HookAction;
@@ -273,6 +273,9 @@ mod tests {
 
     struct DummySync;
     struct DummyAsync;
+
+    impl private::Sealed for DummySync {}
+    impl private::Sealed for DummyAsync {}
 
     impl ManifestProvider for DummySync {
         fn manifest(&self) -> Manifest {
@@ -453,6 +456,8 @@ mod tests {
     fn run_sync_with_context_converts_handler_error() {
         struct FailingSync;
 
+        impl private::Sealed for FailingSync {}
+
         impl ManifestProvider for FailingSync {
             fn manifest(&self) -> Manifest {
                 DummySync.manifest()
@@ -480,6 +485,8 @@ mod tests {
     fn run_sync_with_context_preserves_successful_result() {
         struct SuccessfulSync;
 
+        impl private::Sealed for SuccessfulSync {}
+
         impl ManifestProvider for SuccessfulSync {
             fn manifest(&self) -> Manifest {
                 DummySync.manifest()
@@ -503,6 +510,8 @@ mod tests {
     #[test]
     fn run_async_with_context_converts_success_and_error() {
         struct FailingAsync;
+
+        impl private::Sealed for FailingAsync {}
 
         impl ManifestProvider for FailingAsync {
             fn manifest(&self) -> Manifest {

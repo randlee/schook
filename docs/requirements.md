@@ -28,7 +28,10 @@ Current release scope is the host dispatcher foundation:
 - `sc-observability` JSONL dispatch events
 
 Current release scope does not include:
-- shipped runtime plugin behavior from the scaffold/reference crates under `plugins/`; all source crates under `plugins/` remain outside the current release scope
+- shipped runtime plugin behavior from the nine scaffold/reference crates under
+  `plugins/`; the four production-track runtime implementation source crates
+  are classified per `BND-001` and `BND-001a`, while the scaffold/reference
+  crates remain outside the current release scope
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
 - a public sink-extension API, exporter/OTel transport configuration, or any `[logging]` section outside the supported `[observability]` surface
