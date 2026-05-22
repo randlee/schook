@@ -29,6 +29,8 @@ estimated_scope: large
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
+- `integrate/phase-N` is the `Phase N` integration branch for accepted sprint
+  outputs and readiness updates
 - `docs/phase-N/readiness.md` (`read-only` during `N.1`; only the integration
   author updates accepted rows after sprint acceptance)
 - `docs/hook-api/codex-hook-api.md`
@@ -164,7 +166,10 @@ Approved Codex fixture manifest / drift artifact shape:
 - every approved Codex payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - `test-harness/hooks/codex/fixtures/approved/manifest.json` records
-  `provider`, `codex_version`, `capture_date`, and `hook_surfaces` by name
+  `provider`, `codex_version`, `capture_date`, `capture_root`, and
+  `hook_surfaces` by name
+- every captured Codex manifest surface records `control_semantics` with
+  `blocking`, `exit_code_contract`, and `stdio_contract`
 - every audited Codex hook surface has an explicit manifest / findings-ledger
   disposition: `captured` or `confirmed-not-exercisable`
 - before the first `N.1` harness commit,

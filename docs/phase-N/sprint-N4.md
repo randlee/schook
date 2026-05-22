@@ -28,6 +28,8 @@ estimated_scope: medium
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
+- `integrate/phase-N` is the `Phase N` integration branch; accepted `N.1`,
+  `N.2`, and `N.3` outputs must already be merged there before `N.4` begins
 - `docs/phase-N/readiness.md` (`N.4` records the final verdict, but the
   integration author remains the sole writer for accepted sprint rows and final
   verdict updates)
@@ -35,8 +37,9 @@ estimated_scope: medium
 
 ## Prerequisites
 
-- Codex and Gemini fixture/model/test lines are complete
-- normalization inventory is frozen
+- Codex and Gemini fixture/model/test lines are complete on `integrate/phase-N`
+- normalization inventory is merged to `integrate/phase-N` and the
+  corresponding readiness rows were updated by the integration author
 
 ## Exact Targets
 
@@ -145,6 +148,8 @@ explicit code samples or signatures showing the intended end state.
 - a `GO` verdict is impossible unless every locally exercisable surface has a
   final disposition and `N.3` has zero open `BLOCKING` or `IMPORTANT`
   findings
+- `docs/traceability.md` reflects the final status for `HKR-014`, `HKR-015`,
+  and `HKR-016` before `N.4` closes
 - `docs/project-plan.md` summarizes the verdict from
   `docs/phase-N/readiness.md`
 - `docs/plan-cross-provider-hooks.md` summarizes the verdict from

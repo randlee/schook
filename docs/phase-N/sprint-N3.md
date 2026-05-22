@@ -29,6 +29,8 @@ estimated_scope: large
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
+- `integrate/phase-N` is the `Phase N` integration branch; `N.1` and `N.2`
+  accepted outputs must already be merged there before `N.3` begins
 - `docs/phase-N/readiness.md` (`read-only` during `N.3`; only the integration
   author updates accepted rows after sprint acceptance)
 - `docs/architecture.md` (`ADR-SHK-007` governs the readiness ownership rule)
@@ -78,14 +80,17 @@ silently dropped or partially deferred.
 - group fields into canonical, provider-specific, and unresolved sets
 - document correlation, lifecycle, and root-recovery differences by provider
 - freeze the normalization checklist and findings ledger for `N.3`
-- add `HKR-016` covering the integration-author-only readiness ownership rule
+- update `HKR-014` and `HKR-015` from `Planned` to `Implemented` once accepted
+  `N.1` / `N.2` fixture evidence is merged to `integrate/phase-N`
+- update `HKR-016` from `Planned` to `Implemented` citing `ADR-SHK-007` and
+  the accepted readiness-ownership boundary
 - cite the existing provider-normalization boundary ADR from this sprint
-- add traceability rows for `HKR-014` and `HKR-015` citing the `N.1` / `N.2`
-  fixture evidence and the `N.3` normalization findings ledger
-- add a traceability row for `HKR-016` citing `ADR-SHK-007`,
-  `docs/plan-phase-N.md`, and `docs/phase-N/readiness.md`
+- update the `HKR-014`, `HKR-015`, and `HKR-016` traceability rows from
+  `planned` to `implemented`, citing the accepted fixture evidence,
+  normalization ledger, `ADR-SHK-007`, and readiness-ownership docs
 - reconcile `docs/requirements.md`, `docs/architecture.md`, and
-  `docs/project-plan.md` to the verified provider planning boundary
+  `docs/project-plan.md` so no provider capability is overstated or
+  understated versus the verified `Phase N` planning boundary
 
 ## Explicit Code Samples
 
@@ -112,8 +117,9 @@ explicit code samples or signatures showing the intended end state.
 - planning docs no longer rely on guessed provider contracts
 - `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md`
   describe the same approved Phase N boundary
-- `docs/requirements.md` includes `HKR-016` covering the integration-author-only
-  readiness ownership rule for `Phase N`
+- `docs/requirements.md` records `HKR-014`, `HKR-015`, and `HKR-016` as
+  `Implemented` once their accepted execution evidence is merged to
+  `integrate/phase-N`
 - `docs/architecture.md` includes `ADR-SHK-006` and `N.3` cites it as the
   normalization boundary decision governing canonical fields, provider-local
   fields, unresolved fields, and the deferred runtime-adapter boundary
@@ -123,7 +129,8 @@ explicit code samples or signatures showing the intended end state.
   `docs/phase-N/readiness.md` as the authoritative verdict record and states
   that `N.4` is the step that changes the Phase N row from `In progress` to
   `Completed`
-- `docs/traceability.md` carries rows for `HKR-014`, `HKR-015`, and `HKR-016`
+- `docs/traceability.md` records `HKR-014`, `HKR-015`, and `HKR-016` as
+  `implemented` with accepted evidence citations
 
 ## Required Validation
 

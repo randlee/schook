@@ -84,7 +84,7 @@ Promotion criteria:
 
 Final release verdict:
 
-- integrate/phase-N candidate: `PENDING`
+- `integrate/phase-N` candidate: `PENDING`
 - release checklist result: `PENDING`
 - release verdict: `PENDING`
 - provider verdicts: `PENDING`

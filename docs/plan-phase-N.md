@@ -18,10 +18,26 @@ the completed Claude-first implementation history:
 ## Baseline
 
 - planning branch: `feature/delay-idle-hook-testing`
+- integration branch: `integrate/phase-N`
 - prerequisite implementation line:
   - Claude hook harness and schema validation already exist in-repo
   - Codex local prototype evidence from `Hook Phase 6 / N`
 - this phase is planning-first and harness-first, not runtime-promotion-first
+
+## Integration Branch
+
+Accepted `Phase N` sprint outputs merge into:
+
+- `integrate/phase-N`
+
+Rules:
+
+- sprint branches do not write accepted rows directly into
+  `docs/phase-N/readiness.md`
+- the integration author updates `docs/phase-N/readiness.md` only after the
+  accepted sprint output is merged into `integrate/phase-N`
+- any sprint prerequisite that requires prior accepted outputs means accepted
+  and merged to `integrate/phase-N`, not merely frozen on a feature branch
 
 ## Phase Entry Criteria
 

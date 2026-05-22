@@ -29,6 +29,8 @@ estimated_scope: large
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
+- `integrate/phase-N` is the `Phase N` integration branch for accepted sprint
+  outputs and readiness updates
 - `docs/phase-N/readiness.md` (`read-only` during `N.2`; only the integration
   author updates accepted rows after sprint acceptance)
 - `docs/plan-cross-provider-hooks.md`
@@ -64,8 +66,8 @@ silently dropped or partially deferred.
 - an approved field inventory covering every observed payload field and hook
   env var for each captured surface
 - provider-specific Gemini validation models
-- provider-specific Gemini validation models, including the all-blocked MVC
-  placeholder model artifact when no Gemini surfaces are capturable locally
+- the all-blocked MVC placeholder model artifact when no Gemini surfaces are
+  capturable locally
 - pytest schema-proof tests for Gemini fixtures/models
 - a Gemini fixture manifest / drift artifact suitable for future version-bump
   checks
@@ -179,7 +181,8 @@ that cannot be exercised locally.
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - `test-harness/hooks/gemini/fixtures/approved/manifest.json` records
-  `provider`, `gemini_version`, `capture_date`, and `hook_surfaces` by name
+  `provider`, `gemini_version`, `capture_date`, `capture_root`, and
+  `hook_surfaces` by name
 - every captured Gemini manifest surface records `control_semantics` with
   `blocking`, `exit_code_contract`, and `stdio_contract`
 - Gemini pytest schema-proof tests fail on fixture/model drift
