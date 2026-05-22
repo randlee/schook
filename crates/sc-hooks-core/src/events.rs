@@ -63,13 +63,16 @@ impl fmt::Display for HookType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Error returned when a hook name does not map to a canonical `HookType`.
 pub struct UnknownHookType(String);
 
 impl UnknownHookType {
+    /// Creates a new unknown-hook error from the original provider value.
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
     }
 
+    /// Returns the original provider hook name that failed to parse.
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
