@@ -159,18 +159,20 @@ The first Codex pass should end with:
 - a schema-drift report owned by `schook`
 - a reconciled Codex API doc describing only verified fields and semantics
 
-### Current Blockers
+### Current Deferred Items
 
-Codex is no longer blocked on first-pass schema capture. Current blockers are
-the remaining normalization and promotion gates:
+Codex is no longer blocked on first-pass schema capture. Current post-`Phase N`
+deferred items are:
 
-- no approved canonical mapping yet for the turn-complete family
-  (`notify` vs Claude `Stop` vs Gemini `AfterAgent`)
-- no approved canonical mapping yet for Codex-specific correlation fields such
-  as `thread-id`, `turn-id`, and `tool_use_id`
+- `notify` remains outside the approved runtime baseline because the
+  turn-complete family (`notify` vs Claude `Stop` vs Gemini `AfterAgent`)
+  remains unresolved in `docs/phase-N/normalization-findings-ledger.md`
+- Codex-specific correlation fields such as `thread-id`, `turn-id`, and
+  `tool_use_id` remain provider-local only
 - `CODEX_THREAD_ID` remains explicitly non-canonical because approved env
   fixtures show it can stay stale across new `codex exec` runs
-- no runtime adapter implementation is authorized before the `N.4` verdict
+- `Stop`, `resume`, and `fork` remain `confirmed-not-exercisable` and are not
+  approved runtime assumptions
 
 ### Design Boundaries
 
@@ -231,10 +233,10 @@ The first Gemini pass should end with:
 - a Gemini schema-drift report owned by `schook`
 - a provider-owned Gemini hook API evidence document
 
-### Current Blockers
+### Current Deferred Items
 
-Gemini is no longer blocked on first-pass schema capture. Current blockers are
-the remaining normalization and promotion gates:
+Gemini is no longer blocked on first-pass schema capture. Current post-`Phase N`
+deferred items are:
 
 - workspace `.gemini/settings.json` activation remains unresolved and stays out
   of the approved registration contract
@@ -242,7 +244,9 @@ the remaining normalization and promotion gates:
   `tool_response.returnDisplay`, `prompt_response`, and `stop_hook_active`
 - raw `tool_name = "run_shell_command"` remains provider-local until later
   cross-provider tool-surface normalization proves a compatible canonical enum
-- no runtime adapter implementation is authorized before the `N.4` verdict
+- `AfterAgent` remains outside the approved runtime baseline because the
+  shared turn-complete/post-response family remains unresolved in
+  `docs/phase-N/normalization-findings-ledger.md`
 
 ### Design Boundaries
 
@@ -328,24 +332,36 @@ If a provider fails at step 3, 4, 5, or 6, implementation stays deferred.
 
 The next cross-provider execution phase after `Phase N` should treat Codex and
 Gemini as fixture-backed provider candidates rather than planning placeholders.
+`docs/phase-N/readiness.md` records `PARTIAL_GO`, so the next runtime phase is
+approved only for the exact surfaces named there.
 
-Codex track:
+Codex approved follow-on track:
 
 1. consume the approved Codex fixture/model baseline from `N.1`
 2. design the runtime adapter against the `N.3` normalization ledger only
 3. prove provider-specific correlation and root-recovery behavior in adapter
    tests
-4. keep `notify`/`PreToolUse` / direct `SessionStart` semantics provider-local
-   unless later evidence expands the canonical contract
+4. limit the first runtime pass to approved surfaces:
+   - `SessionStart`
+   - `PreToolUse`
+5. keep `notify`, `Stop`, `resume`, and `fork` deferred until a later sprint
+   closes the unresolved lifecycle family or captures the non-exercisable
+   surfaces directly
 
-Gemini track:
+Gemini approved follow-on track:
 
 1. consume the approved Gemini fixture/model baseline from `N.2`
 2. design the runtime adapter against the `N.3` normalization ledger only
 3. preserve Gemini registration-path and control-semantics differences as
    provider-local behavior
-4. keep output-format and workspace-registration questions out of the canonical
-   contract unless later evidence changes the baseline
+4. limit the first runtime pass to approved surfaces:
+   - `SessionStart`
+   - `SessionEnd`
+   - `BeforeAgent`
+   - `BeforeTool`
+   - `AfterTool`
+5. keep `AfterAgent` deferred until a later sprint closes the unresolved
+   turn-complete/post-response family
 
 Parallel completion criteria:
 
@@ -356,6 +372,8 @@ Parallel completion criteria:
   checks
 - mapping candidates into normalized `schooks` fields are explicitly listed and
   source-cited from fixtures
+- deferred lifecycle families and provider-local fields remain explicitly named
+  in `docs/phase-N/readiness.md` and the `N.3` normalization ledger
 
 ## Deliverable For A Later Approved Sprint
 
