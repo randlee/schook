@@ -38,6 +38,8 @@ Planned coverage:
   - `text`
   - `json`
   - `stream-json`
+- session continuation checks
+  - `--resume latest`
 - control semantics inventory
   - blocking vs non-blocking
   - exit-code handling
