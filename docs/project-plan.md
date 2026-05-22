@@ -621,7 +621,7 @@ Release preflight evidence:
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
 | removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
-| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
+| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 now identifies the actual current open release-relevant drivers: `CDR-B`, `CDR-A`, and `Phase N`. |
 | release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
 | branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
 | validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |
@@ -673,7 +673,7 @@ Purpose:
 ### Hook Phase 0: Review Baseline
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
@@ -959,7 +959,7 @@ Acceptance criteria:
 ### S11-DOC.1: README And Usage Guide Release-Doc Alignment
 
 Status:
-- in review
+- completed
 
 Focus:
 - align the operator-facing top-level docs with the current release baseline
@@ -994,7 +994,7 @@ Acceptance criteria:
 ### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
 
 Status:
-- in review
+- completed
 
 Focus:
 - move publishable workspace crates under `crates/`
