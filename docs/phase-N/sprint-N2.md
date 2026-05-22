@@ -59,7 +59,8 @@ silently dropped or partially deferred.
   env var for each captured surface
 - provider-specific Gemini validation models
 - pytest schema-proof tests for Gemini fixtures/models
-- a Gemini drift artifact suitable for future version-bump checks
+- a Gemini fixture manifest / drift artifact suitable for future version-bump
+  checks
 - the first `schook`-owned Gemini API evidence document
 
 ## Required Work
@@ -71,6 +72,9 @@ silently dropped or partially deferred.
 - verify whether output-format choice changes hook-observable behavior
 - record every attempted Gemini hook surface in the checklist and findings
   ledger with one of: `captured` or `not exercisable locally`
+- add a provider-gemini structural harness test that passes even when every
+  Gemini hook surface is blocked locally, so the validation gate still proves
+  the harness exists in an all-blocked MVC outcome
 - freeze the checklist and findings ledger for `N.2`
 - promote only validated findings into Gemini evidence docs
 
@@ -80,8 +84,29 @@ If the sprint introduces or changes important traits, features, enums, protocol
 types, boundary contracts, or execution seams, this section must include
 explicit code samples or signatures showing the intended end state.
 
-- no runtime trait changes are authorized in `N.2`; code examples should remain
-  harness/model-oriented only
+Approved Gemini fixture manifest / drift artifact shape:
+
+```json
+{
+  "provider": "gemini",
+  "gemini_version": "gemini-cli 0.0.0",
+  "capture_date": "2026-05-22T00:00:00Z",
+  "capture_root": "test-harness/hooks/gemini/fixtures/approved/",
+  "hook_surfaces": [
+    {
+      "surface": "preTool",
+      "status": "captured",
+      "payload_fixture": "preTool/payload.json",
+      "env_fixture": "preTool/env.json"
+    },
+    {
+      "surface": "sessionStart",
+      "status": "not exercisable locally",
+      "reason": "surface not exposed by local gemini hooks runtime"
+    }
+  ]
+}
+```
 
 ## This Sprint Does Not Close
 
@@ -101,6 +126,8 @@ still closes only by documenting that result explicitly:
   exercised>`
 - `docs/phase-N/gemini-capture-checklist.md` must record the corresponding
   status as `BLOCKED`, not `COMPLETE`
+- the provider-gemini pytest run must still collect and pass at least one
+  structural harness-layout test in this all-blocked outcome
 
 That documented blocked outcome is the minimum viable closure path for surfaces
 that cannot be exercised locally.
@@ -113,7 +140,12 @@ that cannot be exercised locally.
 - every approved fixture validates against a provider-specific model
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
+- `test-harness/hooks/gemini/fixtures/approved/manifest.json` records
+  `provider`, `gemini_version`, `capture_date`, and `hook_surfaces` by name
 - Gemini pytest schema-proof tests fail on fixture/model drift
+- the provider-gemini pytest validation gate collects and passes at least one
+  structural harness-layout test regardless of whether fixture capture closes
+  through full capture or the all-blocked MVC path
 - `docs/phase-N/gemini-capture-checklist.md` and
   `docs/phase-N/gemini-findings-ledger.md` contain a per-surface final
   disposition for every attempted Gemini hook point
