@@ -10,6 +10,8 @@ from typing import Any
 
 SENSITIVE_ENV_TOKENS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "CRED")
 SYNTHETIC_PROJECT_ROOT = "/synthetic/test/gemini-harness"
+SYNTHETIC_HOME = "/synthetic/test/gemini-home"
+SYNTHETIC_PLANS_DIR = "/synthetic/test/gemini-harness/.gemini/tmp/plans"
 REDACTED_PATH = "<machine-path-redacted>"
 REDACTED_OPERATOR = "<operator>"
 
@@ -32,6 +34,10 @@ def _redact_env(name: str, value: str) -> str:
         return REDACTED_PATH
     if name == "USER":
         return REDACTED_OPERATOR
+    if name == "HOME":
+        return SYNTHETIC_HOME
+    if name == "GEMINI_PLANS_DIR":
+        return SYNTHETIC_PLANS_DIR
     if name in {"PWD", "GEMINI_CWD", "GEMINI_PROJECT_DIR"}:
         return SYNTHETIC_PROJECT_ROOT
     return value

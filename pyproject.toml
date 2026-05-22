@@ -30,7 +30,8 @@ testpaths = [
   "test-harness/hooks/codex/tests",
   "test-harness/hooks/gemini/tests",
 ]
-addopts = "-ra"
+addopts = "-ra --import-mode=importlib"
+pythonpath = ["."]
 markers = [
   "provider_claude: tests for the Claude harness",
   "provider_codex: tests for the Codex harness",
