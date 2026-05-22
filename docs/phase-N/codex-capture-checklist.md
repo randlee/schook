@@ -15,8 +15,10 @@ Planned hook-surface coverage:
   forked Codex process preserves `notify` / `PreToolUse` capture visibility
 - `--cd` — `direct hook surface (harness-capturable)`; verify root/current-dir
   behavior by launching capture runs with an explicit startup directory change
-- resume/restart continuity — exercised through direct `notify` /
-  `PreToolUse` capture runs plus session-record correlation checks
+- resume/restart continuity — `relay-synthetic (confirmed-not-exercisable)`;
+  reason: resume does not fire a distinct hook surface and is observed through
+  direct `notify` / `PreToolUse` capture runs plus session-record correlation
+  checks
 
 Planned non-surface evidence:
 - hook-process environment snapshots
