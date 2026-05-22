@@ -697,6 +697,9 @@ Acceptance criteria:
 
 ### Hook Phase 1: Claude Schema Harness
 
+Status:
+- completed
+
 Focus:
 - build the first hook harness for Claude only and freeze the captured
   provider baseline before writing runtime hook code
@@ -734,6 +737,9 @@ Definition of done:
 
 ### Hook Phase 2: Plan Revision From Captured Claude Schema
 
+Status:
+- completed
+
 Focus:
 - revise the hook plan from captured evidence before implementation starts
 
@@ -768,6 +774,9 @@ Acceptance criteria:
   success criteria
 
 ### Hook Phase 3: Claude Session And Lifecycle Implementation
+
+Status:
+- completed
 
 Focus:
 - freeze the hook trait and implement the generic lifecycle/state foundation first
@@ -806,6 +815,9 @@ Acceptance criteria:
 
 ### Hook Phase 4: Claude Command And Spawn Gates
 
+Status:
+- completed
+
 Focus:
 - implement the generic spawn and tool-gate utilities
 
@@ -843,6 +855,9 @@ Acceptance criteria:
   behavior
 
 ### Hook Phase 5: Claude Relay Hooks
+
+Status:
+- completed
 
 Focus:
 - implement ATM-specific extension behavior after the generic layer is stable
