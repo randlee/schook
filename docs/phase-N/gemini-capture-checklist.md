@@ -1,7 +1,7 @@
 # Gemini Capture Checklist
 
 Status:
-- `FROZEN`
+- `COMPLETE`
 
 Purpose:
 - freeze the Gemini hook-surface capture matrix for `N.2`
@@ -44,3 +44,23 @@ Planned coverage:
   - blocking vs non-blocking
   - exit-code handling
   - stdout/stderr contract
+
+Final disposition:
+
+| Surface | Status | Notes |
+| --- | --- | --- |
+| `SessionStart` | `COMPLETE` | captured for both `source = "startup"` and `source = "resume"` |
+| `SessionEnd` | `COMPLETE` | captured with `reason = "exit"` |
+| `BeforeAgent` | `COMPLETE` | captured in headless `-p` mode |
+| `BeforeTool` | `COMPLETE` | captured with `tool_name = "run_shell_command"` |
+| `AfterTool` | `COMPLETE` | captured with tool response payload |
+| `AfterAgent` | `COMPLETE` | captured with prompt + prompt response fields |
+| `--resume latest` continuity check | `COMPLETE` | verified `SessionStart.source = "resume"` |
+| output-format check (`text` / `json` / `stream-json`) | `COMPLETE` | no hook-observable payload or env-key difference across tested formats |
+
+Capture registration result:
+
+| Scope | Result | Notes |
+| --- | --- | --- |
+| user `~/.gemini/settings.json` | `COMPLETE` | verified under an isolated temporary `HOME` with copied auth files |
+| workspace `.gemini/settings.json` | `BLOCKED` | local isolated probes did not fire workspace-scoped hooks cleanly; not promoted into approved capture workflow |
