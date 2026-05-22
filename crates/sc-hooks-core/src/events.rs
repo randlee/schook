@@ -63,13 +63,16 @@ impl fmt::Display for HookType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Error returned when an unknown hook type string is encountered.
 pub struct UnknownHookType(String);
 
 impl UnknownHookType {
+    /// Creates a new UnknownHookType from the unrecognized hook type value.
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
     }
 
+    /// Returns the unrecognized hook type value as a string slice.
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
