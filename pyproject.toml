@@ -21,10 +21,16 @@ packages = [
   "test_harness.hooks.claude.models",
   "test_harness.hooks.codex",
   "test_harness.hooks.codex.models",
+  "test_harness.hooks.gemini",
+  "test_harness.hooks.gemini.models",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["test-harness/hooks/claude/tests", "test-harness/hooks/codex/tests"]
+testpaths = [
+  "test-harness/hooks/claude/tests",
+  "test-harness/hooks/codex/tests",
+  "test-harness/hooks/gemini/tests",
+]
 addopts = "-ra"
 markers = [
   "provider_claude: tests for the Claude harness",
