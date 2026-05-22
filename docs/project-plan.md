@@ -53,23 +53,29 @@ Important planning rule:
 | Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
-| Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
-| Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
-| Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
-| Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
-| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
-| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
-| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
-| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
-| S10-VERSION-BUMP-1 | In review | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
-| S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
-| S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
+| Sprint 1 | Completed | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 2 | Completed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 3 | Completed | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
+| Sprint 4 | Completed | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 5 | Completed | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 6 | Completed | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | Completed | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
+| S10-VERSION-BUMP-1 | Completed | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
+| S11-DOC.1 | Completed | README/usage guide release-doc alignment | `SCHOOK-QA-001`–`SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
+| S12-PUB.1 | Completed | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
+| SC-LOG S1–S7 | Completed | observability logging pipeline — layered config, JSONL dispatch log, audit profiles, concurrency hardening | `OBS-*`, `GAP-010` | Sprint 0 | `sc-hooks-cli/src/logging/`, `docs/logging-contract.md`, `docs/observability-contract.md` |
+| S9 / Hook Phase 0 | Completed | hook review baseline — cross-platform API docs, plugin-plan archive | `HKR-001`–`HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | `docs/hook-api/`, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md` |
+| S9 / Hook Phase 1 | Completed | Claude schema harness — capture fixtures, Pydantic models, schema drift CLI, HTML report | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/claude/`, `scripts/verify-claude-hook-api.py` |
+| S9 / Hook Phase 2 | Completed | plan revision from captured Claude schema — freeze agent_state model, session-state schema, hook trait contract | `HKR-003` | Hook Phase 1 | `docs/hook-api/claude-hook-api.md`, `docs/archive/plugin-plan-s9.md` |
+| S9 / Hook Phase 3 | Completed | session foundation — `agent-session-foundation` plugin, session-state persistence, same-agent correlation | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation` |
+| S9 / Hook Phase 4 | Completed | generic spawn and tool gates — `agent-spawn-gates`, `tool-output-gates` plugins | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` |
+| S9 / Hook Phase 5 | Completed | ATM extension behaviors — `atm-extension` plugin, relay and identity tests | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension` |
+| `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
+| `CDR-2` / Change Drift Remediation | Completed | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
+| `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
+| `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
+| `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
+| Hook Phase 6 / `N` | In progress | Codex idle/notify debounce — live-verified notify surface, ATM-aware idle notifications, cross-provider hook API doc | `HKR-004`, `HKR-006`, `HKR-007` | Hook Phase 5 | `test-harness/hooks/codex/`, `docs/hook-api/codex-hook-api.md`, `.sc/sessions/codex/`, `.atm.toml` idle_notify config |
 
 ## 5. Execution Controls
 
