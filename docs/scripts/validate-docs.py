@@ -38,6 +38,13 @@ def require_status_not_pending(name: str, content: str) -> None:
     require(match.group(1) != "PENDING", f"{name}: status must not remain PENDING")
 
 
+def readiness_allows_pending_verdict(content: str) -> bool:
+    return (
+        "`release_verdict`: `PENDING`" in content
+        and "`authorized_by`: `TBD — integration author updates at merge time per ADR-SHK-007`" in content
+    )
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         raise SystemExit("usage: python3 docs/scripts/validate-docs.py docs/phase-N/")
@@ -66,7 +73,10 @@ def main() -> int:
         "readiness.md: missing final verdict record",
     )
     require(
-        "`NO_GO`" in readiness or "`GO`" in readiness or "`PARTIAL_GO`" in readiness,
+        "`NO_GO`" in readiness
+        or "`GO`" in readiness
+        or "`PARTIAL_GO`" in readiness
+        or readiness_allows_pending_verdict(readiness),
         "readiness.md: final verdict not recorded",
     )
 

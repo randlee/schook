@@ -72,6 +72,9 @@ silently dropped or partially deferred.
 - record the exact approved surfaces, deferred surfaces, open blocking
   findings, and open important findings that justify the final verdict
 - freeze the final readiness verdict
+- on the sprint branch, prepare the proposed verdict package while leaving the
+  authoritative `docs/phase-N/readiness.md` `N.4` row and final verdict
+  reserved for merge-time fill by the integration author per `ADR-SHK-007`
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
 - update `docs/traceability.md` for the final `Phase N` closure status of
@@ -151,7 +154,9 @@ explicit code samples or signatures showing the intended end state.
 ## Acceptance Criteria
 
 - `docs/phase-N/release-checklist.md` records the final promotion-gate result
-- `docs/phase-N/readiness.md` records the final `Phase N` verdict
+- `docs/phase-N/readiness.md` carries the merge-time fill shape for the final
+  `Phase N` verdict, and may remain `PENDING` on the sprint branch per
+  `ADR-SHK-007`
 - Codex and Gemini each have an explicit approved/deferred disposition
 - the phase leaves one authoritative go/no-go record for subsequent runtime
   work

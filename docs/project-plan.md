@@ -91,11 +91,13 @@ Important planning rule:
 
 Phase N boundary update:
 
-- `Phase N` closed as a harness-planning and promotion-gate phase with final
-  verdict `PARTIAL_GO` recorded in `docs/phase-N/readiness.md`
+- this branch carries the proposed `Phase N` promotion result for
+  integration-author review; the authoritative readiness verdict remains
+  `PENDING` on the branch until merge-time fill per `ADR-SHK-007`
 - `Phase N` itself does not implement Codex or Gemini runtime adapter work;
-  any follow-on runtime sprint is limited to the approved surfaces recorded in
-  the readiness ledger
+  any follow-on runtime sprint is limited to the surfaces proposed in
+  `docs/phase-N/release-checklist.md` once the readiness verdict is filled at
+  merge time
 - `Phase N` execution detail lives in `docs/plan-phase-N.md` and `docs/phase-N/`;
   the section-4 row in this document is a summary pointer rather than a
   standalone section-10 sprint block
@@ -961,8 +963,9 @@ Execution detail:
   phase rather than a standalone sprint-detail record
 
 Final verdict summary:
-- `docs/phase-N/readiness.md` records `PARTIAL_GO`
-- approved follow-on runtime scope:
+- `docs/phase-N/readiness.md` remains `PENDING` on this branch per
+  `ADR-SHK-007`
+- proposed follow-on runtime scope:
   - Codex `SessionStart`
   - Codex `PreToolUse`
   - Gemini `SessionStart`
@@ -970,7 +973,7 @@ Final verdict summary:
   - Gemini `BeforeAgent`
   - Gemini `BeforeTool`
   - Gemini `AfterTool`
-- deferred follow-on scope:
+- proposed deferred follow-on scope:
   - Codex `notify`
   - Codex `Stop`
   - Codex `resume`

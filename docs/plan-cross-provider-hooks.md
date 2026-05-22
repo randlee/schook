@@ -332,8 +332,11 @@ If a provider fails at step 3, 4, 5, or 6, implementation stays deferred.
 
 The next cross-provider execution phase after `Phase N` should treat Codex and
 Gemini as fixture-backed provider candidates rather than planning placeholders.
-`docs/phase-N/readiness.md` records `PARTIAL_GO`, so the next runtime phase is
-approved only for the exact surfaces named there.
+This branch proposes `PARTIAL_GO` in
+`docs/phase-N/release-checklist.md`, while `docs/phase-N/readiness.md` remains
+`PENDING` until merge-time fill by the integration author. If that proposed
+verdict is accepted at merge time, the next runtime phase should be approved
+only for the exact surfaces named there.
 
 Codex approved follow-on track:
 
