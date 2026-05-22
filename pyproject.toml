@@ -20,6 +20,7 @@ packages = [
   "test_harness.hooks.claude",
   "test_harness.hooks.claude.models",
   "test_harness.hooks.codex",
+  "test_harness.hooks.codex.models",
 ]
 
 [tool.pytest.ini_options]

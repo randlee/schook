@@ -1,0 +1,11 @@
+{
+  "client": "codex_exec",
+  "cwd": "$REPO_ROOT",
+  "input-messages": [
+    "Run pwd then reply exactly OK."
+  ],
+  "last-assistant-message": "OK",
+  "thread-id": "019e5106-079f-7121-9fef-f605ee1c0527",
+  "turn-id": "019e5106-07db-7330-ae3b-6914a27bb747",
+  "type": "agent-turn-complete"
+}

@@ -1,0 +1,14 @@
+{
+  "cwd": "$REPO_ROOT/test-harness/hooks/codex",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.4",
+  "permission_mode": "bypassPermissions",
+  "session_id": "019e5106-2563-7da2-90d6-4ac5a66e1e86",
+  "tool_input": {
+    "command": "pwd"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "call_F7swhaSR5yqxzTEhpDqA5MeK",
+  "transcript_path": "~/.codex/sessions/2026/05/22/rollout-2026-05-22T11-50-17-019e5106-2563-7da2-90d6-4ac5a66e1e86.jsonl",
+  "turn_id": "019e5106-25a4-7c03-9daa-c5157c364e64"
+}
