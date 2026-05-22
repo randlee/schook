@@ -7,6 +7,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOOKS_ROOT = REPO_ROOT / "test-harness" / "hooks"
 CLAUDE_ROOT = HOOKS_ROOT / "claude"
+CODEX_ROOT = HOOKS_ROOT / "codex"
 CLAUDE_FIXTURES_ROOT = CLAUDE_ROOT / "fixtures" / "approved"
 CLAUDE_REPORTS_ROOT = CLAUDE_ROOT / "reports"
 CLAUDE_DRIFT_HISTORY_ROOT = CLAUDE_ROOT / "drift-history"

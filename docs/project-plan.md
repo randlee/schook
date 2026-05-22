@@ -20,10 +20,12 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- naming cleanup before further public observability/global-config surface is
-  added
-- a multi-sprint observability phase that extends beyond the current
-  dispatch-only file-sink baseline
+- pending merge of `CDR-B`, which owns the control-doc and hook-phase status
+  reconciliation still deferred in `docs/requirements.md`
+- pending merge of `CDR-A`, which pins `sc-observability` to crates.io
+  `v1.0.0` and aligns the typed observability API at the CLI boundary
+- `Phase N` harness-planning closure for Codex and Gemini provider evidence,
+  normalization inventory, and promotion-gate planning
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -62,31 +64,52 @@ Important planning rule:
 | Sprint | Status | Focus | Primary drivers | Depends on | Primary write scope |
 | --- | --- | --- | --- | --- | --- |
 | Sprint 0 | Completed | architecture and observability alignment | `OBS-001`, `OBS-002`, `OBS-006`, `OBS-007`, `OBS-008`, `GAP-005`, `GAP-007` | none | `sc-hooks-cli`, observability docs, release docs |
-| Sprint 1 | In review | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
-| Sprint 2 | In review - fix-r1 pushed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
-| Sprint 3 | In review | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
-| Sprint 4 | In review | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
-| Sprint 5 | In review | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
-| Sprint 6 | In review | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
-| Sprint 8 | In review | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
-| Hook Phase 0 | In review | hook review baseline | `HKR-001`, `HKR-002`, `HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | hook API docs, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md`, `docs/architecture.md` |
-| Hook Phase 1 | Planned | Claude schema harness | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/README.md`, `test-harness/hooks/claude/`, harness models, fixtures, reports |
-| Hook Phase 2 | Planned | plan revision from captured Claude schema | `HKR-003` | Hook Phase 1 | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md`, readiness notes |
-| Hook Phase 3 | Planned | session foundation and trait freeze | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation`, same-PR architecture inventory update |
-| Hook Phase 4 | Planned | generic spawn and tool gates | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates`, direct behavior tests |
-| Hook Phase 5 | Planned | ATM extension behaviors | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension`, ATM relay and identity tests |
-| Hook Phase 6 | Planned | post-Claude follow-on planning only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| Sprint 1 | Completed | baseline alignment and code retirement | `GAP-001`, `GAP-002`, `GAP-003` | Sprint 0 | `sc-hooks-cli/src/testing.rs`, `sc-hooks-test`, `sc-hooks-sdk`, release docs |
+| Sprint 2 | Completed | compliance harness hardening | `GAP-001`, `CLI-007`, `TST-007` | Sprint 1 | `sc-hooks-test`, `sc-hooks-cli/src/testing.rs`, dispatch/runtime contract tests |
+| Sprint 3 | Completed | `long_running` contract alignment | `GAP-002`, `TMO-004` | Sprint 1 | `sc-hooks-sdk`, timeout/dispatch flow, requirements/architecture/traceability |
+| Sprint 4 | Completed | runtime layout and setup proof | `GAP-004`, `CFG-001`, `RES-002`, `CLI-004` | Sprint 2 | install/runtime layout docs, example `.sc-hooks/` tree, contributor path |
+| Sprint 5 | Completed | plugin packaging and release honesty | `GAP-003`, `BND-002` | Sprint 4 | `plugins/`, install/release docs, runtime packaging checks |
+| Sprint 6 | Completed | release freeze and final QA handoff | final reviewer/QA handoff | Sprints 2-5 | release docs, PR/review records, final cleanup |
+| Sprint 8 | Completed | Rust best-practices closeout | `AUD-005`, `AUD-009`, `OBS-005`, `SCHOOK-QA-001` | Sprint 6 | `sc-hooks-sdk`, `sc-hooks-cli`, release docs |
 | S10-VERSION-BUMP-1 | Completed | Claude version-bump detection | `TST-008` | Hook Phase 1 | `scripts/verify-claude-hook-api.py`, `test-harness/hooks/claude/fixtures/approved/manifest.json`, release docs |
-| S11-DOC.1 | In review | README/usage guide release-doc alignment | `SCHOOK-QA-001`, `SCHOOK-QA-002`, `SCHOOK-QA-003`, `SCHOOK-QA-004`, `SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
-| S12-PUB.1 | In review | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
-| `SC-LOG-S1` / Observability Phase 0 | Merged | naming cleanup and namespace freeze | release blocker #88, `DEF-019` | `develop` baseline | naming docs, binary/service references, config/runtime namespace decisions |
-| `SC-LOG-S2` / Observability Phase 1 | Merged | layered config foundation | `DEF-010`, `DEF-011` | `SC-LOG-S1` | `sc-hooks-cli` config loading, requirements/architecture docs, config tests |
-| `SC-LOG-S3` / Observability Phase 2 | Merged | standard observability coverage for all hook events | `DEF-011`, `DEF-017`, `HKR-009` | `SC-LOG-S2` | `sc-hooks-cli` hook runtime, observability tests, contract docs |
-| `SC-LOG-S4` / Observability Phase 3 | Merged | full audit lean profile | `DEF-012`, `DEF-013`, `DEF-017` | `SC-LOG-S3` | audit writer, `.sc-hooks/audit/` layout, eval or harness integration tests |
-| `SC-LOG-S5` / Observability Phase 4 | Merged | full audit debug profile and redaction controls | `DEF-013`, `DEF-014` | `SC-LOG-S4` | redaction policy, payload-capture gates, debug-profile tests |
-| `SC-LOG-S6` / Observability Phase 5 | Merged | retention, pruning, and degraded-path hardening | `DEF-009`, `DEF-012`, `DEF-014`, `DEF-015` | `SC-LOG-S5` | retention pruning, degraded-path tests, operational docs |
-| `SC-LOG-S7` / Observability Phase 6 | Completed | concurrency and production hardening | `DEF-016` | `SC-LOG-S6` | soak/load harness, operational validation, phase-close evidence |
-| `SC-LOG-PHASE-END` | In review | PRR closeout and QA follow-up corrections | `BP-TS-001`, `BP-TS-002`, coverage and phase-end release-readiness findings | `SC-LOG-S7` | targeted runtime guards, coverage hardening, release/docs corrections |
+| S11-DOC.1 | Completed | README/usage guide release-doc alignment | `SCHOOK-QA-001`–`SCHOOK-QA-005` | none | `README.md`, `USAGE.md`, `docs/project-plan.md` |
+| S12-PUB.1 | Completed | workspace publish prep and release infrastructure | release packaging alignment | `develop` baseline | `crates/`, `release/`, `.github/workflows/`, `PUBLISHING.md`, release docs |
+| SC-LOG S1–S7 | Completed | observability logging pipeline — layered config, JSONL dispatch log, audit profiles, concurrency hardening | `OBS-*`, `GAP-010` | Sprint 0 | `sc-hooks-cli/src/logging/`, `docs/logging-contract.md`, `docs/observability-contract.md` |
+| S9 / Hook Phase 0 | Completed | hook review baseline — cross-platform API docs, plugin-plan archive | `HKR-001`–`HKR-003`, `HKR-006`, `HKR-007` | Sprint 6 formally accepted | `docs/hook-api/`, `docs/archive/plugin-plan-s9.md`, `docs/requirements.md` |
+| S9 / Hook Phase 1 | Completed | Claude schema harness — capture fixtures, Pydantic models, schema drift CLI, HTML report | `HKR-002`, `HKR-005` | Hook Phase 0 | `test-harness/hooks/claude/`, `scripts/verify-claude-hook-api.py` |
+| S9 / Hook Phase 2 | Completed | plan revision from captured Claude schema — freeze agent_state model, session-state schema, hook trait contract | `HKR-003` | Hook Phase 1 | `docs/hook-api/claude-hook-api.md`, `docs/archive/plugin-plan-s9.md` |
+| S9 / Hook Phase 3 | Completed | session foundation — `agent-session-foundation` plugin, session-state persistence, same-agent correlation | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation` |
+| S9 / Hook Phase 4 | Completed | generic spawn and tool gates — `agent-spawn-gates`, `tool-output-gates` plugins | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` |
+| S9 / Hook Phase 5 | Completed | ATM extension behaviors — `atm-extension` plugin, relay and identity tests | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension` |
+| S9 / Hook Phase 6 | Planned | cross-provider follow-on — provider harness-planning and promotion-gate prep only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
+| `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
+| `CDR-2` / Change Drift Remediation | Completed | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
+| `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
+| `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
+| `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
+| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture planning, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
+
+Phase N boundary update:
+
+- `Phase N` currently authorizes harness capture, provider evidence docs,
+  normalization inventory, and the final promotion-gate record only
+- `Phase N` does not authorize Codex or Gemini runtime adapter implementation
+- `Phase N` execution detail lives in `docs/plan-phase-N.md` and `docs/phase-N/`;
+  the section-4 row in this document is a summary pointer rather than a
+  standalone section-10 sprint block
+- `docs/phase-N/readiness.md` is the authoritative verdict record for the
+  phase; `N.4` is the step that changes the `Phase N` row from `In progress`
+  to `Completed`
+
+Phase N planning-branch note:
+
+- the status promotions to `Completed` for earlier sprint rows in this planning
+  branch reflect chook-confirmed completion state and QA PASS recorded under
+  `CDR-1`, `CDR-2`, and `CDR-3`; this branch records those reconciled
+  statuses as documentation cleanup rather than as new implementation closure
+  events
+- `CDR-B` remains the pending merge owner for reconciling hook-phase completion
+  history with deferred `HKR-*` requirement statuses in `docs/requirements.md`
 
 ## 5. Execution Controls
 
@@ -105,10 +128,7 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 depends on Sprint 2 because setup proof should reflect the surviving compliance/runtime path, not the pre-cleanup shape.
 - Sprint 5 must not start until Sprint 4 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 6 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
-- `SC-LOG-S1` must close before any later observability sprint, because naming choices feed the binary name, config keys, service identity, and on-disk audit paths.
-- `SC-LOG-S2` must close before `SC-LOG-S3` through `SC-LOG-S7`, because mode resolution and layered config define which observability surfaces exist and where they are configured.
-- `SC-LOG-S4` must close before `SC-LOG-S5`, because the debug profile is an extension of the lean audit profile rather than a separate sink family.
-- `SC-LOG-S6` must close before `SC-LOG-S7`, because load and soak validation must target the final retention and degradation semantics rather than a partial design.
+- `SC-LOG S1-S7 (Completed)` remains the collective observability dependency anchor, because naming choices, layered config, audit-profile sequencing, and final load/retention hardening were all closed inside that grouped phase track before later planning moved on.
 
 ## 7. Pre-Sprint Kickoff Checklist
 
@@ -179,7 +199,7 @@ Acceptance criteria:
 ### Planned Track: Observability Phase
 
 Status:
-- planned
+- completed
 
 Focus:
 - freeze naming and config surfaces before expanding observability volume
@@ -206,10 +226,19 @@ Phase-wide fixed decisions:
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
 
-### Sprint 1: Baseline Alignment And Code Retirement (In Review)
+The former review-only `SC-LOG-PHASE-END` closeout is now represented through
+the completed Sprint 6 and Sprint 8 detail blocks below rather than as a
+separate active sprint row.
+
+`CDR-1`, `CDR-2`, `CDR-3`, `CDR-A`, and `CDR-B` are remediation
+integration-branch rows, not standalone execution sprints. They summarize
+scoped integration branches and therefore do not carry separate section-10
+detail blocks in this plan.
+
+### Sprint 1: Baseline Alignment And Code Retirement
 
 Status:
-- in review
+- completed
 
 Focus:
 - remove false or confusing public-looking surfaces before feature work starts
@@ -268,10 +297,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 2 and Sprint 3 are unblocked because Sprint 1 removed the false duplicate compliance/source-of-truth surfaces; real contract-proof expansion and end-to-end `long_running` alignment still belong to those later sprints.
 
-### Sprint 2: Compliance Harness Hardening (In Review)
+### Sprint 2: Compliance Harness Hardening
 
 Status:
-- in review
+- completed
 
 Focus:
 - make the compliance harness prove the release contract directly
@@ -321,10 +350,10 @@ QA checklist answers:
 Compatibility note:
 - Sprint 2 and Sprint 4 both touch `sc-hooks-cli/tests/`, so later sprint work in that directory must merge-forward the latest Sprint 2 QA fixes before push to avoid regressing the shared host-path tests.
 
-### Sprint 3: `long_running` And SDK Posture Alignment (In Review)
+### Sprint 3: `long_running` And SDK Posture Alignment
 
 Status:
-- in review
+- completed
 
 Focus:
 - define one release-grade `long_running` and SDK posture across host, docs, and tests
@@ -371,10 +400,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 4 and later release cleanup now inherit one explicit `long_running` contract instead of a split host/audit/SDK interpretation. Richer SDK ergonomics remain deferred and do not block the remaining sprints.
 
-### Sprint 4: Runtime Layout And Setup Proof (In Review)
+### Sprint 4: Runtime Layout And Setup Proof
 
 Status:
-- in review
+- completed
 
 Focus:
 - prove the expected `.sc-hooks/` runtime layout from a clean contributor starting point
@@ -422,7 +451,7 @@ QA checklist answers:
 ### Sprint 5: Plugin Packaging And Release Honesty
 
 Status:
-- in review
+- completed
 
 Focus:
 - keep plugin claims honest unless runtime installation, behavior, and tests exist
@@ -470,7 +499,7 @@ QA checklist answers:
 ### Sprint 6: Merge Closeout And Release Gate
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the release-doc set and record the final reviewer/QA handoff against the chosen scope
@@ -526,7 +555,7 @@ Sprint 6 signoff record:
 ### Sprint 8: Rust Best-Practices Closeout
 
 Status:
-- in review
+- completed
 
 Focus:
 - close the remaining post-release Rust best-practices findings without reopening the release contract
@@ -605,7 +634,7 @@ Release preflight evidence:
 | claim audit | complete | `docs/traceability.md` now includes the previously missing implemented rows `RES-003` and `OBS-005`, so the release-facing claims in `docs/requirements.md` no longer out-run the code/test map. |
 | removal audit | complete | The surviving single-path decisions remain recorded in this plan and `docs/implementation-gaps.md`: shared compliance engine (`GAP-001`), sync-only `long_running` posture (`GAP-002`), scaffold-only plugin posture (`GAP-003`), and removed ad hoc logging/builtin handler paths under Sprint 0. |
 | advisory audit | complete | Sprint 6 QA findings are explicitly resolved in this fix pass: missing `RES-003`/`OBS-005` traceability rows, missing signoff artifact, missing preflight evidence, and missing task `#370` retirement disposition. |
-| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 continues to report no open release-relevant drivers for the chosen scope outside deferred items. |
+| misalignment audit | complete | Section 9 still covers every known high-risk misalignment class, and Section 2 now identifies the actual current open release-relevant drivers: `CDR-B`, `CDR-A`, and `Phase N`. |
 | release-doc audit | complete | `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, this plan, `docs/protocol-contract.md`, `docs/observability-contract.md`, and `docs/logging-contract.md` all describe the same plugin-only runtime, `sc-observability` boundary, and scaffold-only `plugins/` posture. |
 | branch freeze | complete | Sprint 6 froze branch head `cdce7b1` for reviewer/QA handoff before `SC-QA-S6-1`; this record keeps that frozen-head reference durable instead of implicit in ATM only. |
 | validation record | complete | The frozen-head validation command is recorded as `cargo test --workspace` in both the Sprint 6 QA checklist answers and the Sprint 6 signoff record above. |
@@ -657,7 +686,7 @@ Purpose:
 ### Hook Phase 0: Review Baseline
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the hook planning baseline in docs before any hook runtime code is written
@@ -680,6 +709,9 @@ Acceptance criteria:
 - Hook Phase 0 closes only after Sprint 6 is formally accepted and the post-release hook track is allowed to begin
 
 ### Hook Phase 1: Claude Schema Harness
+
+Status:
+- completed
 
 Focus:
 - build the first hook harness for Claude only and freeze the captured
@@ -718,6 +750,9 @@ Definition of done:
 
 ### Hook Phase 2: Plan Revision From Captured Claude Schema
 
+Status:
+- completed
+
 Focus:
 - revise the hook plan from captured evidence before implementation starts
 
@@ -752,6 +787,9 @@ Acceptance criteria:
   success criteria
 
 ### Hook Phase 3: Claude Session And Lifecycle Implementation
+
+Status:
+- completed
 
 Focus:
 - freeze the hook trait and implement the generic lifecycle/state foundation first
@@ -789,6 +827,9 @@ Acceptance criteria:
   only plugin-facing abstraction
 
 ### Hook Phase 4: Claude Command And Spawn Gates
+
+Status:
+- completed
 
 Focus:
 - implement the generic spawn and tool-gate utilities
@@ -828,6 +869,9 @@ Acceptance criteria:
 
 ### Hook Phase 5: Claude Relay Hooks
 
+Status:
+- completed
+
 Focus:
 - implement ATM-specific extension behavior after the generic layer is stable
 
@@ -862,18 +906,29 @@ Acceptance criteria:
 
 ### Hook Phase 6: Cross-Provider Follow-On
 
+Status:
+- planned
+
+Requirement drivers:
+- `HKR-006`, `HKR-007`
+
 Focus:
-- only after the Claude baseline is stable, decide whether to expand to other
-  providers
+- only after the Claude baseline is stable, execute approved harness-planning
+  follow-on work for other providers without promoting runtime support early
 
 Write scope:
 
-- provider follow-on planning docs only
+- Codex and Gemini harness-planning docs, checklists, ledgers, evidence-doc
+  updates, and harness-test planning
 - no runtime crate work without separate approval and provider-specific capture
 
+Approved execution items in this phase:
+- Codex harness schema-capture planning and evidence reconciliation
+- Gemini harness schema-capture planning and evidence reconciliation
+
 Current deferred items:
-- Codex harness and implementation work
-- Gemini harness and implementation work
+- Codex runtime implementation work
+- Gemini runtime implementation work
 - Cursor harness capture
 - Cursor runtime implementation
 
@@ -887,11 +942,22 @@ Acceptance criteria:
 - follow-on provider work is represented as schema-backed planning, not guessed
   implementation
 - Claude remains the only active runtime baseline until another provider is
-  explicitly captured and approved
+  explicitly captured, normalized, and approved through a later promotion gate
 
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
+
+### Phase N: Cross-Provider Harness-Planning Expansion
+
+Status:
+- in progress
+
+Execution detail:
+- authoritative `Phase N` execution detail lives in `docs/plan-phase-N.md`
+  and `docs/phase-N/`
+- the section-4 `Phase N` row in this document is the summary pointer for the
+  phase rather than a standalone sprint-detail record
 
 ### S10-VERSION-BUMP-1: Claude Version-Bump Detection
 
@@ -938,7 +1004,7 @@ Acceptance criteria:
 ### S11-DOC.1: README And Usage Guide Release-Doc Alignment
 
 Status:
-- in review
+- completed
 
 Focus:
 - align the operator-facing top-level docs with the current release baseline
@@ -973,7 +1039,7 @@ Acceptance criteria:
 ### S12-PUB.1: Workspace Publish Prep And Release Infrastructure
 
 Status:
-- in review
+- completed
 
 Focus:
 - move publishable workspace crates under `crates/`

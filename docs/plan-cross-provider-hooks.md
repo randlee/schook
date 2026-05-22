@@ -17,6 +17,7 @@ Use these sources in priority order:
    - [docs/project-plan.md](project-plan.md)
 2. current provider evidence documents:
    - [docs/hook-api/codex-hook-api.md](hook-api/codex-hook-api.md)
+   - [docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md)
    - [docs/hook-api/cursor-agent-hook-api.md](hook-api/cursor-agent-hook-api.md)
 3. future `sc-hooks`-owned harness captures, fixtures, validation models, and
    drift reports for each provider
@@ -51,7 +52,43 @@ runtime work starts:
 - explicit documentation of hook control semantics, including what blocks,
   what allows, and what response shape the provider actually accepts
 
+The goal is not “some example payloads.” The goal is a provider-owned proof of
+the full observable hook contract that `schook` can normalize against.
+
 If any one of those is missing, the provider remains in planning mode.
+
+## Shared Schema-Proof Standard
+
+For Codex, Gemini, and any later provider, the harness must prove all
+hook-observable schema fields at every captured hook surface.
+
+Minimum proof standard:
+
+- capture raw stdin payload exactly as delivered to the hook
+- capture relevant hook-process environment variables exactly as delivered
+- record hook control semantics:
+  - blocking vs non-blocking
+  - exit-code behavior
+  - stdout/stderr contract
+- enumerate every observed field and variable into provider fixtures
+- validate approved fixtures against provider-specific models
+- produce a drift artifact that reports:
+  - added fields
+  - removed fields
+  - changed types
+  - changed required/optional status
+
+Normalization rule:
+
+- no field is eligible for mapping into `schooks` until it has appeared in
+  repo-owned captured evidence and been promoted into a provider model
+- a field is canonical only when approved fixtures from at least two providers
+  show compatible semantics for that field
+- provider-specific fields stay provider-local until a later phase proves
+  broader compatibility
+- unresolved fields must remain in the normalization findings ledger rather
+  than being silently promoted
+- mapping work must cite the provider fixture/model, not CLI help or memory
 
 ## Shared Design Boundaries
 
@@ -91,22 +128,44 @@ Current useful planning facts:
 
 The first Codex pass should capture:
 
-- the first executable pre-tool hook surface that Codex actually fires
-- any verified session or turn identity surface exposed during real execution
-- at least one lifecycle or relay-completion surface that can be correlated in
-  `sc-hooks`
-- any path/root signal used when `resume`, `fork`, or `--cd` changes execution
-  context
+- every real Codex hook surface that can be exercised locally, including:
+  - `notify` turn-complete
+  - `PreToolUse`
+  - `SessionStart`
+  - any other locally configurable hook surface that actually fires
+- every payload field present at those surfaces
+- every relevant hook-process environment variable present at those surfaces
+- session/turn correlation behavior across:
+  - startup
+  - resume
+  - compact or clear equivalents
+  - `--cd`
+  - `fork`, if still available and hook-visible
+- root/current-dir behavior under directory drift after startup
+- control semantics for each surface:
+  - blocking vs async
+  - exit-code handling
+  - stdout/stderr contract
+
+The first Codex pass should end with:
+
+- approved raw fixtures for each captured surface
+- provider-specific validation models
+- automated pytest coverage proving fixture/model agreement
+- a schema-drift report owned by `schook`
+- a reconciled Codex API doc describing only verified fields and semantics
 
 ### Current Blockers
 
 Codex remains blocked by missing `sc-hooks`-owned artifacts:
 
-- no standalone Codex hook stdin schema fixtures
-- no provider-specific Codex validation models
-- no Codex schema-drift report owned by `sc-hooks`
-- no verified `sc-hooks` capture proving how Codex root/session identity behaves
-  under `resume`, `fork`, and `--cd`
+- no complete Codex fixture set covering all locally exercisable hook surfaces
+- no provider-specific Codex validation models covering all captured surfaces
+- no automated Codex schema-proof tests beyond the current debounce prototype;
+  the existing five debounce tests are baseline evidence only and do not close
+  the full Codex surface-capture scope
+- no Codex schema-drift report owned by `schook`
+- no reconciled provider-owned manifest of payload fields and hook env vars
 
 ### Design Boundaries
 
@@ -114,13 +173,18 @@ Codex remains blocked by missing `sc-hooks`-owned artifacts:
 - do not reuse Claude field names without captured proof
 - do not implement Codex runtime handling from relay-event guesses alone
 - do not assume frontmatter behavior implies full parity with Claude hooks
+- do not promote `agent-team-mail` relay-side fields into the approved Codex
+  inventory unless the `schook` harness captures those fields directly from the
+  hook process
 
 ## Gemini Follow-On Plan
 
 ### Current Verified Baseline
 
-There is not yet a dedicated `sc-hooks` Gemini hook API document. Current useful
-planning facts preserved from earlier evidence-gathering are:
+A planning-stage Gemini hook API document now exists at
+[docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md). It is not yet
+a captured-evidence ledger. Current useful planning facts preserved there and
+from earlier evidence-gathering are:
 
 - `gemini` is installed locally
 - Gemini exposes hook-management commands through `gemini hooks ...`
@@ -137,11 +201,28 @@ contract.
 
 The first Gemini pass should capture:
 
-- the first real hook surfaces configurable through `gemini hooks`
-- one tool-style hook payload
-- one lifecycle or session-continuation payload if Gemini exposes one
-- one capture proving how output-format choice affects hook-observable behavior,
-  if it does at all
+- every real Gemini hook surface configurable through `gemini hooks` that can
+  be exercised locally
+- every payload field present at those surfaces
+- every relevant hook-process environment variable present at those surfaces
+- one tool-style payload
+- one lifecycle/session-continuation payload if Gemini exposes one
+- output-format interactions, if hook-observable:
+  - `text`
+  - `json`
+  - `stream-json`
+- control semantics for each surface:
+  - blocking vs async
+  - exit-code handling
+  - stdout/stderr contract
+
+The first Gemini pass should end with:
+
+- approved raw fixtures for each captured surface
+- provider-specific validation models
+- automated pytest coverage proving fixture/model agreement
+- a Gemini schema-drift report owned by `schook`
+- a provider-owned Gemini hook API evidence document
 
 ### Current Blockers
 
@@ -149,9 +230,11 @@ Gemini remains blocked by missing `sc-hooks`-owned artifacts:
 
 - no Gemini hook fixtures in this repo
 - no Gemini validation models
+- no automated Gemini schema-proof tests
 - no Gemini schema-drift report
-- no Gemini hook API evidence document owned by `sc-hooks`
-- no verified session/root identity model comparable to the Claude track
+- no Gemini hook API evidence document reconciled to repo-owned Gemini fixture
+  evidence yet
+- no verified provider-owned session/root identity model
 
 ### Design Boundaries
 
@@ -224,12 +307,45 @@ For each provider, the follow-on sequence should be:
 
 1. document current verified baseline
 2. wire provider-specific harness scaffolding
-3. capture first-pass raw fixtures
-4. build provider-specific validation models
-5. publish a provider-owned hook API evidence document
-6. re-evaluate whether implementation work is justified
+3. capture first-pass raw fixtures for every exercisable hook surface
+4. capture hook-process env snapshots for the same surfaces
+5. build provider-specific validation models
+6. add pytest schema-proof tests that fail on fixture/model drift
+7. publish a provider-owned hook API evidence document
+8. re-evaluate whether implementation work is justified
 
-If a provider fails at step 3 or 4, implementation stays deferred.
+If a provider fails at step 3, 4, 5, or 6, implementation stays deferred.
+
+## Next Approved Phase
+
+The next cross-provider execution phase should run Codex and Gemini in
+parallel, both as schema-capture and normalization-prep tracks.
+
+Codex track:
+
+1. build a Codex live-capture harness parallel to the Claude harness
+2. capture all locally exercisable Codex hook surfaces
+3. freeze approved fixtures and env snapshots
+4. build models and schema-drift reports
+5. reconcile the Codex API doc to match only those fixtures
+
+Gemini track:
+
+1. build a Gemini live-capture harness parallel to the Claude harness
+2. identify and capture all locally exercisable Gemini hook surfaces
+3. freeze approved fixtures and env snapshots
+4. build models and schema-drift reports
+5. publish the first `schook`-owned Gemini hook API evidence doc
+
+Parallel completion criteria:
+
+- Codex and Gemini each have repo-owned fixtures for all locally tested hook
+  points
+- Codex and Gemini each have automated pytest schema-proof tests
+- Codex and Gemini each have drift artifacts suitable for future version-bump
+  checks
+- mapping candidates into normalized `schooks` fields are explicitly listed and
+  source-cited from fixtures
 
 ## Deliverable For A Later Approved Sprint
 
