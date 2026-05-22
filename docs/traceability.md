@@ -97,6 +97,8 @@ This table maps the most important documented requirements to current implementa
 | HKR-009 | implemented | `plugins/agent-session-foundation/src/lib.rs` | `plugins/agent-session-foundation` unit tests covering atomic-write temp-plus-rename, skip-on-unchanged, and per-invocation observability emission | |
 | HKR-011 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering extension-field enrichment, team linkage, and child identity override behavior | |
 | HKR-013 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering the four-stage relay pipeline, `ToolName` typed boundary, and relay-decision side-effect separation | |
+| HKR-014 | planned | `docs/phase-N/sprint-N1.md`, `docs/phase-N/sprint-N2.md`, `docs/hook-api/codex-hook-api.md`, future `docs/hook-api/gemini-hook-api.md` | `N.1` / `N.2` fixture manifests, findings ledgers, and provider-specific harness tests proving repo-owned raw stdin fixtures, env snapshots, and approved capture scope | |
+| HKR-015 | planned | `docs/phase-N/sprint-N3.md`, `docs/phase-N/normalization-findings-ledger.md`, `docs/architecture.md` (`ADR-SHK-006`) | `N.3` normalization checklist/ledger plus control-doc reconciliation proving only multi-provider compatible fields are canonical candidates | |
 
 ## Resolved Gap Acknowledgments
 

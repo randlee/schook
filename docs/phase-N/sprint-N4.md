@@ -28,7 +28,9 @@ estimated_scope: medium
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
-- `docs/phase-N/readiness.md`
+- `docs/phase-N/readiness.md` (`N.4` records the final verdict, but the
+  integration author remains the sole writer for accepted sprint rows and final
+  verdict updates)
 - approved outputs of `N.1`, `N.2`, and `N.3`
 
 ## Prerequisites
@@ -42,6 +44,7 @@ estimated_scope: medium
 - `docs/phase-N/readiness.md`
 - `docs/project-plan.md`
 - `docs/plan-cross-provider-hooks.md`
+- `docs/traceability.md`
 
 ## Deliverables
 
@@ -68,6 +71,8 @@ silently dropped or partially deferred.
 - freeze the final readiness verdict
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
+- update `docs/traceability.md` for the final `Phase N` closure status of
+  `HKR-014` and `HKR-015`
 
 ## Promotion Gate Criteria
 

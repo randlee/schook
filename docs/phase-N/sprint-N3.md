@@ -29,14 +29,17 @@ estimated_scope: large
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
-- `docs/phase-N/readiness.md`
+- `docs/phase-N/readiness.md` (`read-only` during `N.3`; only the integration
+  author updates accepted rows after sprint acceptance)
 - `docs/architecture.md` (`ADR-SHK-006` already present; `N.3` must cite it)
-- approved output of `N.1`
-- approved output of `N.2`
+- accepted and merged-to-integration-branch output of `N.1`
+- accepted and merged-to-integration-branch output of `N.2`
 
 ## Prerequisites
 
-- Codex and Gemini fixture/model sets are already frozen
+- Codex and Gemini fixture/model sets are already merged to the integration
+  branch and the corresponding `docs/phase-N/readiness.md` rows were updated by
+  the integration author; feature-branch fixture freeze alone is not sufficient
 - provider API evidence docs are updated to match those fixtures
 
 ## Exact Targets
@@ -50,6 +53,7 @@ estimated_scope: large
 - `docs/requirements.md`
 - `docs/architecture.md`
 - `docs/project-plan.md`
+- `docs/traceability.md`
 
 ## Deliverables
 
@@ -74,6 +78,8 @@ silently dropped or partially deferred.
 - add at least one `Planned` requirement row covering the `Phase N`
   harness/normalization boundary
 - cite the existing provider-normalization boundary ADR from this sprint
+- add traceability rows for `HKR-014` and `HKR-015` citing the `N.1` / `N.2`
+  fixture evidence and the `N.3` normalization findings ledger
 - reconcile `docs/requirements.md`, `docs/architecture.md`, and
   `docs/project-plan.md` to the verified provider planning boundary
 
@@ -111,6 +117,7 @@ explicit code samples or signatures showing the intended end state.
   `docs/phase-N/readiness.md` as the authoritative verdict record and states
   that `N.4` is the step that changes the Phase N row from `In progress` to
   `Completed`
+- `docs/traceability.md` carries rows for `HKR-014` and `HKR-015`
 
 ## Required Validation
 

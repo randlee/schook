@@ -126,6 +126,8 @@ deliverables, acceptance criteria, and closure rules.
 - Codex and Gemini should be executed in parallel where possible
 - `docs/phase-N/readiness.md` is read-only in parallel sprint branches; only
   the integration author updates accepted rows after sprint acceptance
+- the canonical non-exercisable disposition string for `Phase N` ledgers and
+  manifests is `confirmed-not-exercisable`
 - schema proof means payload plus hook-process environment coverage at each hook
   point
 - no provider field may be mapped into `schooks` without repo-owned fixture

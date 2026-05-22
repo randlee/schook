@@ -37,7 +37,13 @@ estimated_scope: large
 ## Prerequisites
 
 - local Gemini CLI and `gemini hooks` surfaces are available for testing
-- the capture matrix is frozen before execution begins
+- the capture matrix is frozen by `team-lead` or `chook` before the first
+  `N.2` harness commit:
+  - freeze means `docs/phase-N/gemini-capture-checklist.md` is already
+    committed with at least one named Gemini hook-surface entry
+  - that checklist-freeze commit is the execution gate for later `N.2` harness
+    work; the sprint must not create and freeze the matrix implicitly inside
+    the first harness commit
 
 ## Exact Targets
 
@@ -70,8 +76,11 @@ silently dropped or partially deferred.
 - capture raw payload plus env for each surface
 - record the Gemini CLI version and hook registration path used for each capture
 - verify whether output-format choice changes hook-observable behavior
+- classify control semantics for each surface using the schema defined in
+  `docs/plan-cross-provider-hooks.md`: blocking vs non-blocking, exit-code
+  handling, and stdout/stderr contract
 - record every attempted Gemini hook surface in the checklist and findings
-  ledger with one of: `captured` or `not exercisable locally`
+  ledger with one of: `captured` or `confirmed-not-exercisable`
 - add a provider-gemini structural harness test that passes even when every
   Gemini hook surface is blocked locally, so the validation gate still proves
   the harness exists in an all-blocked MVC outcome
@@ -97,11 +106,16 @@ Approved Gemini fixture manifest / drift artifact shape:
       "surface": "preTool",
       "status": "captured",
       "payload_fixture": "preTool/payload.json",
-      "env_fixture": "preTool/env.json"
+      "env_fixture": "preTool/env.json",
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "non-zero blocks tool execution",
+        "stdio_contract": "stdout/stderr consumed as hook response"
+      }
     },
     {
       "surface": "sessionStart",
-      "status": "not exercisable locally",
+      "status": "confirmed-not-exercisable",
       "reason": "surface not exposed by local gemini hooks runtime"
     }
   ]
@@ -121,7 +135,7 @@ If Gemini exposes no locally exercisable hook surfaces during `N.2`, the sprint
 still closes only by documenting that result explicitly:
 
 - `docs/phase-N/gemini-findings-ledger.md` must list every attempted surface as
-  `not exercisable locally`
+  `confirmed-not-exercisable`
 - each blocked surface row must include `reason: <why it could not be
   exercised>`
 - `docs/phase-N/gemini-capture-checklist.md` must record the corresponding
@@ -135,13 +149,15 @@ that cannot be exercised locally.
 ## Acceptance Criteria
 
 - every locally tested Gemini hook point has a repo-owned raw fixture, or the
-  findings ledger records `not exercisable locally` with a reason
+  findings ledger records `confirmed-not-exercisable` with a reason
 - every captured Gemini hook point has an env snapshot fixture
 - every approved fixture validates against a provider-specific model
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - `test-harness/hooks/gemini/fixtures/approved/manifest.json` records
   `provider`, `gemini_version`, `capture_date`, and `hook_surfaces` by name
+- every captured Gemini manifest surface records `control_semantics` with
+  `blocking`, `exit_code_contract`, and `stdio_contract`
 - Gemini pytest schema-proof tests fail on fixture/model drift
 - the provider-gemini pytest validation gate collects and passes at least one
   structural harness-layout test regardless of whether fixture capture closes
