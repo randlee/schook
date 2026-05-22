@@ -103,6 +103,9 @@ Current verified event types:
 
 ## Current Verified HookEvent Fields
 
+Relay-only planning evidence — not part of approved `schook` fixture
+inventory unless a future harness capture proves the same fields directly.
+
 The current Rust-side `HookEvent` model in
 `agent-team-mail/crates/atm-daemon/src/plugins/worker_adapter/hook_watcher.rs`
 contains these fields:

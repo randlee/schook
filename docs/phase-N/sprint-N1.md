@@ -79,9 +79,20 @@ silently dropped or partially deferred.
   handling, and stdout/stderr contract
 - maintain an approved manifest that records every audited Codex surface with a
   per-surface disposition: `captured` or `confirmed-not-exercisable`
+- classify every Codex checklist surface before the first `N.1` harness commit
+  as either `direct hook surface (harness-capturable)` or
+  `relay-synthetic (confirmed-not-exercisable)` with the reason recorded in
+  `docs/phase-N/codex-capture-checklist.md`
 - add a provider-codex pytest that fails if the approved manifest only
   describes the debounce prototype surfaces without a final disposition for the
   rest of the audited Codex surface set
+- ensure the `provider_codex` pytest suite asserts that
+  `test-harness/hooks/codex/fixtures/approved/manifest.json` exists and
+  carries the required top-level keys
+- ensure every field table kept in `docs/hook-api/codex-hook-api.md` after `N.1`
+  is either backed by a repo-owned `N.1` fixture citation or explicitly labeled
+  `relay-only planning evidence — not part of approved schook fixture
+  inventory`
 - freeze the checklist and findings ledger for `N.1`
 - promote only validated findings into the Codex doc set
 
@@ -156,12 +167,21 @@ Approved Codex fixture manifest / drift artifact shape:
   `provider`, `codex_version`, `capture_date`, and `hook_surfaces` by name
 - every audited Codex hook surface has an explicit manifest / findings-ledger
   disposition: `captured` or `confirmed-not-exercisable`
+- before the first `N.1` harness commit,
+  `docs/phase-N/codex-capture-checklist.md` classifies every planned Codex
+  surface as either `direct hook surface (harness-capturable)` or
+  `relay-synthetic (confirmed-not-exercisable)`; `SessionStart` must be
+  classified explicitly with its relay source cited
 - `N.1` closure cannot rely on the existing debounce prototype alone; the
   approved manifest must enumerate more than the current prototype baseline or
   explicitly record every additional audited surface as
   `confirmed-not-exercisable`
 - only `schook`-owned raw payload and hook-process environment fields are
   promoted into the approved field inventory
+- every remaining field table in `docs/hook-api/codex-hook-api.md` is either
+  backed by a repo-owned `N.1` fixture citation or explicitly labeled
+  `relay-only planning evidence — not part of approved schook fixture
+  inventory`
 - Codex pytest schema-proof tests fail on fixture/model drift
 - `docs/phase-N/codex-findings-ledger.md` is the only authoritative handoff
   ledger for Codex capture findings

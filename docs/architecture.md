@@ -30,13 +30,14 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
 | `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. |
+| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-006` decisions in this document
+  through `ADR-SHK-007` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -356,6 +357,17 @@ Still deferred beyond that harness-planning expansion:
   ledger until a later phase resolves them
 - runtime adapter work for Codex or Gemini remains deferred until `N.4`
   records a promotion verdict from the final readiness record
+
+### 9.2c Planned Readiness Ownership Boundary
+
+`ADR-SHK-007` governs the shared-readiness write pattern for `Phase N`:
+
+- sprint execution branches treat shared readiness ledgers as read-only
+- the integration author is the sole writer for accepted sprint rows and final
+  verdict updates
+- this avoids parallel branch drift on one shared go/no-go record
+- future phases may reuse this pattern only when the owning phase plan and
+  readiness ledger cite `ADR-SHK-007` explicitly
 
 ### 9.2a Planned Version-Bump Detection Boundary
 

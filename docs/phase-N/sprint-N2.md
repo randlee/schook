@@ -64,6 +64,8 @@ silently dropped or partially deferred.
 - an approved field inventory covering every observed payload field and hook
   env var for each captured surface
 - provider-specific Gemini validation models
+- provider-specific Gemini validation models, including the all-blocked MVC
+  placeholder model artifact when no Gemini surfaces are capturable locally
 - pytest schema-proof tests for Gemini fixtures/models
 - a Gemini fixture manifest / drift artifact suitable for future version-bump
   checks
@@ -84,6 +86,9 @@ silently dropped or partially deferred.
 - add a provider-gemini structural harness test that passes even when every
   Gemini hook surface is blocked locally, so the validation gate still proves
   the harness exists in an all-blocked MVC outcome
+- in the all-blocked MVC outcome, write at least one parseable Gemini provider
+  model file under `test-harness/hooks/gemini/models/` that records an empty
+  approved-field set and the blocking reason
 - freeze the checklist and findings ledger for `N.2`
 - promote only validated findings into Gemini evidence docs
 
@@ -122,6 +127,19 @@ Approved Gemini fixture manifest / drift artifact shape:
 }
 ```
 
+MVC placeholder provider-model shape when every Gemini surface is
+`confirmed-not-exercisable`:
+
+```json
+{
+  "provider": "gemini",
+  "model_name": "empty-approved-fields",
+  "approved_fields": [],
+  "status": "confirmed-not-exercisable",
+  "reason": "no Gemini hook surfaces were capturable locally during N.2"
+}
+```
+
 ## This Sprint Does Not Close
 
 - Codex runtime adapter promotion
@@ -142,6 +160,9 @@ still closes only by documenting that result explicitly:
   status as `BLOCKED`, not `COMPLETE`
 - the provider-gemini pytest run must still collect and pass at least one
   structural harness-layout test in this all-blocked outcome
+- `test-harness/hooks/gemini/models/` must still contain at least one parseable
+  Gemini provider-model file recording the empty approved-field set and the
+  blocking reason
 
 That documented blocked outcome is the minimum viable closure path for surfaces
 that cannot be exercised locally.
@@ -152,6 +173,9 @@ that cannot be exercised locally.
   findings ledger records `confirmed-not-exercisable` with a reason
 - every captured Gemini hook point has an env snapshot fixture
 - every approved fixture validates against a provider-specific model
+- `docs/phase-N/gemini-capture-checklist.md` contains at least one explicitly
+  named Gemini hook-surface entry committed before the first `N.2` harness
+  commit
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - `test-harness/hooks/gemini/fixtures/approved/manifest.json` records
@@ -162,6 +186,9 @@ that cannot be exercised locally.
 - the provider-gemini pytest validation gate collects and passes at least one
   structural harness-layout test regardless of whether fixture capture closes
   through full capture or the all-blocked MVC path
+- in the all-blocked MVC outcome, `test-harness/hooks/gemini/models/`
+  contains at least one parseable Gemini provider-model file recording an empty
+  approved-field set with a blocking reason
 - `docs/phase-N/gemini-capture-checklist.md` and
   `docs/phase-N/gemini-findings-ledger.md` contain a per-surface final
   disposition for every attempted Gemini hook point

@@ -72,7 +72,9 @@ silently dropped or partially deferred.
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
 - update `docs/traceability.md` for the final `Phase N` closure status of
-  `HKR-014` and `HKR-015`
+  `HKR-014`, `HKR-015`, and `HKR-016`, marking them `implemented` for
+  approved surfaces that close under `GO` / `PARTIAL_GO`, or `deferred` with a
+  named follow-on sprint reference for surfaces that remain unapproved
 
 ## Promotion Gate Criteria
 

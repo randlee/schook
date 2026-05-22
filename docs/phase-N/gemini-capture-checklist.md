@@ -6,6 +6,11 @@ Status:
 Purpose:
 - freeze the Gemini hook-surface capture matrix for `N.2`
 
+Named hook-surface entries for freeze gate:
+- `preTool` — named candidate direct hook surface for tool-pre interception
+- `sessionStart` — named candidate lifecycle surface if exposed by local Gemini
+  hooks runtime
+
 Planned coverage:
 - every locally exercisable `gemini hooks` surface
 - lifecycle or resume surfaces if present

@@ -108,9 +108,19 @@ Execution worktree:
 - `N.1`:
   - `docs/phase-N/codex-capture-checklist.md`
   - `docs/phase-N/codex-findings-ledger.md`
+  - `test-harness/hooks/codex/fixtures/approved/manifest.json`
+  - `test-harness/hooks/codex/models/`
+  - `test-harness/hooks/codex/tests/`
+  - Codex drift artifact
+  - `docs/hook-api/codex-hook-api.md`
 - `N.2`:
   - `docs/phase-N/gemini-capture-checklist.md`
   - `docs/phase-N/gemini-findings-ledger.md`
+  - `test-harness/hooks/gemini/fixtures/approved/manifest.json`
+  - `test-harness/hooks/gemini/models/`
+  - `test-harness/hooks/gemini/tests/`
+  - Gemini drift artifact
+  - `docs/hook-api/gemini-hook-api.md`
 - `N.3`:
   - `docs/phase-N/normalization-checklist.md`
   - `docs/phase-N/normalization-findings-ledger.md`
@@ -125,7 +135,8 @@ deliverables, acceptance criteria, and closure rules.
 
 - Codex and Gemini should be executed in parallel where possible
 - `docs/phase-N/readiness.md` is read-only in parallel sprint branches; only
-  the integration author updates accepted rows after sprint acceptance
+  the integration author updates accepted rows after sprint acceptance, per
+  `ADR-SHK-007`
 - the canonical non-exercisable disposition string for `Phase N` ledgers and
   manifests is `confirmed-not-exercisable`
 - schema proof means payload plus hook-process environment coverage at each hook

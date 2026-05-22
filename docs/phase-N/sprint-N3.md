@@ -31,9 +31,12 @@ estimated_scope: large
 - `docs/plan-phase-N.md`
 - `docs/phase-N/readiness.md` (`read-only` during `N.3`; only the integration
   author updates accepted rows after sprint acceptance)
+- `docs/architecture.md` (`ADR-SHK-007` governs the readiness ownership rule)
 - `docs/architecture.md` (`ADR-SHK-006` already present; `N.3` must cite it)
 - accepted and merged-to-integration-branch output of `N.1`
 - accepted and merged-to-integration-branch output of `N.2`
+- `docs/hook-api/gemini-hook-api.md` (created by `N.2`; must exist on the
+  integration branch before `N.3` begins)
 
 ## Prerequisites
 
@@ -75,11 +78,12 @@ silently dropped or partially deferred.
 - group fields into canonical, provider-specific, and unresolved sets
 - document correlation, lifecycle, and root-recovery differences by provider
 - freeze the normalization checklist and findings ledger for `N.3`
-- add at least one `Planned` requirement row covering the `Phase N`
-  harness/normalization boundary
+- add `HKR-016` covering the integration-author-only readiness ownership rule
 - cite the existing provider-normalization boundary ADR from this sprint
 - add traceability rows for `HKR-014` and `HKR-015` citing the `N.1` / `N.2`
   fixture evidence and the `N.3` normalization findings ledger
+- add a traceability row for `HKR-016` citing `ADR-SHK-007`,
+  `docs/plan-phase-N.md`, and `docs/phase-N/readiness.md`
 - reconcile `docs/requirements.md`, `docs/architecture.md`, and
   `docs/project-plan.md` to the verified provider planning boundary
 
@@ -108,16 +112,18 @@ explicit code samples or signatures showing the intended end state.
 - planning docs no longer rely on guessed provider contracts
 - `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md`
   describe the same approved Phase N boundary
-- `docs/requirements.md` adds at least one new `Planned` requirement row
-  covering the Phase N harness/normalization scope
+- `docs/requirements.md` includes `HKR-016` covering the integration-author-only
+  readiness ownership rule for `Phase N`
 - `docs/architecture.md` includes `ADR-SHK-006` and `N.3` cites it as the
   normalization boundary decision governing canonical fields, provider-local
   fields, unresolved fields, and the deferred runtime-adapter boundary
+- `docs/hook-api/gemini-hook-api.md` exists with at least one named surface
+  entry before `N.3` updates it
 - `docs/project-plan.md` adds a Phase N boundary note that cites
   `docs/phase-N/readiness.md` as the authoritative verdict record and states
   that `N.4` is the step that changes the Phase N row from `In progress` to
   `Completed`
-- `docs/traceability.md` carries rows for `HKR-014` and `HKR-015`
+- `docs/traceability.md` carries rows for `HKR-014`, `HKR-015`, and `HKR-016`
 
 ## Required Validation
 

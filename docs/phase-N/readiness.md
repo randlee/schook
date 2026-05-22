@@ -21,7 +21,8 @@ Each sprint row must record:
 
 Execution ownership rule:
 
-- `docs/phase-N/readiness.md` is `read-only` in sprint execution branches
+- `docs/phase-N/readiness.md` is `read-only` in sprint execution branches per
+  `ADR-SHK-007`
 - the integration author updates the accepted sprint row only after the sprint
   is accepted and merged
 

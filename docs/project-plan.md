@@ -84,7 +84,7 @@ Important planning rule:
 | `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
 | `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
 | `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
-| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture planning, schema normalization, ATM-aware idle notifications | `HKR-004`, `HKR-006`, `HKR-007`, `HKR-014`, `HKR-015` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `test-harness/hooks/codex/`, `docs/hook-api/codex-hook-api.md`, `docs/plan-cross-provider-hooks.md`, `.sc/sessions/codex/`, `.atm.toml` idle_notify config |
+| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture planning, schema normalization, ATM-aware idle notifications | `HKR-004`, `HKR-006`, `HKR-007`, `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `test-harness/hooks/codex/`, `docs/hook-api/codex-hook-api.md`, `docs/plan-cross-provider-hooks.md`, `.sc/sessions/codex/`, `.atm.toml` idle_notify config |
 
 Phase N boundary update:
 
