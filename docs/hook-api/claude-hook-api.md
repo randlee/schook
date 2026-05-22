@@ -350,3 +350,21 @@ Adjacent but not part of the current eight-hook baseline:
   after a bounded idle probe with `matcher = ""`; the current local fact is
   "wired but not firing in this harness pass," not a verified vendor timing
   guarantee
+
+## N.3 Normalization Carry-Forward
+
+Claude baseline fields that contributed to `N.3` canonical mapping candidates:
+
+- `session_id`
+- `cwd`
+- `transcript_path`
+- `tool_input.command` on Bash tool surfaces
+
+Claude fields that remain provider-local after `N.3`:
+
+- raw lifecycle `source`
+- `permission_mode`
+- `tool_use_id`
+- `permission_suggestions`
+- `PreCompact`-only fields
+- `WorktreeCreate` / `WorktreeRemove`

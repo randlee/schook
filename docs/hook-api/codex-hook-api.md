@@ -346,3 +346,26 @@ Environment variables:
   directly captured `SessionStart`, `PreToolUse`, and `notify`
 - any future Codex planning should cite the runner or bundle source used to
   verify payload fields before those fields are promoted into `sc-hooks` docs
+
+## N.3 Normalization Carry-Forward
+
+Canonical mapping candidates proved in `N.3` from Codex fixture evidence plus
+at least one other provider:
+
+- `session_id`
+- `cwd`
+- `transcript_path`
+- `tool_input.command` on shell-like tool surfaces
+
+Fields that remain Codex-local after `N.3`:
+
+- `thread-id`
+- `turn-id`
+- `tool_use_id`
+- `client`
+- `type`
+- `input-messages`
+- `last-assistant-message`
+- `model`
+- `permission_mode`
+- `source`
