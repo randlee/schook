@@ -212,21 +212,24 @@ hook's raw `cwd`.
 
 ## Session Correlation Model
 
-Codex currently does not have the same verified SessionStart capture path that
-Claude uses in this repo. Until that exists, treat Codex identity as a planned
-gap rather than pretending it matches Claude.
+Codex does have a locally verified SessionStart/session-record path in this
+repo, but `schook` has not yet normalized that path into the generic provider
+contract the way Claude already has. Treat Claude-equivalent continuity as
+unapproved until `Phase N` captures and models the full Codex session
+contract.
 
 Current practical correlation inputs:
 
 1. `thread-id` from the notify payload — stable within a session turn sequence
 2. `CODEX_THREAD_ID` env var — same value, available without payload parsing
 3. `ATM_TEAM` + `ATM_IDENTITY` as routing labels
-4. explicit `session_id` if the runner injects one in the future
+4. explicit `session_id` when provided by `PreToolUse`
 
 Design rule:
 
-- do not claim Claude-equivalent session continuity for Codex until there is a
-  verified hook or runner surface that emits a stable session identifier
+- do not claim Claude-equivalent session continuity for Codex until the
+  session-record path and hook payload fields are captured and normalized into
+  the generic provider contract
 
 ## Design Implications For `schook`
 
@@ -274,7 +277,9 @@ Environment variables:
 
 ## Current Platform Gaps
 
-- no stable Codex session identifier analogous to Claude's `SessionStart` hook
+- no provider-normalized Codex session identifier contract yet; the local
+  SessionStart/session-record path is proven here but not yet modeled as a
+  generic `schook` provider contract
 - `Stop` hook unreliable in live exec; do not plan against it
 - no verified upstream schema for Codex hook payload variants beyond
   `agent-turn-complete` and `PreToolUse`

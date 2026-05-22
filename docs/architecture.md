@@ -301,15 +301,25 @@ The planned hook harness owns:
 - schema-drift CI checks
 - review artifacts for newly observed or changed payload fields
 
-Initial execution scope:
+Initial executed harness scope:
 
 - Claude only
 
-Documented but deferred from the first harness pass:
+First approved expansion after the Claude baseline:
 
-- Codex
-- Gemini
-- Cursor Agent
+- `Phase N` Codex and Gemini harness-planning work:
+  - provider harness scaffolding
+  - raw fixture capture
+  - provider-specific models
+  - schema-proof tests
+  - provider evidence docs
+
+Still deferred beyond that harness-planning expansion:
+
+- Codex runtime adapters
+- Gemini runtime adapters
+- Cursor Agent harness capture
+- Cursor-targeting runtime work
 
 ### 9.2a Planned Version-Bump Detection Boundary
 

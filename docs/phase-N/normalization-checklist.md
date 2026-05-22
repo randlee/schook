@@ -13,3 +13,5 @@ Planned coverage:
 - canonical mapping candidates listed
 - unresolved provider differences listed
 - explicit do-not-map items listed
+- control-doc reconciliation across `requirements`, `architecture`, and
+  `project-plan`

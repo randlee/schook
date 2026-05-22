@@ -55,6 +55,8 @@ silently dropped or partially deferred.
 
 - approved raw Codex fixtures for every locally exercisable hook surface
 - hook-process environment snapshots for those same surfaces
+- an approved field inventory covering every observed payload field and hook
+  env var for each captured surface
 - provider-specific Codex validation models
 - pytest schema-proof tests for Codex fixtures/models
 - a Codex drift artifact suitable for future version-bump checks
@@ -65,6 +67,7 @@ silently dropped or partially deferred.
 - adapt the Claude harness pattern to Codex capture workflows
 - enumerate every hook surface Codex actually fires locally
 - capture raw payload plus env for each surface
+- record the Codex CLI version and hook registration path used for each capture
 - classify control semantics for each surface
 - freeze the checklist and findings ledger for `N.1`
 - promote only validated findings into the Codex doc set
@@ -89,6 +92,8 @@ explicit code samples or signatures showing the intended end state.
 - every locally tested Codex hook point has a repo-owned raw fixture
 - every captured Codex hook point has an env snapshot fixture
 - every approved fixture validates against a provider-specific model
+- every approved Codex payload field and hook env var is enumerated in the
+  approved fixtures or provider models
 - Codex pytest schema-proof tests fail on fixture/model drift
 - `docs/phase-N/codex-findings-ledger.md` is the only authoritative handoff
   ledger for Codex capture findings

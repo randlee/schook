@@ -77,6 +77,8 @@ Purpose:
 - compare Codex and Gemini approved fixtures against the Claude baseline
 - identify which fields map cleanly into canonical `schooks` concepts
 - document unresolved provider differences before runtime work begins
+- reconcile `requirements`, `architecture`, and `project-plan` to the approved
+  Phase N planning boundary
 
 Execution branch:
 - `feature/pN-s3-cross-provider-normalization-inventory`
@@ -91,6 +93,7 @@ Purpose:
 - decide whether Codex and Gemini are ready for runtime adapter work
 - freeze the provider evidence, open issues, and explicit non-goals
 - record the final Phase N readiness verdict
+- freeze the authoritative project-level go/no-go record for later runtime work
 
 Execution branch:
 - `feature/pN-s4-promotion-gate`

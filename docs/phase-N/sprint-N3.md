@@ -43,7 +43,12 @@ estimated_scope: medium
 - `docs/phase-N/normalization-checklist.md`
 - `docs/phase-N/normalization-findings-ledger.md`
 - `docs/plan-cross-provider-hooks.md`
-- provider hook API evidence docs touched by the mapping review
+- `docs/hook-api/claude-hook-api.md`
+- `docs/hook-api/codex-hook-api.md`
+- `docs/hook-api/gemini-hook-api.md`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/project-plan.md`
 
 ## Deliverables
 
@@ -56,6 +61,8 @@ silently dropped or partially deferred.
 - an explicit list of canonical mapping candidates backed by fixture evidence
 - an explicit list of non-mappable or unresolved provider differences
 - updated planning docs reflecting the actual adapter gap after schema proof
+- reconciled control docs describing the approved Phase N harness-planning
+  boundary and the still-deferred runtime boundary
 
 ## Required Work
 
@@ -63,6 +70,8 @@ silently dropped or partially deferred.
 - group fields into canonical, provider-specific, and unresolved sets
 - document correlation, lifecycle, and root-recovery differences by provider
 - freeze the normalization checklist and findings ledger for `N.3`
+- reconcile `docs/requirements.md`, `docs/architecture.md`, and
+  `docs/project-plan.md` to the verified provider planning boundary
 
 ## Explicit Code Samples
 
@@ -86,6 +95,8 @@ explicit code samples or signatures showing the intended end state.
 - `docs/phase-N/normalization-findings-ledger.md` is the only authoritative
   handoff ledger for normalization findings
 - planning docs no longer rely on guessed provider contracts
+- `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md`
+  describe the same approved Phase N boundary
 
 ## Required Validation
 

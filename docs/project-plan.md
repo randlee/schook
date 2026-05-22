@@ -75,7 +75,7 @@ Important planning rule:
 | `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
 | `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
 | `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
-| Phase N | In progress | Cross-provider hook capture and normalization — Codex idle/notify (live-verified), Gemini capture, schema normalization, ATM-aware idle notifications | `HKR-004`, `HKR-006`, `HKR-007` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `test-harness/hooks/codex/`, `docs/hook-api/codex-hook-api.md`, `.sc/sessions/codex/`, `.atm.toml` idle_notify config |
+| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture planning, schema normalization, ATM-aware idle notifications | `HKR-004`, `HKR-006`, `HKR-007` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `test-harness/hooks/codex/`, `docs/hook-api/codex-hook-api.md`, `docs/plan-cross-provider-hooks.md`, `.sc/sessions/codex/`, `.atm.toml` idle_notify config |
 
 ## 5. Execution Controls
 
@@ -863,17 +863,22 @@ Acceptance criteria:
 ### Hook Phase 6: Cross-Provider Follow-On
 
 Focus:
-- only after the Claude baseline is stable, decide whether to expand to other
-  providers
+- only after the Claude baseline is stable, execute approved harness-planning
+  follow-on work for other providers without promoting runtime support early
 
 Write scope:
 
-- provider follow-on planning docs only
+- Codex and Gemini harness-planning docs, checklists, ledgers, evidence-doc
+  updates, and harness-test planning
 - no runtime crate work without separate approval and provider-specific capture
 
+Approved execution items in this phase:
+- Codex harness schema-capture planning and evidence reconciliation
+- Gemini harness schema-capture planning and evidence reconciliation
+
 Current deferred items:
-- Codex harness and implementation work
-- Gemini harness and implementation work
+- Codex runtime implementation work
+- Gemini runtime implementation work
 - Cursor harness capture
 - Cursor runtime implementation
 
@@ -887,7 +892,7 @@ Acceptance criteria:
 - follow-on provider work is represented as schema-backed planning, not guessed
   implementation
 - Claude remains the only active runtime baseline until another provider is
-  explicitly captured and approved
+  explicitly captured, normalized, and approved through a later promotion gate
 
 Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is

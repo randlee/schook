@@ -11,5 +11,7 @@ Planned coverage:
 - lifecycle or resume surfaces if present
 - hook-process environment snapshots
 - payload field inventory
+- full hook env var inventory
+- capture-run CLI version and hook registration details
 - output-format interaction checks
 - control semantics inventory

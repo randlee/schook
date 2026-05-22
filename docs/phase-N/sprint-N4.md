@@ -40,7 +40,8 @@ estimated_scope: medium
 
 - `docs/phase-N/release-checklist.md`
 - `docs/phase-N/readiness.md`
-- any final `Phase N` summary updates to provider planning docs
+- `docs/project-plan.md`
+- `docs/plan-cross-provider-hooks.md`
 
 ## Deliverables
 
@@ -52,6 +53,7 @@ silently dropped or partially deferred.
 - final `Phase N` release checklist
 - final `Phase N` readiness verdict
 - explicit approved/deferred record for Codex and Gemini promotion
+- one authoritative project-level record of the final Phase N go/no-go decision
 
 ## Required Work
 
@@ -60,6 +62,7 @@ silently dropped or partially deferred.
 - record whether runtime adapter work is approved, deferred, or partially
   approved
 - freeze the final readiness verdict
+- reconcile any final project-level status wording with the release verdict
 
 ## Explicit Code Samples
 
@@ -82,6 +85,8 @@ explicit code samples or signatures showing the intended end state.
 - Codex and Gemini each have an explicit approved/deferred disposition
 - the phase leaves one authoritative go/no-go record for subsequent runtime
   work
+- `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` reflect the
+  same final promotion verdict
 
 ## Required Validation
 

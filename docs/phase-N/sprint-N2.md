@@ -44,7 +44,7 @@ estimated_scope: large
 - `test_harness/hooks/gemini/`
 - `docs/phase-N/gemini-capture-checklist.md`
 - `docs/phase-N/gemini-findings-ledger.md`
-- the first `schook`-owned Gemini API evidence doc
+- `docs/hook-api/gemini-hook-api.md`
 
 ## Deliverables
 
@@ -55,6 +55,8 @@ silently dropped or partially deferred.
 
 - approved raw Gemini fixtures for every locally exercisable hook surface
 - hook-process environment snapshots for those same surfaces
+- an approved field inventory covering every observed payload field and hook
+  env var for each captured surface
 - provider-specific Gemini validation models
 - pytest schema-proof tests for Gemini fixtures/models
 - a Gemini drift artifact suitable for future version-bump checks
@@ -65,6 +67,7 @@ silently dropped or partially deferred.
 - adapt the Claude harness pattern to Gemini capture workflows
 - enumerate every hook surface Gemini actually fires locally
 - capture raw payload plus env for each surface
+- record the Gemini CLI version and hook registration path used for each capture
 - verify whether output-format choice changes hook-observable behavior
 - freeze the checklist and findings ledger for `N.2`
 - promote only validated findings into Gemini evidence docs
@@ -89,6 +92,8 @@ explicit code samples or signatures showing the intended end state.
 - every locally tested Gemini hook point has a repo-owned raw fixture
 - every captured Gemini hook point has an env snapshot fixture
 - every approved fixture validates against a provider-specific model
+- every approved Gemini payload field and hook env var is enumerated in the
+  approved fixtures or provider models
 - Gemini pytest schema-proof tests fail on fixture/model drift
 - `docs/phase-N/gemini-findings-ledger.md` is the only authoritative handoff
   ledger for Gemini capture findings
