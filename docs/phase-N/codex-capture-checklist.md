@@ -1,7 +1,7 @@
 # Codex Capture Checklist
 
 Status:
-- `PENDING`
+- `FROZEN`
 
 Purpose:
 - freeze the Codex hook-surface capture matrix for `N.1`
@@ -13,14 +13,20 @@ Purpose:
 Planned hook-surface coverage:
 - `notify` — `direct hook surface (harness-capturable)`
 - `PreToolUse` — `direct hook surface (harness-capturable)`
+- `Stop` — `direct hook surface (harness-capturable)`; verify whether live
+  Codex exec ever invokes `hooks.json` `Stop`, and if not record
+  `confirmed-not-exercisable` from harness-owned evidence
 - `SessionStart` — `relay-synthetic (confirmed-not-exercisable)`; source:
   `docs/hook-api/codex-hook-api.md` relay evidence from `hook_watcher.rs`
+- `resume` — `relay-synthetic (confirmed-not-exercisable)`; reason: resume
+  does not expose a distinct hook surface and is observed through direct
+  `notify` / `PreToolUse` capture runs plus session-record correlation checks
 - `fork` — `direct hook surface (harness-capturable)`; verify whether the
   forked Codex process preserves `notify` / `PreToolUse` capture visibility
 - `--cd` — `direct hook surface (harness-capturable)`; verify root/current-dir
   behavior by launching capture runs with an explicit startup directory change
-- resume/restart continuity — `relay-synthetic (confirmed-not-exercisable)`;
-  reason: resume does not fire a distinct hook surface and is observed through
+- restart continuity — `relay-synthetic (confirmed-not-exercisable)`; reason:
+  restart does not expose a distinct hook surface and is observed through
   direct `notify` / `PreToolUse` capture runs plus session-record correlation
   checks
 
