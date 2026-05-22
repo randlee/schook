@@ -170,6 +170,10 @@ explicit code samples or signatures showing the intended end state.
   `docs/phase-N/readiness.md`
 - `docs/plan-cross-provider-hooks.md` summarizes the verdict from
   `docs/phase-N/readiness.md`
+- before any `GO` or `PARTIAL_GO` verdict is recorded for a provider,
+  `docs/architecture.md` section `9.3` must confirm the hook trait seal
+  requirement is carried forward as a mandatory prerequisite for any runtime
+  adapter sprint rather than deferred until after the first runtime crate lands
 
 ## Required Validation
 

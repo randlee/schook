@@ -94,6 +94,9 @@ Phase N boundary update:
 - `Phase N` currently authorizes harness capture, provider evidence docs,
   normalization inventory, and the final promotion-gate record only
 - `Phase N` does not authorize Codex or Gemini runtime adapter implementation
+- `Phase N` execution detail lives in `docs/plan-phase-N.md` and `docs/phase-N/`;
+  the section-4 row in this document is a summary pointer rather than a
+  standalone section-10 sprint block
 - `docs/phase-N/readiness.md` is the authoritative verdict record for the
   phase; `N.4` is the step that changes the `Phase N` row from `In progress`
   to `Completed`
@@ -227,9 +230,10 @@ The former review-only `SC-LOG-PHASE-END` closeout is now represented through
 the completed Sprint 6 and Sprint 8 detail blocks below rather than as a
 separate active sprint row.
 
-`CDR-A` and `CDR-B` are pending merge-track remediation rows, not standalone
-execution sprints. They summarize scoped integration branches and therefore do
-not carry separate section-10 detail blocks in this plan.
+`CDR-1`, `CDR-2`, `CDR-3`, `CDR-A`, and `CDR-B` are remediation
+integration-branch rows, not standalone execution sprints. They summarize
+scoped integration branches and therefore do not carry separate section-10
+detail blocks in this plan.
 
 ### Sprint 1: Baseline Alignment And Code Retirement
 

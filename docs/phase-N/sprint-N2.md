@@ -85,6 +85,11 @@ silently dropped or partially deferred.
   handling, and stdout/stderr contract
 - record every attempted Gemini hook surface in the checklist and findings
   ledger with one of: `captured` or `confirmed-not-exercisable`
+- any field in the provider model that represents a semantic identifier
+  (`session_id`, run ID, provider version, hook surface name used as a
+  correlation key) must be flagged in the findings ledger as a newtype
+  candidate for later Rust runtime code, distinct from display-only string
+  fields
 - add a provider-gemini structural harness test that passes even when every
   Gemini hook surface is blocked locally, so the validation gate still proves
   the harness exists in an all-blocked MVC outcome

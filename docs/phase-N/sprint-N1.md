@@ -89,6 +89,11 @@ silently dropped or partially deferred.
   `docs/phase-N/codex-capture-checklist.md` before the first `N.1` harness
   commit, and carry each one through to a per-surface disposition in the
   approved manifest or Codex findings ledger
+- any field in the provider model that represents a semantic identifier
+  (`session_id`, run ID, provider version, hook surface name used as a
+  correlation key) must be flagged in the findings ledger as a newtype
+  candidate for later Rust runtime code, distinct from display-only string
+  fields
 - add a provider-codex pytest that fails if the approved manifest only
   describes the debounce prototype surfaces without a final disposition for the
   rest of the audited Codex surface set
