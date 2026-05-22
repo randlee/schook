@@ -161,6 +161,9 @@ deliverables, acceptance criteria, and closure rules.
   evidence and model validation
 - `Phase N` is still a harness/documentation/normalization phase, not a runtime
   promotion guarantee
+- `Phase N` does not close ATM integration or idle-notification promotion; any
+  ATM-aware idle prototype evidence remains planning input only until a later
+  runtime phase approves it explicitly
 - later runtime work must cite the `Phase N` fixtures/models rather than local
   shell behavior or provider memory
 

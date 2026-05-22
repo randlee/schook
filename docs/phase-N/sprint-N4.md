@@ -86,6 +86,9 @@ silently dropped or partially deferred.
 - limit the `docs/project-plan.md` edit in `N.4` to the targeted `Phase N` row
   status update and final verdict summary; do not replace or remove the
   boundary note added by `N.3`
+- this sprint must not introduce or modify Rust code; if execution uncovers a
+  need for Rust runtime or plugin changes, split that work into a later
+  approved runtime sprint
 
 ## Promotion Gate Criteria
 
@@ -142,6 +145,8 @@ explicit code samples or signatures showing the intended end state.
 
 - actual provider runtime adapter implementation
 - release of Codex or Gemini support as shipped product behavior
+- ATM integration or idle-notification promotion
+- any Rust runtime or plugin implementation work
 
 ## Acceptance Criteria
 

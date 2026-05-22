@@ -19,4 +19,7 @@ Planned coverage:
 - full hook env var inventory
 - capture-run CLI version and hook registration details
 - output-format interaction checks
+  - `text`
+  - `json`
+  - `stream-json`
 - control semantics inventory

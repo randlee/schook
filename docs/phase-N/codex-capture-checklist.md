@@ -5,6 +5,10 @@ Status:
 
 Purpose:
 - freeze the Codex hook-surface capture matrix for `N.1`
+- this planning-branch matrix is a template only; `N.1` execution must create
+  a dedicated checklist-freeze commit before the first harness code commit, and
+  carrying this file forward from the planning branch alone does not satisfy
+  the separate-commit acceptance gate
 
 Planned hook-surface coverage:
 - `notify` — `direct hook surface (harness-capturable)`

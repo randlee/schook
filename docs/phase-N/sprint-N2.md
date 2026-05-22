@@ -93,6 +93,9 @@ silently dropped or partially deferred.
   approved-field set and the blocking reason
 - freeze the checklist and findings ledger for `N.2`
 - promote only validated findings into Gemini evidence docs
+- this sprint must not introduce or modify Rust code; if execution uncovers a
+  need for Rust runtime or plugin changes, split that work into a later
+  approved runtime sprint
 
 ## Explicit Code Samples
 
@@ -148,6 +151,7 @@ MVC placeholder provider-model shape when every Gemini surface is
 - Gemini runtime adapter promotion
 - cross-provider mapping decisions beyond documented candidates
 - final provider promotion verdict
+- any Rust runtime or plugin implementation work
 
 ## Minimum Viable Closure
 

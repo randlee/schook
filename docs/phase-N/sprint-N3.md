@@ -94,6 +94,9 @@ silently dropped or partially deferred.
 - limit the `docs/project-plan.md` edit in `N.3` to the `Phase N` boundary
   note and readiness pointer; the `Phase N` row remains `In progress` in this
   sprint
+- this sprint must not introduce or modify Rust code; if execution uncovers a
+  need for Rust runtime or plugin changes, split that work into a later
+  approved runtime sprint
 
 ## Explicit Code Samples
 
@@ -104,17 +107,29 @@ explicit code samples or signatures showing the intended end state.
 - if any field is added to the canonical normalization candidates list, include
   an explicit JSON shape example showing the normalized field name, type, and
   source provider fields it maps from
+- semantic identifier fields promoted from provider fixtures into future Rust
+  runtime types must become Newtype wrappers rather than bare `String`
+  aliases, for example:
+
+```rust
+pub struct ThreadId(String);
+pub struct SessionId(String);
+```
 
 ## This Sprint Does Not Close
 
 - provider runtime adapter implementation
 - debounce or idle orchestration promotion
 - release sign-off for provider support
+- any Rust runtime or plugin implementation work
 
 ## Acceptance Criteria
 
 - every mapping candidate cites provider-owned fixture evidence
 - every unresolved difference is recorded explicitly
+- explicit do-not-map items are listed in
+  `docs/phase-N/normalization-checklist.md` or
+  `docs/phase-N/normalization-findings-ledger.md`
 - `docs/phase-N/normalization-findings-ledger.md` is the only authoritative
   handoff ledger for normalization findings
 - planning docs no longer rely on guessed provider contracts

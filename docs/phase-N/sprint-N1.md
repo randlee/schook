@@ -101,6 +101,9 @@ silently dropped or partially deferred.
   inventory`
 - freeze the checklist and findings ledger for `N.1`
 - promote only validated findings into the Codex doc set
+- this sprint must not introduce or modify Rust code; if execution uncovers a
+  need for Rust runtime or plugin changes, split that work into a later
+  approved runtime sprint
 
 ## Capture Scope Boundary
 
@@ -161,6 +164,7 @@ Approved Codex fixture manifest / drift artifact shape:
 - Codex runtime adapter promotion
 - Gemini harness work
 - cross-provider mapping decisions beyond documented candidates
+- any Rust runtime or plugin implementation work
 
 ## Acceptance Criteria
 
