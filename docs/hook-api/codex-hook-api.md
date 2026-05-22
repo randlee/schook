@@ -107,6 +107,7 @@ Verified payload fields:
 |-------|------|-------|
 | `hook_event_name` | string | `"PreToolUse"` |
 | `cwd` | string | working directory at hook fire time |
+| `model` | string | captured as `"gpt-5.4"` |
 | `session_id` | string | matched the turn-complete `thread-id` in captured runs |
 | `turn_id` | string | current turn UUID |
 | `tool_name` | string | captured as `"Bash"` |
