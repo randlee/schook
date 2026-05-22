@@ -1,58 +1,80 @@
 # Codex Hook Harness
 
-Codex is documented as a provider reference in the current planning set, but it
-is deferred from the first harness pass.
+This directory owns the Codex provider hook harness for `schook`: capture
+hooks, debounce prototype, pytest tests, and raw captures.
 
-This directory exists now so the long-term harness remains organized by
-provider, even before Codex capture work starts.
+## Status
 
-Current status:
+- live-tested 2026-05-22 against real Codex sessions
+- 5 pytest tests passing
+- debounce contract verified under live cancel conditions
 
-- documented
-- deferred from first harness implementation
-- no verified provider schema is captured yet
-- harness-only debounce prototype added for `agent-turn-complete` plus
-  `PreToolUse` cancellation testing; this is not a promoted Codex contract
+## Key Finding: Stop Does Not Fire
 
-When Codex work starts later, this directory should own:
+`Stop` did not fire in live Codex exec. `notify` (`agent-turn-complete`) is
+the verified turn-complete surface. See `docs/hook-api/codex-hook-api.md` for
+the full verified payload and environment contract.
 
-- Codex prompts
-- Codex capture hooks or relay capture scripts
-- Codex models and schema
-- Codex fixtures
-- Codex reports
-- Codex `pytest` tests
+## Directory Layout
+
+```
+test-harness/hooks/codex/
+  hooks/
+    stop.py           — notify hook: schedules debounce + writes active marker
+    pre_tool_use.py   — PreToolUse hook: cancels pending timer, restores active
+  scripts/
+    fire_pending.py   — processes due pending records, fires CLI command, flips to idle
+    record_invocation.py — harmless test CLI target; records a fired invocation
+  tests/
+    conftest.py
+    test_debounce_hooks.py
+  captures/
+    raw/              — timestamped payload + env JSON files from live/test runs
+  fixtures/           — approved fixture snapshots (reserved for future promotion)
+  models/             — schema models (reserved)
+  prompts/            — Codex prompts (reserved)
+  reports/            — test reports (reserved)
+  schema/             — JSON schema (reserved)
+```
 
 ## Debounce Prototype
 
-The current Codex harness includes an experimental Python debounce prototype:
+The hooks implement a debounce pattern that delays a downstream CLI call until
+a Codex agent has been idle for a configurable window:
 
-- `hooks/stop.py`
-  - schedules delayed work for a correlation key such as `thread-id`
-- `hooks/pre_tool_use.py`
-  - cancels pending delayed work when activity resumes
-- `scripts/fire_pending.py`
-  - processes due records and invokes the configured CLI command
-- `scripts/record_invocation.py`
-  - harmless test CLI target that records a fired debounce invocation
+- `hooks/stop.py` — on `agent-turn-complete`: write a pending record for the
+  correlation key (`thread-id`), write an `active` marker under the project root
+- `hooks/pre_tool_use.py` — on `PreToolUse`: cancel any pending record for the
+  key, restore the `active` marker
+- `scripts/fire_pending.py` — run by an external timer or cron: invoke the
+  configured CLI command for each due pending record, flip `active` to `idle`
 
-Prototype rules:
+State lives under `SCHOOK_CODEX_HOOK_STATE_ROOT`. Visible session markers
+are written under `<project-root>/.sc/sessions/codex/`:
 
-- state is stored under `SCHOOK_CODEX_HOOK_STATE_ROOT`
-- delayed work duration comes from `SCHOOK_CODEX_DEBOUNCE_SECONDS`
-- the optional CLI tool comes from `SCHOOK_CODEX_DEBOUNCE_COMMAND`
-- captures go to `SCHOOK_HOOK_CAPTURE_ROOT` when set
-- hooks may be gated to one project root with `SCHOOK_CODEX_HOOK_PROJECT_ROOT`
-- active or idle marker files are written under
-  `<project-root>/.sc/sessions/codex/active-<ATM_IDENTITY>.json` and
-  `<project-root>/.sc/sessions/codex/idle-<ATM_IDENTITY>.json`
-- project root is resolved from the hook payload `cwd` by running
-  `git -C <cwd> rev-parse --show-toplevel`, then falling back to raw `cwd`
+| File | Meaning |
+|------|---------|
+| `active-<ATM_IDENTITY>.json` | turn complete, timer pending |
+| `idle-<ATM_IDENTITY>.json` | timer fired, agent confirmed idle |
 
-This prototype exists to test the debounce model discussed in planning:
+## Running Tests
 
-- treat Codex turn-complete as the idle/start-debounce signal
-- treat `PreToolUse` as sufficient resumed-activity cancellation
-- keep the actual timer firing outside the hook itself
-- expose a simple visible active or idle state transition without needing to
-  inspect delayed CLI output
+```bash
+pytest test-harness/hooks/codex/tests/ -m provider_codex -v
+```
+
+## Live Config (chook — schook project)
+
+The live Codex session for `chook` on the `schook` project uses:
+
+- `~/.codex/config.toml` notify → `~/.codex/scripts/schook-delay-notify.py`
+- `~/.codex/hooks.json` PreToolUse → `~/.codex/scripts/schook-delay-pretooluse.py`
+
+Session state writes to `/Users/randlee/Documents/github/schook/.sc/sessions/codex/`.
+
+Rollback:
+
+```bash
+cp ~/.codex/config.toml.schook-delay-idle-hook-testing.bak ~/.codex/config.toml
+cp ~/.codex/hooks.json.schook-delay-idle-hook-testing.bak ~/.codex/hooks.json
+```
