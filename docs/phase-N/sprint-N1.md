@@ -177,6 +177,9 @@ Approved Codex fixture manifest / drift artifact shape:
   surface as either `direct hook surface (harness-capturable)` or
   `relay-synthetic (confirmed-not-exercisable)`; `SessionStart` must be
   classified explicitly with its relay source cited
+- the `codex-capture-checklist.md` classification commit and the first `N.1`
+  harness code commit are separate git commits; the classification commit must
+  pre-date any harness code commit in the sprint branch
 - `N.1` closure cannot rely on the existing debounce prototype alone; the
   approved manifest must enumerate more than the current prototype baseline or
   explicitly record every additional audited surface as
@@ -194,4 +197,7 @@ Approved Codex fixture manifest / drift artifact shape:
 ## Required Validation
 
 - `pytest test-harness/hooks/codex/tests/ -m provider_codex -v`
+- `git log --oneline -- docs/phase-N/codex-capture-checklist.md test-harness/hooks/codex/`
+  proves the checklist-classification commit predates the first harness code
+  commit and is a separate commit
 - `git diff --check`

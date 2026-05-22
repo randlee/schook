@@ -11,6 +11,10 @@ Planned hook-surface coverage:
 - `PreToolUse` — `direct hook surface (harness-capturable)`
 - `SessionStart` — `relay-synthetic (confirmed-not-exercisable)`; source:
   `docs/hook-api/codex-hook-api.md` relay evidence from `hook_watcher.rs`
+- `fork` — `direct hook surface (harness-capturable)`; verify whether the
+  forked Codex process preserves `notify` / `PreToolUse` capture visibility
+- `--cd` — `direct hook surface (harness-capturable)`; verify root/current-dir
+  behavior by launching capture runs with an explicit startup directory change
 - resume/restart continuity — exercised through direct `notify` /
   `PreToolUse` capture runs plus session-record correlation checks
 
