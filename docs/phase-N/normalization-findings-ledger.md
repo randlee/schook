@@ -6,6 +6,12 @@ Status:
 Purpose:
 - authoritative findings ledger for `N.3` cross-provider normalization review
 
+Scope note:
+- this ledger records reviewed findings by disposition rather than chasing a
+  pre-set count target from task prose
+- accepted `N.3` result: 4 canonical candidates, 7 provider-local findings,
+  and 2 unresolved findings
+
 | id | provider | field_or_surface | finding | mapping_candidate | disposition | notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `NRM-001` | `claude,codex,gemini` | `session_id` | all three providers expose a semantic session identifier in approved fixtures | `canonical.session_id` | `canonical candidate` | future Rust runtime type should use a newtype such as `SessionId` rather than bare `String` |

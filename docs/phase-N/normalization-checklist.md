@@ -15,6 +15,12 @@ Evidence baseline used in this sprint:
   - `docs/hook-api/codex-hook-api.md`
   - `docs/hook-api/gemini-hook-api.md`
 
+Scope note:
+- `N.3` classifies reviewed field families and findings by evidence-backed
+  disposition; it does not close against a fixed raw field-count target
+- final `N.3` matrix counts: 4 canonical candidates, 7 provider-local
+  classifications, 2 unresolved classifications
+
 Field-family review matrix:
 
 | Field family | Claude baseline | Codex evidence | Gemini evidence | `N.3` result | Notes |

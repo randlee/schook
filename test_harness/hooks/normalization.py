@@ -71,6 +71,9 @@ CORE_NORMALIZATION_SPECS: dict[str, NormalizationFixtureSpec] = {
     "gemini_after_agent": NormalizationFixtureSpec(
         provider="gemini",
         fixture_relpath="test-harness/hooks/gemini/fixtures/approved/after-agent.json",
+        # These fields stay provider-local in the checklist, but they are still
+        # required here so the harness proves the evidence exists before the
+        # normalization review rejects them from canonical mapping.
         required_fields=("session_id", "cwd", "transcript_path", "hook_event_name", "prompt_response", "stop_hook_active"),
     ),
 }

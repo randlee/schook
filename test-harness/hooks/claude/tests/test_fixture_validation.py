@@ -81,6 +81,7 @@ def test_capture_scripts_write_raw_payload_files(tmp_path: Path, claude_root: Pa
 def test_capture_scripts_redact_sensitive_env_values(tmp_path: Path, claude_root: Path) -> None:
     hooks_dir = claude_root / "hooks"
     capture_root = tmp_path / "captures"
+    project_root = tmp_path / "project-root"
     payload = {"hook_name": "session-start", "session_id": "test-session"}
     result = _run_hook(
         hooks_dir / "session_start.py",
@@ -90,7 +91,7 @@ def test_capture_scripts_redact_sensitive_env_values(tmp_path: Path, claude_root
             "ATM_IDENTITY": "test-chook",
             "ATM_TEAM": "atm-dev",
             "ATM_READ_TOKEN": "secret-token",
-            "CLAUDE_PROJECT_DIR": "/tmp/project-root",
+            "CLAUDE_PROJECT_DIR": str(project_root),
         },
     )
     assert result.stdout == ""
@@ -101,7 +102,34 @@ def test_capture_scripts_redact_sensitive_env_values(tmp_path: Path, claude_root
     assert env_snapshot["atm_env"]["ATM_IDENTITY"] == "test-chook"
     assert env_snapshot["atm_env"]["ATM_TEAM"] == "atm-dev"
     assert env_snapshot["atm_env"]["ATM_READ_TOKEN"] == "<redacted>"
-    assert env_snapshot["claude_env"]["CLAUDE_PROJECT_DIR"] == "/tmp/project-root"
+    assert env_snapshot["claude_env"]["CLAUDE_PROJECT_DIR"] == str(project_root)
+
+
+@pytest.mark.provider_claude
+def test_approved_fixtures_redact_machine_local_paths(claude_root: Path) -> None:
+    fixture_root = claude_root / "fixtures" / "approved"
+    allowed_cwd_prefixes = (
+        "/synthetic/test/session-start",
+        "/synthetic/test/claude-harness",
+        "/synthetic/test/claude-followup",
+    )
+    allowed_transcript_prefixes = (
+        "/synthetic/test/transcripts/",
+        "/synthetic/test/claude-transcripts/",
+    )
+
+    for payload_path in sorted(fixture_root.glob("*.json")):
+        payload_text = payload_path.read_text(encoding="utf-8")
+        assert "/Users/randlee/" not in payload_text, payload_path.name
+        if payload_path.name == "manifest.json":
+            continue
+        fixture = json.loads(payload_text)
+        cwd = fixture.get("cwd")
+        if cwd is not None:
+            assert cwd.startswith(allowed_cwd_prefixes), payload_path.name
+        transcript_path = fixture.get("transcript_path")
+        if transcript_path is not None:
+            assert transcript_path.startswith(allowed_transcript_prefixes), payload_path.name
 
 
 @pytest.mark.provider_claude

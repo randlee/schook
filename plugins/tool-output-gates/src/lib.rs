@@ -70,7 +70,7 @@ impl ManifestProvider for ToolOutputGatesHandler {
             name: "tool-output-gates".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![HookType::PostToolUse],
-            matchers: vec![ManifestMatcher::from("Bash")],
+            matchers: vec![ManifestMatcher::new("Bash").expect("builtin matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
