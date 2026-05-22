@@ -198,6 +198,11 @@ that cannot be exercised locally.
 - `docs/phase-N/gemini-capture-checklist.md` and
   `docs/phase-N/gemini-findings-ledger.md` contain a per-surface final
   disposition for every attempted Gemini hook point
+- `docs/phase-N/gemini-findings-ledger.md` records the explicit output-format
+  verification result: either `no hook-observable difference across
+  text/json/stream-json` or a per-format finding row for any observed
+  difference; if verification is blocked, the ledger records the blocking
+  reason explicitly
 - `docs/phase-N/gemini-findings-ledger.md` is the only authoritative handoff
   ledger for Gemini capture findings
 

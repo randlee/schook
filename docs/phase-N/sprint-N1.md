@@ -85,6 +85,10 @@ silently dropped or partially deferred.
   as either `direct hook surface (harness-capturable)` or
   `relay-synthetic (confirmed-not-exercisable)` with the reason recorded in
   `docs/phase-N/codex-capture-checklist.md`
+- classify `resume`, `fork`, and `--cd` explicitly in
+  `docs/phase-N/codex-capture-checklist.md` before the first `N.1` harness
+  commit, and carry each one through to a per-surface disposition in the
+  approved manifest or Codex findings ledger
 - add a provider-codex pytest that fails if the approved manifest only
   describes the debounce prototype surfaces without a final disposition for the
   rest of the audited Codex surface set
@@ -175,11 +179,14 @@ Approved Codex fixture manifest / drift artifact shape:
 - before the first `N.1` harness commit,
   `docs/phase-N/codex-capture-checklist.md` classifies every planned Codex
   surface as either `direct hook surface (harness-capturable)` or
-  `relay-synthetic (confirmed-not-exercisable)`; `SessionStart` must be
-  classified explicitly with its relay source cited
+  `relay-synthetic (confirmed-not-exercisable)`; `SessionStart`, `resume`,
+  `fork`, and `--cd` must be classified explicitly, with `SessionStart`
+  retaining its relay source citation
 - the `codex-capture-checklist.md` classification commit and the first `N.1`
   harness code commit are separate git commits; the classification commit must
   pre-date any harness code commit in the sprint branch
+- the approved Codex manifest or `docs/phase-N/codex-findings-ledger.md`
+  records a per-surface final disposition for `resume`, `fork`, and `--cd`
 - `N.1` closure cannot rely on the existing debounce prototype alone; the
   approved manifest must enumerate more than the current prototype baseline or
   explicitly record every additional audited surface as
@@ -199,5 +206,6 @@ Approved Codex fixture manifest / drift artifact shape:
 - `pytest test-harness/hooks/codex/tests/ -m provider_codex -v`
 - `git log --oneline -- docs/phase-N/codex-capture-checklist.md test-harness/hooks/codex/`
   proves the checklist-classification commit predates the first harness code
-  commit and is a separate commit
+  commit and is a separate commit, with explicit pre-harness entries for
+  `resume`, `fork`, and `--cd`
 - `git diff --check`
