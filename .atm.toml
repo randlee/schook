@@ -13,6 +13,12 @@ command = ["scripts/atm-nudge.py", "chook"]
 recipient = "quality-mgr"
 command = ["scripts/atm-nudge.py", "quality-mgr"]
 
+[atm.idle_notify]
+recipient = "team-lead"
+
+[atm.idle_notify.agent.chook]
+seconds = 60
+
 # ── rmux: tmux pane layout for schook ────────────────────────────────
 [rmux]
 session = "atm-dev"

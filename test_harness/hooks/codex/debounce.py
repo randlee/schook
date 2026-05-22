@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import tomllib
 from typing import Any
 from uuid import uuid4
 
@@ -78,6 +79,13 @@ def _normalize_payload(raw_text: str) -> dict[str, Any]:
     return {"_payload": parsed}
 
 
+def _safe_str(value: Any) -> str | None:
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    return None
+
+
 def _normalize_env_snapshot(hook_name: str, timestamp: str) -> dict[str, Any]:
     def filtered_env(prefix: str) -> dict[str, str]:
         return {key: value for key, value in sorted(os.environ.items()) if key.startswith(prefix)}
@@ -114,6 +122,13 @@ def _payload_project_dir(payload: dict[str, Any]) -> Path | None:
     return None
 
 
+def _payload_cwd(payload: dict[str, Any]) -> Path | None:
+    value = _safe_str(payload.get("cwd"))
+    if value:
+        return Path(value).expanduser().resolve()
+    return None
+
+
 def _within_project_scope(payload: dict[str, Any]) -> bool:
     configured = os.environ.get("SCHOOK_CODEX_HOOK_PROJECT_ROOT", "").strip()
     if not configured:
@@ -144,6 +159,84 @@ def _resolve_project_dir(cwd: str) -> Path:
     except Exception:
         pass
     return base
+
+
+def _find_atm_toml(start_dir: Path) -> Path | None:
+    current = start_dir.resolve()
+    while True:
+        candidate = current / ".atm.toml"
+        if candidate.is_file():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
+def _session_identifier(payload: dict[str, Any]) -> str | None:
+    for key in ("session_id", "sessionId", "thread-id", "thread_id"):
+        value = _safe_str(payload.get(key))
+        if value:
+            return value
+    return None
+
+
+def _session_record_path(start_dir: Path, session_id: str) -> Path | None:
+    current = start_dir.resolve()
+    while True:
+        sessions_dir = current / ".sc" / "sessions" / "codex"
+        if sessions_dir.is_dir():
+            matches = sorted(sessions_dir.glob(f"*-{session_id}.json"))
+            if matches:
+                return matches[0]
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
+def _find_session_record(payload: dict[str, Any]) -> tuple[Path | None, dict[str, Any] | None]:
+    session_id = _session_identifier(payload)
+    if not session_id:
+        return None, None
+
+    candidate_dirs: list[Path] = []
+    for candidate in (_payload_cwd(payload), _payload_project_dir(payload)):
+        if candidate is not None and candidate not in candidate_dirs:
+            candidate_dirs.append(candidate)
+
+    for start_dir in candidate_dirs:
+        path = _session_record_path(start_dir, session_id)
+        if path is None:
+            continue
+        try:
+            data = _load_json(path)
+        except Exception:
+            continue
+        return path, data
+    return None, None
+
+
+def _canonical_project_dir(payload: dict[str, Any]) -> Path | None:
+    _, record = _find_session_record(payload)
+    if isinstance(record, dict):
+        record_cwd = _safe_str(record.get("cwd"))
+        if record_cwd:
+            return _resolve_project_dir(record_cwd)
+        record_project_dir = _safe_str(record.get("project_dir"))
+        if record_project_dir:
+            return Path(record_project_dir).expanduser().resolve()
+    return _payload_project_dir(payload)
+
+
+def _canonical_cwd(payload: dict[str, Any]) -> str | None:
+    _, record = _find_session_record(payload)
+    if isinstance(record, dict):
+        record_cwd = _safe_str(record.get("cwd"))
+        if record_cwd:
+            return record_cwd
+    current = _payload_cwd(payload)
+    return str(current) if current is not None else None
 
 
 def _correlation_key(payload: dict[str, Any]) -> str:
@@ -192,18 +285,21 @@ def _marker_payload(
     payload: dict[str, Any],
     current: datetime,
 ) -> dict[str, Any]:
-    return {
+    marker = {
         "state": state,
         "updated_at": current.isoformat(),
         "atm_identity": os.environ.get("ATM_IDENTITY", "").strip() or None,
         "atm_team": os.environ.get("ATM_TEAM", "").strip() or None,
         "project_dir": project_dir,
-        "cwd": payload.get("cwd"),
+        "cwd": _canonical_cwd(payload),
         "thread_id": payload.get("thread-id") or payload.get("thread_id"),
-        "session_id": payload.get("session_id") or payload.get("sessionId"),
+        "session_id": _session_identifier(payload),
         "turn_id": payload.get("turn-id") or payload.get("turn_id"),
         "hook_event_name": payload.get("hook_event_name"),
     }
+    if state == "idle":
+        marker["idle_since"] = current.isoformat()
+    return marker
 
 
 def _set_marker_state(
@@ -249,6 +345,110 @@ def _command_from_env() -> list[str]:
     return shlex.split(raw)
 
 
+@dataclass(frozen=True)
+class IdleNotifyConfig:
+    recipient: str
+    seconds: float
+    team: str
+    sender: str
+
+
+def _float_value(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        return float(text)
+    return None
+
+
+def _resolve_idle_notify_config(project_dir: str | None) -> IdleNotifyConfig | None:
+    atm_team = os.environ.get("ATM_TEAM", "").strip()
+    atm_identity = os.environ.get("ATM_IDENTITY", "").strip()
+    if not atm_team or not atm_identity or not project_dir:
+        return None
+
+    toml_path = _find_atm_toml(Path(project_dir))
+    if toml_path is None:
+        return None
+
+    try:
+        config = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    atm_section = config.get("atm")
+    if not isinstance(atm_section, dict):
+        return None
+
+    idle_section = atm_section.get("idle_notify")
+    if not isinstance(idle_section, dict):
+        return None
+
+    agent_map = idle_section.get("agent")
+    agent_section: dict[str, Any] = {}
+    if isinstance(agent_map, dict):
+        candidate = agent_map.get(atm_identity)
+        if isinstance(candidate, dict):
+            agent_section = candidate
+
+    if agent_section.get("enabled") is False:
+        return None
+
+    recipient = _safe_str(agent_section.get("recipient")) or _safe_str(idle_section.get("recipient")) or "team-lead"
+    seconds = _float_value(agent_section.get("seconds"))
+    if seconds is None:
+        seconds = _float_value(idle_section.get("default_seconds"))
+    if seconds is None or seconds <= 0:
+        return None
+
+    return IdleNotifyConfig(
+        recipient=recipient,
+        seconds=seconds,
+        team=atm_team,
+        sender=atm_identity,
+    )
+
+
+def _send_idle_notification(record: "PendingRecord", current: datetime) -> None:
+    if record.idle_notify is None:
+        return
+
+    timestamp = current.strftime("%Y-%m-%dT%H:%M:%SZ")
+    message = f"{record.idle_notify.sender} idle for {int(record.idle_notify.seconds) if record.idle_notify.seconds.is_integer() else record.idle_notify.seconds:g} seconds @ {timestamp}"
+    command = [
+        "atm",
+        "send",
+        record.idle_notify.recipient,
+        message,
+        "--team",
+        record.idle_notify.team,
+        "--from",
+        record.idle_notify.sender,
+    ]
+    try:
+        subprocess.run(
+            command,
+            cwd=record.project_dir or os.getcwd(),
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as exc:
+        _append_jsonl(
+            _state_root() / "launcher-errors.jsonl",
+            {
+                "error": str(exc),
+                "event": "idle_notify_failed",
+                "ts": current.isoformat(),
+            },
+        )
+
+
 def _fire_pending_script() -> Path:
     configured = os.environ.get("SCHOOK_CODEX_FIRE_PENDING_SCRIPT", "").strip()
     if configured:
@@ -290,28 +490,47 @@ class PendingRecord:
     command: list[str]
     project_dir: str | None
     payload: dict[str, Any]
+    idle_notify: IdleNotifyConfig | None
 
     @classmethod
     def from_json(cls, payload: dict[str, Any]) -> "PendingRecord":
         command = payload.get("command", [])
         if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
             raise ValueError("pending record command must be a string array")
+        idle_notify_payload = payload.get("idle_notify")
+        idle_notify: IdleNotifyConfig | None = None
+        if isinstance(idle_notify_payload, dict):
+            idle_notify = IdleNotifyConfig(
+                recipient=str(idle_notify_payload["recipient"]),
+                seconds=float(idle_notify_payload["seconds"]),
+                team=str(idle_notify_payload["team"]),
+                sender=str(idle_notify_payload["sender"]),
+            )
         return cls(
             key=str(payload["key"]),
             due_at=datetime.fromisoformat(str(payload["due_at"])),
             command=command,
             project_dir=payload.get("project_dir"),
             payload=dict(payload.get("payload", {})),
+            idle_notify=idle_notify,
         )
 
     def to_json(self) -> dict[str, Any]:
-        return {
+        payload = {
             "key": self.key,
             "due_at": self.due_at.isoformat(),
             "command": self.command,
             "project_dir": self.project_dir,
             "payload": self.payload,
         }
+        if self.idle_notify is not None:
+            payload["idle_notify"] = {
+                "recipient": self.idle_notify.recipient,
+                "seconds": self.idle_notify.seconds,
+                "team": self.idle_notify.team,
+                "sender": self.idle_notify.sender,
+            }
+        return payload
 
 
 def schedule_stop(raw_text: str, now: datetime | None = None) -> Path | None:
@@ -321,16 +540,20 @@ def schedule_stop(raw_text: str, now: datetime | None = None) -> Path | None:
 
     write_capture("stop", raw_text)
     current = now or _utc_now()
-    debounce_seconds = float(os.environ.get("SCHOOK_CODEX_DEBOUNCE_SECONDS", "60").strip() or "60")
     key = _correlation_key(payload)
-    project_dir = str(_payload_project_dir(payload)) if _payload_project_dir(payload) is not None else None
-    _set_marker_state(state="active", project_dir=project_dir, payload=payload, current=current)
+    canonical_project_dir = _canonical_project_dir(payload)
+    project_dir = str(canonical_project_dir) if canonical_project_dir is not None else None
+    idle_notify = _resolve_idle_notify_config(project_dir)
+    debounce_seconds = idle_notify.seconds if idle_notify is not None else float(
+        os.environ.get("SCHOOK_CODEX_DEBOUNCE_SECONDS", "60").strip() or "60"
+    )
     record = PendingRecord(
         key=key,
         due_at=current + timedelta(seconds=debounce_seconds),
         command=_command_from_env(),
         project_dir=project_dir,
         payload=payload,
+        idle_notify=idle_notify,
     )
     path = _record_path(key)
     _atomic_write_json(path, record.to_json())
@@ -348,7 +571,8 @@ def cancel_on_pretooluse(raw_text: str) -> bool:
 
     write_capture("pretooluse", raw_text)
     current = _utc_now()
-    project_dir = str(_payload_project_dir(payload)) if _payload_project_dir(payload) is not None else None
+    canonical_project_dir = _canonical_project_dir(payload)
+    project_dir = str(canonical_project_dir) if canonical_project_dir is not None else None
     _set_marker_state(state="active", project_dir=project_dir, payload=payload, current=current)
     path = _record_path(_correlation_key(payload))
     if not path.exists():
@@ -378,6 +602,7 @@ def process_pending(now: datetime | None = None, sleep_seconds: float = 0.0) -> 
             cwd = record.project_dir or os.getcwd()
             subprocess.run(record.command, cwd=cwd, check=False)
 
+        _send_idle_notification(record, current)
         path.unlink(missing_ok=True)
         fired.append(path)
     return fired

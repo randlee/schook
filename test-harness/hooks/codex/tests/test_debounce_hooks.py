@@ -38,6 +38,27 @@ def _marker_name(state: str, identity: str = "tester") -> str:
     return f"{state}-{identity}.json"
 
 
+def _write_session_record(repo_root: Path, session_id: str, cwd: Path) -> Path:
+    sessions_dir = _marker_dir(repo_root)
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    record_path = sessions_dir / f"20260522000000000-{session_id}.json"
+    record_path.write_text(
+        json.dumps(
+            {
+                "cwd": str(cwd),
+                "native_session_id": session_id,
+                "project_dir": str(repo_root),
+                "tool": "codex",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return record_path
+
+
 @pytest.mark.provider_codex
 def test_codex_harness_layout_exists(codex_root: Path) -> None:
     for name in ["hooks", "scripts", "tests"]:
@@ -72,11 +93,8 @@ def test_stop_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) ->
     assert pending["key"] == "thread-123"
     assert pending["project_dir"] == str(repo_root)
     assert pending["payload"]["type"] == "agent-turn-complete"
-    active_marker = _marker_dir(repo_root) / _marker_name("active")
-    assert active_marker.is_file()
-    marker_payload = json.loads(active_marker.read_text(encoding="utf-8"))
-    assert marker_payload["state"] == "active"
-    assert marker_payload["project_dir"] == str(repo_root)
+    assert not list(_marker_dir(repo_root).glob("active-*.json"))
+    assert not list(_marker_dir(repo_root).glob("idle-*.json"))
 
     payload_captures = sorted(capture_root.glob("*.json"))
     env_captures = sorted(capture_root.glob("*.env.json"))
@@ -187,6 +205,90 @@ def test_fire_pending_runs_command_once_after_due_time(tmp_path: Path, codex_roo
     marker_payload = json.loads(idle_marker.read_text(encoding="utf-8"))
     assert marker_payload["state"] == "idle"
     assert marker_payload["thread_id"] == "thread-456"
+    assert marker_payload["idle_since"]
+
+
+@pytest.mark.provider_codex
+def test_stop_prefers_session_record_and_sends_atm_idle_notice(tmp_path: Path, codex_root: Path) -> None:
+    state_root = tmp_path / "state"
+    capture_root = tmp_path / "captures"
+    repo_root = tmp_path / "repo"
+    nested_cwd = repo_root / "nested" / "work"
+    nested_cwd.mkdir(parents=True)
+    session_id = "019e4d6c-6fe6-77e0-92e0-dfad6e86ec58"
+    _write_session_record(repo_root, session_id, repo_root)
+    (repo_root / ".atm.toml").write_text(
+        "\n".join(
+            [
+                "[atm]",
+                'default_team = "schook"',
+                'identity = "team-lead"',
+                "",
+                "[atm.idle_notify]",
+                'recipient = "team-lead"',
+                "",
+                "[atm.idle_notify.agent.tester]",
+                "seconds = 0.05",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    atm_log = tmp_path / "atm-log.jsonl"
+    _write_executable(
+        bin_dir / "atm",
+        "#!/usr/bin/env python3\n"
+        "import json\n"
+        "import os\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "Path(os.environ['ATM_LOG_PATH']).write_text(json.dumps(sys.argv[1:]) + '\\n', encoding='utf-8')\n",
+    )
+
+    env = {
+        "SCHOOK_CODEX_HOOK_STATE_ROOT": str(state_root),
+        "SCHOOK_HOOK_CAPTURE_ROOT": str(capture_root),
+        "SCHOOK_CODEX_DEBOUNCE_AUTOSTART": "0",
+        "ATM_IDENTITY": "tester",
+        "ATM_TEAM": "schook",
+        "ATM_LOG_PATH": str(atm_log),
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+    }
+
+    stop_result = _run_hook(
+        codex_root / "hooks" / "stop.py",
+        {"type": "agent-turn-complete", "thread-id": session_id, "cwd": str(nested_cwd)},
+        env,
+    )
+    assert stop_result.returncode == 0, stop_result.stderr
+
+    pending_files = sorted((state_root / "pending").glob("*.json"))
+    assert len(pending_files) == 1
+    pending = json.loads(pending_files[0].read_text(encoding="utf-8"))
+    assert pending["project_dir"] == str(repo_root)
+    assert pending["idle_notify"]["recipient"] == "team-lead"
+    assert pending["idle_notify"]["team"] == "schook"
+    assert pending["idle_notify"]["sender"] == "tester"
+    assert pending["idle_notify"]["seconds"] == 0.05
+
+    time.sleep(0.08)
+    fire_result = _run_hook(codex_root / "scripts" / "fire_pending.py", {}, env)
+    assert fire_result.returncode == 0, fire_result.stderr
+
+    idle_marker = _marker_dir(repo_root) / _marker_name("idle")
+    assert idle_marker.is_file()
+    marker_payload = json.loads(idle_marker.read_text(encoding="utf-8"))
+    assert marker_payload["cwd"] == str(repo_root)
+    assert marker_payload["session_id"] == session_id
+    assert marker_payload["idle_since"]
+
+    atm_args = json.loads(atm_log.read_text(encoding="utf-8").strip())
+    assert atm_args[:2] == ["send", "team-lead"]
+    assert atm_args[3:] == ["--team", "schook", "--from", "tester"]
+    assert "tester idle for 0.05 seconds @" in atm_args[2]
 
 
 @pytest.mark.provider_codex

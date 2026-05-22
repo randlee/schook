@@ -72,6 +72,8 @@ Verified payload fields:
 | `hook_event_name` | string | `"PreToolUse"` |
 | `thread-id` | string | matches the notify correlation key |
 | `cwd` | string | working directory at hook fire time |
+| `session_id` | string | matched the turn-complete `thread-id` in live captures |
+| `turn_id` | string | current turn UUID |
 
 ### `Stop` — Not Reliable
 
@@ -132,15 +134,16 @@ delaying work until a Codex agent is confirmed idle.
 ```
 notify fires
   → write pending record for thread-id due at (now + DEBOUNCE_SECONDS)
-  → write active-<ATM_IDENTITY>.json under .sc/sessions/codex/
+  → preserve current visible state until due time
 
 PreToolUse fires before timer is due
   → delete pending record for thread-id
   → restore active-<ATM_IDENTITY>.json; remove idle marker if present
 
 fire_pending.py runs (external cron or triggered subprocess)
-  → for each due pending record: invoke DEBOUNCE_COMMAND once
-  → replace active marker with idle-<ATM_IDENTITY>.json
+  → for each due pending record: optionally invoke DEBOUNCE_COMMAND once
+  → optionally send ATM idle notice if configured in .atm.toml
+  → replace active marker with idle-<ATM_IDENTITY>.json and set idle_since
   → delete pending record (idempotent on repeat runs)
 ```
 
@@ -157,17 +160,40 @@ Two stops, one invocation — the debounce contract holds under real sessions.
 
 ## Session State Markers
 
-The debounce implementation writes state markers under the project root so
-external tools can observe Codex idle state without inspecting internal state
-files:
+The startup hook plus debounce implementation write state markers under the
+project root so external tools can observe Codex idle state without inspecting
+internal state files:
 
 | File | Written when |
 |------|-------------|
-| `.sc/sessions/codex/active-<ATM_IDENTITY>.json` | notify fires (turn complete, debounce pending) |
-| `.sc/sessions/codex/idle-<ATM_IDENTITY>.json` | fire_pending fires due timer (agent confirmed idle) |
+| `.sc/sessions/codex/idle-<ATM_IDENTITY>.json` | SessionStart fires, or fire_pending confirms debounce expiry |
+| `.sc/sessions/codex/active-<ATM_IDENTITY>.json` | `PreToolUse` fires and activity resumes |
 
+`idle` JSON includes the timestamp when the agent became idle (`idle_since`).
 `active` is restored and `idle` removed when `PreToolUse` cancels a pending
-timer.
+timer or when first activity begins in a fresh session.
+
+## Session Record As Source Of Truth
+
+Codex SessionStart already writes a stable session record under:
+
+- `.sc/sessions/codex/*-<session-id>.json`
+
+That record currently includes:
+
+- `native_session_id`
+- `cwd`
+- `project_dir`
+- `transcript_path`
+
+For post-start hooks, prefer this session record over live hook `cwd` when you
+need the original session root. A safe lookup order is:
+
+1. read `session_id` from `PreToolUse`, or `thread-id` from `notify`
+2. locate `.sc/sessions/codex/*-<session-id>.json`
+3. use the record's `cwd`
+4. resolve the root with `git -C <recorded-cwd> rev-parse --show-toplevel`
+5. fall back to the recorded `cwd` if Git resolution fails
 
 Marker JSON structure:
 

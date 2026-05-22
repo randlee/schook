@@ -43,19 +43,46 @@ The hooks implement a debounce pattern that delays a downstream CLI call until
 a Codex agent has been idle for a configurable window:
 
 - `hooks/stop.py` — on `agent-turn-complete`: write a pending record for the
-  correlation key (`thread-id`), write an `active` marker under the project root
+  correlation key (`thread-id`) and, for ATM projects, apply any per-agent
+  idle timeout from `.atm.toml`
 - `hooks/pre_tool_use.py` — on `PreToolUse`: cancel any pending record for the
-  key, restore the `active` marker
+  key and switch the visible marker to `active`
 - `scripts/fire_pending.py` — run by an external timer or cron: invoke the
-  configured CLI command for each due pending record, flip `active` to `idle`
+  configured CLI command for each due pending record, send the optional ATM
+  idle notice, then flip `active` to `idle`
 
 State lives under `SCHOOK_CODEX_HOOK_STATE_ROOT`. Visible session markers
 are written under `<project-root>/.sc/sessions/codex/`:
 
 | File | Meaning |
 |------|---------|
-| `active-<ATM_IDENTITY>.json` | turn complete, timer pending |
-| `idle-<ATM_IDENTITY>.json` | timer fired, agent confirmed idle |
+| `active-<ATM_IDENTITY>.json` | tool activity observed; agent is active |
+| `idle-<ATM_IDENTITY>.json` | startup or debounce expiry confirmed idle state |
+
+The startup hook writes `idle-<ATM_IDENTITY>.json` immediately at session
+start. The first `PreToolUse` switches that file to `active-<ATM_IDENTITY>.json`.
+When the debounce expires, the file switches back to `idle` and includes
+`idle_since` in the JSON payload.
+
+For ATM-managed projects, the hook prefers the existing session record at
+`.sc/sessions/codex/*-<session-id>.json`, then uses that record's stable `cwd`
+to resolve the project root. This avoids drift after later `cd` inside tools.
+
+Idle ATM notify config lives in `.atm.toml`:
+
+```toml
+[atm.idle_notify]
+recipient = "team-lead"
+
+[atm.idle_notify.agent.chook]
+seconds = 60
+```
+
+When enabled and `ATM_TEAM` is set, the due timer sends:
+
+```bash
+atm send team-lead "$ATM_IDENTITY idle for ${seconds} seconds @ ${timestamp}" --team "$ATM_TEAM" --from "$ATM_IDENTITY"
+```
 
 ## Running Tests
 
