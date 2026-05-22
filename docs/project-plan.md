@@ -223,6 +223,10 @@ Phase-wide fixed decisions:
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
 
+The former review-only `SC-LOG-PHASE-END` closeout is now represented through
+the completed Sprint 6 and Sprint 8 detail blocks below rather than as a
+separate active sprint row.
+
 ### Sprint 1: Baseline Alignment And Code Retirement
 
 Status:
@@ -896,6 +900,9 @@ Acceptance criteria:
 
 Status:
 - planned
+
+Requirement drivers:
+- `HKR-006`, `HKR-007`
 
 Focus:
 - only after the Claude baseline is stable, execute approved harness-planning
