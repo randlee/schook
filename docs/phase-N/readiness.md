@@ -73,23 +73,23 @@ Promotion criteria:
   deferred surfaces per provider
 - `NO_GO` blocks runtime adapter work and requires a new sprint before retry
 
-## Initial State
+## Current State
 
 | Sprint | Accepted Commit | Verdict | Current Status | Notes |
 | --- | --- | --- | --- | --- |
-| N.1 | `007612e` | `accepted` | `merged to integrate/phase-N` | Codex harness schema capture complete; all findings frozen; ready for N.2 baseline |
-| N.2 | `88ebc36` | `accepted` | `merged to integrate/phase-N` | Gemini harness schema capture complete; all findings frozen; ready for N.3 baseline |
-| N.3 | `acb2527` | `accepted` | `merged to integrate/phase-N` | Cross-provider normalization inventory complete; ready for N.4 promotion gate |
-| N.4 | `PENDING` | `PENDING` | `not started` | awaits N.1–N.3 closure |
+| N.1 | `007612e` | `ACCEPTED` | `merged to integrate/phase-N` | Codex harness schema capture is frozen on the integration baseline. Approved direct evidence exists for `SessionStart`, `PreToolUse`, `notify`, and `--cd` drift scenarios; `Stop`, `resume`, and `fork` remain `confirmed-not-exercisable`. |
+| N.2 | `88ebc36` | `ACCEPTED` | `merged to integrate/phase-N` | Gemini harness schema capture is frozen on the integration baseline. All locally exercisable Gemini hook surfaces were captured; workspace `.gemini/settings.json` activation remains outside the approved registration contract. |
+| N.3 | `acb2527` | `ACCEPTED` | `merged to integrate/phase-N` | Cross-provider normalization inventory is frozen on the integration baseline. Canonical candidates are limited to `session_id`, `cwd`, `transcript_path`, and `tool_input.command`; unresolved lifecycle families remain deferred. |
+| N.4 | `PENDING` | `PENDING` | `complete on promotion-gate branch; awaiting integration-author fill` | Proposed `PARTIAL_GO` details are documented in `docs/phase-N/release-checklist.md`, but the authoritative readiness row and final verdict remain reserved for merge-time update by the integration author per `ADR-SHK-007`. |
 
 Final release verdict:
 
-- `integrate/phase-N` candidate: `PENDING`
-- release checklist result: `PENDING`
-- release verdict: `PENDING`
-- provider verdicts: `PENDING`
-- open blocking findings: `PENDING`
-- open important findings: `PENDING`
-- next action: `PENDING`
-- authorized by: `PENDING`
-- notes: Phase N promotion verdict not yet recorded
+- `integrate_phase_n_candidate`: `PENDING`
+- `release_checklist_result`: `PENDING`
+- `release_verdict`: `PENDING`
+- `provider_verdicts`: `PENDING`
+- `open_blocking_findings`: `PENDING`
+- `open_important_findings`: `PENDING`
+- `next_action`: `PENDING`
+- `authorized_by`: `TBD — integration author updates at merge time per ADR-SHK-007`
+- `notes`: `SC-PN-4` supplies a proposed `PARTIAL_GO` analysis in `docs/phase-N/release-checklist.md`, including approved surfaces, deferred surfaces, reasons, and follow-on sprint references. The authoritative readiness verdict remains reserved for merge-time update by the integration author.
