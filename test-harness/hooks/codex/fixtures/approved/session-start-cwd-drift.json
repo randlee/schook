@@ -1,9 +1,9 @@
 {
-  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature/pN-s1-codex-harness-schema-capture/test-harness/hooks/codex",
+  "cwd": "$REPO_ROOT/test-harness/hooks/codex",
   "hook_event_name": "SessionStart",
   "model": "gpt-5.4",
   "permission_mode": "bypassPermissions",
   "session_id": "019e5106-2563-7da2-90d6-4ac5a66e1e86",
   "source": "startup",
-  "transcript_path": "/Users/randlee/.codex/sessions/2026/05/22/rollout-2026-05-22T11-50-17-019e5106-2563-7da2-90d6-4ac5a66e1e86.jsonl"
+  "transcript_path": "~/.codex/sessions/2026/05/22/rollout-2026-05-22T11-50-17-019e5106-2563-7da2-90d6-4ac5a66e1e86.jsonl"
 }

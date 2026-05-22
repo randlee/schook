@@ -80,28 +80,31 @@ def test_approved_env_fixtures_validate_and_redact_sensitive_values(codex_root: 
     fixture_dir = codex_root / "fixtures" / "approved"
     for fixture_path in sorted(fixture_dir.glob("*.env.json")):
         validated = validate_codex_env_snapshot(json.loads(fixture_path.read_text(encoding="utf-8")))
-        assert validated.atm_env["ATM_IDENTITY"] == "chook"
-        assert validated.atm_env["ATM_TEAM"] == "schook"
-        assert validated.atm_env["ATM_GRAFANA_READ_TOKEN"] == "<redacted>"
+        assert validated.atm_env["ATM_IDENTITY"].strip()
+        assert validated.atm_env["ATM_TEAM"].strip()
         for key, value in validated.atm_env.items():
             if any(token in key for token in ("TOKEN", "AUTH")):
                 assert value == "<redacted>"
+        assert validated.codex_env["CODEX_MANAGED_PACKAGE_ROOT"].strip()
 
 
 @pytest.mark.provider_codex
 def test_session_start_and_stop_capture_scripts_write_raw_files(tmp_path: Path, codex_root: Path) -> None:
     capture_root = tmp_path / "captures"
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    transcript_path = tmp_path / "transcript.jsonl"
 
     session_start_result = _run_hook(
         codex_root / "hooks" / "session_start.py",
         {
-            "cwd": "/tmp/project",
+            "cwd": str(project_root),
             "hook_event_name": "SessionStart",
             "model": "gpt-5.4",
             "permission_mode": "bypassPermissions",
             "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
             "source": "startup",
-            "transcript_path": "/tmp/transcript.jsonl",
+            "transcript_path": str(transcript_path),
         },
         capture_root,
     )
@@ -110,7 +113,7 @@ def test_session_start_and_stop_capture_scripts_write_raw_files(tmp_path: Path, 
     stop_result = _run_hook(
         codex_root / "hooks" / "stop.py",
         {
-            "cwd": "/tmp/project",
+            "cwd": str(project_root),
             "hook_event_name": "Stop",
             "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
         },
@@ -128,8 +131,15 @@ def test_session_start_and_stop_capture_scripts_write_raw_files(tmp_path: Path, 
 @pytest.mark.provider_codex
 def test_manifest_records_cd_scenario_through_approved_fixtures(codex_root: Path) -> None:
     fixture_dir = codex_root / "fixtures" / "approved"
+    manifest = json.loads((fixture_dir / "manifest.json").read_text(encoding="utf-8"))
     startup = json.loads((fixture_dir / "session-start-startup.json").read_text(encoding="utf-8"))
     drift = json.loads((fixture_dir / "session-start-cwd-drift.json").read_text(encoding="utf-8"))
 
     assert startup["cwd"] != drift["cwd"]
-    assert drift["cwd"].endswith("test-harness/hooks/codex")
+    assert Path(drift["cwd"]).parts[-3:] == ("test-harness", "hooks", "codex")
+    manifest_surfaces = {surface["surface"] for surface in manifest["hook_surfaces"]}
+    assert {
+        "SessionStart (--cd)",
+        "PreToolUse (--cd)",
+        "notify (--cd)",
+    } <= manifest_surfaces

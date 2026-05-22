@@ -1,6 +1,6 @@
 {
   "client": "codex_exec",
-  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature/pN-s1-codex-harness-schema-capture/test-harness/hooks/codex",
+  "cwd": "$REPO_ROOT/test-harness/hooks/codex",
   "input-messages": [
     "Run pwd then reply exactly OK."
   ],
