@@ -227,6 +227,10 @@ The former review-only `SC-LOG-PHASE-END` closeout is now represented through
 the completed Sprint 6 and Sprint 8 detail blocks below rather than as a
 separate active sprint row.
 
+`CDR-A` and `CDR-B` are pending merge-track remediation rows, not standalone
+execution sprints. They summarize scoped integration branches and therefore do
+not carry separate section-10 detail blocks in this plan.
+
 ### Sprint 1: Baseline Alignment And Code Retirement
 
 Status:
