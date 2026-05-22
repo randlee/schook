@@ -1,4 +1,6 @@
 #![cfg(unix)]
+//! Unix-only worktree hook behavior lives in the library test surface so the
+//! shared shell fixture helpers can be reused from one crate-local place.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -28,7 +30,8 @@ fn run_command_hook(
         command.env(key, value);
     }
 
-    let mut child = command.spawn().expect("hook script should spawn");
+    let mut child =
+        fixtures::spawn_fixture_command(&mut command).expect("hook script should spawn");
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
         let body = serde_json::to_vec(&input).expect("hook input should serialize");

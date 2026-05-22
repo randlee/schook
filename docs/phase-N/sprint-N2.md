@@ -83,6 +83,7 @@ explicit code samples or signatures showing the intended end state.
 ## This Sprint Does Not Close
 
 - Codex runtime adapter promotion
+- Gemini runtime adapter promotion
 - cross-provider mapping decisions beyond documented candidates
 - final provider promotion verdict
 

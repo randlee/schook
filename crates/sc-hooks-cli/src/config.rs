@@ -1,15 +1,28 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use toml::Value;
 
 pub const DEFAULT_CONFIG_PATH: &str = ".sc-hooks/config.toml";
+pub const ENV_OBSERVABILITY_MODE: &str = "SC_HOOKS_OBSERVABILITY_MODE";
+pub const ENV_AUDIT_PROFILE: &str = "SC_HOOKS_AUDIT_PROFILE";
+pub const ENV_AUDIT_PATH: &str = "SC_HOOKS_AUDIT_PATH";
+pub const ENV_AUDIT_MAX_RUNS: &str = "SC_HOOKS_AUDIT_MAX_RUNS";
+pub const ENV_AUDIT_MAX_AGE_DAYS: &str = "SC_HOOKS_AUDIT_MAX_AGE_DAYS";
+pub const ENV_AUDIT_REDACTION: &str = "SC_HOOKS_AUDIT_REDACTION";
+pub const ENV_AUDIT_CAPTURE_PAYLOADS: &str = "SC_HOOKS_AUDIT_CAPTURE_PAYLOADS";
+pub const ENV_AUDIT_CAPTURE_STDIO: &str = "SC_HOOKS_AUDIT_CAPTURE_STDIO";
 
-const REQUIRED_SECTIONS: [&str; 2] = ["meta", "hooks"];
-const ALLOWED_SECTIONS: [&str; 4] = ["meta", "context", "hooks", "sandbox"];
+const DEFAULT_GLOBAL_CONFIG_DIR: &str = ".sc-hooks";
+const DEFAULT_GLOBAL_CONFIG_FILE: &str = "config.toml";
+const REQUIRED_LOCAL_SECTIONS: [&str; 2] = ["meta", "hooks"];
+const ALLOWED_LOCAL_SECTIONS: [&str; 5] = ["meta", "context", "hooks", "sandbox", "observability"];
+const ALLOWED_GLOBAL_SECTIONS: [&str; 1] = ["observability"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScHooksConfig {
@@ -19,6 +32,8 @@ pub struct ScHooksConfig {
     pub hooks: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub sandbox: SandboxConfig,
+    #[serde(default)]
+    pub observability: ObservabilityConfig,
 }
 
 impl ScHooksConfig {
@@ -46,14 +61,437 @@ pub struct SandboxConfig {
     pub allow_paths: BTreeMap<String, Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ObservabilityMode {
+    Off,
+    #[default]
+    Standard,
+    Full,
+}
+
+impl ObservabilityMode {
+    fn parse_token(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "off" => Some(Self::Off),
+            "standard" => Some(Self::Standard),
+            "full" => Some(Self::Full),
+            _ => None,
+        }
+    }
+
+    fn expected_values() -> &'static str {
+        "off, standard, full"
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum FullAuditProfile {
+    #[default]
+    Lean,
+    Debug,
+}
+
+impl FullAuditProfile {
+    fn parse_token(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "lean" => Some(Self::Lean),
+            "debug" => Some(Self::Debug),
+            _ => None,
+        }
+    }
+
+    fn expected_values() -> &'static str {
+        "lean, debug"
+    }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Lean => "lean",
+            Self::Debug => "debug",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RedactionMode {
+    #[default]
+    Strict,
+    Permissive,
+}
+
+impl RedactionMode {
+    fn parse_token(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "strict" => Some(Self::Strict),
+            "permissive" => Some(Self::Permissive),
+            _ => None,
+        }
+    }
+
+    fn expected_values() -> &'static str {
+        "strict, permissive"
+    }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Strict => "strict",
+            Self::Permissive => "permissive",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CaptureStdio {
+    None,
+    #[default]
+    Summary,
+    Bounded,
+}
+
+impl CaptureStdio {
+    fn parse_token(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "none" => Some(Self::None),
+            "summary" => Some(Self::Summary),
+            "bounded" => Some(Self::Bounded),
+            _ => None,
+        }
+    }
+
+    fn expected_values() -> &'static str {
+        "none, summary, bounded"
+    }
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Summary => "summary",
+            Self::Bounded => "bounded",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(transparent)]
+pub struct CapturePayloads(bool);
+
+impl CapturePayloads {
+    pub const fn enabled() -> Self {
+        Self(true)
+    }
+
+    pub const fn disabled() -> Self {
+        Self(false)
+    }
+
+    pub(crate) const fn is_enabled(self) -> bool {
+        self.0
+    }
+}
+
+impl fmt::Display for CapturePayloads {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_enabled() {
+            f.write_str("enabled")
+        } else {
+            f.write_str("disabled")
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "u32", into = "u32")]
+pub struct RetainRunCount(u32);
+
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
+#[error("invalid retention value {value}: must be >= {minimum}")]
+pub struct RetentionBoundError {
+    value: u32,
+    minimum: u32,
+}
+
+impl RetentionBoundError {
+    const fn new(value: u32, minimum: u32) -> Self {
+        Self { value, minimum }
+    }
+}
+
+impl RetainRunCount {
+    pub(crate) const fn get(self) -> u32 {
+        self.0
+    }
+}
+
+impl Default for RetainRunCount {
+    fn default() -> Self {
+        default_retain_runs()
+    }
+}
+
+impl TryFrom<u32> for RetainRunCount {
+    type Error = RetentionBoundError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value < 1 {
+            Err(RetentionBoundError::new(value, 1))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl From<RetainRunCount> for u32 {
+    fn from(value: RetainRunCount) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "u32", into = "u32")]
+pub struct RetainDays(u32);
+
+impl RetainDays {
+    pub(crate) fn to_duration(self) -> Duration {
+        Duration::from_secs(u64::from(self.0) * 24 * 60 * 60)
+    }
+}
+
+impl Default for RetainDays {
+    fn default() -> Self {
+        default_retain_days()
+    }
+}
+
+impl TryFrom<u32> for RetainDays {
+    type Error = RetentionBoundError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value < 1 {
+            Err(RetentionBoundError::new(value, 1))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl From<RetainDays> for u32 {
+    fn from(value: RetainDays) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigValueSource {
+    #[default]
+    BuiltIn,
+    Global,
+    Local,
+    Env,
+}
+
+impl ConfigValueSource {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::BuiltIn => "built_in",
+            Self::Global => "global",
+            Self::Local => "local",
+            Self::Env => "env",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ObservabilityDebugContext {
+    pub local_config_path: PathBuf,
+    pub global_config_path: Option<PathBuf>,
+    pub global_config_present: bool,
+    pub env_overrides: Vec<String>,
+    pub mode_source: ConfigValueSource,
+    pub full_profile_source: ConfigValueSource,
+    pub path_source: ConfigValueSource,
+    pub console_mirror_source: ConfigValueSource,
+    pub retain_runs_source: ConfigValueSource,
+    pub retain_days_source: ConfigValueSource,
+    pub redaction_source: ConfigValueSource,
+    pub capture_payloads_source: ConfigValueSource,
+    pub capture_stdio_source: ConfigValueSource,
+}
+
+impl Default for ObservabilityDebugContext {
+    fn default() -> Self {
+        Self {
+            local_config_path: PathBuf::from(DEFAULT_CONFIG_PATH),
+            global_config_path: default_global_config_path(),
+            global_config_present: false,
+            env_overrides: Vec::new(),
+            mode_source: ConfigValueSource::BuiltIn,
+            full_profile_source: ConfigValueSource::BuiltIn,
+            path_source: ConfigValueSource::BuiltIn,
+            console_mirror_source: ConfigValueSource::BuiltIn,
+            retain_runs_source: ConfigValueSource::BuiltIn,
+            retain_days_source: ConfigValueSource::BuiltIn,
+            redaction_source: ConfigValueSource::BuiltIn,
+            capture_payloads_source: ConfigValueSource::BuiltIn,
+            capture_stdio_source: ConfigValueSource::BuiltIn,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ObservabilityConfig {
+    #[serde(default)]
+    pub mode: ObservabilityMode,
+    #[serde(default)]
+    pub full_profile: FullAuditProfile,
+    #[serde(default = "default_audit_path")]
+    pub path: PathBuf,
+    #[serde(default)]
+    pub console_mirror: bool,
+    #[serde(default = "default_retain_runs")]
+    pub retain_runs: RetainRunCount,
+    #[serde(default = "default_retain_days")]
+    pub retain_days: RetainDays,
+    #[serde(default)]
+    pub redaction: RedactionMode,
+    #[serde(default)]
+    pub capture_payloads: CapturePayloads,
+    #[serde(default)]
+    pub capture_stdio: CaptureStdio,
+    #[serde(skip)]
+    pub debug_context: ObservabilityDebugContext,
+}
+
+impl Default for ObservabilityConfig {
+    fn default() -> Self {
+        Self {
+            mode: ObservabilityMode::Standard,
+            full_profile: FullAuditProfile::Lean,
+            path: default_audit_path(),
+            console_mirror: false,
+            retain_runs: default_retain_runs(),
+            retain_days: default_retain_days(),
+            redaction: RedactionMode::Strict,
+            capture_payloads: CapturePayloads::default(),
+            capture_stdio: CaptureStdio::Summary,
+            debug_context: ObservabilityDebugContext::default(),
+        }
+    }
+}
+
+impl ObservabilityConfig {
+    fn apply_global(&mut self, layer: GlobalObservabilityConfigLayer) {
+        if let Some(mode) = layer.mode {
+            self.mode = mode;
+            self.debug_context.mode_source = ConfigValueSource::Global;
+        }
+        if let Some(console_mirror) = layer.console_mirror {
+            self.console_mirror = console_mirror;
+            self.debug_context.console_mirror_source = ConfigValueSource::Global;
+        }
+        if let Some(retain_runs) = layer.retain_runs {
+            self.retain_runs = retain_runs;
+            self.debug_context.retain_runs_source = ConfigValueSource::Global;
+        }
+        if let Some(retain_days) = layer.retain_days {
+            self.retain_days = retain_days;
+            self.debug_context.retain_days_source = ConfigValueSource::Global;
+        }
+        if let Some(redaction) = layer.redaction {
+            self.redaction = redaction;
+            self.debug_context.redaction_source = ConfigValueSource::Global;
+        }
+    }
+
+    fn apply_local(&mut self, layer: LocalObservabilityConfigLayer) {
+        if let Some(mode) = layer.mode {
+            self.mode = mode;
+            self.debug_context.mode_source = ConfigValueSource::Local;
+        }
+        if let Some(full_profile) = layer.full_profile {
+            self.full_profile = full_profile;
+            self.debug_context.full_profile_source = ConfigValueSource::Local;
+        }
+        if let Some(path) = layer.path {
+            self.path = path;
+            self.debug_context.path_source = ConfigValueSource::Local;
+        }
+        if let Some(console_mirror) = layer.console_mirror {
+            self.console_mirror = console_mirror;
+            self.debug_context.console_mirror_source = ConfigValueSource::Local;
+        }
+        if let Some(retain_runs) = layer.retain_runs {
+            self.retain_runs = retain_runs;
+            self.debug_context.retain_runs_source = ConfigValueSource::Local;
+        }
+        if let Some(retain_days) = layer.retain_days {
+            self.retain_days = retain_days;
+            self.debug_context.retain_days_source = ConfigValueSource::Local;
+        }
+        if let Some(redaction) = layer.redaction {
+            self.redaction = redaction;
+            self.debug_context.redaction_source = ConfigValueSource::Local;
+        }
+        if let Some(capture_payloads) = layer.capture_payloads {
+            self.capture_payloads = capture_payloads;
+            self.debug_context.capture_payloads_source = ConfigValueSource::Local;
+        }
+        if let Some(capture_stdio) = layer.capture_stdio {
+            self.capture_stdio = capture_stdio;
+            self.debug_context.capture_stdio_source = ConfigValueSource::Local;
+        }
+    }
+
+    fn record_env_override(&mut self, key: &'static str) {
+        self.debug_context.env_overrides.push(key.to_string());
+    }
+}
+
 #[derive(Debug, Deserialize)]
-struct RawConfig {
+struct RawLocalConfig {
     meta: MetaConfig,
     #[serde(default)]
     context: BTreeMap<String, Value>,
     hooks: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     sandbox: SandboxConfig,
+    #[serde(default)]
+    observability: LocalObservabilityConfigLayer,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawGlobalConfig {
+    #[serde(default)]
+    observability: GlobalObservabilityConfigLayer,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GlobalObservabilityConfigLayer {
+    mode: Option<ObservabilityMode>,
+    console_mirror: Option<bool>,
+    retain_runs: Option<RetainRunCount>,
+    retain_days: Option<RetainDays>,
+    redaction: Option<RedactionMode>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalObservabilityConfigLayer {
+    mode: Option<ObservabilityMode>,
+    full_profile: Option<FullAuditProfile>,
+    path: Option<PathBuf>,
+    console_mirror: Option<bool>,
+    retain_runs: Option<RetainRunCount>,
+    retain_days: Option<RetainDays>,
+    redaction: Option<RedactionMode>,
+    capture_payloads: Option<CapturePayloads>,
+    capture_stdio: Option<CaptureStdio>,
 }
 
 #[derive(Debug, Error)]
@@ -61,6 +499,7 @@ pub enum ConfigError {
     #[error("failed to read config at {path}: {source}")]
     Read {
         path: PathBuf,
+        #[source]
         source: std::io::Error,
     },
 
@@ -96,6 +535,19 @@ pub enum ConfigError {
         source: Box<toml::de::Error>,
     },
 
+    #[error("global observability config in {location} may not set mode = \"full\"")]
+    GlobalFullMode { location: String },
+
+    #[error("environment override {key} must be valid UTF-8")]
+    NonUtf8EnvOverride { key: &'static str },
+
+    #[error("invalid environment override {key}={value:?}; expected {expected}")]
+    InvalidEnvOverride {
+        key: &'static str,
+        value: String,
+        expected: &'static str,
+    },
+
     #[error("failed to format resolved config: {source}")]
     Format {
         #[source]
@@ -104,47 +556,68 @@ pub enum ConfigError {
 }
 
 pub fn load_default_config() -> Result<ScHooksConfig, ConfigError> {
-    load_config(Path::new(DEFAULT_CONFIG_PATH))
+    let global_path = default_global_config_path();
+    load_layered_config(Path::new(DEFAULT_CONFIG_PATH), global_path.as_deref())
 }
 
-pub fn load_config(path: &Path) -> Result<ScHooksConfig, ConfigError> {
-    let contents = fs::read_to_string(path).map_err(|source| ConfigError::Read {
-        path: path.to_path_buf(),
+pub fn load_layered_config(
+    local_path: &Path,
+    global_path: Option<&Path>,
+) -> Result<ScHooksConfig, ConfigError> {
+    let local_contents = fs::read_to_string(local_path).map_err(|source| ConfigError::Read {
+        path: local_path.to_path_buf(),
         source,
     })?;
+    let local_location = local_path.display().to_string();
+    let local = parse_local_raw_config(&local_contents, local_location.clone())?;
 
-    parse_config_str(&contents, path.display().to_string())
+    let mut observability = ObservabilityConfig::default();
+    observability.debug_context.local_config_path = local_path.to_path_buf();
+    observability.debug_context.global_config_path = global_path.map(Path::to_path_buf);
+    if let Some(global_path) = global_path
+        && let Some(global_contents) = read_optional_config(global_path)?
+    {
+        let global_location = global_path.display().to_string();
+        let global = parse_global_raw_config(&global_contents, global_location.clone())?;
+        observability.debug_context.global_config_present = true;
+        if matches!(global.observability.mode, Some(ObservabilityMode::Full)) {
+            return Err(ConfigError::GlobalFullMode {
+                location: global_location,
+            });
+        }
+        observability.apply_global(global.observability);
+    }
+    observability.apply_local(local.observability);
+    apply_env_overrides(&mut observability)?;
+
+    Ok(ScHooksConfig {
+        meta: local.meta,
+        context: local.context,
+        hooks: local.hooks,
+        sandbox: local.sandbox,
+        observability,
+    })
 }
 
+#[cfg(test)]
 pub fn parse_config_str(
     input: &str,
     source_location: impl Into<String>,
 ) -> Result<ScHooksConfig, ConfigError> {
     let source_location = source_location.into();
-    let value: Value = toml::from_str(input).map_err(|source| ConfigError::TomlParse {
-        location: source_location.clone(),
-        source: Box::new(source),
-    })?;
+    let raw = parse_local_raw_config(input, source_location.clone())?;
 
-    let root = value.as_table().ok_or_else(|| ConfigError::RootNotTable {
-        location: source_location.clone(),
-    })?;
-
-    validate_sections(root, &source_location)?;
-    validate_version(root, &source_location)?;
-
-    let raw: RawConfig = value
-        .try_into()
-        .map_err(|source| ConfigError::InvalidStructure {
-            location: source_location.clone(),
-            source: Box::new(source),
-        })?;
+    let mut observability = ObservabilityConfig::default();
+    observability.debug_context.local_config_path = PathBuf::from(&source_location);
+    observability.debug_context.global_config_path = None;
+    observability.apply_local(raw.observability);
 
     Ok(ScHooksConfig {
         meta: raw.meta,
         context: raw.context,
         hooks: raw.hooks,
         sandbox: raw.sandbox,
+        observability,
     })
 }
 
@@ -166,12 +639,76 @@ pub fn map_context_to_metadata(context: &BTreeMap<String, Value>) -> BTreeMap<St
     mapped
 }
 
+fn parse_local_raw_config(
+    input: &str,
+    source_location: String,
+) -> Result<RawLocalConfig, ConfigError> {
+    let value = parse_root_value(input, &source_location)?;
+    let root = value.as_table().ok_or_else(|| ConfigError::RootNotTable {
+        location: source_location.clone(),
+    })?;
+
+    validate_sections(
+        root,
+        &source_location,
+        &REQUIRED_LOCAL_SECTIONS,
+        &ALLOWED_LOCAL_SECTIONS,
+    )?;
+    validate_version(root, &source_location)?;
+
+    value
+        .try_into()
+        .map_err(|source| ConfigError::InvalidStructure {
+            location: source_location,
+            source: Box::new(source),
+        })
+}
+
+fn parse_global_raw_config(
+    input: &str,
+    source_location: String,
+) -> Result<RawGlobalConfig, ConfigError> {
+    let value = parse_root_value(input, &source_location)?;
+    let root = value.as_table().ok_or_else(|| ConfigError::RootNotTable {
+        location: source_location.clone(),
+    })?;
+
+    validate_sections(root, &source_location, &[], &ALLOWED_GLOBAL_SECTIONS)?;
+
+    value
+        .try_into()
+        .map_err(|source| ConfigError::InvalidStructure {
+            location: source_location,
+            source: Box::new(source),
+        })
+}
+
+fn parse_root_value(input: &str, source_location: &str) -> Result<Value, ConfigError> {
+    toml::from_str(input).map_err(|source| ConfigError::TomlParse {
+        location: source_location.to_string(),
+        source: Box::new(source),
+    })
+}
+
+fn read_optional_config(path: &Path) -> Result<Option<String>, ConfigError> {
+    match fs::read_to_string(path) {
+        Ok(contents) => Ok(Some(contents)),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(ConfigError::Read {
+            path: path.to_path_buf(),
+            source,
+        }),
+    }
+}
+
 fn validate_sections(
     root: &toml::map::Map<String, Value>,
     source: &str,
+    required_sections: &[&'static str],
+    allowed_sections: &[&str],
 ) -> Result<(), ConfigError> {
-    for section in REQUIRED_SECTIONS {
-        if !root.contains_key(section) {
+    for section in required_sections {
+        if !root.contains_key(*section) {
             return Err(ConfigError::MissingSection {
                 location: source.to_string(),
                 section,
@@ -179,7 +716,7 @@ fn validate_sections(
         }
     }
 
-    let allowed: BTreeSet<&str> = ALLOWED_SECTIONS.into_iter().collect();
+    let allowed: BTreeSet<&str> = allowed_sections.iter().copied().collect();
     let unknown: Vec<String> = root
         .keys()
         .filter(|name| !allowed.contains(name.as_str()))
@@ -215,9 +752,152 @@ fn validate_version(root: &toml::map::Map<String, Value>, source: &str) -> Resul
     }
 }
 
+fn default_global_config_path() -> Option<PathBuf> {
+    let home = std::env::var_os("ATM_HOME")
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)?;
+    Some(
+        home.join(DEFAULT_GLOBAL_CONFIG_DIR)
+            .join(DEFAULT_GLOBAL_CONFIG_FILE),
+    )
+}
+
+fn apply_env_overrides(observability: &mut ObservabilityConfig) -> Result<(), ConfigError> {
+    if let Some(value) = env_override_value(ENV_OBSERVABILITY_MODE)? {
+        observability.mode = ObservabilityMode::parse_token(&value).ok_or_else(|| {
+            ConfigError::InvalidEnvOverride {
+                key: ENV_OBSERVABILITY_MODE,
+                value,
+                expected: ObservabilityMode::expected_values(),
+            }
+        })?;
+        observability.debug_context.mode_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_OBSERVABILITY_MODE);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_PROFILE)? {
+        observability.full_profile = FullAuditProfile::parse_token(&value).ok_or_else(|| {
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_PROFILE,
+                value,
+                expected: FullAuditProfile::expected_values(),
+            }
+        })?;
+        observability.debug_context.full_profile_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_PROFILE);
+    }
+    if let Some(value) = std::env::var_os(ENV_AUDIT_PATH) {
+        observability.path = PathBuf::from(value);
+        observability.debug_context.path_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_PATH);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_MAX_RUNS)? {
+        observability.retain_runs = RetainRunCount::try_from(parse_env_u32(&value).ok_or(
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_RUNS,
+                value: value.clone(),
+                expected: "integer >= 1",
+            },
+        )?)
+        .map_err(|_| ConfigError::InvalidEnvOverride {
+            key: ENV_AUDIT_MAX_RUNS,
+            value,
+            expected: "integer >= 1",
+        })?;
+        observability.debug_context.retain_runs_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_MAX_RUNS);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_MAX_AGE_DAYS)? {
+        observability.retain_days = RetainDays::try_from(parse_env_u32(&value).ok_or(
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_AGE_DAYS,
+                value: value.clone(),
+                expected: "integer >= 1",
+            },
+        )?)
+        .map_err(|_| ConfigError::InvalidEnvOverride {
+            key: ENV_AUDIT_MAX_AGE_DAYS,
+            value,
+            expected: "integer >= 1",
+        })?;
+        observability.debug_context.retain_days_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_MAX_AGE_DAYS);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_REDACTION)? {
+        observability.redaction =
+            RedactionMode::parse_token(&value).ok_or_else(|| ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_REDACTION,
+                value,
+                expected: RedactionMode::expected_values(),
+            })?;
+        observability.debug_context.redaction_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_REDACTION);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_PAYLOADS)? {
+        observability.capture_payloads = if parse_env_bool(ENV_AUDIT_CAPTURE_PAYLOADS, &value)
+            .ok_or(ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_CAPTURE_PAYLOADS,
+                value,
+                expected: "1/true/yes/on or 0/false/no/off",
+            })? {
+            CapturePayloads::enabled()
+        } else {
+            CapturePayloads::disabled()
+        };
+        observability.debug_context.capture_payloads_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_CAPTURE_PAYLOADS);
+    }
+    if let Some(value) = env_override_value(ENV_AUDIT_CAPTURE_STDIO)? {
+        observability.capture_stdio =
+            CaptureStdio::parse_token(&value).ok_or_else(|| ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_CAPTURE_STDIO,
+                value,
+                expected: CaptureStdio::expected_values(),
+            })?;
+        observability.debug_context.capture_stdio_source = ConfigValueSource::Env;
+        observability.record_env_override(ENV_AUDIT_CAPTURE_STDIO);
+    }
+
+    Ok(())
+}
+
+fn env_override_value(key: &'static str) -> Result<Option<String>, ConfigError> {
+    let Some(value) = std::env::var_os(key) else {
+        return Ok(None);
+    };
+    let value = value
+        .into_string()
+        .map_err(|_| ConfigError::NonUtf8EnvOverride { key })?;
+    Ok(Some(value))
+}
+
+fn parse_env_bool(_key: &'static str, value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn parse_env_u32(value: &str) -> Option<u32> {
+    value.trim().parse().ok()
+}
+fn default_audit_path() -> PathBuf {
+    PathBuf::from(".sc-hooks/audit")
+}
+
+const fn default_retain_runs() -> RetainRunCount {
+    RetainRunCount(10)
+}
+
+const fn default_retain_days() -> RetainDays {
+    RetainDays(14)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
     use std::time::{Duration, Instant};
 
     fn valid_base_config() -> &'static str {
@@ -244,6 +924,65 @@ PreToolUse = ["guard-paths"]
 "#
     }
 
+    fn env_lock() -> &'static Mutex<()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    struct EnvGuard {
+        _lock: MutexGuard<'static, ()>,
+        saved: Vec<(&'static str, Option<OsString>)>,
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (key, value) in self.saved.drain(..) {
+                match value {
+                    Some(value) => {
+                        // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::set_var(key, value) }
+                    }
+                    None => {
+                        // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
+                        unsafe { std::env::remove_var(key) }
+                    }
+                }
+            }
+        }
+    }
+
+    fn scoped_env(overrides: &[(&'static str, Option<&str>)]) -> EnvGuard {
+        let lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
+        let saved = overrides
+            .iter()
+            .map(|(key, _)| (*key, std::env::var_os(key)))
+            .collect::<Vec<_>>();
+
+        for (key, value) in overrides {
+            match value {
+                Some(value) => {
+                    // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::set_var(key, value) }
+                }
+                None => {
+                    // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
+                    unsafe { std::env::remove_var(key) }
+                }
+            }
+        }
+
+        EnvGuard { _lock: lock, saved }
+    }
+
+    fn write_config(path: &Path, contents: &str) {
+        fs::create_dir_all(
+            path.parent()
+                .expect("config file should always have a parent directory"),
+        )
+        .expect("config directory should be creatable");
+        fs::write(path, contents).expect("config file should be writable");
+    }
+
     #[test]
     fn parses_from_in_memory_toml_with_sandbox_defaults() {
         let config =
@@ -251,6 +990,15 @@ PreToolUse = ["guard-paths"]
 
         assert_eq!(config.meta.version, 1);
         assert_eq!(config.sandbox, SandboxConfig::default());
+        assert_eq!(config.observability.mode, ObservabilityMode::Standard);
+        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+        assert_eq!(config.observability.path, default_audit_path());
+        assert!(!config.observability.console_mirror);
+        assert_eq!(config.observability.retain_runs, default_retain_runs());
+        assert_eq!(config.observability.retain_days, default_retain_days());
+        assert_eq!(config.observability.redaction, RedactionMode::Strict);
+        assert!(!config.observability.capture_payloads.is_enabled());
+        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
         assert_eq!(
             config
                 .hooks
@@ -267,6 +1015,15 @@ PreToolUse = ["guard-paths"]
 
         assert!(config.context.is_empty());
         assert_eq!(config.sandbox, SandboxConfig::default());
+        assert_eq!(config.observability.mode, ObservabilityMode::Standard);
+        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+        assert_eq!(config.observability.path, default_audit_path());
+        assert!(!config.observability.console_mirror);
+        assert_eq!(config.observability.retain_runs, default_retain_runs());
+        assert_eq!(config.observability.retain_days, default_retain_days());
+        assert_eq!(config.observability.redaction, RedactionMode::Strict);
+        assert!(!config.observability.capture_payloads.is_enabled());
+        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
     }
 
     #[test]
@@ -294,6 +1051,43 @@ allow_paths = { "guard-paths" = [".sc-hooks/guard-paths.toml"] }
                 .expect("guard-paths override should exist"),
             &vec![".sc-hooks/guard-paths.toml".to_string()]
         );
+    }
+
+    #[test]
+    fn parses_observability_section_with_local_only_fields() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+mode = "full"
+full_profile = "debug"
+path = ".sc-hooks/custom-audit"
+console_mirror = true
+retain_runs = 7
+retain_days = 21
+redaction = "permissive"
+capture_payloads = true
+capture_stdio = "bounded"
+"#;
+        let parsed =
+            parse_config_str(config, "in-memory").expect("observability section should parse");
+
+        assert_eq!(parsed.observability.mode, ObservabilityMode::Full);
+        assert_eq!(parsed.observability.full_profile, FullAuditProfile::Debug);
+        assert_eq!(
+            parsed.observability.path,
+            PathBuf::from(".sc-hooks/custom-audit")
+        );
+        assert!(parsed.observability.console_mirror);
+        assert_eq!(parsed.observability.retain_runs.get(), 7);
+        assert_eq!(u32::from(parsed.observability.retain_days), 21);
+        assert_eq!(parsed.observability.redaction, RedactionMode::Permissive);
+        assert!(parsed.observability.capture_payloads.is_enabled());
+        assert_eq!(parsed.observability.capture_stdio, CaptureStdio::Bounded);
     }
 
     #[test]
@@ -327,6 +1121,27 @@ allow_paths = { "guard-paths" = [".sc-hooks/guard-paths.toml"] }
         assert!(
             matches!(err, ConfigError::UnknownSections { .. }),
             "expected unknown-section error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_observability_field() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+unknown_key = true
+"#;
+
+        let err =
+            parse_config_str(config, "in-memory").expect_err("unknown observability key must fail");
+        assert!(
+            matches!(err, ConfigError::InvalidStructure { .. }),
+            "expected invalid-structure error, got {err:?}"
         );
     }
 
@@ -407,6 +1222,214 @@ PreToolUse = ["guard-paths"]
     }
 
     #[test]
+    fn rejects_full_mode_from_global_config_alone() {
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        let global_path = temp.path().join("home/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+        write_config(
+            &global_path,
+            r#"
+[observability]
+mode = "full"
+"#,
+        );
+
+        let err = load_layered_config(&local_path, Some(&global_path))
+            .expect_err("global full mode must be rejected");
+        assert!(
+            matches!(err, ConfigError::GlobalFullMode { .. }),
+            "expected global-full-mode error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn default_global_config_path_prefers_atm_home_override() {
+        let atm_home = std::env::temp_dir().join("sc-hooks-home-fallback");
+        let atm_home = atm_home
+            .to_str()
+            .expect("temp ATM_HOME path should be valid utf-8")
+            .to_string();
+        let _env = scoped_env(&[("ATM_HOME", Some(atm_home.as_str()))]);
+
+        assert_eq!(
+            default_global_config_path(),
+            Some(PathBuf::from(atm_home).join(".sc-hooks/config.toml"))
+        );
+    }
+
+    #[test]
+    fn layered_config_applies_built_in_global_local_and_env_precedence() {
+        let audit_env_path = std::env::temp_dir().join("sc-hooks-audit-env");
+        let audit_env_path = audit_env_path
+            .to_str()
+            .expect("temp audit path should be valid utf-8")
+            .to_string();
+        let _env = scoped_env(&[
+            (ENV_OBSERVABILITY_MODE, Some("full")),
+            (ENV_AUDIT_PROFILE, Some("lean")),
+            (ENV_AUDIT_PATH, Some(audit_env_path.as_str())),
+            (ENV_AUDIT_MAX_RUNS, Some("4")),
+            (ENV_AUDIT_MAX_AGE_DAYS, Some("45")),
+            (ENV_AUDIT_REDACTION, Some("strict")),
+            (ENV_AUDIT_CAPTURE_PAYLOADS, Some("true")),
+            (ENV_AUDIT_CAPTURE_STDIO, Some("summary")),
+        ]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        let global_path = temp.path().join("home/.sc-hooks/config.toml");
+        write_config(
+            &local_path,
+            r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+mode = "standard"
+full_profile = "debug"
+path = ".sc-hooks/local-audit"
+console_mirror = true
+retain_runs = 9
+capture_stdio = "bounded"
+"#,
+        );
+        write_config(
+            &global_path,
+            r#"
+[observability]
+mode = "off"
+console_mirror = false
+retain_runs = 5
+retain_days = 30
+redaction = "permissive"
+"#,
+        );
+
+        let config = load_layered_config(&local_path, Some(&global_path))
+            .expect("layered config should resolve");
+
+        assert_eq!(config.observability.mode, ObservabilityMode::Full);
+        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+        assert_eq!(config.observability.path, PathBuf::from(&audit_env_path));
+        assert!(config.observability.console_mirror);
+        assert_eq!(config.observability.retain_runs.get(), 4);
+        assert_eq!(u32::from(config.observability.retain_days), 45);
+        assert_eq!(config.observability.redaction, RedactionMode::Strict);
+        assert!(config.observability.capture_payloads.is_enabled());
+        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
+    }
+
+    #[test]
+    fn capture_payloads_display_and_constructors_match_state() {
+        assert_eq!(CapturePayloads::enabled().to_string(), "enabled");
+        assert_eq!(CapturePayloads::disabled().to_string(), "disabled");
+    }
+
+    #[test]
+    fn invalid_environment_override_is_rejected() {
+        let _env = scoped_env(&[(ENV_OBSERVABILITY_MODE, Some("invalid"))]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+
+        let err = load_layered_config(&local_path, None)
+            .expect_err("invalid env override must be rejected");
+        assert!(
+            matches!(
+                err,
+                ConfigError::InvalidEnvOverride {
+                    key: ENV_OBSERVABILITY_MODE,
+                    ..
+                }
+            ),
+            "expected invalid-env-override error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn zero_retention_environment_override_is_rejected() {
+        let _env = scoped_env(&[(ENV_AUDIT_MAX_RUNS, Some("0"))]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+
+        let err = load_layered_config(&local_path, None)
+            .expect_err("zero retain-runs env override must be rejected");
+        assert!(matches!(
+            err,
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_RUNS,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn zero_retain_days_env_override_is_rejected() {
+        let _env = scoped_env(&[(ENV_AUDIT_MAX_AGE_DAYS, Some("0"))]);
+        let temp = tempfile::tempdir().expect("tempdir should be creatable");
+        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+        write_config(&local_path, minimal_required_config());
+
+        let err = load_layered_config(&local_path, None)
+            .expect_err("zero retain-days env override must be rejected");
+        assert!(matches!(
+            err,
+            ConfigError::InvalidEnvOverride {
+                key: ENV_AUDIT_MAX_AGE_DAYS,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn zero_retention_in_local_config_is_rejected() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+retain_runs = 0
+"#;
+
+        let err = parse_config_str(config, "in-memory")
+            .expect_err("zero retain-runs local config must be rejected");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("must be >= 1"),
+            "unexpected zero-retention error: {rendered}"
+        );
+    }
+
+    #[test]
+    fn zero_retain_days_in_local_config_is_rejected() {
+        let config = r#"
+[meta]
+version = 1
+
+[hooks]
+PreToolUse = ["guard-paths"]
+
+[observability]
+retain_days = 0
+"#;
+
+        let err = parse_config_str(config, "in-memory")
+            .expect_err("zero retain-days local config must be rejected");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("must be >= 1"),
+            "unexpected zero retain-days error: {rendered}"
+        );
+    }
+
+    #[test]
     fn renders_resolved_config_for_config_subcommand() {
         let parsed = parse_config_str(valid_base_config(), "in-memory")
             .expect("config should parse for render");
@@ -417,6 +1440,7 @@ PreToolUse = ["guard-paths"]
         assert!(rendered.contains("[meta]"));
         assert!(rendered.contains("[hooks]"));
         assert!(rendered.contains("[sandbox]"));
+        assert!(rendered.contains("[observability]"));
     }
 
     #[test]

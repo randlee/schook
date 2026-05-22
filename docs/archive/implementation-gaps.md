@@ -17,10 +17,10 @@ This document tracks gaps between the current codebase and the release-standard 
 | DEF-003 | deferred | `sc-hooks-sdk`, docs | SDK docs, requirements, and gaps keep richer `LongRunning` ergonomics deferred beyond the current manifest-driven host contract | see `GAP-002` |
 | GAP-006 | deferred | `sc-hooks-cli`, `sc-hooks-core` | Exit-code tests and docs agree on any future split | none until the exit taxonomy changes |
 | GAP-008 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, and gaps all state that builtin handler resolution is intentionally out of scope for the current release | none until the product intentionally restores builtins |
-| GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration | none until sink configuration is intentionally restored |
-| GAP-010 | resolved in this pass | `sc-hooks-cli`, docs | host-level observability contract tests prove success, block, invalid-json error, timeout, and file-sink path behavior through the real `sc-hooks-cli` binary | broader sink/monitoring coverage remains tracked under `DEF-008` |
+| GAP-009 | deferred | docs, `sc-hooks-cli` | Requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration; planned future config returns under `[observability]`, not `[logging]` | none until the product intentionally reopens sink configuration beyond the planned `[observability]` surface |
+| GAP-010 | resolved in this pass | `sc-hooks-cli`, docs | host-level observability contract tests prove success, block, invalid-json error, timeout, and file-sink path behavior through the real `sc-hooks-cli` binary | broader observability expansion now lives in planned requirements `DEF-010` through `DEF-019` |
 | DEF-007 | deferred | docs, `sc-hooks-sdk` | requirements and protocol contract keep the extended payload-condition operator set out of the release-facing contract until explicitly promoted | none until the operator set is elevated into the release contract |
-| DEF-008 | deferred | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps keep richer observability validation beyond the current file-sink dispatch contract explicitly planned but not release-blocking, with console-sink coverage named as the first follow-up | none until console/custom sink coverage and multi-hook smoke correlation are intentionally promoted |
+| DEF-008 | resolved in later planning pass | docs, `sc-hooks-cli`, `sc-observability` integration | requirements, architecture, observability docs, and gaps agree that the real-dispatch console-sink follow-up is complete | further observability expansion is planned under `DEF-010` through `DEF-019` rather than under `DEF-008` |
 | SEAL-001 | deferred | `sc-hooks-sdk`, docs | SDK trait docs, requirements, architecture, and gaps continue to describe the current host-facing trait surface as intentionally unsealed until an executable plugin boundary freeze is explicitly approved | replace when the SDK trait surface is intentionally sealed or the JSON/plugin contract fully supersedes direct trait implementation guidance |
 
 ## Resolved In This Pass
@@ -146,7 +146,7 @@ This document tracks gaps between the current codebase and the release-standard 
 - Exit condition:
   - requirements, protocol docs, and tests are updated together for the expanded operator set
 
-### DEF-008: Broader Observability Monitoring Coverage Stays Deferred
+### DEF-008: Console-Sink Coverage Closed; Broader Phase Moved To DEF-010 Through DEF-019
 
 - Current behavior:
   - the current release baseline proves the file-sink `LogEvent` contract under
@@ -155,19 +155,13 @@ This document tracks gaps between the current codebase and the release-standard 
     `OBSERVABILITY_LOG_PATH` as shared path literals for agreement between the
     CLI, tests, and docs; this is an accepted OBS-007 boundary tension because
     the constants do not own sink wiring, logger lifecycle, or event emission
-  - the next planned observability follow-up is console-sink coverage under
-    real dispatch because console logs are the most useful immediate debugging
-    surface for live/background-agent interaction tracing
-  - the baseline does not yet prove:
-    - console-sink behavior under `sc-observability`
-    - custom sink registration paths
-    - multi-hook sequence correlation / exactly-once smoke monitoring across a
-      longer lifecycle
-    - operator-facing monitoring flows such as background-agent log watching
+  - console-sink behavior under `sc-observability` is now covered through the
+    real `sc-hooks-cli` path
+  - the remaining broader observability work now lives in the planned
+    observability phase requirements `DEF-010` through `DEF-019`
 - Exit condition:
-  - requirements, architecture, observability docs, and tests intentionally
-    promote richer monitoring coverage, starting with console-sink behavior and
-    then extending to custom sinks and multi-hook smoke correlation
+  - complete the planned observability phase and retire this archived carry-over
+    note
 
 ## SEAL-001: SDK Trait-Sealing Decision Stays Deferred
 
@@ -237,8 +231,8 @@ This document tracks gaps between the current codebase and the release-standard 
   - the CLI no longer supports a `[logging]` section in `.sc-hooks/config.toml`
   - observability output is routed through the fixed `sc-observability` CLI boundary instead of config-driven sink wiring
 - Expected behavior:
-  - the docs should state explicitly that `[logging]` config was intentionally removed from the current release baseline during the `sc-observability` migration
+  - the docs should state explicitly that `[logging]` config was intentionally removed from the current release baseline during the `sc-observability` migration, and that the planned future surface is `[observability]` rather than a restored `[logging]`
 - Verification method:
-  - requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration
+  - requirements, architecture, observability docs, and gaps all state that `[logging]` config was intentionally removed during the `sc-observability` migration and superseded by the planned `[observability]` surface
 - Recommended fix path:
-  - keep sink routing fixed at the CLI boundary unless the product intentionally restores supported configuration keys and their contract
+  - keep sink routing fixed at the CLI boundary unless the product intentionally broadens the planned `[observability]` contract

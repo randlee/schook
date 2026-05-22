@@ -1,6 +1,6 @@
-# schook Usage
+# sc-hooks Usage
 
-`schook` ships the `sc-hooks` CLI, which validates and executes hook/plugin
+`sc-hooks` ships the `sc-hooks` CLI, which validates and executes hook/plugin
 chains from a repository-local `.sc-hooks/` runtime layout.
 
 This guide covers:
@@ -43,9 +43,8 @@ The current runtime layout is:
   state/
     session.json
   observability/
-    sc-hooks/
-      logs/
-        sc-hooks.log.jsonl
+    logs/
+      sc-hooks.log.jsonl
 ```
 
 Checked example:

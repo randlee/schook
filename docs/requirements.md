@@ -10,12 +10,16 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 | --- | --- |
 | `Implemented` | Backed by current code and direct tests, or by code plus obvious mechanical proof |
 | `Required Before Release` | Intended release behavior that is not yet proved cleanly enough by code, tests, or contracts |
-| `Deferred` | Not part of the current release baseline |
+| `Planned` | Committed phase work that is not implemented yet but is required for the approved next phase to close |
+| `Deferred` | Explicitly out of the current release and approved next-phase baseline |
+| `Superseded` | Older requirement text retired in favor of a newer requirement or contract amendment |
 
 ## 3. Release Baseline
 
 Current release scope is the host dispatcher foundation:
 - config parsing from `.sc-hooks/config.toml`
+- layered `[observability]` config from built-in defaults, `~/.sc-hooks/config.toml`,
+  repo-local `.sc-hooks/config.toml`, and environment overrides
 - hook routing to external plugins
 - manifest loading and metadata filtering
 - sync/async dispatch with timeouts and per-session disable state
@@ -27,7 +31,10 @@ Current release scope does not include:
 - shipped runtime plugin behavior from the scaffold/reference crates under `plugins/`; all source crates under `plugins/` remain outside the current release scope
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
-- config-driven observability sink routing or a `[logging]` config section
+- a public sink-extension API, exporter/OTel transport configuration, or any `[logging]` section outside the supported `[observability]` surface
+- crates.io publication of `sc-hooks-cli` outside the current release manifest
+  wave; `sc-observability` sourcing now uses published crates.io releases, but
+  CLI publication remains a separate release-inventory decision
 
 ## 4. Functional Requirements
 
@@ -36,7 +43,7 @@ Current release scope does not include:
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | CFG-001 | Implemented | Must | The host shall load its default config from `.sc-hooks/config.toml` relative to the current repository. | `sc-hooks config` reads the default path through `load_default_config()`. |
-| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, and `[sandbox]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing. |
+| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, `[sandbox]`, and `[observability]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing, `[observability]` keys are validated against the frozen surface, and `sc-hooks config` renders the resolved observability settings. |
 | CFG-003 | Implemented | Must | `[hooks]` shall map hook names to ordered handler arrays. | Resolution and dispatch preserve config order. |
 | CFG-004 | Implemented | Must | `[context] team = "<name>"` shall map to `metadata.team.name`; other context keys remain top-level metadata fields. | `map_context_to_metadata()` applies the special-case mapping only for `team`. |
 | CFG-008 | Implemented | Should | `[sandbox]` shall allow per-plugin network and path overrides for audit validation. | `SandboxConfig` exposes `allow_network` and `allow_paths`. |
@@ -77,7 +84,7 @@ Current release scope does not include:
 | DSP-004 | Implemented | Must | If all sync handlers proceed, the host shall exit successfully. | `DispatchOutcome::Proceed` maps to success. |
 | DSP-006 | Implemented | Must | `--sync` shall run only sync handlers and `--async` shall run only async handlers. | `RunArgs::mode()` drives resolution and dispatch mode filtering. |
 | DSP-007 | Implemented | Must | Async `additionalContext` values shall be concatenated with `\\n---\\n`, and async `systemMessage` values shall be concatenated with `\\n`. | Async dispatch writes the aggregated JSON object to stdout. |
-| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting an observability event. | Runtime returns early on empty handler chains; the zero-match fast path is tested. |
+| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting a standard `dispatch.complete` observability event. When `full` audit mode is active, the host may still append the documented zero-match audit record. | Runtime returns early on empty handler chains, standard mode keeps the zero-match fast path silent, and full mode records the zero-match attempt in the audit file contract. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
 | TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
@@ -117,16 +124,18 @@ Retired observability IDs:
 | --- | --- | --- | --- | --- |
 | AUD-001 | Implemented | Must | Audit shall check handler resolvability, manifest validity, hook declarations, matcher validity, required metadata satisfiability, filesystem validation for `dir_exists` and `file_exists`, sandbox declarations, and install-plan generation. | `audit::run()` emits errors and warnings for those classes. |
 | AUD-002 | Implemented | Must | Sandbox warnings shall become errors under `--strict`. | Audit promotes sandbox overruns when strict mode is enabled. |
+| AUD-008 | Implemented | Must | Audit matcher diagnostics shall use the `AUD-008` code family, and the emitted codes shall remain present and unique per audit run (`AUD-008W warning …` for matcher warnings, `AUD-008 …` for matcher errors). | `AuditDiagnostic::MatcherWarning` and `AuditDiagnostic::MatcherError` render distinct `AUD-008W` and `AUD-008` messages, and audit output preserves those unique code-bearing lines without runtime dedup state. |
 | AUD-005 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` on async handlers. | `audit::run()` surfaces `AUD-005` when manifest loading hits `ManifestError::AsyncLongRunningUnsupported`. |
 | AUD-009 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` without a non-empty description. | `audit::run()` surfaces `AUD-009` when manifest loading hits `ManifestError::MissingLongRunningDescription`. |
-| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records with `matcher = event` or `\"*\"` when no event exists. |
-| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl` unless `SC_HOOKS_ENABLE_FILE_SINK=0` intentionally disables the file sink for an operator/debugging session. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`, and observability contract tests cover the default file sink path plus the explicit file-sink disable override. |
+| AUD-011 | Implemented | Must | The static `sc-hooks audit` command shall remain distinct from the runtime full-audit sink; enabling `[observability].mode = "full"` does not redefine static audit diagnostics or `AUD-*` output. | The CLI docs, observability contract, and crate boundaries continue to separate `sc-hooks audit` static analysis from runtime full-audit file emission. |
+| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. When `standard` mode is active and a pre-dispatch failure prevents that record, the host shall emit a deterministic degraded stderr signal instead of failing silently. When `[observability].mode = "off"`, durable structured sink emission is suppressed but direct stderr warnings and degraded notices remain visible. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records for handler-executing invocations, while runtime integration tests prove degraded stderr signaling on resolution, metadata-preparation, dispatch-preflight, and plugin-input failures that occur before `dispatch.complete` can be written. |
+| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/logs/sc-hooks.log.jsonl` unless resolved `[observability].mode = "off"` suppresses durable structured sinks or `SC_HOOKS_ENABLE_FILE_SINK=0` intentionally disables the file sink for an operator/debugging session. `SC_HOOKS_ENABLE_CONSOLE_SINK` remains effectively off by default unless config or operator override enables it. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`, and observability contract tests cover the default file sink path, the console-sink default-off posture, `mode = "off"` suppression, and the explicit file-sink disable override. |
 | OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `HandlerResultRecord` is serialized into observability event fields for all error outcomes. |
-| OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the external workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
+| OBS-006 | Implemented | Must | Structured observability integration shall use the external `sc-observability` crates through version-pinned crates.io dependencies owned by `sc-hooks-cli`. | `sc-hooks-cli` depends on the published external observability crates directly and does not use ad hoc in-workspace logger code. |
 | OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
-| OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
-| OBS-009 | Implemented | Should | The CLI may expose environment-flag sink toggles for operator/debugging sessions through `SC_HOOKS_ENABLE_CONSOLE_SINK` and `SC_HOOKS_ENABLE_FILE_SINK`; unrecognized values shall emit a warning to `stderr`, the file sink remains canonical by default, and the console sink emits the contract-tested default summary line only. | Real-dispatch observability tests prove success, block, invalid-json error, and timeout emission with the console sink enabled; docs and logging contract enumerate the accepted env values and the default file-sink posture. |
-| DEF-008 | Deferred | Should | The first observability expansion after file-sink contract coverage shall add console-sink dispatch tests through the real `sc-hooks-cli` path, proving success, block, error, and timeout emission without weakening the current file-sink contract. | A follow-up sprint adds real-dispatch console-sink tests plus docs updates that explicitly describe file-sink and console-sink coverage boundaries. |
+| OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the `sc-observability` crate family beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
+| OBS-009 | Implemented | Should | The CLI may expose environment-flag sink toggles for operator/debugging sessions through `SC_HOOKS_ENABLE_CONSOLE_SINK` and `SC_HOOKS_ENABLE_FILE_SINK`; unrecognized values shall emit a warning to `stderr`, the file sink remains canonical by default, and the console sink emits the contract-tested default summary line only. The env toggles do not override resolved `[observability].mode = "off"`. | Real-dispatch observability tests prove success, block, invalid-json error, and timeout emission with the console sink enabled, plus `mode = "off"` suppression; docs and logging contract enumerate the accepted env values and the default file-sink posture. |
+| DEF-008 | Implemented | Should | Real-dispatch console-sink coverage shall remain proved alongside the file-sink baseline, covering success, block, error, and timeout emission through the actual `sc-hooks-cli` path without weakening the JSONL contract. | `sc-hooks-cli/tests/observability_contract.rs` proves console-sink and file-sink coverage together, while the remaining observability expansion work is carried by `DEF-010` through `DEF-019`. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented with an explicit maturity level: scaffold/reference or runtime implementation with direct tests, and those classifications shall agree across the control docs. | The source crates under `plugins/` are currently documented as scaffold/reference code in the release posture, and the control docs align on that first-release scope. |
 | BND-001a | Implemented | Must | The documented plugin inventory and maturity map shall match the actual source crates in `plugins/`: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `tool-output-gates`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | Architecture and plan docs enumerate the same source-crate set and classify all of them as scaffold/reference for the current release scope. |
 | BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. Source-only implementation crates may land before install guidance, but they must not be described as preinstalled runtime plugins. | The docs still describe runtime discovery as `.sc-hooks/plugins/` and do not claim any source-owned plugin crate as bundled or preinstalled without matching install guidance. |
@@ -152,10 +161,32 @@ Retired observability IDs:
 | --- | --- | --- | --- | --- |
 | TST-001 | Implemented | Must | Config parsing, resolution, dispatch, metadata, timeout handling, and audit shall be unit or integration testable from Rust. | The workspace includes tests for those components. |
 | TST-007 | Implemented | Must | The reusable compliance harness shall cover the same protocol and behavioral guarantees that the release docs promise. | `sc-hooks-test/src/compliance.rs::run_contract_behavior_suite` is exercised directly and through `sc-hooks-cli/tests/compliance_host.rs`, so each release-facing compliance claim points to a real shared harness assertion. |
-| TST-008 | Required Before Release | Should | The Claude hook harness shall detect Claude CLI version bumps by comparing `claude --version` with the `claude_version` recorded in `test-harness/hooks/claude/fixtures/approved/manifest.json`; mismatches shall exit non-zero so maintainers rerun live schema validation before accepting provider-contract changes. | `python3 scripts/verify-claude-hook-api.py` exits `0` when `claude --version` matches the approved manifest's `claude_version`, and exits `1` with a warning when the installed Claude version differs. |
+| TST-008 | Implemented | Should | The Claude hook harness shall detect Claude CLI version bumps by comparing `claude --version` with the `claude_version` recorded in `test-harness/hooks/claude/fixtures/approved/manifest.json`; mismatches shall exit non-zero so maintainers rerun live schema validation before accepting provider-contract changes. | `python3 scripts/verify-claude-hook-api.py` exits `0` when `claude --version` matches the approved manifest's `claude_version`, and exits `1` with a warning when the installed Claude version differs. |
 | PRT-001 | Implemented | Must | The workspace shall build and test on Linux and macOS in CI. | `.github/workflows/ci.yml` runs build/test on Ubuntu and macOS. |
 
-## 6. Deferred Items
+## 6. Observability Phase Requirements
+
+Observability Phase 1 completed these contract amendments:
+
+- `CFG-002` now includes `[observability]` as a supported top-level section.
+- `OBS-001` and `OBS-002` now treat `off` as suppressing durable structured sinks while direct stderr warnings and failure notices remain visible.
+- `DEF-006` is superseded. The project will not restore a `[logging]` section; the committed config surface is `[observability]`.
+
+| ID | Status | Priority | Requirement | Acceptance Scenario |
+| --- | --- | --- | --- | --- |
+| DEF-009 | Implemented | Must | The workspace shall include long-term integration proof that forced observability emit and full-audit append failures fall back to the documented degraded stderr path without changing hook execution outcomes. | Integration coverage forces append and emit failures, hook exits remain unchanged, and the documented degraded fallback text is asserted. |
+| DEF-010 | Implemented | Must | Observability configuration shall support deterministic layering across built-in defaults, global user config at `~/.sc-hooks/config.toml`, repo-local `.sc-hooks/config.toml`, and environment overrides. | The CLI loads both config layers with fixed precedence, the supported keys are documented, and tests prove repo-local overrides without breaking repo-relative plugin policy. |
+| DEF-011 | Implemented | Must | Observability mode selection shall support `off`, `standard`, and `full`; global config may set defaults for `off` or `standard` only, while enabling `full` remains a repo-local or operator action. | The config contract documents mode semantics, tests prove mode resolution across global/local/env layers, and `full` is rejected when requested only from global scope. |
+| DEF-012 | Implemented | Must | Full audit output shall default to `.sc-hooks/audit/`, use run-scoped durable files, and allow repo-local relative or absolute path overrides; relative paths resolve from the immutable project root. | The audit writer produces run-scoped files beneath the default root, local overrides resolve deterministically, and path-resolution tests prove project-root-relative behavior. |
+| DEF-013 | Implemented | Must | Full audit shall support a lean profile for evals and harness runs plus a debug profile for deeper troubleshooting; raw payload capture remains a separate explicit opt-in. The debug-profile mandatory fields shall be frozen as a closed enumeration before debug implementation begins. | Docs freeze the mandatory fields for both profiles, debug-profile integration tests prove machine-readable field emission, and payload capture cannot turn on implicitly with `full` alone. |
+| DEF-014 | Implemented | Must | Full audit shall use strict redaction by default, never rely on the human console sink as a machine contract, and keep the durable audit JSONL files as the canonical machine-readable source for the phase. | Sensitive-field integration tests prove strict-mode summarization, permissive mode still requires explicit payload-capture flags, audit JSONL remains the canonical machine-readable source, and the human console format is documented as non-contractual. |
+| DEF-015 | Implemented | Must | Observability, audit, retention, and pruning failures shall never affect hook execution outcomes. | Forced logger-init, emit, append, and prune failures leave hook exit behavior unchanged while producing the documented degraded signals. |
+| DEF-016 | Implemented | Must | Production-grade audit mode shall support at least 50 simultaneous agents by sharding durable audit output into run-scoped files, bounding retention, and avoiding a single hot shared file. The target basis is planned ATM multi-agent repo-root operation plus eval and harness fan-out on the same checkout. | Integration and soak tests prove 50+ concurrent agents can emit audit records without corruption, unbounded contention, or unbounded disk growth. |
+| DEF-017 | Implemented | Must | Full audit mode shall record hook invocation attempts even when no handlers match or dispatch fails before handler execution, while `standard` mode keeps the current lower-volume dispatch-log posture. | Integration tests prove zero-match, resolution-failure, and pre-dispatch failure audit records in `full` mode, while the negative-branch and dispatch-preflight tests preserve the current `standard` degraded stderr contract. |
+| DEF-017a | Implemented | Must | The serialized `FullAuditRecord` and `FullAuditMeta` JSON key set shall remain documented and frozen in the observability contract so downstream harnesses and eval tooling can process full-audit files without reverse-engineering Rust struct names. | `docs/observability-contract.md` section 4.2 enumerates the serialized JSON key names for both record types, and integration tests keep the documented audit files machine-readable. |
+| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias. |
+
+## 7. Deferred Items
 
 | ID | Priority | Deferred Behavior | Exit Condition |
 | --- | --- | --- | --- |
@@ -164,11 +195,10 @@ Retired observability IDs:
 | DEF-003 | Should | Any SDK-level `LongRunning` abstraction beyond the host's current manifest-driven behavior | The SDK, docs, and tests agree on a stable public contract |
 | DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
 | DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
-| DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current `OBS-009` env-flag sink toggles | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 | DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
-| DEF-008 | Should | Console-sink dispatch coverage after the file-sink baseline; remaining observability expansion work after that is limited to custom sinks and multi-hook monitoring correlation. | Real-dispatch console-sink tests and docs updates land; further exit condition remains explicit only for custom sinks and multi-hook monitoring correlation. |
+| DEF-018 | Should | Future global config may define exporter and OTel defaults, but those defaults shall not implicitly enable repo-local `full` audit mode. | Exporter keys are documented separately from the committed observability phase, and tests prove transport defaults do not escalate audit mode by themselves when that later work lands. |
 
-## 7. Post-Release Hook Extension Track
+## 8. Post-Release Hook Extension Track
 
 These items are not part of the current release baseline above. They define the
 required guardrails for the next hook-extension development track after release
@@ -195,7 +225,7 @@ Detailed post-capture runtime design for this track lives in
 
 Additional verified Claude provider surface outside the current baseline:
 - `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
-  but they are not part of the current `schook` implementation baseline
+  but they are not part of the current `sc-hooks` implementation baseline
 - if later promoted into scope, they must be treated as top-level provider
   hooks rather than `PreToolUse`-style matcher cases
 - `WorktreeCreate` uses a provider-specific success/failure contract:
@@ -207,13 +237,30 @@ Additional verified Claude provider surface outside the current baseline:
   cleanup side effects; it is not part of the generic `HookResult` decision
   model
 
-## 8. Release Rule
+## 9. Release Rule
 
 If a behavior is not implemented and not required for release, it must be deferred.
+
+If a behavior is committed to an approved next phase, it must be marked
+`Planned` rather than `Deferred`, and the owning phase plus acceptance gate
+must be named in `docs/project-plan.md`.
 
 If a behavior is required for release but not yet fully proved, it must appear in `docs/traceability.md` and, when needed for historical planning context, in `docs/archive/`.
 
 ## Requirement Amendment Notes
+
+- `DEF-006`
+  - prior text: config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current env-flag sink toggles
+  - current text: superseded by the implemented `[observability]` surface in `CFG-002`, `DEF-010`, and `DEF-011`, plus the deferred exporter follow-on in `DEF-018`; the project will not restore `[logging]` as the committed contract
+  - authorizing phase: `SC-LOG-S2`
+- `DEF-008`
+  - prior text: console-sink dispatch coverage remained an operator-facing follow-up inside the broader observability phase
+  - current text: console-sink dispatch coverage is implemented through the real `sc-hooks-cli` path; the remaining observability expansion work is carried by `DEF-010` through `DEF-019`
+  - authorizing sprint: `S9-BONUS`
+- `TST-008`
+  - prior text: required-before-release Claude version-bump detection
+  - current text: implemented Claude version-bump detection with direct script and test proof
+  - authorizing sprint: `S10-VERSION-BUMP-1`
 
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
@@ -223,3 +270,9 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
   - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
   - authorizing sprint: `S9-HP5`
+- `OBS-002`
+  - prior text: earlier observability output used the pre-service-layout file path
+    `.sc-hooks/logs/sc-hooks.log.jsonl`
+  - current text: observability output uses the service-scoped file-sink layout
+    `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+  - authorizing sprint: `SC-OBS-INTEGRATION-1-FIX-R1`

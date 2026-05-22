@@ -15,6 +15,7 @@ workspace depends on, without redefining the top-level product contract.
 | `REQ-SHK-CORE-002` | Implemented | The core crate shall own the shared exit-code table and error-shape primitives used by the CLI boundary. | `REQ-SHK-EXC-*` | `sc-hooks-core/src/exit_codes.rs`, `sc-hooks-core/src/errors.rs` |
 | `REQ-SHK-CORE-003` | Deferred | The core crate shall own canonical session/root/state types and the invariants on those types, while leaving storage policy and logging ownership to higher layers. Deferred pending `HKR-008` / `HKR-012` — see `docs/requirements.md`. | `REQ-SHK-HKR-008`, `REQ-SHK-HKR-012` | `sc-hooks-core/src/session.rs`, `sc-hooks-core/src/storage.rs` |
 | `REQ-SHK-CORE-004` | Deferred | The core crate shall remain the future home for any finalized typed hook-plugin trait surface that supersedes raw `serde_json::Value` passthrough. | `REQ-SHK-HKR-009` | `sc-hooks-core/src/context.rs`, `sc-hooks-core/src/results.rs` |
+| `REQ-SHK-CORE-005` | Planned | The core crate may add shared typed invocation or correlation primitives for the planned audit phase, but shall remain sink-agnostic and shall not own logging policy. | `REQ-SHK-DEF-012`, `REQ-SHK-DEF-016`, `REQ-SHK-DEF-017` | future shared event-model files under `sc-hooks-core/src/` |
 
 ## 3. Ownership Notes
 

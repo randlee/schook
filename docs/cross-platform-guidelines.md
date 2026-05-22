@@ -1,6 +1,6 @@
 # Cross-Platform Guidelines
 
-This document records the minimum portability rules for `schook` runtime,
+This document records the minimum portability rules for `sc-hooks` runtime,
 harness, and documentation work.
 
 ## Path Rules

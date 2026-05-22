@@ -3,7 +3,7 @@
 ## Purpose
 
 This document records the currently verified Codex-facing hook surfaces that
-matter to `schook` planning. It is intentionally separate from the Claude
+matter to `sc-hooks` planning. It is intentionally separate from the Claude
 document because the execution model is materially different.
 
 ## Platform Rules
@@ -231,7 +231,7 @@ Design rule:
   session-record path and hook payload fields are captured and normalized into
   the generic provider contract
 
-## Design Implications For `schook`
+## Design Implications For `sc-hooks`
 
 - Codex should be documented as a separate compatibility target, not squeezed
   into the Claude hook assumptions
@@ -284,4 +284,4 @@ Environment variables:
 - no verified upstream schema for Codex hook payload variants beyond
   `agent-turn-complete` and `PreToolUse`
 - any future Codex planning should cite the runner or bundle source used to
-  verify payload fields before those fields are promoted into `schook` docs
+  verify payload fields before those fields are promoted into `sc-hooks` docs

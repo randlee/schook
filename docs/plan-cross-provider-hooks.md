@@ -5,32 +5,32 @@
 This document records the current planning baseline for Codex, Gemini, and
 Cursor follow-on hook work. It is a planning-only artifact. It does not
 authorize runtime implementation, hook-crate creation, or provider-specific
-compatibility claims beyond the verified evidence already captured in `schook`.
+compatibility claims beyond the verified evidence already captured in `sc-hooks`.
 
 ## Current Source Of Truth
 
 Use these sources in priority order:
 
-1. `schook` control documents:
+1. `sc-hooks` control documents:
    - [docs/requirements.md](requirements.md)
    - [docs/architecture.md](architecture.md)
    - [docs/project-plan.md](project-plan.md)
 2. current provider evidence documents:
    - [docs/hook-api/codex-hook-api.md](hook-api/codex-hook-api.md)
    - [docs/hook-api/cursor-agent-hook-api.md](hook-api/cursor-agent-hook-api.md)
-3. future `schook`-owned harness captures, fixtures, validation models, and
+3. future `sc-hooks`-owned harness captures, fixtures, validation models, and
    drift reports for each provider
 
 This plan must not promote external provider docs, relay events, or local CLI
-help into implementation assumptions unless `schook` captures them and stores
+help into implementation assumptions unless `sc-hooks` captures them and stores
 them as repo-owned evidence.
 
 ## Shared Entry Gates
 
 Cross-provider implementation must not begin until all of these are true:
 
-1. the Claude-first track is stable in `schook`
-2. the provider has a `schook`-owned harness path and fixture set
+1. the Claude-first track is stable in `sc-hooks`
+2. the provider has a `sc-hooks`-owned harness path and fixture set
 3. the provider has captured raw payloads for its first-pass hook surfaces
 4. the provider has validation models derived from those captured payloads
 5. the provider has a documented design boundary section stating what must not
@@ -45,7 +45,7 @@ runtime work starts:
 
 - a provider-specific harness directory under `test-harness/hooks/<provider>/`
 - reproducible capture prompts/commands for the first-pass hook surfaces
-- raw captured fixtures owned by `schook`
+- raw captured fixtures owned by `sc-hooks`
 - provider-specific validation models based on those fixtures
 - schema or drift reporting for future provider-version changes
 - explicit documentation of hook control semantics, including what blocks,
@@ -92,7 +92,7 @@ These rules apply to Codex, Gemini, and Cursor:
 - do not assume Claude hook names, event ordering, or response contracts carry
   over
 - do not treat current working directory as a stable provider identity signal
-- do not write `schook` runtime code from provider marketing docs, CLI help,
+- do not write `sc-hooks` runtime code from provider marketing docs, CLI help,
   or relay-side observations alone
 
 The harness must capture the provider contract before implementation relies on
@@ -150,7 +150,7 @@ The first Codex pass should end with:
 
 ### Current Blockers
 
-Codex remains blocked by missing `schook`-owned artifacts:
+Codex remains blocked by missing `sc-hooks`-owned artifacts:
 
 - no complete Codex fixture set covering all locally exercisable hook surfaces
 - no provider-specific Codex validation models covering all captured surfaces
@@ -169,7 +169,7 @@ Codex remains blocked by missing `schook`-owned artifacts:
 
 ### Current Verified Baseline
 
-There is not yet a dedicated `schook` Gemini hook API document. Current useful
+There is not yet a dedicated `sc-hooks` Gemini hook API document. Current useful
 planning facts preserved from earlier evidence-gathering are:
 
 - `gemini` is installed locally
@@ -180,7 +180,7 @@ planning facts preserved from earlier evidence-gathering are:
   - `--output-format json`
   - `--output-format stream-json`
 
-Those are planning inputs only. They are not yet a verified `schook` hook
+Those are planning inputs only. They are not yet a verified `sc-hooks` hook
 contract.
 
 ### First-Pass Capture Targets
@@ -212,7 +212,7 @@ The first Gemini pass should end with:
 
 ### Current Blockers
 
-Gemini remains blocked by missing `schook`-owned artifacts:
+Gemini remains blocked by missing `sc-hooks`-owned artifacts:
 
 - no Gemini hook fixtures in this repo
 - no Gemini validation models
@@ -270,10 +270,10 @@ The first Cursor pass should capture:
 
 ### Current Blockers
 
-Cursor remains blocked by missing `schook`-owned artifacts:
+Cursor remains blocked by missing `sc-hooks`-owned artifacts:
 
 - no captured `cursor-agent` hook payload fixtures in this repo
-- no `schook`-owned Cursor validation models
+- no `sc-hooks`-owned Cursor validation models
 - no current local `hooks.json` capture proving the actual configured runtime
   path
 - no provider-specific schema-drift report
