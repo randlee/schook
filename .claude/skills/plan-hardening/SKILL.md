@@ -65,6 +65,8 @@ Use the example in:
 
 - `team-lead` only checks the top-level `status` and expected `mode` fields on
   each fenced JSON response before advancing
+- each machine-readable handoff must be sent as a standalone ATM message whose
+  body contains only one fenced JSON block and no surrounding prose
 - every step after step 1 must receive the previous step's fenced JSON
 - missing or malformed fenced JSON is a hard stop
 - a reviewer rerun is valid only when either `reviewed_commit` changed or
@@ -78,6 +80,36 @@ Use the example in:
   production-ready level, split it before implementation
 - if a reviewer loop returns `FAIL` three times without converging, escalate to
   the user before continuing
+
+## Fenced JSON Handoff
+
+When a step requires fenced JSON output, `team-lead` should send it as a
+standalone fenced JSON handoff message, not as part of the ACK, push report,
+or validation report.
+
+Recommended ATM send pattern:
+
+```bash
+cat <<'EOF' >/tmp/plan-hardening-handoff.jsonmsg
+```json
+{
+  "status": "PASS",
+  "mode": "plan-hardening-guidelines-pass",
+  "round_id": "STEP1-R1",
+  "round_index": 1,
+  "reviewed_commit": "abc1234",
+  "previous_reviewed_commit": "",
+  "iterations": 0,
+  "docs_modified": [],
+  "docs_created": [],
+  "ready_for_next_step": true,
+  "errors": []
+}
+```
+EOF
+
+atm send team-lead --team schook --from chook --stdin < /tmp/plan-hardening-handoff.jsonmsg
+```
 
 ## Render
 

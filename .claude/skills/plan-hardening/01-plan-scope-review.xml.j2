@@ -69,8 +69,9 @@ required_variables:
     team-lead directly. If team-lead does not concede, escalate to the user.
     Do not normalize the new scope into the plan without user approval.
 
-    Return fenced JSON to `team-lead` when this pass is complete. `team-lead`
-    will launch `plan-scope-reviewer` with that JSON.
+    Return fenced JSON to `team-lead` when this pass is complete. Send it as a
+    standalone ATM message whose body contains only the fenced JSON block.
+    `team-lead` will launch `plan-scope-reviewer` with that JSON.
 
     If `team-lead` later sends back fenced JSON findings and `sprint_scores`
     from
@@ -103,7 +104,7 @@ required_variables:
     <step id="d">As soon as the guidelines pass is complete and the branch is pushable, commit and push immediately. Send branch name and commit hash right away so scope review can begin in parallel.</step>
     <step id="e">After the push report, run the required validation.</step>
     <step id="f">When validation completes, send a second report with PASS or FAIL, concrete failure details if any, and whether follow-up fixes are required.</step>
-    <step id="g">Return fenced JSON only after the current pass converges. If `reviewer-findings-json` is present, treat it as the current correction target from `plan-scope-reviewer` and return updated fenced JSON to `team-lead`.</step>
+    <step id="g">Return fenced JSON only after the current pass converges. Send it in a standalone ATM message whose body contains only the fenced JSON block, with no ACK/push/validation prose around it. If `reviewer-findings-json` is present, treat it as the current correction target from `plan-scope-reviewer` and return updated fenced JSON to `team-lead`.</step>
     <step id="h">After the validation report, read ATM again for follow-up work.</step>
   </workflow>
 </atm-task>

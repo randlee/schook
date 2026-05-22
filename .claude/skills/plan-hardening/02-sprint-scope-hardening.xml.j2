@@ -260,7 +260,8 @@ required_variables:
       Continue until audit-phase produces zero findings.
     </repeat>
 
-    Return fenced JSON to `team-lead` when this pass completes.
+    Return fenced JSON to `team-lead` when this pass completes. Send it as a
+    standalone ATM message whose body contains only the fenced JSON block.
 
     If `team-lead` later sends back fenced JSON findings and `sprint_scores` from
     `critical-plan-reviewer`, fix those findings and return updated fenced
@@ -298,7 +299,7 @@ required_variables:
     <step id="d">As soon as the hardening changes are complete and the branch is pushable, commit and push immediately. Send branch name and commit hash right away so team-lead can prepare the critical review step.</step>
     <step id="e">After the push report, run the required validation. Do not wait for PR creation before starting validation.</step>
     <step id="f">When validation completes, send a second report with PASS or FAIL, concrete failure details if any, and whether follow-up fixes are required.</step>
-    <step id="g">After the current hardening pass converges, ensure all document updates are staged, committed, and pushed. Return fenced JSON only. If `reviewer-findings-json` is present, treat it as the current correction target from `critical-plan-reviewer` and return updated fenced JSON to `team-lead`.</step>
+    <step id="g">After the current hardening pass converges, ensure all document updates are staged, committed, and pushed. Return fenced JSON only in a standalone ATM message whose body contains only the fenced JSON block, with no ACK/push/validation prose around it. If `reviewer-findings-json` is present, treat it as the current correction target from `critical-plan-reviewer` and return updated fenced JSON to `team-lead`.</step>
     <step id="h">Team-lead must not route the plan to QA or implementation from this pass alone. `critical-plan-reviewer` must run after this pass, and `03-consistency-hardening.xml.j2` must run after that.</step>
     <step id="i">After the validation report, read ATM again for follow-up work.</step>
   </workflow>

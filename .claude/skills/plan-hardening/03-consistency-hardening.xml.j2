@@ -207,9 +207,10 @@ required_variables:
       Continue until audit-phase produces zero findings.
     </repeat>
 
-    Return fenced JSON to `team-lead` when this pass completes. `team-lead`
-    will hand the plan off to the codex-orchestration plan-QA flow via
-    `quality-mgr`.
+    Return fenced JSON to `team-lead` when this pass completes. Send it as a
+    standalone ATM message whose body contains only the fenced JSON block.
+    `team-lead` will hand the plan off to the codex-orchestration plan-QA flow
+    via `quality-mgr`.
 
     <exit-criterion>
       Output fenced JSON only when audit-phase produces zero findings:
@@ -241,7 +242,7 @@ required_variables:
     <step id="d">As soon as the hardening changes are complete and the branch is pushable, commit and push immediately. Send branch name and commit hash right away so team-lead critical review can begin in parallel.</step>
     <step id="e">After the push report, run the required validation. Do not wait for PR creation before starting validation.</step>
     <step id="f">When validation completes, send a second report with PASS or FAIL, concrete failure details if any, and whether follow-up fixes are required.</step>
-    <step id="g">After the hardening loop converges, ensure all document updates are staged, committed, and pushed. Return fenced JSON only. The next step after this pass is codex-orchestration plan QA through `quality-mgr`, not another local plan-hardening review loop.</step>
+    <step id="g">After the hardening loop converges, ensure all document updates are staged, committed, and pushed. Return fenced JSON only in a standalone ATM message whose body contains only the fenced JSON block, with no ACK/push/validation prose around it. The next step after this pass is codex-orchestration plan QA through `quality-mgr`, not another local plan-hardening review loop.</step>
     <step id="h">After the validation report, read ATM again for follow-up work.</step>
   </workflow>
 </atm-task>

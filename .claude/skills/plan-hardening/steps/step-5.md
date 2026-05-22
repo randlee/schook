@@ -38,6 +38,31 @@ If the response is incomplete or malformed, send a correction request to
 `chook` immediately.
 Save the extracted fenced JSON to `/tmp/step-5.json`.
 
+When you forward the result to `team-lead`, send a standalone ATM message that
+contains only the fenced JSON block and no surrounding prose. Example:
+
+```bash
+cat <<'EOF' >/tmp/step-5-handoff.jsonmsg
+```json
+{
+  "status": "PASS",
+  "mode": "plan-hardening-consistency",
+  "round_id": "STEP5-R1",
+  "round_index": 1,
+  "reviewed_commit": "abc1234",
+  "previous_reviewed_commit": "",
+  "iterations": 0,
+  "docs_modified": [],
+  "docs_created": [],
+  "ready_for_next_step": true,
+  "errors": []
+}
+```
+EOF
+
+atm send team-lead --team schook --from chook --stdin < /tmp/step-5-handoff.jsonmsg
+```
+
 **4. Route by status**
 
 - `PASS` -> proceed to Step 6
