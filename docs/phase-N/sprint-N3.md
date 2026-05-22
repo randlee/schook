@@ -91,6 +91,9 @@ silently dropped or partially deferred.
 - reconcile `docs/requirements.md`, `docs/architecture.md`, and
   `docs/project-plan.md` so no provider capability is overstated or
   understated versus the verified `Phase N` planning boundary
+- limit the `docs/project-plan.md` edit in `N.3` to the `Phase N` boundary
+  note and readiness pointer; the `Phase N` row remains `In progress` in this
+  sprint
 
 ## Explicit Code Samples
 

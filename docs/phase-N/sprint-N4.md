@@ -75,9 +75,17 @@ silently dropped or partially deferred.
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
 - update `docs/traceability.md` for the final `Phase N` closure status of
-  `HKR-014`, `HKR-015`, and `HKR-016`, marking them `implemented` for
-  approved surfaces that close under `GO` / `PARTIAL_GO`, or `deferred` with a
-  named follow-on sprint reference for surfaces that remain unapproved
+  `HKR-014` and `HKR-015`, marking them `implemented` for approved surfaces
+  that close under `GO` / `PARTIAL_GO`, or `deferred` with a named follow-on
+  sprint reference for surfaces that remain unapproved
+- under full `NO_GO`, record `HKR-014` and `HKR-015` as `deferred` with reason
+  `Phase N NO_GO` and follow-on sprint reference `TBD — to be assigned in
+  remediation sprint planning`
+- treat `HKR-016` as a no-op in `N.4` if `N.3` already marked it implemented;
+  only update `HKR-016` in `N.4` if the prior sprint left it unresolved
+- limit the `docs/project-plan.md` edit in `N.4` to the targeted `Phase N` row
+  status update and final verdict summary; do not replace or remove the
+  boundary note added by `N.3`
 
 ## Promotion Gate Criteria
 
@@ -149,7 +157,10 @@ explicit code samples or signatures showing the intended end state.
   final disposition and `N.3` has zero open `BLOCKING` or `IMPORTANT`
   findings
 - `docs/traceability.md` reflects the final status for `HKR-014`, `HKR-015`,
-  and `HKR-016` before `N.4` closes
+  and, only if still unresolved from `N.3`, `HKR-016` before `N.4` closes
+- under full `NO_GO`, `docs/traceability.md` records `HKR-014` and `HKR-015`
+  as `deferred` with reason `Phase N NO_GO` and follow-on sprint reference
+  `TBD — to be assigned in remediation sprint planning`
 - `docs/project-plan.md` summarizes the verdict from
   `docs/phase-N/readiness.md`
 - `docs/plan-cross-provider-hooks.md` summarizes the verdict from

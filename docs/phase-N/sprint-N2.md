@@ -178,6 +178,9 @@ that cannot be exercised locally.
 - `docs/phase-N/gemini-capture-checklist.md` contains at least one explicitly
   named Gemini hook-surface entry committed before the first `N.2` harness
   commit
+- the `gemini-capture-checklist.md` freeze commit and the first `N.2` harness
+  code commit are separate git commits; the freeze commit must pre-date any
+  harness code commit in the sprint branch
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - `test-harness/hooks/gemini/fixtures/approved/manifest.json` records
@@ -201,4 +204,7 @@ that cannot be exercised locally.
 ## Required Validation
 
 - `pytest test-harness/hooks/gemini/tests/ -m provider_gemini -v`
+- `git log --oneline -- docs/phase-N/gemini-capture-checklist.md test-harness/hooks/gemini/`
+  proves the checklist-freeze commit predates the first harness code commit and
+  is a separate commit
 - `git diff --check`
