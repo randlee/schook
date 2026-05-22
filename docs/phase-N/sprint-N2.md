@@ -198,6 +198,10 @@ that cannot be exercised locally.
 - `docs/phase-N/gemini-capture-checklist.md` and
   `docs/phase-N/gemini-findings-ledger.md` contain a per-surface final
   disposition for every attempted Gemini hook point
+- `docs/hook-api/gemini-hook-api.md` exists and contains at least one named
+  Gemini hook-surface entry, with that entry either backed by an `N.2`
+  fixture citation or explicitly labeled `confirmed-not-exercisable` in the
+  MVC blocked path
 - `docs/phase-N/gemini-findings-ledger.md` records the explicit output-format
   verification result: either `no hook-observable difference across
   text/json/stream-json` or a per-format finding row for any observed
