@@ -948,6 +948,17 @@ Entry rule:
 - this phase requires separate approval after the Claude ATM baseline is
   captured, revised, and implemented
 
+### Phase N: Cross-Provider Harness-Planning Expansion
+
+Status:
+- in progress
+
+Execution detail:
+- authoritative `Phase N` execution detail lives in `docs/plan-phase-N.md`
+  and `docs/phase-N/`
+- the section-4 `Phase N` row in this document is the summary pointer for the
+  phase rather than a standalone sprint-detail record
+
 ### S10-VERSION-BUMP-1: Claude Version-Bump Detection
 
 Status:
