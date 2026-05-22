@@ -1,3 +1,6 @@
-[core]
+[atm]
 default_team = "schook"
 identity = "team-lead"
+
+[team."schook"]
+co_leaders = ["quality-mgr"]
