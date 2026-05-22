@@ -78,7 +78,7 @@ Promotion criteria:
 | Sprint | Accepted Commit | Verdict | Current Status | Notes |
 | --- | --- | --- | --- | --- |
 | N.1 | `007612e` | `accepted` | `merged to integrate/phase-N` | Codex harness schema capture complete; all findings frozen; ready for N.2 baseline |
-| N.2 | `PENDING` | `PENDING` | `not started` | Gemini harness checklist and findings ledger not yet frozen |
+| N.2 | `88ebc36` | `accepted` | `merged to integrate/phase-N` | Gemini harness schema capture complete; all findings frozen; ready for N.3 baseline |
 | N.3 | `PENDING` | `PENDING` | `not started` | awaits Codex and Gemini approved fixture baselines |
 | N.4 | `PENDING` | `PENDING` | `not started` | awaits N.1–N.3 closure |
 
