@@ -34,7 +34,9 @@ estimated_scope: large
 - `docs/phase-N/readiness.md` (`read-only` during `N.3`; only the integration
   author updates accepted rows after sprint acceptance)
 - `docs/architecture.md` (`ADR-SHK-007` governs the readiness ownership rule)
-- `docs/architecture.md` (`ADR-SHK-006` already present; `N.3` must cite it)
+- `docs/architecture.md` (`ADR-SHK-006` was introduced by the `Phase N`
+  planning branch and must be carried to `integrate/phase-N` before `N.3`
+  begins; `N.3` must cite it)
 - accepted and merged-to-integration-branch output of `N.1`
 - accepted and merged-to-integration-branch output of `N.2`
 - `docs/hook-api/gemini-hook-api.md` (created by `N.2`; must exist on the

@@ -164,6 +164,8 @@ deliverables, acceptance criteria, and closure rules.
 - `Phase N` does not close ATM integration or idle-notification promotion; any
   ATM-aware idle prototype evidence remains planning input only until a later
   runtime phase approves it explicitly
+- `ADR-SHK-007` was introduced by the `Phase N` planning branch and must be
+  carried to `integrate/phase-N` before execution starts
 - later runtime work must cite the `Phase N` fixtures/models rather than local
   shell behavior or provider memory
 

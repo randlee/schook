@@ -29,8 +29,8 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
-| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. |
-| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. |
+| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` begins. |
+| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` / `N.4` begin. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
@@ -349,6 +349,9 @@ Still deferred beyond that harness-planning expansion:
 
 `ADR-SHK-006` governs the `Phase N` normalization boundary:
 
+This ADR was introduced by the `Phase N` planning branch and must be present
+on `integrate/phase-N` before `N.3` begins.
+
 - a field is canonical only if approved fixtures from at least two providers
   show compatible semantics for that field
 - provider-specific fields stay in provider-local models and docs; they are not
@@ -361,6 +364,9 @@ Still deferred beyond that harness-planning expansion:
 ### 9.2c Planned Readiness Ownership Boundary
 
 `ADR-SHK-007` governs the shared-readiness write pattern for `Phase N`:
+
+This ADR was introduced by the `Phase N` planning branch and must be present
+on `integrate/phase-N` before `N.3` / `N.4` begin.
 
 - sprint execution branches treat shared readiness ledgers as read-only
 - the integration author is the sole writer for accepted sprint rows and final
