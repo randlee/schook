@@ -21,8 +21,11 @@ surface and frontmatter hooks should not be relied on.
 ## Path And Environment Rules
 
 - `CODEX_PROJECT_DIR` is the intended project-root anchor when available
-- `CODEX_THREAD_ID` carries the current thread UUID in the hook environment;
-  it is the same value as `thread-id` in the payload
+- `CODEX_THREAD_ID` was present in captured hook environments, but in the
+  2026-05-22 `N.1` fixtures it remained a stale outer-session value and did
+  **not** match the captured `SessionStart.session_id`, `PreToolUse.session_id`,
+  or `notify.thread-id`; do not normalize it into canonical correlation
+  identity yet
 - frontmatter hooks should still avoid relative paths for the same reason as
   Claude hooks: current working directory is not a stable execution anchor
 - project root should be resolved from the payload `cwd` field using
@@ -32,6 +35,34 @@ surface and frontmatter hooks should not be relied on.
   contract instead of leaving it to shell cwd behavior
 
 ## Verified Hook Surfaces
+
+### `SessionStart` — Direct Startup Surface
+
+**Verified 2026-05-22**: local Codex `SessionStart` command hooks fire
+directly and deliver raw stdin payload plus hook-process environment.
+
+Verified payload fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `hook_event_name` | string | `"SessionStart"` |
+| `cwd` | string | launch working directory; changes under `-C/--cd` |
+| `model` | string | captured as `"gpt-5.4"` |
+| `permission_mode` | string | captured as `"bypassPermissions"` |
+| `session_id` | string | stable startup session id; matches later `notify.thread-id` in the same run |
+| `source` | string | captured as `"startup"` |
+| `transcript_path` | string | Codex transcript path for the session |
+
+Verified environment fields:
+
+| Variable | Notes |
+|----------|-------|
+| `ATM_IDENTITY` | captured and stable |
+| `ATM_TEAM` | captured and stable |
+| `CODEX_CI` | present in local `codex exec` runs |
+| `CODEX_MANAGED_BY_NPM` | present in local runs |
+| `CODEX_MANAGED_PACKAGE_ROOT` | present in local runs |
+| `CODEX_THREAD_ID` | present but stale; not the captured startup session id |
 
 ### `notify` / `agent-turn-complete` — Turn-Complete Signal
 
@@ -45,19 +76,24 @@ Verified payload fields:
 
 | Field | Type | Notes |
 |-------|------|-------|
+| `client` | string | captured as `codex_exec` |
 | `type` | string | `"agent-turn-complete"` |
 | `thread-id` | string | thread UUID; stable correlation key within a session |
+| `turn-id` | string | turn UUID for the completed turn |
 | `cwd` | string | working directory at hook fire time |
-| `state` | string | `"idle"` when present |
+| `input-messages` | array | user prompt list for the completed turn |
+| `last-assistant-message` | string | final assistant message for the turn |
 
 Verified environment fields:
 
 | Variable | Notes |
 |----------|-------|
-| `CODEX_PROJECT_DIR` | project root path; preferred anchor over `cwd` |
-| `CODEX_THREAD_ID` | same value as `thread-id` in payload |
 | `ATM_IDENTITY` | agent identity when set in session environment |
 | `ATM_TEAM` | team routing label when set in session environment |
+| `CODEX_CI` | present in local `codex exec` runs |
+| `CODEX_MANAGED_BY_NPM` | present in local runs |
+| `CODEX_MANAGED_PACKAGE_ROOT` | present in local runs |
+| `CODEX_THREAD_ID` | present but stale in `N.1` captures; not equal to `thread-id` |
 
 ### `PreToolUse` — Resumed-Activity Signal
 
@@ -70,10 +106,13 @@ Verified payload fields:
 | Field | Type | Notes |
 |-------|------|-------|
 | `hook_event_name` | string | `"PreToolUse"` |
-| `thread-id` | string | matches the notify correlation key |
 | `cwd` | string | working directory at hook fire time |
-| `session_id` | string | matched the turn-complete `thread-id` in live captures |
+| `session_id` | string | matched the turn-complete `thread-id` in captured runs |
 | `turn_id` | string | current turn UUID |
+| `tool_name` | string | captured as `"Bash"` |
+| `tool_use_id` | string | stable tool invocation id |
+| `tool_input.command` | string | captured command for Bash tool use |
+| `transcript_path` | string | Codex transcript path for the session |
 
 ### `Stop` — Not Reliable
 
@@ -182,7 +221,8 @@ timer or when first activity begins in a fresh session.
 
 ## Session Record As Source Of Truth
 
-Codex SessionStart already writes a stable session record under:
+Captured Codex `SessionStart` hooks plus the existing startup hook logic write
+a stable session record under:
 
 - `.sc/sessions/codex/*-<session-id>.json`
 
@@ -227,10 +267,13 @@ contract.
 
 Current practical correlation inputs:
 
-1. `thread-id` from the notify payload — stable within a session turn sequence
-2. `CODEX_THREAD_ID` env var — same value, available without payload parsing
-3. `ATM_TEAM` + `ATM_IDENTITY` as routing labels
-4. explicit `session_id` when provided by `PreToolUse`
+1. `session_id` from direct `SessionStart` payloads
+2. `session_id` from `PreToolUse`
+3. `thread-id` from `notify`
+4. `ATM_TEAM` + `ATM_IDENTITY` as routing labels
+
+Do **not** currently use `CODEX_THREAD_ID` as a canonical correlation field.
+The `N.1` raw env fixtures captured it as a stale outer-session value.
 
 Design rule:
 
@@ -254,19 +297,21 @@ Design rule:
 
 ## Test Harness
 
-`test-harness/hooks/codex/` contains a pytest suite covering the debounce
-contract (5 tests, all passing as of 2026-05-22):
-
-This is a prototype baseline only. `Phase N` `N.1` must extend the harness so
-the approved manifest and findings ledger record every audited Codex hook
-surface, not just `notify` / `PreToolUse` debounce behavior.
+`test-harness/hooks/codex/` now contains the `N.1` provider line: approved
+fixtures, provider-specific models, and an 11-test pytest suite covering both
+the debounce behavior and the approved fixture/manifest contract.
 
 | Test | What it verifies |
 |------|-----------------|
 | `test_codex_harness_layout_exists` | harness directory structure present |
-| `test_stop_hook_schedules_pending_record` | notify writes pending record + active marker |
+| `test_notify_hook_schedules_pending_record` | notify writes pending record + active marker |
 | `test_pretooluse_cancels_pending_debounce` | PreToolUse deletes pending, restores active, no CLI fire |
 | `test_fire_pending_runs_command_once_after_due_time` | due timer fires CLI exactly once, flips to idle |
+| `test_manifest_has_required_top_level_keys` | approved manifest validates and records audited surfaces |
+| `test_approved_payload_fixtures_validate_against_models` | approved payload fixtures validate against provider models |
+| `test_approved_env_fixtures_validate_and_redact_sensitive_values` | approved env fixtures validate and redact sensitive values |
+| `test_session_start_and_stop_capture_scripts_write_raw_files` | direct SessionStart and direct Stop wrappers write raw capture files |
+| `test_manifest_records_cd_scenario_through_approved_fixtures` | `--cd` scenario is preserved in approved fixtures |
 | `test_project_scope_blocks_outside_directories` | scope gate ignores hooks from outside project root |
 
 Run:
@@ -291,8 +336,11 @@ Environment variables:
 - no provider-normalized Codex session identifier contract yet; the local
   SessionStart/session-record path is proven here but not yet modeled as a
   generic `schook` provider contract
+- `CODEX_THREAD_ID` cannot yet be treated as a canonical Codex session field;
+  current fixture evidence shows it can remain stale across new `codex exec`
+  runs
 - `Stop` hook unreliable in live exec; do not plan against it
-- no verified upstream schema for Codex hook payload variants beyond
-  `agent-turn-complete` and `PreToolUse`
+- no verified upstream schema for Codex hook payload variants beyond the
+  directly captured `SessionStart`, `PreToolUse`, and `notify`
 - any future Codex planning should cite the runner or bundle source used to
   verify payload fields before those fields are promoted into `sc-hooks` docs

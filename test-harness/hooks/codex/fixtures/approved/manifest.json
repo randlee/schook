@@ -1,0 +1,70 @@
+{
+  "capture_date": "2026-05-22T18:50:23Z",
+  "capture_root": "test-harness/hooks/codex/fixtures/approved/",
+  "codex_version": "codex-cli 0.133.0",
+  "hook_registration": {
+    "notify": "~/.codex/config.toml -> notify = [\"python3\", \"/Users/randlee/Documents/github/schook-worktrees/feature/pN-s1-codex-harness-schema-capture/test-harness/hooks/codex/hooks/notify.py\"]",
+    "pre_tool_use": "~/.codex/hooks.json -> python3 /Users/randlee/.codex/scripts/schook-delay-pretooluse.py",
+    "session_start": "~/.codex/hooks.json -> python3 /Users/randlee/.codex/scripts/session-start.py",
+    "stop_probe": "~/.codex/hooks.json temporarily included python3 /Users/randlee/Documents/github/schook-worktrees/feature/pN-s1-codex-harness-schema-capture/test-harness/hooks/codex/hooks/stop.py on 2026-05-22; no Stop fire observed"
+  },
+  "hook_surfaces": [
+    {
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "0 allows startup; non-zero behavior not promoted beyond local evidence",
+        "stdio_contract": "stdout hookSpecificOutput JSON is consumed by Codex"
+      },
+      "env_fixture": "session-start-startup.env.json",
+      "payload_fixture": "session-start-startup.json",
+      "status": "captured",
+      "surface": "SessionStart"
+    },
+    {
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "0 allows tool execution; 2 blocks tool execution",
+        "stdio_contract": "stdin JSON payload; no stdout contract relied on by N.1"
+      },
+      "env_fixture": "pretooluse-bash.env.json",
+      "payload_fixture": "pretooluse-bash.json",
+      "status": "captured",
+      "surface": "PreToolUse"
+    },
+    {
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "ignored",
+        "stdio_contract": "argv JSON payload only; notify does not block the turn"
+      },
+      "env_fixture": "notify-agent-turn-complete.env.json",
+      "payload_fixture": "notify-agent-turn-complete.json",
+      "status": "captured",
+      "surface": "notify"
+    },
+    {
+      "reason": "Configured a direct Stop command hook on 2026-05-22, then ran `codex exec` with `--dangerously-bypass-hook-trust`; stderr showed SessionStart only and no Stop hook invocation was observed.",
+      "status": "confirmed-not-exercisable",
+      "surface": "Stop"
+    },
+    {
+      "reason": "`codex resume <session-id> <prompt>` exits with `Error: stdin is not a terminal` under noninteractive harness execution on 2026-05-22.",
+      "status": "confirmed-not-exercisable",
+      "surface": "resume"
+    },
+    {
+      "reason": "`codex fork <session-id> <prompt>` exits with `Error: stdin is not a terminal` under noninteractive harness execution on 2026-05-22.",
+      "status": "confirmed-not-exercisable",
+      "surface": "fork"
+    }
+  ],
+  "prototype_baseline": {
+    "existing_tests": 5,
+    "note": "baseline debounce tests are preserved, but N.1 closure is based on the approved fixture set, findings ledger, and provider-specific validation models.",
+    "surfaces": [
+      "notify",
+      "PreToolUse"
+    ]
+  },
+  "provider": "codex"
+}

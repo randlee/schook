@@ -1,0 +1,11 @@
+{
+  "client": "codex_exec",
+  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature/pN-s1-codex-harness-schema-capture/test-harness/hooks/codex",
+  "input-messages": [
+    "Run pwd then reply exactly OK."
+  ],
+  "last-assistant-message": "OK",
+  "thread-id": "019e5106-2563-7da2-90d6-4ac5a66e1e86",
+  "turn-id": "019e5106-25a4-7c03-9daa-c5157c364e64",
+  "type": "agent-turn-complete"
+}
