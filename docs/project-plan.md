@@ -81,6 +81,7 @@ Important planning rule:
 | S9 / Hook Phase 3 | Completed | session foundation — `agent-session-foundation` plugin, session-state persistence, same-agent correlation | `HKR-004`, `HKR-008`, `HKR-009`, `HKR-012` | Hook Phase 2 | `sc-hooks-core`, `sc-hooks-sdk`, `plugins/agent-session-foundation` |
 | S9 / Hook Phase 4 | Completed | generic spawn and tool gates — `agent-spawn-gates`, `tool-output-gates` plugins | `HKR-010`, `HKR-011`, `HKR-013` | Hook Phase 3 | `plugins/agent-spawn-gates`, `plugins/tool-output-gates` |
 | S9 / Hook Phase 5 | Completed | ATM extension behaviors — `atm-extension` plugin, relay and identity tests | `HKR-010`, `HKR-011` | Hook Phase 3 | `plugins/atm-extension` |
+| S9 / Hook Phase 6 | Planned | cross-provider follow-on — provider harness-planning and promotion-gate prep only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
 | `CDR-2` / Change Drift Remediation | Completed | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
 | `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
@@ -195,7 +196,7 @@ Acceptance criteria:
 ### Planned Track: Observability Phase
 
 Status:
-- planned
+- completed
 
 Focus:
 - freeze naming and config surfaces before expanding observability volume
@@ -892,6 +893,9 @@ Acceptance criteria:
   a live payload is captured and promoted
 
 ### Hook Phase 6: Cross-Provider Follow-On
+
+Status:
+- planned
 
 Focus:
 - only after the Claude baseline is stable, execute approved harness-planning
