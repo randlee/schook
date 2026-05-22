@@ -30,6 +30,9 @@ __pycache__/
 # Local review / scratch work
 .temp/
 
+# Live Codex session state (written by debounce hooks at runtime)
+.sc/sessions/
+
 # macOS metadata
 .DS_Store
 **/.DS_Store
