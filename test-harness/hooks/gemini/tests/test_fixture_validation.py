@@ -74,7 +74,11 @@ def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expecte
     fixture_root = gemini_root / "fixtures" / "approved"
     synthetic_root = "/synthetic/test/gemini-harness"
     synthetic_home = "/synthetic/test/gemini-home"
-    synthetic_plans = "/synthetic/test/gemini-harness/.gemini/tmp/plans"
+    synthetic_plans = "/synthetic/test/gemini-plans"
+    synthetic_transcript_prefixes = (
+        "/synthetic/test/gemini-transcripts/",
+        "/synthetic/test/gemini-harness/chats/",
+    )
 
     for surface in expected_surfaces:
         payload_path = fixture_root / f"{surface}.json"
@@ -104,3 +108,6 @@ def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expecte
             assert gemini_env["GEMINI_PROJECT_DIR"] == synthetic_root
         if "GEMINI_PLANS_DIR" in gemini_env:
             assert gemini_env["GEMINI_PLANS_DIR"] == synthetic_plans
+        payload = json.loads(payload_text)
+        if "transcript_path" in payload:
+            assert payload["transcript_path"].startswith(synthetic_transcript_prefixes)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from .test_harness_imports import EXPECTED_HOOKS
+from test_harness.hooks.claude.tests.test_harness_imports import EXPECTED_HOOKS
 
 
 @pytest.fixture(scope="session")

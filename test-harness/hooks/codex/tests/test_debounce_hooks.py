@@ -20,12 +20,20 @@ def _run_hook(script: Path, payload: dict[str, object], env: dict[str, str]) -> 
     pythonpath = str(Path.cwd())
     if existing := os.environ.get("PYTHONPATH"):
         pythonpath = f"{pythonpath}{os.pathsep}{existing}"
+    command = [sys.executable, str(script)]
+    text_payload = json.dumps(payload)
+    hook_name = script.stem.replace("_", "-")
+    if script.name == "notify.py":
+        command.append(text_payload)
+        input_text = ""
+    else:
+        input_text = text_payload
     return subprocess.run(
-        [sys.executable, str(script)],
-        input=json.dumps(payload),
+        command,
+        input=input_text,
         text=True,
         capture_output=True,
-        env={**os.environ, **env, "PYTHONPATH": pythonpath},
+        env={**os.environ, **env, "PYTHONPATH": pythonpath, "HOOK_NAME_OVERRIDE": hook_name},
         check=False,
     )
 
@@ -66,14 +74,14 @@ def test_codex_harness_layout_exists(codex_root: Path) -> None:
 
 
 @pytest.mark.provider_codex
-def test_stop_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) -> None:
+def test_notify_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) -> None:
     capture_root = tmp_path / "captures"
     state_root = tmp_path / "state"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
     result = _run_hook(
-        codex_root / "hooks" / "stop.py",
+        codex_root / "hooks" / "notify.py",
         {"type": "agent-turn-complete", "thread-id": "thread-123", "state": "idle", "cwd": str(repo_root)},
         {
             "SCHOOK_HOOK_CAPTURE_ROOT": str(capture_root),
@@ -98,8 +106,8 @@ def test_stop_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) ->
 
     payload_captures = sorted(capture_root.glob("*.json"))
     env_captures = sorted(capture_root.glob("*.env.json"))
-    assert any(path.name.endswith("-stop.json") for path in payload_captures)
-    assert any(path.name.endswith("-stop.env.json") for path in env_captures)
+    assert any(path.name.endswith("-notify.json") for path in payload_captures)
+    assert any(path.name.endswith("-notify.env.json") for path in env_captures)
 
 
 @pytest.mark.provider_codex
@@ -130,12 +138,12 @@ def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -
         "ATM_IDENTITY": "tester",
     }
 
-    stop_result = _run_hook(
-        codex_root / "hooks" / "stop.py",
+    notify_result = _run_hook(
+        codex_root / "hooks" / "notify.py",
         {"type": "agent-turn-complete", "thread-id": "thread-123", "cwd": str(repo_root)},
         common_env,
     )
-    assert stop_result.returncode == 0, stop_result.stderr
+    assert notify_result.returncode == 0, notify_result.stderr
 
     cancel_result = _run_hook(
         codex_root / "hooks" / "pre_tool_use.py",
@@ -183,12 +191,12 @@ def test_fire_pending_runs_command_once_after_due_time(tmp_path: Path, codex_roo
         "ATM_IDENTITY": "tester",
     }
 
-    stop_result = _run_hook(
-        codex_root / "hooks" / "stop.py",
+    notify_result = _run_hook(
+        codex_root / "hooks" / "notify.py",
         {"type": "agent-turn-complete", "thread-id": "thread-456", "cwd": str(repo_root)},
         env,
     )
-    assert stop_result.returncode == 0, stop_result.stderr
+    assert notify_result.returncode == 0, notify_result.stderr
 
     time.sleep(0.08)
     fire_result = _run_hook(codex_root / "scripts" / "fire_pending.py", {}, env)
@@ -209,7 +217,7 @@ def test_fire_pending_runs_command_once_after_due_time(tmp_path: Path, codex_roo
 
 
 @pytest.mark.provider_codex
-def test_stop_prefers_session_record_and_sends_atm_idle_notice(tmp_path: Path, codex_root: Path) -> None:
+def test_notify_prefers_session_record_and_sends_atm_idle_notice(tmp_path: Path, codex_root: Path) -> None:
     state_root = tmp_path / "state"
     capture_root = tmp_path / "captures"
     repo_root = tmp_path / "repo"
@@ -258,12 +266,12 @@ def test_stop_prefers_session_record_and_sends_atm_idle_notice(tmp_path: Path, c
         "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
     }
 
-    stop_result = _run_hook(
-        codex_root / "hooks" / "stop.py",
+    notify_result = _run_hook(
+        codex_root / "hooks" / "notify.py",
         {"type": "agent-turn-complete", "thread-id": session_id, "cwd": str(nested_cwd)},
         env,
     )
-    assert stop_result.returncode == 0, stop_result.stderr
+    assert notify_result.returncode == 0, notify_result.stderr
 
     pending_files = sorted((state_root / "pending").glob("*.json"))
     assert len(pending_files) == 1
@@ -301,7 +309,7 @@ def test_project_scope_blocks_outside_directories(tmp_path: Path, codex_root: Pa
     outside_root.mkdir()
 
     result = _run_hook(
-        codex_root / "hooks" / "stop.py",
+        codex_root / "hooks" / "notify.py",
         {"type": "agent-turn-complete", "thread-id": "thread-789", "cwd": str(outside_root)},
         {
             "SCHOOK_HOOK_CAPTURE_ROOT": str(capture_root),

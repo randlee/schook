@@ -209,3 +209,26 @@ Fields that remain provider-local or plain strings for now:
   compatible cross-provider mapping
 - output-format selection should not be modeled as a hook-schema variant based
   on current evidence
+
+## N.3 Normalization Carry-Forward
+
+Canonical mapping candidates proved in `N.3` from Gemini fixture evidence plus
+at least one other provider:
+
+- `session_id`
+- `cwd`
+- `transcript_path`
+- `tool_input.command` on shell-like tool surfaces
+
+Fields that remain Gemini-local after `N.3`:
+
+- `source`
+- `tool_name`
+- `timestamp`
+- `prompt`
+- `prompt_response`
+- `stop_hook_active`
+- `tool_response.returnDisplay`
+- `GEMINI_PROJECT_DIR`
+- `GEMINI_CWD`
+- `GEMINI_PLANS_DIR`

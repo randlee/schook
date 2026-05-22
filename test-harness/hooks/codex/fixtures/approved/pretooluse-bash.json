@@ -1,0 +1,14 @@
+{
+  "cwd": "$REPO_ROOT",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.4",
+  "permission_mode": "bypassPermissions",
+  "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
+  "tool_input": {
+    "command": "pwd"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "call_wBn4sUOKEApPZhm1erKaZwxX",
+  "transcript_path": "~/.codex/sessions/2026/05/22/rollout-2026-05-22T11-50-10-019e5106-079f-7121-9fef-f605ee1c0527.jsonl",
+  "turn_id": "019e5106-07db-7330-ae3b-6914a27bb747"
+}

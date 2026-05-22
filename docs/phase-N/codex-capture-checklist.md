@@ -1,7 +1,7 @@
 # Codex Capture Checklist
 
 Status:
-- `PENDING`
+- `FROZEN`
 
 Purpose:
 - freeze the Codex hook-surface capture matrix for `N.1`
@@ -11,18 +11,22 @@ Purpose:
   the separate-commit acceptance gate
 
 Planned hook-surface coverage:
-- `notify` — `direct hook surface (harness-capturable)`
-- `PreToolUse` — `direct hook surface (harness-capturable)`
-- `SessionStart` — `relay-synthetic (confirmed-not-exercisable)`; source:
-  `docs/hook-api/codex-hook-api.md` relay evidence from `hook_watcher.rs`
-- `fork` — `direct hook surface (harness-capturable)`; verify whether the
-  forked Codex process preserves `notify` / `PreToolUse` capture visibility
-- `--cd` — `direct hook surface (harness-capturable)`; verify root/current-dir
-  behavior by launching capture runs with an explicit startup directory change
-- resume/restart continuity — `relay-synthetic (confirmed-not-exercisable)`;
-  reason: resume does not fire a distinct hook surface and is observed through
-  direct `notify` / `PreToolUse` capture runs plus session-record correlation
-  checks
+- `notify` — `direct hook surface (captured)`
+- `PreToolUse` — `direct hook surface (captured)`
+- `Stop` — `direct hook surface (confirmed-not-exercisable)`; a direct `Stop`
+  hook command was configured on 2026-05-22 and did not fire in local
+  `codex exec`
+- `SessionStart` — `direct hook surface (captured)`; repo-owned raw stdin/env
+  fixtures now exist and supersede the earlier relay-only planning assumption
+- `resume` — `relay-synthetic (confirmed-not-exercisable)`; noninteractive
+  `codex resume <session-id> <prompt>` exits with `Error: stdin is not a terminal`
+- `fork` — `direct hook surface (confirmed-not-exercisable)`; noninteractive
+  `codex fork <session-id> <prompt>` exits with `Error: stdin is not a terminal`
+- `--cd` — `direct hook surface scenario (captured)`; approved `cwd-drift`
+  fixtures prove startup-directory drift through `SessionStart`, `PreToolUse`,
+  and `notify`
+- restart continuity — `relay-synthetic (confirmed-not-exercisable)`; no
+  distinct restart hook surface was exposed in the local harness
 
 Planned non-surface evidence:
 - hook-process environment snapshots

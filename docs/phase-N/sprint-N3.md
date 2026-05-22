@@ -1,7 +1,7 @@
 ---
 id: N.3
 title: Cross-Provider Normalization Inventory
-status: planned
+status: complete
 branch: feature/pN-s3-cross-provider-normalization-inventory
 worktree: ../schook-worktrees/feature/pN-s3-cross-provider-normalization-inventory
 target: plan/phase-N
@@ -15,7 +15,7 @@ phase: N
 sprint: N.3
 worktree: ../schook-worktrees/feature/pN-s3-cross-provider-normalization-inventory
 branch: feature/pN-s3-cross-provider-normalization-inventory
-status: planned
+status: complete
 estimated_scope: large
 ```
 
@@ -75,6 +75,9 @@ silently dropped or partially deferred.
 - updated planning docs reflecting the actual adapter gap after schema proof
 - reconciled control docs describing the approved Phase N harness-planning
   boundary and the still-deferred runtime boundary
+- explicit sprint-scope note that `N.3` classifies reviewed field families and
+  findings by evidence-backed disposition rather than targeting a fixed raw
+  field-count or unresolved-difference count
 
 ## Required Work
 
@@ -157,6 +160,11 @@ pub struct SessionId(String);
   `implemented` with accepted evidence citations
 - normalization harness tests prove missing or unparseable fixtures fail with
   structured provider/path/field diagnostics rather than a bare exception
+- sprint closure is based on complete classification of the reviewed
+  field-family matrix, not on a pre-set count of canonical candidates or
+  unresolved differences; the current accepted matrix closes with four
+  canonical candidates, seven provider-local findings, and two unresolved
+  findings
 
 ## Required Validation
 

@@ -246,27 +246,41 @@ mod tests {
     use super::*;
     use crate::test_support;
     use serial_test::serial;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     struct EnvGuard {
+        _lock: MutexGuard<'static, ()>,
         original: Option<std::ffi::OsString>,
     }
 
     impl EnvGuard {
         fn set(value: &Path) -> Self {
+            let lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
             let original = std::env::var_os("SC_HOOKS_STATE_DIR");
-            // SAFETY: tests serialize env mutation through scoped temp roots.
+            // SAFETY: env mutation is serialized through env_lock() held by
+            // _lock for the lifetime of this guard.
             unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
-            Self { original }
+            Self {
+                _lock: lock,
+                original,
+            }
         }
     }
 
     impl Drop for EnvGuard {
         fn drop(&mut self) {
             if let Some(value) = &self.original {
-                // SAFETY: tests serialize env mutation through scoped temp roots.
+                // SAFETY: env mutation is serialized through env_lock() held by
+                // _lock for the lifetime of this guard.
                 unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
             } else {
-                // SAFETY: tests serialize env mutation through scoped temp roots.
+                // SAFETY: env mutation is serialized through env_lock() held by
+                // _lock for the lifetime of this guard.
                 unsafe { std::env::remove_var("SC_HOOKS_STATE_DIR") };
             }
         }

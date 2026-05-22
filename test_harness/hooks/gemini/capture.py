@@ -11,7 +11,7 @@ from typing import Any
 SENSITIVE_ENV_TOKENS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "CRED")
 SYNTHETIC_PROJECT_ROOT = "/synthetic/test/gemini-harness"
 SYNTHETIC_HOME = "/synthetic/test/gemini-home"
-SYNTHETIC_PLANS_DIR = "/synthetic/test/gemini-harness/.gemini/tmp/plans"
+SYNTHETIC_PLANS_DIR = "/synthetic/test/gemini-plans"
 REDACTED_PATH = "<machine-path-redacted>"
 REDACTED_OPERATOR = "<operator>"
 
