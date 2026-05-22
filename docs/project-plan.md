@@ -20,10 +20,12 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- naming cleanup before further public observability/global-config surface is
-  added
-- a multi-sprint observability phase that extends beyond the current
-  dispatch-only file-sink baseline
+- pending merge of `CDR-B`, which owns the control-doc and hook-phase status
+  reconciliation still deferred in `docs/requirements.md`
+- pending merge of `CDR-A`, which pins `sc-observability` to crates.io
+  `v1.0.0` and aligns the typed observability API at the CLI boundary
+- `Phase N` harness-planning closure for Codex and Gemini provider evidence,
+  normalization inventory, and promotion-gate planning
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -220,10 +222,10 @@ Phase-wide fixed decisions:
 Detailed design and sprint sequencing for this track lives in
 `docs/phase-observability-plan.md`.
 
-### Sprint 1: Baseline Alignment And Code Retirement (In Review)
+### Sprint 1: Baseline Alignment And Code Retirement
 
 Status:
-- in review
+- completed
 
 Focus:
 - remove false or confusing public-looking surfaces before feature work starts
@@ -282,10 +284,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 2 and Sprint 3 are unblocked because Sprint 1 removed the false duplicate compliance/source-of-truth surfaces; real contract-proof expansion and end-to-end `long_running` alignment still belong to those later sprints.
 
-### Sprint 2: Compliance Harness Hardening (In Review)
+### Sprint 2: Compliance Harness Hardening
 
 Status:
-- in review
+- completed
 
 Focus:
 - make the compliance harness prove the release contract directly
@@ -335,10 +337,10 @@ QA checklist answers:
 Compatibility note:
 - Sprint 2 and Sprint 4 both touch `sc-hooks-cli/tests/`, so later sprint work in that directory must merge-forward the latest Sprint 2 QA fixes before push to avoid regressing the shared host-path tests.
 
-### Sprint 3: `long_running` And SDK Posture Alignment (In Review)
+### Sprint 3: `long_running` And SDK Posture Alignment
 
 Status:
-- in review
+- completed
 
 Focus:
 - define one release-grade `long_running` and SDK posture across host, docs, and tests
@@ -385,10 +387,10 @@ QA checklist answers:
 - What follow-on work is blocked or unblocked by this sprint?
   Sprint 4 and later release cleanup now inherit one explicit `long_running` contract instead of a split host/audit/SDK interpretation. Richer SDK ergonomics remain deferred and do not block the remaining sprints.
 
-### Sprint 4: Runtime Layout And Setup Proof (In Review)
+### Sprint 4: Runtime Layout And Setup Proof
 
 Status:
-- in review
+- completed
 
 Focus:
 - prove the expected `.sc-hooks/` runtime layout from a clean contributor starting point
@@ -436,7 +438,7 @@ QA checklist answers:
 ### Sprint 5: Plugin Packaging And Release Honesty
 
 Status:
-- in review
+- completed
 
 Focus:
 - keep plugin claims honest unless runtime installation, behavior, and tests exist
@@ -484,7 +486,7 @@ QA checklist answers:
 ### Sprint 6: Merge Closeout And Release Gate
 
 Status:
-- in review
+- completed
 
 Focus:
 - freeze the release-doc set and record the final reviewer/QA handoff against the chosen scope
@@ -540,7 +542,7 @@ Sprint 6 signoff record:
 ### Sprint 8: Rust Best-Practices Closeout
 
 Status:
-- in review
+- completed
 
 Focus:
 - close the remaining post-release Rust best-practices findings without reopening the release contract
