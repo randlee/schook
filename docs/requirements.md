@@ -253,10 +253,9 @@ If a behavior is required for release but not yet fully proved, it must appear i
 ## Requirement Amendment Notes
 
 - `HKR-006`
-  - prior text: Provider-specific docs and harness-planning artifacts for
-    Codex, Gemini, and Cursor may be kept in the docs set before
-    implementation, but those providers shall not block or precede the first
-    Claude implementation path.
+  - prior text: Provider-specific docs for Codex, Gemini, and Cursor may be
+    kept in the docs set before implementation, but those providers shall not
+    block the first Claude implementation path.
   - current text: Provider-specific docs and harness-planning artifacts for
     Codex, Gemini, and Cursor may be kept in the docs set before
     implementation, but those providers shall not block or precede the first

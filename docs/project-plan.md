@@ -95,6 +95,14 @@ Phase N boundary update:
   phase; `N.4` is the step that changes the `Phase N` row from `In progress`
   to `Completed`
 
+Phase N planning-branch note:
+
+- the status promotions to `Completed` for earlier sprint rows in this planning
+  branch reflect chook-confirmed completion state and QA PASS from the already
+  accepted implementation history; this branch records those reconciled
+  statuses as documentation cleanup rather than as new implementation closure
+  events
+
 ## 5. Execution Controls
 
 These rules exist to keep sprint work from drifting back into mixed designs:
