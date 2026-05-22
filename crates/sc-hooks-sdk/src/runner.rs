@@ -281,7 +281,9 @@ mod tests {
                 name: "dummy-sync".to_string(),
                 mode: DispatchMode::Sync,
                 hooks: vec![HookType::PreToolUse],
-                matchers: vec![ManifestMatcher::from("Write")],
+                matchers: vec![
+                    ManifestMatcher::new("Write").expect("test matcher should be valid"),
+                ],
                 payload_conditions: Vec::new(),
                 timeout_ms: Some(1_000),
                 long_running: false,

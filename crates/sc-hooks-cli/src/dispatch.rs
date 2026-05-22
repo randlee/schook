@@ -1209,7 +1209,10 @@ PostToolUse = ["notify"]
                 name: "notify".to_string(),
                 mode: sc_hooks_core::dispatch::DispatchMode::Async,
                 hooks: vec![HookType::PostToolUse],
-                matchers: vec![sc_hooks_core::manifest::ManifestMatcher::from("*")],
+                matchers: vec![
+                    sc_hooks_core::manifest::ManifestMatcher::new("*")
+                        .expect("test matcher should be valid"),
+                ],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: true,

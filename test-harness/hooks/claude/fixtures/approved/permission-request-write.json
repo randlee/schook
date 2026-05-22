@@ -1,5 +1,5 @@
 {
-  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "cwd": "/synthetic/test/claude-harness",
   "hook_event_name": "PermissionRequest",
   "permission_mode": "default",
   "permission_suggestions": [
@@ -12,8 +12,8 @@
   "session_id": "a760f75c-055a-46f9-bcbb-447c47a22f3c",
   "tool_input": {
     "content": "Code flows through the night\nTests probe the hidden pathways\nPermissions align\n",
-    "file_path": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing/permission-probe.txt"
+    "file_path": "/synthetic/test/claude-harness/permission-probe.txt"
   },
   "tool_name": "Write",
-  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/a760f75c-055a-46f9-bcbb-447c47a22f3c.jsonl"
+  "transcript_path": "/synthetic/test/claude-transcripts/claude-harness/a760f75c-055a-46f9-bcbb-447c47a22f3c.jsonl"
 }
