@@ -102,6 +102,8 @@ Phase N planning-branch note:
   `CDR-1`, `CDR-2`, and `CDR-3`; this branch records those reconciled
   statuses as documentation cleanup rather than as new implementation closure
   events
+- `CDR-B` remains the pending merge owner for reconciling hook-phase completion
+  history with deferred `HKR-*` requirement statuses in `docs/requirements.md`
 
 ## 5. Execution Controls
 
@@ -120,10 +122,7 @@ These rules exist to keep sprint work from drifting back into mixed designs:
 - Sprint 4 depends on Sprint 2 because setup proof should reflect the surviving compliance/runtime path, not the pre-cleanup shape.
 - Sprint 5 must not start until Sprint 4 freezes the expected runtime layout; otherwise plugin packaging claims drift from the documented install path.
 - Sprint 6 is not feature work. It is only closeout, deletion of stale review notes, and final release gating.
-- `SC-LOG-S1` must close before any later observability sprint, because naming choices feed the binary name, config keys, service identity, and on-disk audit paths.
-- `SC-LOG-S2` must close before `SC-LOG-S3` through `SC-LOG-S7`, because mode resolution and layered config define which observability surfaces exist and where they are configured.
-- `SC-LOG-S4` must close before `SC-LOG-S5`, because the debug profile is an extension of the lean audit profile rather than a separate sink family.
-- `SC-LOG-S6` must close before `SC-LOG-S7`, because load and soak validation must target the final retention and degradation semantics rather than a partial design.
+- `SC-LOG S1-S7 (Completed)` remains the collective observability dependency anchor, because naming choices, layered config, audit-profile sequencing, and final load/retention hardening were all closed inside that grouped phase track before later planning moved on.
 
 ## 7. Pre-Sprint Kickoff Checklist
 
