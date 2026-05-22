@@ -104,7 +104,7 @@ The live Codex session for `chook` on the `schook` project uses:
 - `~/.codex/hooks.json` PreToolUse → `~/.codex/scripts/schook-delay-pretooluse.py`
 - `~/.codex/hooks.json` SessionStart → `~/.codex/scripts/session-start.py`
 
-Session state writes to `/Users/randlee/Documents/github/schook/.sc/sessions/codex/`.
+Session state writes to `$REPO_ROOT/.sc/sessions/codex/`.
 
 Rollback:
 
