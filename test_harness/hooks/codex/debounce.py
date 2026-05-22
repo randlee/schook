@@ -1,0 +1,282 @@
+from __future__ import annotations
+
+import json
+import os
+import shlex
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _state_root() -> Path:
+    configured = os.environ.get("SCHOOK_CODEX_HOOK_STATE_ROOT", "").strip()
+    if configured:
+        root = Path(configured).expanduser().resolve()
+    else:
+        root = (Path(__file__).resolve().parents[3] / "test-harness" / "hooks" / "codex" / "state").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def pending_root() -> Path:
+    root = _state_root() / "pending"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def capture_root() -> Path:
+    configured = os.environ.get("SCHOOK_HOOK_CAPTURE_ROOT", "").strip()
+    if configured:
+        root = Path(configured).expanduser().resolve()
+    else:
+        root = (Path(__file__).resolve().parents[3] / "test-harness" / "hooks" / "codex" / "captures" / "raw").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _sanitize_file_token(value: str) -> str:
+    token = "".join(ch if ch.isalnum() or ch in ("-", "_", ".") else "_" for ch in value.strip())
+    return token or "global"
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f"{path.name}.{uuid4().hex}.tmp")
+    temp_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temp_path.replace(path)
+
+
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True) + "\n")
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _normalize_payload(raw_text: str) -> dict[str, Any]:
+    text = raw_text.strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return {"_invalid_json": text}
+    if isinstance(parsed, dict):
+        return parsed
+    return {"_payload": parsed}
+
+
+def _normalize_env_snapshot(hook_name: str, timestamp: str) -> dict[str, Any]:
+    def filtered_env(prefix: str) -> dict[str, str]:
+        return {key: value for key, value in sorted(os.environ.items()) if key.startswith(prefix)}
+
+    return {
+        "captured_at": timestamp,
+        "hook_name": hook_name,
+        "cwd_from_getcwd": os.getcwd(),
+        "pwd_env": os.environ.get("PWD"),
+        "codex_env": filtered_env("CODEX"),
+        "atm_env": filtered_env("ATM"),
+        "sc_hook_env": filtered_env("SC_HOOK"),
+    }
+
+
+def write_capture(hook_name: str, raw_text: str) -> None:
+    timestamp = _utc_now().strftime("%Y%m%dT%H%M%S.%fZ")
+    root = capture_root()
+    _atomic_write_json(root / f"{timestamp}-{hook_name}.json", _normalize_payload(raw_text))
+    _atomic_write_json(
+        root / f"{timestamp}-{hook_name}.env.json",
+        _normalize_env_snapshot(hook_name, timestamp),
+    )
+
+
+def _payload_project_dir(payload: dict[str, Any]) -> Path | None:
+    for key in ("cwd", "project_dir", "projectDir"):
+        value = str(payload.get(key, "")).strip()
+        if value:
+            return Path(value).expanduser().resolve()
+    configured = os.environ.get("CODEX_PROJECT_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return None
+
+
+def _within_project_scope(payload: dict[str, Any]) -> bool:
+    configured = os.environ.get("SCHOOK_CODEX_HOOK_PROJECT_ROOT", "").strip()
+    if not configured:
+        return True
+    try:
+        project_root = Path(configured).expanduser().resolve()
+        payload_dir = _payload_project_dir(payload)
+        if payload_dir is None:
+            return False
+        payload_dir.relative_to(project_root)
+        return True
+    except Exception:
+        return False
+
+
+def _correlation_key(payload: dict[str, Any]) -> str:
+    for key in ("thread-id", "thread_id", "sessionId", "session_id", "turn-id", "turn_id"):
+        value = str(payload.get(key, "")).strip()
+        if value:
+            return _sanitize_file_token(value)
+
+    parts = [
+        os.environ.get("ATM_TEAM", "").strip(),
+        os.environ.get("ATM_IDENTITY", "").strip(),
+    ]
+    fallback = "--".join(part for part in parts if part)
+    return _sanitize_file_token(fallback or "global")
+
+
+def _record_path(key: str) -> Path:
+    return pending_root() / f"{key}.json"
+
+
+def _command_from_env() -> list[str]:
+    raw = os.environ.get("SCHOOK_CODEX_DEBOUNCE_COMMAND", "").strip()
+    if not raw:
+        return []
+    if raw.startswith("["):
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+            raise ValueError("SCHOOK_CODEX_DEBOUNCE_COMMAND JSON form must be a string array")
+        return parsed
+    return shlex.split(raw)
+
+
+def _fire_pending_script() -> Path:
+    configured = os.environ.get("SCHOOK_CODEX_FIRE_PENDING_SCRIPT", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return (Path(__file__).resolve().parents[3] / "test-harness" / "hooks" / "codex" / "scripts" / "fire_pending.py").resolve()
+
+
+def _launch_timer_worker(delay_seconds: float) -> None:
+    command = [
+        sys.executable,
+        str(_fire_pending_script()),
+        "--sleep-seconds",
+        str(delay_seconds),
+    ]
+    try:
+        subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            env=os.environ.copy(),
+        )
+    except Exception as exc:
+        _append_jsonl(
+            _state_root() / "launcher-errors.jsonl",
+            {
+                "error": str(exc),
+                "event": "launch_timer_worker_failed",
+                "ts": _utc_now().isoformat(),
+            },
+        )
+
+
+@dataclass(frozen=True)
+class PendingRecord:
+    key: str
+    due_at: datetime
+    command: list[str]
+    project_dir: str | None
+    payload: dict[str, Any]
+
+    @classmethod
+    def from_json(cls, payload: dict[str, Any]) -> "PendingRecord":
+        command = payload.get("command", [])
+        if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
+            raise ValueError("pending record command must be a string array")
+        return cls(
+            key=str(payload["key"]),
+            due_at=datetime.fromisoformat(str(payload["due_at"])),
+            command=command,
+            project_dir=payload.get("project_dir"),
+            payload=dict(payload.get("payload", {})),
+        )
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "due_at": self.due_at.isoformat(),
+            "command": self.command,
+            "project_dir": self.project_dir,
+            "payload": self.payload,
+        }
+
+
+def schedule_stop(raw_text: str, now: datetime | None = None) -> Path | None:
+    payload = _normalize_payload(raw_text)
+    if not _within_project_scope(payload):
+        return None
+
+    write_capture("stop", raw_text)
+    current = now or _utc_now()
+    debounce_seconds = float(os.environ.get("SCHOOK_CODEX_DEBOUNCE_SECONDS", "60").strip() or "60")
+    key = _correlation_key(payload)
+    record = PendingRecord(
+        key=key,
+        due_at=current + timedelta(seconds=debounce_seconds),
+        command=_command_from_env(),
+        project_dir=os.environ.get("CODEX_PROJECT_DIR", "").strip() or None,
+        payload=payload,
+    )
+    path = _record_path(key)
+    _atomic_write_json(path, record.to_json())
+
+    if os.environ.get("SCHOOK_CODEX_DEBOUNCE_AUTOSTART", "1").strip() != "0":
+        _launch_timer_worker(debounce_seconds)
+
+    return path
+
+
+def cancel_on_pretooluse(raw_text: str) -> bool:
+    payload = _normalize_payload(raw_text)
+    if not _within_project_scope(payload):
+        return False
+
+    write_capture("pretooluse", raw_text)
+    path = _record_path(_correlation_key(payload))
+    if not path.exists():
+        return False
+    path.unlink()
+    return True
+
+
+def process_pending(now: datetime | None = None, sleep_seconds: float = 0.0) -> list[Path]:
+    if sleep_seconds > 0:
+        time.sleep(sleep_seconds)
+
+    current = now or _utc_now()
+    fired: list[Path] = []
+    for path in sorted(pending_root().glob("*.json")):
+        record = PendingRecord.from_json(_load_json(path))
+        if record.due_at > current:
+            continue
+
+        if record.command:
+            cwd = record.project_dir or os.getcwd()
+            subprocess.run(record.command, cwd=cwd, check=False)
+
+        path.unlink(missing_ok=True)
+        fired.append(path)
+    return fired
