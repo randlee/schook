@@ -98,8 +98,8 @@ Phase N boundary update:
 Phase N planning-branch note:
 
 - the status promotions to `Completed` for earlier sprint rows in this planning
-  branch reflect chook-confirmed completion state and QA PASS from the already
-  accepted implementation history; this branch records those reconciled
+  branch reflect chook-confirmed completion state and QA PASS recorded under
+  `CDR-1`, `CDR-2`, and `CDR-3`; this branch records those reconciled
   statuses as documentation cleanup rather than as new implementation closure
   events
 

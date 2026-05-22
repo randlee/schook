@@ -263,7 +263,8 @@ If a behavior is required for release but not yet fully proved, it must appear i
     Gemini may proceed through an explicitly approved harness-planning phase,
     but non-Claude runtime implementation remains deferred until
     provider-specific schema proof and promotion review close.
-  - authorizing sprint: `feature/delay-idle-hook-testing` planning branch
+  - authorizing sprint: `Phase N` planning branch
+    (`feature/delay-idle-hook-testing`)
 - `DEF-006`
   - prior text: config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current env-flag sink toggles
   - current text: superseded by the implemented `[observability]` surface in `CFG-002`, `DEF-010`, and `DEF-011`, plus the deferred exporter follow-on in `DEF-018`; the project will not restore `[logging]` as the committed contract
