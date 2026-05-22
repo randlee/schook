@@ -40,12 +40,19 @@ Prototype rules:
 
 - state is stored under `SCHOOK_CODEX_HOOK_STATE_ROOT`
 - delayed work duration comes from `SCHOOK_CODEX_DEBOUNCE_SECONDS`
-- the CLI tool comes from `SCHOOK_CODEX_DEBOUNCE_COMMAND`
+- the optional CLI tool comes from `SCHOOK_CODEX_DEBOUNCE_COMMAND`
 - captures go to `SCHOOK_HOOK_CAPTURE_ROOT` when set
 - hooks may be gated to one project root with `SCHOOK_CODEX_HOOK_PROJECT_ROOT`
+- active or idle marker files are written under
+  `<project-root>/.sc/sessions/codex/active-<ATM_IDENTITY>.json` and
+  `<project-root>/.sc/sessions/codex/idle-<ATM_IDENTITY>.json`
+- project root is resolved from the hook payload `cwd` by running
+  `git -C <cwd> rev-parse --show-toplevel`, then falling back to raw `cwd`
 
 This prototype exists to test the debounce model discussed in planning:
 
 - treat Codex turn-complete as the idle/start-debounce signal
 - treat `PreToolUse` as sufficient resumed-activity cancellation
 - keep the actual timer firing outside the hook itself
+- expose a simple visible active or idle state transition without needing to
+  inspect delayed CLI output

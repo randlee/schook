@@ -30,6 +30,14 @@ def _run_hook(script: Path, payload: dict[str, object], env: dict[str, str]) -> 
     )
 
 
+def _marker_dir(repo_root: Path) -> Path:
+    return repo_root / ".sc" / "sessions" / "codex"
+
+
+def _marker_name(state: str, identity: str = "tester") -> str:
+    return f"{state}-{identity}.json"
+
+
 @pytest.mark.provider_codex
 def test_codex_harness_layout_exists(codex_root: Path) -> None:
     for name in ["hooks", "scripts", "tests"]:
@@ -53,6 +61,7 @@ def test_stop_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) ->
             "SCHOOK_CODEX_DEBOUNCE_SECONDS": "60",
             "SCHOOK_CODEX_DEBOUNCE_AUTOSTART": "0",
             "CODEX_PROJECT_DIR": str(repo_root),
+            "ATM_IDENTITY": "tester",
         },
     )
 
@@ -63,6 +72,11 @@ def test_stop_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) ->
     assert pending["key"] == "thread-123"
     assert pending["project_dir"] == str(repo_root)
     assert pending["payload"]["type"] == "agent-turn-complete"
+    active_marker = _marker_dir(repo_root) / _marker_name("active")
+    assert active_marker.is_file()
+    marker_payload = json.loads(active_marker.read_text(encoding="utf-8"))
+    assert marker_payload["state"] == "active"
+    assert marker_payload["project_dir"] == str(repo_root)
 
     payload_captures = sorted(capture_root.glob("*.json"))
     env_captures = sorted(capture_root.glob("*.env.json"))
@@ -95,6 +109,7 @@ def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -
         "SCHOOK_CODEX_DEBOUNCE_AUTOSTART": "0",
         "SCHOOK_CODEX_DEBOUNCE_COMMAND": command,
         "CODEX_PROJECT_DIR": str(repo_root),
+        "ATM_IDENTITY": "tester",
     }
 
     stop_result = _run_hook(
@@ -111,6 +126,11 @@ def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -
     )
     assert cancel_result.returncode == 0, cancel_result.stderr
     assert not list((state_root / "pending").glob("*.json"))
+    active_marker = _marker_dir(repo_root) / _marker_name("active")
+    idle_marker = _marker_dir(repo_root) / _marker_name("idle")
+    assert active_marker.is_file()
+    assert not idle_marker.exists()
+    assert json.loads(active_marker.read_text(encoding="utf-8"))["state"] == "active"
 
     time.sleep(0.08)
     fire_result = _run_hook(codex_root / "scripts" / "fire_pending.py", {}, common_env)
@@ -142,6 +162,7 @@ def test_fire_pending_runs_command_once_after_due_time(tmp_path: Path, codex_roo
         "SCHOOK_CODEX_DEBOUNCE_AUTOSTART": "0",
         "SCHOOK_CODEX_DEBOUNCE_COMMAND": command,
         "CODEX_PROJECT_DIR": str(repo_root),
+        "ATM_IDENTITY": "tester",
     }
 
     stop_result = _run_hook(
@@ -159,6 +180,13 @@ def test_fire_pending_runs_command_once_after_due_time(tmp_path: Path, codex_roo
 
     assert output_path.read_text(encoding="utf-8") == "fired\n"
     assert not list((state_root / "pending").glob("*.json"))
+    idle_marker = _marker_dir(repo_root) / _marker_name("idle")
+    active_marker = _marker_dir(repo_root) / _marker_name("active")
+    assert idle_marker.is_file()
+    assert not active_marker.exists()
+    marker_payload = json.loads(idle_marker.read_text(encoding="utf-8"))
+    assert marker_payload["state"] == "idle"
+    assert marker_payload["thread_id"] == "thread-456"
 
 
 @pytest.mark.provider_codex
@@ -184,3 +212,4 @@ def test_project_scope_blocks_outside_directories(tmp_path: Path, codex_root: Pa
     assert result.returncode == 0, result.stderr
     assert not list((state_root / "pending").glob("*.json"))
     assert not list(capture_root.glob("*.json"))
+    assert not list(_marker_dir(project_root).glob("*.json"))

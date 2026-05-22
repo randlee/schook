@@ -107,10 +107,10 @@ def _payload_project_dir(payload: dict[str, Any]) -> Path | None:
     for key in ("cwd", "project_dir", "projectDir"):
         value = str(payload.get(key, "")).strip()
         if value:
-            return Path(value).expanduser().resolve()
+            return _resolve_project_dir(value)
     configured = os.environ.get("CODEX_PROJECT_DIR", "").strip()
     if configured:
-        return Path(configured).expanduser().resolve()
+        return _resolve_project_dir(configured)
     return None
 
 
@@ -129,6 +129,23 @@ def _within_project_scope(payload: dict[str, Any]) -> bool:
         return False
 
 
+def _resolve_project_dir(cwd: str) -> Path:
+    base = Path(cwd).expanduser().resolve()
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(base), "rev-parse", "--show-toplevel"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        root = result.stdout.strip()
+        if root:
+            return Path(root).expanduser().resolve()
+    except Exception:
+        pass
+    return base
+
+
 def _correlation_key(payload: dict[str, Any]) -> str:
     for key in ("thread-id", "thread_id", "sessionId", "session_id", "turn-id", "turn_id"):
         value = str(payload.get(key, "")).strip()
@@ -145,6 +162,79 @@ def _correlation_key(payload: dict[str, Any]) -> str:
 
 def _record_path(key: str) -> Path:
     return pending_root() / f"{key}.json"
+
+
+def _marker_identity() -> str:
+    return _sanitize_file_token(os.environ.get("ATM_IDENTITY", "").strip() or "unknown")
+
+
+def _marker_dir(project_dir: str | None) -> Path | None:
+    if not project_dir:
+        return None
+    return Path(project_dir).expanduser().resolve() / ".sc" / "sessions" / "codex"
+
+
+def _marker_paths(project_dir: str | None) -> tuple[Path | None, Path | None]:
+    marker_dir = _marker_dir(project_dir)
+    if marker_dir is None:
+        return None, None
+    identity = _marker_identity()
+    return (
+        marker_dir / f"active-{identity}.json",
+        marker_dir / f"idle-{identity}.json",
+    )
+
+
+def _marker_payload(
+    *,
+    state: str,
+    project_dir: str | None,
+    payload: dict[str, Any],
+    current: datetime,
+) -> dict[str, Any]:
+    return {
+        "state": state,
+        "updated_at": current.isoformat(),
+        "atm_identity": os.environ.get("ATM_IDENTITY", "").strip() or None,
+        "atm_team": os.environ.get("ATM_TEAM", "").strip() or None,
+        "project_dir": project_dir,
+        "cwd": payload.get("cwd"),
+        "thread_id": payload.get("thread-id") or payload.get("thread_id"),
+        "session_id": payload.get("session_id") or payload.get("sessionId"),
+        "turn_id": payload.get("turn-id") or payload.get("turn_id"),
+        "hook_event_name": payload.get("hook_event_name"),
+    }
+
+
+def _set_marker_state(
+    *,
+    state: str,
+    project_dir: str | None,
+    payload: dict[str, Any],
+    current: datetime,
+) -> Path | None:
+    active_path, idle_path = _marker_paths(project_dir)
+    if active_path is None or idle_path is None:
+        return None
+
+    target_path = active_path if state == "active" else idle_path
+    other_path = idle_path if state == "active" else active_path
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if other_path.exists():
+        other_path.replace(target_path)
+
+    _atomic_write_json(
+        target_path,
+        _marker_payload(
+            state=state,
+            project_dir=project_dir,
+            payload=payload,
+            current=current,
+        ),
+    )
+    other_path.unlink(missing_ok=True)
+    return target_path
 
 
 def _command_from_env() -> list[str]:
@@ -233,11 +323,13 @@ def schedule_stop(raw_text: str, now: datetime | None = None) -> Path | None:
     current = now or _utc_now()
     debounce_seconds = float(os.environ.get("SCHOOK_CODEX_DEBOUNCE_SECONDS", "60").strip() or "60")
     key = _correlation_key(payload)
+    project_dir = str(_payload_project_dir(payload)) if _payload_project_dir(payload) is not None else None
+    _set_marker_state(state="active", project_dir=project_dir, payload=payload, current=current)
     record = PendingRecord(
         key=key,
         due_at=current + timedelta(seconds=debounce_seconds),
         command=_command_from_env(),
-        project_dir=os.environ.get("CODEX_PROJECT_DIR", "").strip() or None,
+        project_dir=project_dir,
         payload=payload,
     )
     path = _record_path(key)
@@ -255,6 +347,9 @@ def cancel_on_pretooluse(raw_text: str) -> bool:
         return False
 
     write_capture("pretooluse", raw_text)
+    current = _utc_now()
+    project_dir = str(_payload_project_dir(payload)) if _payload_project_dir(payload) is not None else None
+    _set_marker_state(state="active", project_dir=project_dir, payload=payload, current=current)
     path = _record_path(_correlation_key(payload))
     if not path.exists():
         return False
@@ -273,6 +368,12 @@ def process_pending(now: datetime | None = None, sleep_seconds: float = 0.0) -> 
         if record.due_at > current:
             continue
 
+        _set_marker_state(
+            state="idle",
+            project_dir=record.project_dir,
+            payload=record.payload,
+            current=current,
+        )
         if record.command:
             cwd = record.project_dir or os.getcwd()
             subprocess.run(record.command, cwd=cwd, check=False)
