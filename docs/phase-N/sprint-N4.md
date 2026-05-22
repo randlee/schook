@@ -53,7 +53,9 @@ silently dropped or partially deferred.
 - final `Phase N` release checklist
 - final `Phase N` readiness verdict
 - explicit approved/deferred record for Codex and Gemini promotion
-- one authoritative project-level record of the final Phase N go/no-go decision
+- summary updates in `docs/project-plan.md` and
+  `docs/plan-cross-provider-hooks.md` that reference the final readiness
+  verdict
 
 ## Required Work
 
@@ -62,7 +64,8 @@ silently dropped or partially deferred.
 - record whether runtime adapter work is approved, deferred, or partially
   approved
 - freeze the final readiness verdict
-- reconcile any final project-level status wording with the release verdict
+- update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
+  they summarize and reference the final verdict from `docs/phase-N/readiness.md`
 
 ## Explicit Code Samples
 
@@ -70,8 +73,9 @@ If the sprint introduces or changes important traits, features, enums, protocol
 types, boundary contracts, or execution seams, this section must include
 explicit code samples or signatures showing the intended end state.
 
-- none required unless the sprint explicitly authorizes a new canonical adapter
-  shape
+- no code samples required. If `N.4` records a promotion verdict that approves
+  any new canonical adapter field, add a JSON shape example in
+  `docs/phase-N/readiness.md` before closing the sprint
 
 ## This Sprint Does Not Close
 
@@ -85,8 +89,11 @@ explicit code samples or signatures showing the intended end state.
 - Codex and Gemini each have an explicit approved/deferred disposition
 - the phase leaves one authoritative go/no-go record for subsequent runtime
   work
-- `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` reflect the
-  same final promotion verdict
+- `docs/phase-N/readiness.md` is the authoritative go/no-go record
+- `docs/project-plan.md` summarizes the verdict from
+  `docs/phase-N/readiness.md`
+- `docs/plan-cross-provider-hooks.md` summarizes the verdict from
+  `docs/phase-N/readiness.md`
 
 ## Required Validation
 

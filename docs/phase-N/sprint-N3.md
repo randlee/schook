@@ -16,7 +16,7 @@ sprint: N.3
 worktree: ../schook-worktrees/feature/pN-s3-cross-provider-normalization-inventory
 branch: feature/pN-s3-cross-provider-normalization-inventory
 status: planned
-estimated_scope: medium
+estimated_scope: large
 ```
 
 ## Goal
@@ -79,8 +79,9 @@ If the sprint introduces or changes important traits, features, enums, protocol
 types, boundary contracts, or execution seams, this section must include
 explicit code samples or signatures showing the intended end state.
 
-- include explicit normalized field-shape examples if new canonical adapter
-  fields are proposed
+- if any field is added to the canonical normalization candidates list, include
+  an explicit JSON shape example showing the normalized field name, type, and
+  source provider fields it maps from
 
 ## This Sprint Does Not Close
 
@@ -97,6 +98,9 @@ explicit code samples or signatures showing the intended end state.
 - planning docs no longer rely on guessed provider contracts
 - `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md`
   describe the same approved Phase N boundary
+- `docs/requirements.md` contains an explicit Phase N boundary update
+- `docs/architecture.md` contains an explicit Phase N boundary update
+- `docs/project-plan.md` contains an explicit Phase N boundary update
 
 ## Required Validation
 

@@ -30,7 +30,7 @@ estimated_scope: large
 
 - `docs/plan-phase-N.md`
 - `docs/phase-N/readiness.md`
-- `test-harness/hooks/gemini/README.md`
+- `docs/plan-cross-provider-hooks.md`
 - the existing Claude harness under `test-harness/hooks/claude/`
 
 ## Prerequisites
@@ -41,7 +41,6 @@ estimated_scope: large
 ## Exact Targets
 
 - `test-harness/hooks/gemini/`
-- `test_harness/hooks/gemini/`
 - `docs/phase-N/gemini-capture-checklist.md`
 - `docs/phase-N/gemini-findings-ledger.md`
 - `docs/hook-api/gemini-hook-api.md`

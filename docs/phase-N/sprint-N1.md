@@ -41,7 +41,6 @@ estimated_scope: large
 ## Exact Targets
 
 - `test-harness/hooks/codex/`
-- `test_harness/hooks/codex/`
 - `docs/phase-N/codex-capture-checklist.md`
 - `docs/phase-N/codex-findings-ledger.md`
 - `docs/hook-api/codex-hook-api.md`

@@ -4,6 +4,11 @@
 
 Planning and promotion-gate record for `Phase N`.
 
+This document is the single authoritative go/no-go record for final `Phase N`
+promotion status. Any later summary in `docs/project-plan.md` or
+`docs/plan-cross-provider-hooks.md` must reference the verdict recorded here
+rather than restating an independent decision.
+
 ## Record Schema
 
 Each sprint row must record:
