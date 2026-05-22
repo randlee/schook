@@ -89,6 +89,10 @@ Current Codex relay/event evidence is split across:
 - `agent-team-mail` `hook_watcher.rs` for the Rust-side event model consumed by
   ATM daemon components
 
+These relay-side fields are planning evidence only. `Phase N` approved fixture
+inventory is limited to raw stdin payloads and hook-process environment fields
+captured directly by `schook` harness scripts.
+
 Current verified event types:
 
 | Event type | Current source | Current meaning |
@@ -249,6 +253,10 @@ Design rule:
 
 `test-harness/hooks/codex/` contains a pytest suite covering the debounce
 contract (5 tests, all passing as of 2026-05-22):
+
+This is a prototype baseline only. `Phase N` `N.1` must extend the harness so
+the approved manifest and findings ledger record every audited Codex hook
+surface, not just `notify` / `PreToolUse` debounce behavior.
 
 | Test | What it verifies |
 |------|-----------------|

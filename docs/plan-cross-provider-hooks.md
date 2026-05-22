@@ -81,6 +81,12 @@ Normalization rule:
 
 - no field is eligible for mapping into `schooks` until it has appeared in
   repo-owned captured evidence and been promoted into a provider model
+- a field is canonical only when approved fixtures from at least two providers
+  show compatible semantics for that field
+- provider-specific fields stay provider-local until a later phase proves
+  broader compatibility
+- unresolved fields must remain in the normalization findings ledger rather
+  than being silently promoted
 - mapping work must cite the provider fixture/model, not CLI help or memory
 
 ## Shared Design Boundaries
@@ -154,7 +160,9 @@ Codex remains blocked by missing `sc-hooks`-owned artifacts:
 
 - no complete Codex fixture set covering all locally exercisable hook surfaces
 - no provider-specific Codex validation models covering all captured surfaces
-- no automated Codex schema-proof tests beyond the current debounce prototype
+- no automated Codex schema-proof tests beyond the current debounce prototype;
+  the existing five debounce tests are baseline evidence only and do not close
+  the full Codex surface-capture scope
 - no Codex schema-drift report owned by `schook`
 - no reconciled provider-owned manifest of payload fields and hook env vars
 
@@ -164,6 +172,9 @@ Codex remains blocked by missing `sc-hooks`-owned artifacts:
 - do not reuse Claude field names without captured proof
 - do not implement Codex runtime handling from relay-event guesses alone
 - do not assume frontmatter behavior implies full parity with Claude hooks
+- do not promote `agent-team-mail` relay-side fields into the approved Codex
+  inventory unless the `schook` harness captures those fields directly from the
+  hook process
 
 ## Gemini Follow-On Plan
 

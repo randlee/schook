@@ -124,6 +124,8 @@ deliverables, acceptance criteria, and closure rules.
 ## Phase Rules
 
 - Codex and Gemini should be executed in parallel where possible
+- `docs/phase-N/readiness.md` is read-only in parallel sprint branches; only
+  the integration author updates accepted rows after sprint acceptance
 - schema proof means payload plus hook-process environment coverage at each hook
   point
 - no provider field may be mapped into `schooks` without repo-owned fixture

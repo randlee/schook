@@ -29,13 +29,14 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
+| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-005` decisions in this document
+  through `ADR-SHK-006` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -342,6 +343,19 @@ Still deferred beyond that harness-planning expansion:
 - Gemini runtime adapters
 - Cursor Agent harness capture
 - Cursor-targeting runtime work
+
+### 9.2b Planned Provider-Normalization Boundary
+
+`ADR-SHK-006` governs the `Phase N` normalization boundary:
+
+- a field is canonical only if approved fixtures from at least two providers
+  show compatible semantics for that field
+- provider-specific fields stay in provider-local models and docs; they are not
+  promoted into the canonical `schooks` contract
+- unresolved or disputed fields must remain in the normalization findings
+  ledger until a later phase resolves them
+- runtime adapter work for Codex or Gemini remains deferred until `N.4`
+  records a promotion verdict from the final readiness record
 
 ### 9.2a Planned Version-Bump Detection Boundary
 

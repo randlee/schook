@@ -29,7 +29,8 @@ estimated_scope: large
 ## Hard Dependencies
 
 - `docs/plan-phase-N.md`
-- `docs/phase-N/readiness.md`
+- `docs/phase-N/readiness.md` (`read-only` during `N.2`; only the integration
+  author updates accepted rows after sprint acceptance)
 - `docs/plan-cross-provider-hooks.md`
 - the existing Claude harness under `test-harness/hooks/claude/`
 
@@ -68,6 +69,8 @@ silently dropped or partially deferred.
 - capture raw payload plus env for each surface
 - record the Gemini CLI version and hook registration path used for each capture
 - verify whether output-format choice changes hook-observable behavior
+- record every attempted Gemini hook surface in the checklist and findings
+  ledger with one of: `captured` or `not exercisable locally`
 - freeze the checklist and findings ledger for `N.2`
 - promote only validated findings into Gemini evidence docs
 
@@ -87,14 +90,33 @@ explicit code samples or signatures showing the intended end state.
 - cross-provider mapping decisions beyond documented candidates
 - final provider promotion verdict
 
+## Minimum Viable Closure
+
+If Gemini exposes no locally exercisable hook surfaces during `N.2`, the sprint
+still closes only by documenting that result explicitly:
+
+- `docs/phase-N/gemini-findings-ledger.md` must list every attempted surface as
+  `not exercisable locally`
+- each blocked surface row must include `reason: <why it could not be
+  exercised>`
+- `docs/phase-N/gemini-capture-checklist.md` must record the corresponding
+  status as `BLOCKED`, not `COMPLETE`
+
+That documented blocked outcome is the minimum viable closure path for surfaces
+that cannot be exercised locally.
+
 ## Acceptance Criteria
 
-- every locally tested Gemini hook point has a repo-owned raw fixture
+- every locally tested Gemini hook point has a repo-owned raw fixture, or the
+  findings ledger records `not exercisable locally` with a reason
 - every captured Gemini hook point has an env snapshot fixture
 - every approved fixture validates against a provider-specific model
 - every approved Gemini payload field and hook env var is enumerated in the
   approved fixtures or provider models
 - Gemini pytest schema-proof tests fail on fixture/model drift
+- `docs/phase-N/gemini-capture-checklist.md` and
+  `docs/phase-N/gemini-findings-ledger.md` contain a per-surface final
+  disposition for every attempted Gemini hook point
 - `docs/phase-N/gemini-findings-ledger.md` is the only authoritative handoff
   ledger for Gemini capture findings
 

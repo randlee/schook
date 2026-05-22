@@ -19,6 +19,12 @@ Each sprint row must record:
 - `current_status`
 - `notes`
 
+Execution ownership rule:
+
+- `docs/phase-N/readiness.md` is `read-only` in sprint execution branches
+- the integration author updates the accepted sprint row only after the sprint
+  is accepted and merged
+
 Sprint planning status convention:
 
 - sprint docs remain `status: planned` until execution closes the sprint on the
@@ -31,7 +37,20 @@ The final section of this document must record:
 - `integrate_phase_n_candidate`
 - `release_checklist_result`
 - `release_verdict`
+- `provider_verdicts`
+- `open_blocking_findings`
+- `open_important_findings`
+- `next_action`
 - `authorized_by`
+- `notes`
+
+Each provider verdict entry must record:
+
+- `provider`
+- `approved_surfaces`
+- `deferred_surfaces`
+- `open_blocking_findings`
+- `open_important_findings`
 - `notes`
 
 The final release verdict must remain `PENDING` until:
@@ -43,6 +62,15 @@ The final release verdict must remain `PENDING` until:
   disposition
 - every row in `docs/phase-N/normalization-findings-ledger.md` records a final
   disposition
+
+Promotion criteria:
+
+- `GO` requires approved fixtures for every locally exercisable Codex and
+  Gemini hook surface and zero open `BLOCKING` or `IMPORTANT` normalization
+  findings
+- `PARTIAL_GO` requires the final verdict to name the exact approved and
+  deferred surfaces per provider
+- `NO_GO` blocks runtime adapter work and requires a new sprint before retry
 
 ## Initial State
 
@@ -58,5 +86,9 @@ Final release verdict:
 - integrate/phase-N candidate: `PENDING`
 - release checklist result: `PENDING`
 - release verdict: `PENDING`
+- provider verdicts: `PENDING`
+- open blocking findings: `PENDING`
+- open important findings: `PENDING`
+- next action: `PENDING`
 - authorized by: `PENDING`
 - notes: Phase N promotion verdict not yet recorded

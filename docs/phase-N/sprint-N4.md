@@ -63,9 +63,35 @@ silently dropped or partially deferred.
 - review normalization findings and open gaps
 - record whether runtime adapter work is approved, deferred, or partially
   approved
+- record the exact approved surfaces, deferred surfaces, open blocking
+  findings, and open important findings that justify the final verdict
 - freeze the final readiness verdict
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
+
+## Promotion Gate Criteria
+
+`N.4` must use these criteria before any provider runtime adapter work is
+authorized:
+
+- `GO`:
+  - approved fixtures exist for all locally exercisable hook surfaces recorded
+    in the `N.1` and `N.2` findings ledgers
+  - no surface remains in a `to be captured` state
+  - `docs/phase-N/normalization-findings-ledger.md` has zero open `BLOCKING`
+    or `IMPORTANT` findings
+- `PARTIAL_GO`:
+  - the readiness verdict names the exact approved surfaces and the exact
+    deferred surfaces for each provider
+  - any deferred surface includes a written reason and follow-on sprint target
+- `NO_GO`:
+  - any provider still has unresolved required capture work
+  - or `N.3` still has open `BLOCKING` or `IMPORTANT` normalization findings
+  - or the final readiness record cannot name the exact approved/deferred
+    surfaces per provider
+
+`NO_GO` suspends runtime adapter work and requires a new sprint before
+promotion can be retried.
 
 ## Explicit Code Samples
 
@@ -73,9 +99,26 @@ If the sprint introduces or changes important traits, features, enums, protocol
 types, boundary contracts, or execution seams, this section must include
 explicit code samples or signatures showing the intended end state.
 
-- no code samples required. If `N.4` records a promotion verdict that approves
-  any new canonical adapter field, add a JSON shape example in
-  `docs/phase-N/readiness.md` before closing the sprint
+```json
+{
+  "release_verdict": "GO | PARTIAL_GO | NO_GO",
+  "providers": {
+    "codex": {
+      "approved_surfaces": ["notify", "PreToolUse"],
+      "deferred_surfaces": ["Stop"],
+      "open_blocking_findings": 0,
+      "open_important_findings": 0
+    },
+    "gemini": {
+      "approved_surfaces": [],
+      "deferred_surfaces": ["preTool", "postTool"],
+      "open_blocking_findings": 0,
+      "open_important_findings": 1
+    }
+  },
+  "next_action": "authorize-runtime-adapter-work | plan-follow-on-sprint"
+}
+```
 
 ## This Sprint Does Not Close
 
@@ -90,6 +133,11 @@ explicit code samples or signatures showing the intended end state.
 - the phase leaves one authoritative go/no-go record for subsequent runtime
   work
 - `docs/phase-N/readiness.md` is the authoritative go/no-go record
+- the final readiness record names approved surfaces, deferred surfaces, open
+  blocking findings, and open important findings for each provider
+- a `GO` verdict is impossible unless every locally exercisable surface has a
+  final disposition and `N.3` has zero open `BLOCKING` or `IMPORTANT`
+  findings
 - `docs/project-plan.md` summarizes the verdict from
   `docs/phase-N/readiness.md`
 - `docs/plan-cross-provider-hooks.md` summarizes the verdict from

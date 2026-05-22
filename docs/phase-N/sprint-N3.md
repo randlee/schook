@@ -30,6 +30,7 @@ estimated_scope: large
 
 - `docs/plan-phase-N.md`
 - `docs/phase-N/readiness.md`
+- `docs/architecture.md` (`ADR-SHK-006` once `N.3` lands)
 - approved output of `N.1`
 - approved output of `N.2`
 
@@ -70,6 +71,9 @@ silently dropped or partially deferred.
 - group fields into canonical, provider-specific, and unresolved sets
 - document correlation, lifecycle, and root-recovery differences by provider
 - freeze the normalization checklist and findings ledger for `N.3`
+- add at least one `Planned` requirement row covering the `Phase N`
+  harness/normalization boundary
+- add the provider-normalization boundary ADR and cite it from this sprint
 - reconcile `docs/requirements.md`, `docs/architecture.md`, and
   `docs/project-plan.md` to the verified provider planning boundary
 
@@ -98,9 +102,17 @@ explicit code samples or signatures showing the intended end state.
 - planning docs no longer rely on guessed provider contracts
 - `docs/requirements.md`, `docs/architecture.md`, and `docs/project-plan.md`
   describe the same approved Phase N boundary
-- `docs/requirements.md` contains an explicit Phase N boundary update
-- `docs/architecture.md` contains an explicit Phase N boundary update
-- `docs/project-plan.md` contains an explicit Phase N boundary update
+- `docs/requirements.md` adds at least one new `Planned` requirement row
+  covering the Phase N harness/normalization scope
+- `docs/architecture.md` adds `ADR-SHK-006`, stating that canonical fields
+  require approved fixture evidence from at least two providers with compatible
+  semantics, provider-specific fields stay provider-local, unresolved fields
+  remain in the normalization findings ledger, and runtime adapter work stays
+  deferred until `N.4`
+- `docs/project-plan.md` adds a Phase N boundary note that cites
+  `docs/phase-N/readiness.md` as the authoritative verdict record and states
+  that `N.4` is the step that changes the Phase N row from `In progress` to
+  `Completed`
 
 ## Required Validation
 
