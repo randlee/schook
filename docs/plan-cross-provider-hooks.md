@@ -17,6 +17,7 @@ Use these sources in priority order:
    - [docs/project-plan.md](project-plan.md)
 2. current provider evidence documents:
    - [docs/hook-api/codex-hook-api.md](hook-api/codex-hook-api.md)
+   - [docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md)
    - [docs/hook-api/cursor-agent-hook-api.md](hook-api/cursor-agent-hook-api.md)
 3. future `sc-hooks`-owned harness captures, fixtures, validation models, and
    drift reports for each provider
@@ -180,8 +181,10 @@ Codex remains blocked by missing `sc-hooks`-owned artifacts:
 
 ### Current Verified Baseline
 
-There is not yet a dedicated `sc-hooks` Gemini hook API document. Current useful
-planning facts preserved from earlier evidence-gathering are:
+A planning-stage Gemini hook API document now exists at
+[docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md). It is not yet
+a captured-evidence ledger. Current useful planning facts preserved there and
+from earlier evidence-gathering are:
 
 - `gemini` is installed locally
 - Gemini exposes hook-management commands through `gemini hooks ...`
@@ -229,7 +232,8 @@ Gemini remains blocked by missing `sc-hooks`-owned artifacts:
 - no Gemini validation models
 - no automated Gemini schema-proof tests
 - no Gemini schema-drift report
-- no Gemini hook API evidence document owned by `schook`
+- no Gemini hook API evidence document reconciled to repo-owned Gemini fixture
+  evidence yet
 - no verified provider-owned session/root identity model
 
 ### Design Boundaries
