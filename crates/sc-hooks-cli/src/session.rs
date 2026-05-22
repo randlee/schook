@@ -245,6 +245,7 @@ fn write_store(path: &Path, store: &SessionStore) -> Result<(), CliError> {
 mod tests {
     use super::*;
     use crate::test_support;
+    use serial_test::serial;
 
     struct EnvGuard {
         original: Option<std::ffi::OsString>,
@@ -272,6 +273,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn persists_and_loads_disabled_plugins() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -288,6 +290,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn missing_state_file_is_fail_open() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -298,6 +301,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn clear_session_removes_record() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -312,6 +316,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn disabled_at_is_iso8601_like_timestamp() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -326,6 +331,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn clear_all_sessions_removes_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -340,6 +346,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn mark_plugin_disabled_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -355,6 +362,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn clear_session_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
@@ -370,6 +378,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn load_disabled_plugins_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());

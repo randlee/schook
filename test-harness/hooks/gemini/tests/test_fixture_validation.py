@@ -67,3 +67,30 @@ def test_approved_env_snapshots_exist_for_each_surface(gemini_root: Path, expect
         assert "process_env" in snapshot
         if "GEMINI_API_KEY" in snapshot["gemini_env"]:
             assert snapshot["gemini_env"]["GEMINI_API_KEY"] == "<redacted>"
+
+
+@pytest.mark.provider_gemini
+def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expected_surfaces: list[str]) -> None:
+    fixture_root = gemini_root / "fixtures" / "approved"
+    synthetic_root = "/synthetic/test/gemini-harness"
+
+    for surface in expected_surfaces:
+        payload_path = fixture_root / f"{surface}.json"
+        env_path = fixture_root / f"{surface}.env.json"
+
+        payload_text = payload_path.read_text(encoding="utf-8")
+        env = json.loads(env_path.read_text(encoding="utf-8"))
+
+        assert "/Users/randlee/" not in payload_text, payload_path.name
+        assert "/Users/randlee/" not in json.dumps(env, sort_keys=True), env_path.name
+
+        process_env = env["process_env"]
+        gemini_env = env["gemini_env"]
+        assert process_env["PATH"] == "<machine-path-redacted>"
+        assert process_env["USER"] == "<operator>"
+        if "PWD" in process_env:
+            assert "/Users/randlee/" not in process_env["PWD"]
+        if "GEMINI_CWD" in gemini_env:
+            assert gemini_env["GEMINI_CWD"] == synthetic_root
+        if "GEMINI_PROJECT_DIR" in gemini_env:
+            assert gemini_env["GEMINI_PROJECT_DIR"] == synthetic_root

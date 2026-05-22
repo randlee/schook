@@ -9,6 +9,9 @@ from typing import Any
 
 
 SENSITIVE_ENV_TOKENS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "CRED")
+SYNTHETIC_PROJECT_ROOT = "/synthetic/test/gemini-harness"
+REDACTED_PATH = "<machine-path-redacted>"
+REDACTED_OPERATOR = "<operator>"
 
 
 def capture_root() -> Path:
@@ -25,6 +28,12 @@ def _timestamp() -> str:
 def _redact_env(name: str, value: str) -> str:
     if any(token in name for token in SENSITIVE_ENV_TOKENS):
         return "<redacted>"
+    if name == "PATH":
+        return REDACTED_PATH
+    if name == "USER":
+        return REDACTED_OPERATOR
+    if name in {"PWD", "GEMINI_CWD", "GEMINI_PROJECT_DIR"}:
+        return SYNTHETIC_PROJECT_ROOT
     return value
 
 
@@ -57,4 +66,3 @@ def write_capture(surface: str, raw_text: str) -> None:
 def capture_from_stdin(surface: str) -> int:
     write_capture(surface, sys.stdin.read())
     return 0
-

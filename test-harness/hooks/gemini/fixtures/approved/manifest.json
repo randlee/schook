@@ -51,7 +51,8 @@
         "blocking": false,
         "exit_code_contract": "captured as a post-response hook; failure warnings are surfaced on stderr, but the isolated non-zero exit path was not re-run cleanly after quota exhaustion",
         "stdio_contract": "stderr warnings are surfaced to the operator; no stdout response contract was required for the captured path"
-      }
+      },
+      "caveat": "provider quota exhaustion prevented a later clean isolated non-zero rerun, so shell-exit evidence remains partial for this post-response surface"
     },
     {
       "surface": "session-start-startup",
@@ -84,7 +85,8 @@
         "blocking": false,
         "exit_code_contract": "captured as a post-exit hook; failure warnings are surfaced on stderr, but the isolated non-zero exit path was later confounded by provider quota exhaustion",
         "stdio_contract": "stderr warnings are surfaced to the operator; no stdout response contract was required for the captured path"
-      }
+      },
+      "caveat": "provider quota exhaustion prevented a later clean isolated non-zero rerun, so shell-exit evidence remains partial for this post-exit surface"
     }
   ]
 }
