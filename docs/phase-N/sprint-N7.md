@@ -35,26 +35,18 @@ target: integrate/phase-N
 - verified Gemini approved fixtures
 - verified Gemini fixture-validation tests
 
-## Required Work
-
-- verify current Gemini capture flows and fixture inventory against local
-  Gemini runs
-- correct only real drift, missing capture proof, or outward inconsistency
-- keep internal provider differences internal; preserve Claude-compatible
-  controls, layout, validation, and output shape
-
-## This Sprint Does Not Close
-
-- Codex API doc and models
-- Gemini API doc and models
-- `just` integration
-
 ## Acceptance Criteria
 
 - Gemini harness is confirmed runnable
 - Gemini approved fixtures are confirmed against local evidence
 - Gemini tests validate schema-bearing fixtures
 - Gemini presents the same external harness contract Claude does
+
+## Out Of Scope
+
+- Codex API doc and models
+- Gemini API doc and models
+- `just` integration
 
 ## Required Validation
 

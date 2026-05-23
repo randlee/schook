@@ -2,8 +2,9 @@
 
 ## Goal
 
-Replace the old finding-driven remediation split with a provider-deliverable
-plan for the permanent harness assets owned by this repo.
+Harden the permanent provider harness around the deliverables this repo
+actually owns: provider hook API docs, provider Pydantic models, approved
+fixtures, validation tests, and stable `just` entrypoints.
 
 Required deliverables:
 
@@ -49,7 +50,7 @@ Current baseline by provider:
   - approved fixtures under `test-harness/hooks/gemini/fixtures/approved/`
   - tests under `test-harness/hooks/gemini/tests/`
 
-Implication:
+Planning rule:
 
 - these sprints are verify/fix sprints, not blank-slate build sprints
 - expected QA findings should therefore be narrow:
@@ -126,19 +127,21 @@ Planned branch:
 
 - `feature/pN-s10-harness-just-integration`
 
-## Reuse Rule
+## Shared Harness Contract
 
-The harness should end with three provider-specific trees, but creation should
-reuse existing shared structure aggressively:
+The harness ends with three provider-specific trees, but from the outside they
+must present one shared contract:
+
+- same directory conventions
+- same approved/raw fixture split
+- same test invocation shape
+- same report/output conventions
+
+Implementation rule:
 
 - copy/adapt the Claude harness layout first
 - reuse shared helpers and fixture-validation patterns where possible
 - only add provider-local code when the schema or CLI behavior actually differs
-- keep the external harness contract uniform across providers:
-  - same directory conventions
-  - same approved/raw fixture split
-  - same test invocation shape
-  - same report/output conventions
 
 ## Non-Goals
 

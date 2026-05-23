@@ -33,25 +33,16 @@ target: integrate/phase-N
 - `just test hooks gemini`
 - docs explaining what each target runs
 
-## Required Work
-
-- add base `just` support for this repo
-- wire provider-specific harness commands behind the three `just` targets
-- keep the targets aligned to the checked-in harness tests instead of ad hoc
-  local commands
-- enforce the same outward test invocation pattern across Claude, Codex, and
-  Gemini
-
-## This Sprint Does Not Close
-
-- runtime hook implementation
-
 ## Acceptance Criteria
 
 - `just test hooks claude` exercises the Claude harness
 - `just test hooks codex` exercises the Codex harness
 - `just test hooks gemini` exercises the Gemini harness
 - the targets are documented and reproducible
+
+## Out Of Scope
+
+- runtime hook implementation
 
 ## Required Validation
 

@@ -32,24 +32,16 @@ target: integrate/phase-N
 - verified Codex Pydantic models
 - verified Codex model-validation tests
 
-## Required Work
-
-- verify the Codex doc directly against approved Codex fixtures
-- verify model/test coverage against those same approved fixtures
-- correct only real drift, missing fields, or layout inconsistency
-- keep model locations and validation entrypoints aligned with the same shared
-  provider harness contract
-
-## This Sprint Does Not Close
-
-- Gemini API doc and models
-- `just` integration
-
 ## Acceptance Criteria
 
 - `docs/hook-api/codex-hook-api.md` matches the approved Codex fixtures
 - Codex Pydantic models validate the approved Codex fixtures
 - Codex model/test layout follows the shared provider pattern
+
+## Out Of Scope
+
+- Gemini API doc and models
+- `just` integration
 
 ## Required Validation
 

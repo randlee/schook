@@ -32,23 +32,15 @@ target: integrate/phase-N
 - verified Gemini Pydantic models
 - verified Gemini model-validation tests
 
-## Required Work
-
-- verify the Gemini doc directly against approved Gemini fixtures
-- verify model/test coverage against those same approved fixtures
-- correct only real drift, missing fields, or layout inconsistency
-- keep model locations and validation entrypoints aligned with the same shared
-  provider harness contract
-
-## This Sprint Does Not Close
-
-- `just` integration
-
 ## Acceptance Criteria
 
 - `docs/hook-api/gemini-hook-api.md` matches the approved Gemini fixtures
 - Gemini Pydantic models validate the approved Gemini fixtures
 - Gemini model/test layout follows the shared provider pattern
+
+## Out Of Scope
+
+- `just` integration
 
 ## Required Validation
 
