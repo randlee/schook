@@ -18,6 +18,7 @@ def test_required_gemini_subdirectories_exist(gemini_root: Path) -> None:
     ]
     for name in required:
         assert (gemini_root / name).is_dir(), name
+    assert (gemini_root / "captures" / "raw").is_dir(), "captures/raw"
 
 
 @pytest.mark.provider_gemini
