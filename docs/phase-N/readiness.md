@@ -79,17 +79,19 @@ Promotion criteria:
 | --- | --- | --- | --- | --- |
 | N.1 | `007612e` | `accepted` | `merged to integrate/phase-N` | Codex harness schema capture complete; all findings frozen; ready for N.2 baseline |
 | N.2 | `88ebc36` | `accepted` | `merged to integrate/phase-N` | Gemini harness schema capture complete; all findings frozen; ready for N.3 baseline |
-| N.3 | `PENDING` | `PENDING` | `not started` | awaits Codex and Gemini approved fixture baselines |
-| N.4 | `PENDING` | `PENDING` | `not started` | awaits N.1–N.3 closure |
+| N.3 | `acb2527` | `accepted` | `merged to integrate/phase-N` | Cross-provider normalization inventory complete; ready for N.4 promotion gate |
+| N.4 | `7855476` | `accepted` | `merged to integrate/phase-N` | Promotion gate audit complete; PARTIAL_GO verdict recorded in release-checklist.md; follow-up QA fixes applied in PR #113 |
 
 Final release verdict:
 
-- `integrate/phase-N` candidate: `PENDING`
-- release checklist result: `PENDING`
-- release verdict: `PENDING`
-- provider verdicts: `PENDING`
-- open blocking findings: `PENDING`
-- open important findings: `PENDING`
-- next action: `PENDING`
-- authorized by: `PENDING`
-- notes: Phase N promotion verdict not yet recorded
+- `integrate/phase-N` candidate: `approved`
+- release checklist result: `PARTIAL_GO`
+- release verdict: `PARTIAL_GO`
+- provider verdicts:
+  - Codex: approved surfaces `SessionStart`, `PreToolUse` (notify/Stop/resume/fork deferred)
+  - Gemini: approved surfaces `SessionStart`, `SessionEnd`, `BeforeAgent`, `BeforeTool`, `AfterTool` (AfterAgent deferred)
+- open blocking findings: `none`
+- open important findings: `3 carry-forward minor findings signed off (SCHOOK-QA-N4-009, SCHOOK-QA-N4-NEW-002, QA-001-RESIDUAL)`
+- next action: create PR `integrate/phase-N` → `develop` and merge after final integration QA approval
+- authorized by: `team-lead` (2026-05-23T00:16:00Z)
+- notes: PARTIAL_GO verdict reflects approved hook surfaces per provider with explicit deferred-surface follow-on sprint mapping. Runtime adapter work authorized for approved surfaces only per `docs/phase-N/release-checklist.md`. All N.1-N.4 QA findings resolved or signed-off carry-forward. See `docs/phase-N/release-checklist.md` for detailed PARTIAL_GO analysis and approved/deferred surface mapping.
