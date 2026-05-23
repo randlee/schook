@@ -77,8 +77,9 @@ Follow-on sprint references for deferred surfaces:
    - every deferred Codex and Gemini surface now has an explicit `TBD` follow-on
      sprint reference above
 3. Hook-trait seal status:
-   - the checklist now records this as `RECORDED`, not `PASS`, because the
-     governing prerequisite is still the active `SEAL-001` documented boundary
+   - the checklist now records this as `DEFERRED-ACKNOWLEDGED`, not `PASS`,
+     because the governing prerequisite is still the active `SEAL-001`
+     documented boundary
 4. Traceability alignment:
    - `HKR-014` and `HKR-015` remain implemented for the harness/planning work
      closed by `Phase N`, with deferred runtime-surface follow-on scope noted
