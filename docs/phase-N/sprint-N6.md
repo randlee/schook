@@ -52,7 +52,9 @@ test-harness/hooks/codex/tests/
 - `test-harness/hooks/codex/fixtures/approved/` is the approved Codex fixture
   set used by the tests
 - `test-harness/hooks/codex/tests/` validates the approved Codex fixtures
-- Codex keeps the same external harness contract Claude exposes
+- Codex keeps the same external harness contract Claude exposes for directory
+  layout and `pytest` marker conventions; provider-specific manifest schema
+  differences remain acceptable
 
 ## Out Of Scope
 
