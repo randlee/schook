@@ -80,16 +80,18 @@ Promotion criteria:
 | N.1 | `007612e` | `ACCEPTED` | `merged to integrate/phase-N` | Codex harness schema capture is frozen on the integration baseline. Approved direct evidence exists for `SessionStart`, `PreToolUse`, `notify`, and `--cd` drift scenarios; `Stop`, `resume`, and `fork` remain `confirmed-not-exercisable`. |
 | N.2 | `88ebc36` | `ACCEPTED` | `merged to integrate/phase-N` | Gemini harness schema capture is frozen on the integration baseline. All locally exercisable Gemini hook surfaces were captured; workspace `.gemini/settings.json` activation remains outside the approved registration contract. |
 | N.3 | `acb2527` | `ACCEPTED` | `merged to integrate/phase-N` | Cross-provider normalization inventory is frozen on the integration baseline. Canonical candidates are limited to `session_id`, `cwd`, `transcript_path`, and `tool_input.command`; unresolved lifecycle families remain deferred. |
-| N.4 | `PENDING` | `PENDING` | `complete on promotion-gate branch; awaiting integration-author fill` | Proposed `PARTIAL_GO` details are documented in `docs/phase-N/release-checklist.md`, but the authoritative readiness row and final verdict remain reserved for merge-time update by the integration author per `ADR-SHK-007`. |
+| N.4 | `7855476` | `ACCEPTED` | `merged to integrate/phase-N` | Promotion gate audit complete. PARTIAL_GO verdict finalized. Approved surfaces per provider documented with deferred-surface follow-on sprint references. Follow-up QA fixes applied in PR #113. |
 
 Final release verdict:
 
-- `integrate_phase_n_candidate`: `PENDING`
-- `release_checklist_result`: `PENDING`
-- `release_verdict`: `PENDING`
-- `provider_verdicts`: `PENDING`
-- `open_blocking_findings`: `PENDING`
-- `open_important_findings`: `PENDING`
-- `next_action`: `PENDING`
-- `authorized_by`: `TBD — integration author updates at merge time per ADR-SHK-007`
-- `notes`: `SC-PN-4` supplies a proposed `PARTIAL_GO` analysis in `docs/phase-N/release-checklist.md`, including approved surfaces, deferred surfaces, reasons, and follow-on sprint references. The authoritative readiness verdict remains reserved for merge-time update by the integration author.
+- `integrate_phase_n_candidate`: `approved`
+- `release_checklist_result`: `PARTIAL_GO`
+- `release_verdict`: `PARTIAL_GO`
+- `provider_verdicts`:
+  - Codex: `SessionStart`, `PreToolUse` approved (notify, Stop, resume, fork deferred)
+  - Gemini: `SessionStart`, `SessionEnd`, `BeforeAgent`, `BeforeTool`, `AfterTool` approved (AfterAgent deferred)
+- `open_blocking_findings`: `none`
+- `open_important_findings`: `3 carry-forward minors signed off (SCHOOK-QA-N4-009, SCHOOK-QA-N4-NEW-002, QA-001-RESIDUAL)`
+- `next_action`: `create PR integrate/phase-N → develop for final integration QA + phase-ending review`
+- `authorized_by`: `team-lead` (2026-05-23T00:32:00Z)
+- `notes`: PARTIAL_GO verdict reflects approved hook surfaces per provider with explicit deferred-surface follow-on sprint mapping per `docs/phase-N/release-checklist.md`. Runtime adapter work authorized for approved surfaces only. All N.1-N.4 QA findings resolved or signed-off carry-forward.
