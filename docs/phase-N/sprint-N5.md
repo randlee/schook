@@ -35,20 +35,6 @@ target: integrate/phase-N
 - verified Claude approved fixtures and tests
 - written shared-harness baseline for the later provider sprints
 
-## Required Work
-
-- verify the checked-in Claude doc, models, fixtures, and tests against current
-  behavior
-- correct only real drift or structural gaps
-- state the external harness contract that later providers must match:
-  controls, layout, fixtures, validation shape, and outputs
-
-## This Sprint Does Not Close
-
-- Codex deliverables
-- Gemini deliverables
-- `just` integration
-
 ## Acceptance Criteria
 
 - Claude doc, models, fixtures, and tests are confirmed current or updated
@@ -56,6 +42,12 @@ target: integrate/phase-N
   provider sprints
 - no Claude work is left ambiguous between "already complete" and "needs
   refresh"
+
+## Out Of Scope
+
+- Codex deliverables
+- Gemini deliverables
+- `just` integration
 
 ## Required Validation
 

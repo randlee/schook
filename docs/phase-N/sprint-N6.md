@@ -35,26 +35,18 @@ target: integrate/phase-N
 - verified Codex approved fixtures
 - verified Codex fixture-validation tests
 
-## Required Work
-
-- verify current Codex capture flows and fixture inventory against local Codex
-  runs
-- correct only real drift, missing capture proof, or outward inconsistency
-- keep internal provider differences internal; preserve Claude-compatible
-  controls, layout, validation, and output shape
-
-## This Sprint Does Not Close
-
-- Codex API doc and models
-- Gemini deliverables
-- `just` integration
-
 ## Acceptance Criteria
 
 - Codex harness is confirmed runnable
 - Codex approved fixtures are confirmed against local evidence
 - Codex tests validate schema-bearing fixtures
 - Codex presents the same external harness contract Claude does
+
+## Out Of Scope
+
+- Codex API doc and models
+- Gemini deliverables
+- `just` integration
 
 ## Required Validation
 
