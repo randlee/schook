@@ -86,6 +86,7 @@ def test_codex_harness_layout_exists(codex_root: Path) -> None:
 
 @pytest.mark.provider_codex
 def test_notify_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) -> None:
+    """Notify debounce accepts the minimal fields it actually consumes: thread-id and cwd."""
     capture_root = tmp_path / "captures"
     state_root = tmp_path / "state"
     repo_root = tmp_path / "repo"
@@ -123,6 +124,7 @@ def test_notify_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) 
 
 @pytest.mark.provider_codex
 def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -> None:
+    """PreToolUse cancelation is intentionally tolerant of partial payloads by design."""
     capture_root = tmp_path / "captures"
     state_root = tmp_path / "state"
     repo_root = tmp_path / "repo"
@@ -355,8 +357,12 @@ def test_manifest_has_required_top_level_keys(codex_root: Path) -> None:
 
 
 @pytest.mark.provider_codex
-def test_approved_payload_fixtures_validate_against_models(codex_root: Path) -> None:
+def test_approved_payload_fixtures_validate_against_models(
+    codex_root: Path, expected_hooks: dict[str, str]
+) -> None:
     fixture_dir = codex_root / "fixtures" / "approved"
+    expected_payloads = {f"{stem}.json" for stem in expected_hooks.values()}
+
     for fixture_path in sorted(fixture_dir.glob("*.json")):
         fixture_text = fixture_path.read_text(encoding="utf-8")
         assert "$REPO_ROOT" not in fixture_text, fixture_path.name
@@ -365,6 +371,8 @@ def test_approved_payload_fixtures_validate_against_models(codex_root: Path) -> 
         payload = json.loads(fixture_text)
         validate_codex_hook_payload(payload)
         assert payload["cwd"].startswith("/synthetic/test/codex-harness"), fixture_path.name
+
+    assert expected_payloads <= {path.name for path in fixture_dir.glob("*.json")}
 
 
 @pytest.mark.provider_codex
@@ -379,6 +387,14 @@ def test_approved_env_fixtures_validate_and_redact_sensitive_values(codex_root: 
         for key, value in validated.atm_env.items():
             if any(token in key for token in ("TOKEN", "AUTH")):
                 assert value == "<redacted>"
+        assert validated.atm_env["ATM_LOKI_INSTANCE_ID"] == "12345678"
+        assert validated.atm_env["ATM_MIMIR_INSTANCE_ID"] == "12345678"
+        assert validated.atm_env["ATM_TEMPO_INSTANCE_ID"] == "12345678"
+        assert validated.atm_env["ATM_LOKI_URL"] == "https://synthetic-endpoint.example.com"
+        assert validated.atm_env["ATM_MIMIR_QUERY_ENDPOINT"] == "https://synthetic-endpoint.example.com/api/prom"
+        assert validated.atm_env["ATM_OTEL_ENDPOINT"] == "https://synthetic-endpoint.example.com/otlp"
+        assert validated.atm_env["ATM_TEMPO_SEARCH_ENDPOINT"] == "https://synthetic-endpoint.example.com/tempo"
+        assert validated.codex_env["CODEX_THREAD_ID"] == "00000000-0000-4000-8000-000000000000"
         assert validated.codex_env["CODEX_MANAGED_PACKAGE_ROOT"].strip()
         assert validated.cwd_from_getcwd.startswith("/synthetic/test/codex-harness")
         assert validated.pwd_env is None or validated.pwd_env.startswith("/synthetic/test/codex-harness")

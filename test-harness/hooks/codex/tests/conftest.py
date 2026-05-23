@@ -1,16 +1,15 @@
 from pathlib import Path
-import sys
 
 import pytest
 
-
-REPO_ROOT = Path(__file__).resolve().parents[4]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from test_harness.hooks.paths import CODEX_ROOT
+from test_harness.hooks.codex.tests.test_harness_imports import EXPECTED_HOOKS
 
 
 @pytest.fixture(scope="session")
 def codex_root() -> Path:
-    return CODEX_ROOT
+    return Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(scope="session")
+def expected_hooks() -> dict[str, str]:
+    return EXPECTED_HOOKS

@@ -22,6 +22,7 @@ packages = [
   "test_harness.hooks.claude.tests",
   "test_harness.hooks.codex",
   "test_harness.hooks.codex.models",
+  "test_harness.hooks.codex.tests",
   "test_harness.hooks.gemini",
   "test_harness.hooks.gemini.models",
 ]
