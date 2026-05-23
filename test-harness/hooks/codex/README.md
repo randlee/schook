@@ -31,8 +31,7 @@ test-harness/hooks/codex/
     record_invocation.py — harmless test CLI target; records a fired invocation
   tests/
     conftest.py
-    test_debounce_hooks.py
-    test_fixture_validation.py
+    test_codex_provider.py
   captures/
     raw/              — timestamped payload + env JSON files from live/test runs
   fixtures/

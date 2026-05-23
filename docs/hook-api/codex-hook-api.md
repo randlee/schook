@@ -121,49 +121,6 @@ Live testing confirmed `Stop` did not fire in live Codex exec. Do not use
 `Stop` as the primary idle-detection or turn-complete signal. Use `notify`
 (`agent-turn-complete`) instead.
 
-## Current Verified Codex Relay
-
-Current Codex relay/event evidence is split across:
-
-- `atm-hook-relay.py` for the notify-side JSONL append behavior
-- `agent-team-mail` `hook_watcher.rs` for the Rust-side event model consumed by
-  ATM daemon components
-
-These relay-side fields are planning evidence only. `Phase N` approved fixture
-inventory is limited to raw stdin payloads and hook-process environment fields
-captured directly by `schook` harness scripts.
-
-Current verified event types:
-
-| Event type | Current source | Current meaning |
-| --- | --- | --- |
-| `agent-turn-complete` | `atm-hook-relay.py` + `hook_watcher.rs` | turn-complete / idle availability signal |
-| `session-start` | `hook_watcher.rs` | lifecycle start event carrying session/process identity |
-| `session-end` | `hook_watcher.rs` | lifecycle end event carrying session/process identity |
-
-## Current Verified HookEvent Fields
-
-Relay-only planning evidence — not part of approved `schook` fixture
-inventory unless a future harness capture proves the same fields directly.
-
-The current Rust-side `HookEvent` model in
-`agent-team-mail/crates/atm-daemon/src/plugins/worker_adapter/hook_watcher.rs`
-contains these fields:
-
-| Rust field | JSON key | Presence |
-| --- | --- | --- |
-| `event_type` | `type` | all event types |
-| `agent` | `agent` | all event types when routing identity is available |
-| `team` | `team` | all event types when routing identity is available |
-| `thread_id` | `thread-id` | Codex/internal relay events with thread context |
-| `turn_id` | `turn-id` | `agent-turn-complete` events |
-| `received_at` | `received-at` | relay events when the relay adds a receipt timestamp |
-| `state` | `state` | availability-signaling events such as `agent-turn-complete` |
-| `timestamp` | `timestamp` | availability-signaling events |
-| `idempotency_key` | `idempotency-key` | availability dedup events |
-| `session_id` | `sessionId` | session lifecycle events (`session-start`, `session-end`) |
-| `process_id` | `processId` | session lifecycle events that carry process identity; currently required on `session-start` and treated as part of the lifecycle event set |
-
 ## Debounce Pattern — Verified Design
 
 Live testing on 2026-05-22 verified the following debounce contract for
@@ -292,9 +249,9 @@ Design rule:
   debounce cancellation
 - frontmatter support makes Codex a better target for agent-local guard hooks
   than Claude, but the session-identity story is currently weaker
-- the current Codex evidence includes both turn-complete and session lifecycle
-  relay handling, so planning must use the verified event model rather than the
-  narrower turn-complete script alone
+- the current Codex evidence is limited to repo-owned harness captures and the
+  approved fixture/model set in this repo; do not promote relay-only fields
+  unless a future harness capture proves them directly
 
 ## Test Harness
 

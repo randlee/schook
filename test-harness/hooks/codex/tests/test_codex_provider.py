@@ -7,8 +7,15 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
+
+from test_harness.hooks.codex.models.payloads import (
+    validate_codex_env_snapshot,
+    validate_codex_fixture_manifest,
+    validate_codex_hook_payload,
+)
 
 
 def _write_executable(path: Path, body: str) -> None:
@@ -16,7 +23,11 @@ def _write_executable(path: Path, body: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
 
 
-def _run_hook(script: Path, payload: dict[str, object], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run_hook(
+    script: Path,
+    payload: dict[str, object],
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
     pythonpath = str(Path.cwd())
     if existing := os.environ.get("PYTHONPATH"):
         pythonpath = f"{pythonpath}{os.pathsep}{existing}"
@@ -323,3 +334,108 @@ def test_project_scope_blocks_outside_directories(tmp_path: Path, codex_root: Pa
     assert not list((state_root / "pending").glob("*.json"))
     assert not list(capture_root.glob("*.json"))
     assert not list(_marker_dir(project_root).glob("*.json"))
+
+
+@pytest.mark.provider_codex
+def test_manifest_has_required_top_level_keys(codex_root: Path) -> None:
+    manifest_path = codex_root / "fixtures" / "approved" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    validated = validate_codex_fixture_manifest(manifest)
+
+    assert validated.provider == "codex"
+    assert validated.codex_version == "codex-cli 0.133.0"
+    assert {surface.surface for surface in validated.hook_surfaces} >= {
+        "SessionStart",
+        "PreToolUse",
+        "notify",
+        "Stop",
+        "resume",
+        "fork",
+    }
+
+
+@pytest.mark.provider_codex
+def test_approved_payload_fixtures_validate_against_models(codex_root: Path) -> None:
+    fixture_dir = codex_root / "fixtures" / "approved"
+    for fixture_path in sorted(fixture_dir.glob("*.json")):
+        fixture_text = fixture_path.read_text(encoding="utf-8")
+        assert "$REPO_ROOT" not in fixture_text, fixture_path.name
+        if fixture_path.name == "manifest.json" or fixture_path.name.endswith(".env.json"):
+            continue
+        payload = json.loads(fixture_text)
+        validate_codex_hook_payload(payload)
+        assert payload["cwd"].startswith("/synthetic/test/codex-harness"), fixture_path.name
+
+
+@pytest.mark.provider_codex
+def test_approved_env_fixtures_validate_and_redact_sensitive_values(codex_root: Path) -> None:
+    fixture_dir = codex_root / "fixtures" / "approved"
+    for fixture_path in sorted(fixture_dir.glob("*.env.json")):
+        fixture_text = fixture_path.read_text(encoding="utf-8")
+        assert "$REPO_ROOT" not in fixture_text, fixture_path.name
+        validated = validate_codex_env_snapshot(json.loads(fixture_text))
+        assert validated.atm_env["ATM_IDENTITY"].strip()
+        assert validated.atm_env["ATM_TEAM"].strip()
+        for key, value in validated.atm_env.items():
+            if any(token in key for token in ("TOKEN", "AUTH")):
+                assert value == "<redacted>"
+        assert validated.codex_env["CODEX_MANAGED_PACKAGE_ROOT"].strip()
+        assert validated.cwd_from_getcwd.startswith("/synthetic/test/codex-harness")
+        assert validated.pwd_env is None or validated.pwd_env.startswith("/synthetic/test/codex-harness")
+
+
+@pytest.mark.provider_codex
+def test_session_start_and_stop_capture_scripts_write_raw_files(tmp_path: Path, codex_root: Path) -> None:
+    capture_root = tmp_path / "captures"
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    transcript_path = tmp_path / "transcript.jsonl"
+
+    session_start_result = _run_hook(
+        codex_root / "hooks" / "session_start.py",
+        {
+            "cwd": str(project_root),
+            "hook_event_name": "SessionStart",
+            "model": "gpt-5.4",
+            "permission_mode": "bypassPermissions",
+            "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
+            "source": "startup",
+            "transcript_path": str(transcript_path),
+        },
+        {"SCHOOK_HOOK_CAPTURE_ROOT": str(capture_root)},
+    )
+    assert session_start_result.returncode == 0, session_start_result.stderr
+
+    stop_result = _run_hook(
+        codex_root / "hooks" / "stop.py",
+        {
+            "cwd": str(project_root),
+            "hook_event_name": "Stop",
+            "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
+        },
+        {"SCHOOK_HOOK_CAPTURE_ROOT": str(capture_root)},
+    )
+    assert stop_result.returncode == 0, stop_result.stderr
+
+    created = sorted(path.name for path in capture_root.glob("*.json"))
+    assert any(name.endswith("-session-start.json") for name in created)
+    assert any(name.endswith("-session-start.env.json") for name in created)
+    assert any(name.endswith("-stop.json") for name in created)
+    assert any(name.endswith("-stop.env.json") for name in created)
+
+
+@pytest.mark.provider_codex
+def test_manifest_records_cd_scenario_through_approved_fixtures(codex_root: Path) -> None:
+    fixture_dir = codex_root / "fixtures" / "approved"
+    manifest = json.loads((fixture_dir / "manifest.json").read_text(encoding="utf-8"))
+    startup = json.loads((fixture_dir / "session-start-startup.json").read_text(encoding="utf-8"))
+    drift = json.loads((fixture_dir / "session-start-cwd-drift.json").read_text(encoding="utf-8"))
+
+    assert startup["cwd"] != drift["cwd"]
+    assert Path(drift["cwd"]).parts[-3:] == ("test-harness", "hooks", "codex")
+    manifest_surfaces = {surface["surface"] for surface in manifest["hook_surfaces"]}
+    assert {
+        "SessionStart (--cd)",
+        "PreToolUse (--cd)",
+        "notify (--cd)",
+    } <= manifest_surfaces
