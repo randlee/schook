@@ -68,6 +68,23 @@ Run the fast harness suite:
 pytest test-harness/hooks/
 ```
 
+Run one provider suite through the stable `just` entrypoints:
+
+```bash
+just test hooks claude
+just test hooks codex
+just test hooks gemini
+```
+
+What each target runs:
+
+- `just test hooks claude`
+  runs `pytest test-harness/hooks/claude/tests/ -q`
+- `just test hooks codex`
+  runs `pytest test-harness/hooks/codex/tests/ -q`
+- `just test hooks gemini`
+  runs `pytest test-harness/hooks/gemini/tests/ -q`
+
 Run one non-interactive Claude surface:
 
 ```bash
