@@ -17,6 +17,7 @@ target: integrate/phase-N
 ## Hard Dependencies
 
 - current `origin/integrate/phase-N` branch head
+- `N.1` complete
 - `N.5` complete
 - local Codex global hooks remain available on this machine
 

@@ -16,6 +16,7 @@ target: integrate/phase-N
 
 ## Hard Dependencies
 
+- `N.2` complete
 - `N.5` complete
 - current `origin/integrate/phase-N` branch head
 - local Gemini execution path remains available on this machine
