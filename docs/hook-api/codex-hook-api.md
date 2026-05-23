@@ -276,7 +276,7 @@ the debounce behavior and the approved fixture/manifest contract.
 Run:
 
 ```bash
-pytest test-harness/hooks/codex/tests/ -m provider_codex -v
+pytest test-harness/hooks/codex/tests/ -q
 ```
 
 Environment variables:

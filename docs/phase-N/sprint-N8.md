@@ -17,6 +17,8 @@ target: integrate/phase-N
 ## Hard Dependencies
 
 - `N.6` complete
+- `N.7` is parallel, not sequential; the Gemini API-doc/model scope is disjoint
+  from this Codex API-doc/model scope
 - current `origin/integrate/phase-N` branch head
 
 ## Exact Targets

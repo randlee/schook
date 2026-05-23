@@ -92,7 +92,7 @@ atm send team-lead "$ATM_IDENTITY idle for ${seconds} seconds @ ${timestamp}" --
 ## Running Tests
 
 ```bash
-pytest test-harness/hooks/codex/tests/ -m provider_codex -v
+pytest test-harness/hooks/codex/tests/ -q
 ```
 
 ## Live Config (chook — schook project)
