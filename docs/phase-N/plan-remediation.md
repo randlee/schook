@@ -53,6 +53,9 @@ Current baseline by provider:
 Planning rule:
 
 - these sprints are verify/fix sprints, not blank-slate build sprints
+- each sprint closes one provider-facing deliverable set and nothing broader
+- if current artifacts already prove cleanly, the sprint may close with audit
+  evidence and no structural code changes
 - expected QA findings should therefore be narrow:
   - actual provider drift
   - doc/model/fixture mismatch
@@ -62,10 +65,13 @@ Planning rule:
 
 ### `N.5` Claude Harness And Baseline Verification
 
-- verify the Claude baseline still matches current local/global hook behavior
-- tighten only what has drifted
-- confirm the shared external harness contract Claude establishes for Codex and
-  Gemini
+- verify the existing Claude deliverable set:
+  - hook API doc
+  - Pydantic models
+  - approved fixtures/tests
+- refresh only proven drift
+- freeze the shared external harness contract the later provider sprints must
+  match
 
 Planned branch:
 
@@ -73,10 +79,11 @@ Planned branch:
 
 ### `N.6` Codex Harness Verification
 
-- verify Codex harness capture, fixtures, and tests against current local
-  Codex behavior
-- tighten only what is missing, drifted, or externally inconsistent with the
-  Claude baseline
+- verify the existing Codex harness deliverable set:
+  - capture path
+  - approved fixtures
+  - fixture-validation tests
+- tighten only proven drift or external mismatch with the Claude baseline
 
 Planned branch:
 
@@ -84,10 +91,11 @@ Planned branch:
 
 ### `N.7` Gemini Harness Verification
 
-- verify Gemini harness capture, fixtures, and tests against current local
-  Gemini behavior
-- tighten only what is missing, drifted, or externally inconsistent with the
-  Claude baseline
+- verify the existing Gemini harness deliverable set:
+  - capture path
+  - approved fixtures
+  - fixture-validation tests
+- tighten only proven drift or external mismatch with the Claude baseline
 
 Planned branch:
 
@@ -97,8 +105,8 @@ Planned branch:
 
 - verify `docs/hook-api/codex-hook-api.md`, Codex Pydantic models, and their
   tests against the approved Codex fixtures
-- tighten only what is missing, drifted, or structurally inconsistent with the
-  shared provider pattern
+- tighten only proven drift or structural mismatch with the shared provider
+  pattern
 
 Planned branch:
 
@@ -108,8 +116,8 @@ Planned branch:
 
 - verify `docs/hook-api/gemini-hook-api.md`, Gemini Pydantic models, and their
   tests against the approved Gemini fixtures
-- tighten only what is missing, drifted, or structurally inconsistent with the
-  shared provider pattern
+- tighten only proven drift or structural mismatch with the shared provider
+  pattern
 
 Planned branch:
 
@@ -146,5 +154,4 @@ Implementation rule:
 ## Non-Goals
 
 - runtime hook implementation work
-- findings-only cleanup that does not affect provider API docs, provider
-  Pydantic models, provider fixtures/tests, or the final `just` integration
+- findings-only cleanup outside the provider deliverables listed above

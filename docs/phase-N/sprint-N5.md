@@ -30,18 +30,18 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- verified Claude API doc
-- verified Claude models
-- verified Claude approved fixtures and tests
-- written shared-harness baseline for the later provider sprints
+- current `docs/hook-api/claude-hook-api.md`
+- current Claude Pydantic models
+- current Claude approved fixtures/tests
+- one written shared-harness baseline for later provider sprints
 
 ## Acceptance Criteria
 
-- Claude doc, models, fixtures, and tests are confirmed current or updated
-- the repo has one explicit Claude-derived external harness contract for later
-  provider sprints
-- no Claude work is left ambiguous between "already complete" and "needs
-  refresh"
+- the four listed deliverables are each either:
+  - confirmed current from local evidence
+  - or updated to match local evidence
+- the later provider sprints can cite one explicit Claude-derived external
+  harness contract
 
 ## Out Of Scope
 
