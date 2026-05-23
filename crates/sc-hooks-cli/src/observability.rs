@@ -29,11 +29,18 @@ const SERVICE_NAME: &str = "sc-hooks";
 /// Bound debug excerpts to 160 chars so audit records stay compact and the
 /// debug-profile tests can assert a fixed truncation boundary.
 const DEBUG_EXCERPT_LIMIT: usize = 160;
+// LOGGER_STATE is process-global and intentionally initialized exactly once for
+// the first canonical ai_root_dir seen in this process. All later callers must
+// go through logger_state_from_cell() so concurrent access shares one logger
+// instance and root divergence becomes an explicit error instead of a race.
 // Lock ordering for test-only global overrides is fixed: tests must acquire
 // observability_lock() before TEST_LOGGER_ROOT_OVERRIDE so env mutation and root
 // override state never invert the shared mutex order.
 static LOGGER_STATE: OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitError>>> =
     OnceLock::new();
+// FULL_AUDIT_RUN follows the same process-global invariant as LOGGER_STATE: one
+// accepted canonical root per process, one cached run state, and helper-gated
+// access so concurrent callers either reuse that state or receive a root-mismatch error.
 static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>> =
     OnceLock::new();
 #[cfg(test)]

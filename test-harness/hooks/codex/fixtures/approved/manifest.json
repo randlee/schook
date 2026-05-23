@@ -3,10 +3,10 @@
   "capture_root": "test-harness/hooks/codex/fixtures/approved/",
   "codex_version": "codex-cli 0.133.0",
   "hook_registration": {
-    "notify": "~/.codex/config.toml -> notify = [\"python3\", \"$REPO_ROOT/test-harness/hooks/codex/hooks/notify.py\"]",
+    "notify": "~/.codex/config.toml -> notify = [\"python3\", \"/synthetic/test/codex-harness/test-harness/hooks/codex/hooks/notify.py\"]",
     "pre_tool_use": "~/.codex/hooks.json -> python3 ~/.codex/scripts/schook-delay-pretooluse.py",
     "session_start": "~/.codex/hooks.json -> python3 ~/.codex/scripts/session-start.py",
-    "stop_probe": "~/.codex/hooks.json temporarily included python3 $REPO_ROOT/test-harness/hooks/codex/hooks/stop.py on 2026-05-22; no Stop fire observed"
+    "stop_probe": "~/.codex/hooks.json temporarily included python3 /synthetic/test/codex-harness/test-harness/hooks/codex/hooks/stop.py on 2026-05-22; no Stop fire observed"
   },
   "hook_surfaces": [
     {

@@ -90,6 +90,7 @@ def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expecte
         assert "/Users/randlee/" not in payload_text, payload_path.name
         assert "/tmp/schook-gemini-" not in payload_text, payload_path.name
         assert "/private/tmp/schook-gemini-" not in payload_text, payload_path.name
+        assert "Process Group PGID: 31010" not in payload_text, payload_path.name
         assert "/Users/randlee/" not in json.dumps(env, sort_keys=True), env_path.name
         assert "/tmp/schook-gemini-" not in json.dumps(env, sort_keys=True), env_path.name
         assert "/private/tmp/schook-gemini-" not in json.dumps(env, sort_keys=True), env_path.name

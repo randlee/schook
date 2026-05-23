@@ -70,22 +70,30 @@ def test_manifest_has_required_top_level_keys(codex_root: Path) -> None:
 def test_approved_payload_fixtures_validate_against_models(codex_root: Path) -> None:
     fixture_dir = codex_root / "fixtures" / "approved"
     for fixture_path in sorted(fixture_dir.glob("*.json")):
+        fixture_text = fixture_path.read_text(encoding="utf-8")
+        assert "$REPO_ROOT" not in fixture_text, fixture_path.name
         if fixture_path.name == "manifest.json" or fixture_path.name.endswith(".env.json"):
             continue
-        validate_codex_hook_payload(json.loads(fixture_path.read_text(encoding="utf-8")))
+        payload = json.loads(fixture_text)
+        validate_codex_hook_payload(payload)
+        assert payload["cwd"].startswith("/synthetic/test/codex-harness"), fixture_path.name
 
 
 @pytest.mark.provider_codex
 def test_approved_env_fixtures_validate_and_redact_sensitive_values(codex_root: Path) -> None:
     fixture_dir = codex_root / "fixtures" / "approved"
     for fixture_path in sorted(fixture_dir.glob("*.env.json")):
-        validated = validate_codex_env_snapshot(json.loads(fixture_path.read_text(encoding="utf-8")))
+        fixture_text = fixture_path.read_text(encoding="utf-8")
+        assert "$REPO_ROOT" not in fixture_text, fixture_path.name
+        validated = validate_codex_env_snapshot(json.loads(fixture_text))
         assert validated.atm_env["ATM_IDENTITY"].strip()
         assert validated.atm_env["ATM_TEAM"].strip()
         for key, value in validated.atm_env.items():
             if any(token in key for token in ("TOKEN", "AUTH")):
                 assert value == "<redacted>"
         assert validated.codex_env["CODEX_MANAGED_PACKAGE_ROOT"].strip()
+        assert validated.cwd_from_getcwd.startswith("/synthetic/test/codex-harness")
+        assert validated.pwd_env is None or validated.pwd_env.startswith("/synthetic/test/codex-harness")
 
 
 @pytest.mark.provider_codex

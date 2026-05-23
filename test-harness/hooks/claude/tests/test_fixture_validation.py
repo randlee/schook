@@ -131,6 +131,14 @@ def test_approved_fixtures_redact_machine_local_paths(claude_root: Path) -> None
         if transcript_path is not None:
             assert transcript_path.startswith(allowed_transcript_prefixes), payload_path.name
 
+    permission_request = json.loads(
+        (fixture_root / "permission-request-bash.json").read_text(encoding="utf-8")
+    )
+    command = permission_request["tool_input"]["command"]
+    description = permission_request["tool_input"]["description"]
+    assert "randlee/schook" not in command
+    assert "randlee/schook" not in description
+
 
 @pytest.mark.provider_claude
 def test_runner_script_exists_and_is_executable(claude_root: Path) -> None:

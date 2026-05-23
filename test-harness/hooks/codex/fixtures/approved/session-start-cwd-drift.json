@@ -1,5 +1,5 @@
 {
-  "cwd": "$REPO_ROOT/test-harness/hooks/codex",
+  "cwd": "/synthetic/test/codex-harness/test-harness/hooks/codex",
   "hook_event_name": "SessionStart",
   "model": "gpt-5.4",
   "permission_mode": "bypassPermissions",
