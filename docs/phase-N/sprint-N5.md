@@ -35,6 +35,20 @@ target: integrate/phase-N
 - verified Claude approved fixtures and tests
 - written shared-harness baseline for the later provider sprints
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/claude/fixtures/approved/
+test-harness/hooks/claude/tests/
+test_harness/hooks/claude/models/payloads.py
+docs/hook-api/claude-hook-api.md
+```
+
 ## Acceptance Criteria
 
 - Claude doc, models, fixtures, and tests are confirmed current or updated

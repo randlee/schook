@@ -32,6 +32,17 @@ target: integrate/phase-N
 - verified Gemini Pydantic models
 - verified Gemini model-validation tests
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Signature Sample
+
+```python
+def validate_gemini_hook_payload(payload: Any) -> GeminiHookPayload
+```
+
 ## Acceptance Criteria
 
 - `docs/hook-api/gemini-hook-api.md` matches the approved Gemini fixtures

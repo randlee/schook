@@ -35,6 +35,18 @@ target: integrate/phase-N
 - verified Gemini approved fixtures
 - verified Gemini fixture-validation tests
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/gemini/fixtures/approved/
+test-harness/hooks/gemini/tests/
+```
+
 ## Acceptance Criteria
 
 - Gemini harness is confirmed runnable

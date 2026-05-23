@@ -32,6 +32,19 @@ target: integrate/phase-N
 - verified Codex Pydantic models
 - verified Codex model-validation tests
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Signature Sample
+
+```python
+def validate_codex_hook_payload(payload: Any) -> CodexHookPayload
+def validate_codex_env_snapshot(payload: Any) -> CodexEnvSnapshot
+def validate_codex_fixture_manifest(payload: Any) -> CodexFixtureManifest
+```
+
 ## Acceptance Criteria
 
 - `docs/hook-api/codex-hook-api.md` matches the approved Codex fixtures

@@ -137,6 +137,17 @@ must present one shared contract:
 - same test invocation shape
 - same report/output conventions
 
+Contract sample:
+
+```text
+test-harness/hooks/<provider>/
+  fixtures/approved/
+  captures/raw/
+  tests/
+
+test_harness/hooks/<provider>/models/payloads.py
+```
+
 Implementation rule:
 
 - copy/adapt the Claude harness layout first

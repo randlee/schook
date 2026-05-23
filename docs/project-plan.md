@@ -103,6 +103,11 @@ Phase N boundary update:
   standalone section-10 sprint block
 - `docs/phase-N/readiness.md` is the authoritative verdict record for the
   phase; `N.4` completed the row transition from `In progress` to `Completed`
+- post-`N.4` verification work for the provider harness lives in
+  `docs/phase-N/plan-remediation.md` and `docs/phase-N/sprint-N5.md` through
+  `docs/phase-N/sprint-N10.md`; that follow-on track verifies and tightens the
+  existing provider docs, models, fixtures, tests, and final `just`
+  integration rather than introducing new runtime scope
 
 Phase N planning-branch note:
 

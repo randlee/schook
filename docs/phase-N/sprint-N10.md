@@ -33,6 +33,19 @@ target: integrate/phase-N
 - `just test hooks gemini`
 - docs explaining what each target runs
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the scope this sprint claims.
+
+## Signature Sample
+
+```makefile
+test hooks claude:
+test hooks codex:
+test hooks gemini:
+```
+
 ## Acceptance Criteria
 
 - `just test hooks claude` exercises the Claude harness

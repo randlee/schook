@@ -35,6 +35,18 @@ target: integrate/phase-N
 - verified Codex approved fixtures
 - verified Codex fixture-validation tests
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/codex/fixtures/approved/
+test-harness/hooks/codex/tests/
+```
+
 ## Acceptance Criteria
 
 - Codex harness is confirmed runnable
