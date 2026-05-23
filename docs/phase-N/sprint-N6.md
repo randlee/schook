@@ -11,11 +11,8 @@ target: integrate/phase-N
 
 ## Goal
 
-- verify the existing Codex harness against current local Codex behavior
-- tighten only what is drifted, weak, or externally inconsistent with the
-  Claude baseline
-- keep Codex externally identical to Claude from the harness user's
-  perspective
+- leave the Codex harness deliverables current against local Codex evidence
+- keep Codex externally identical to the Claude harness contract
 
 ## Hard Dependencies
 
@@ -31,15 +28,17 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- verified Codex harness capture path
-- verified Codex approved fixtures
-- verified Codex fixture-validation tests
+- `test-harness/hooks/codex/captures/raw/`
+- `test-harness/hooks/codex/fixtures/approved/`
+- `test-harness/hooks/codex/tests/`
 
 ## Acceptance Criteria
 
-- the three listed deliverables are each either:
-  - confirmed current from local Codex evidence
-  - or updated to match local Codex evidence
+- `test-harness/hooks/codex/captures/raw/` is the current raw-capture path for
+  Codex evidence
+- `test-harness/hooks/codex/fixtures/approved/` is the approved Codex fixture
+  set used by the tests
+- `test-harness/hooks/codex/tests/` validates the approved Codex fixtures
 - Codex keeps the same external harness contract Claude exposes
 
 ## Out Of Scope

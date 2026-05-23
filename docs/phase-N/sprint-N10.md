@@ -11,7 +11,7 @@ target: integrate/phase-N
 
 ## Goal
 
-- expose one stable `just` entrypoint per provider for the permanent harness
+- leave one stable `just` entrypoint per provider for the permanent harness
 - keep harness execution easy and repeatable on this repo
 
 ## Hard Dependencies
@@ -35,9 +35,9 @@ target: integrate/phase-N
 
 ## Acceptance Criteria
 
-- `just test hooks claude` exercises the Claude harness
-- `just test hooks codex` exercises the Codex harness
-- `just test hooks gemini` exercises the Gemini harness
+- `just test hooks claude` exists and runs the Claude harness
+- `just test hooks codex` exists and runs the Codex harness
+- `just test hooks gemini` exists and runs the Gemini harness
 - the targets are documented and reproducible
 
 ## Out Of Scope

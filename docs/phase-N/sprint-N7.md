@@ -11,11 +11,8 @@ target: integrate/phase-N
 
 ## Goal
 
-- verify the existing Gemini harness against current local Gemini behavior
-- tighten only what is drifted, weak, or externally inconsistent with the
-  Claude baseline
-- keep Gemini externally identical to Claude from the harness user's
-  perspective
+- leave the Gemini harness deliverables current against local Gemini evidence
+- keep Gemini externally identical to the Claude harness contract
 
 ## Hard Dependencies
 
@@ -31,15 +28,17 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- verified Gemini harness capture path
-- verified Gemini approved fixtures
-- verified Gemini fixture-validation tests
+- `test-harness/hooks/gemini/captures/raw/`
+- `test-harness/hooks/gemini/fixtures/approved/`
+- `test-harness/hooks/gemini/tests/`
 
 ## Acceptance Criteria
 
-- the three listed deliverables are each either:
-  - confirmed current from local Gemini evidence
-  - or updated to match local Gemini evidence
+- `test-harness/hooks/gemini/captures/raw/` is the current raw-capture path
+  for Gemini evidence
+- `test-harness/hooks/gemini/fixtures/approved/` is the approved Gemini
+  fixture set used by the tests
+- `test-harness/hooks/gemini/tests/` validates the approved Gemini fixtures
 - Gemini keeps the same external harness contract Claude exposes
 
 ## Out Of Scope

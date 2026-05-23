@@ -11,9 +11,8 @@ target: integrate/phase-N
 
 ## Goal
 
-- verify the Codex API doc and Codex models against the approved Codex
-  fixtures
-- tighten only real drift, missing proof, or layout inconsistency
+- leave the Codex API-doc and model deliverables current against the approved
+  Codex fixtures
 
 ## Hard Dependencies
 
@@ -28,16 +27,17 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- verified `docs/hook-api/codex-hook-api.md`
-- verified Codex Pydantic models
-- verified Codex model-validation tests
+- `docs/hook-api/codex-hook-api.md`
+- `test_harness/hooks/codex/models/payloads.py`
+- `test-harness/hooks/codex/tests/`
 
 ## Acceptance Criteria
 
-- the three listed deliverables are each either:
-  - confirmed current from the approved Codex fixtures
-  - or updated to match the approved Codex fixtures
-- Codex model/test layout still follows the shared provider pattern
+- `docs/hook-api/codex-hook-api.md` matches the approved Codex fixtures
+- `test_harness/hooks/codex/models/payloads.py` validates the approved Codex
+  fixtures
+- `test-harness/hooks/codex/tests/` validates the approved Codex fixtures
+- Codex model/test layout follows the shared provider pattern
 
 ## Out Of Scope
 
