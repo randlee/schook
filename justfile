@@ -1,12 +1,42 @@
-set shell := ["zsh", "-cu"]
+set windows-shell := ["pwsh", "-NoLogo", "-Command"]
 
-default:
-  @just --list
+python_cmd := if os_family() == "windows" { "python" } else { "python3" }
 
-test category provider:
-  case "{{category}}:{{provider}}" in \
-    hooks:claude) pytest test-harness/hooks/claude/tests/ -q ;; \
-    hooks:codex) pytest test-harness/hooks/codex/tests/ -q ;; \
-    hooks:gemini) pytest test-harness/hooks/gemini/tests/ -q ;; \
-    *) echo "unsupported target: just test {{category}} {{provider}}" >&2; exit 1 ;; \
-  esac
+# Show the curated repo task help.
+default: help
+
+# Show the curated repo task help.
+help:
+    {{python_cmd}} .just/print_help.py
+
+[private]
+_fmt-write:
+    cargo fmt --all
+
+[private]
+_fmt-check:
+    cargo fmt --all --check
+
+# Format the Rust workspace or run the formatting gate.
+fmt mode='check':
+    {{python_cmd}} .just/run_fmt.py {{mode}}
+
+# Build the full workspace.
+build:
+    cargo build --workspace
+
+# Run workspace or harness tests.
+test target='workspace' provider='':
+    {{python_cmd}} .just/run_test.py {{target}} {{provider}}
+
+# Remove workspace build artifacts.
+clean:
+    cargo clean
+
+# Run the local CI-equivalent command set for the current repo surface.
+ci:
+    @just fmt check
+    @just test workspace
+    @just test hooks claude
+    @just test hooks codex
+    @just test hooks gemini
