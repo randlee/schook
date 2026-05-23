@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 
@@ -61,8 +62,32 @@ impl fmt::Display for HookType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Error returned when an unknown hook type string is encountered.
+pub struct UnknownHookType(String);
+
+impl UnknownHookType {
+    /// Creates a new UnknownHookType from the unrecognized hook type value.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Returns the unrecognized hook type value as a string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl fmt::Display for UnknownHookType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "unknown hook type `{}`", self.0)
+    }
+}
+
+impl Error for UnknownHookType {}
+
 impl FromStr for HookType {
-    type Err = &'static str;
+    type Err = UnknownHookType;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
@@ -79,14 +104,14 @@ impl FromStr for HookType {
             "WorktreeCreate" => Ok(Self::WorktreeCreate),
             "WorktreeRemove" => Ok(Self::WorktreeRemove),
             "Stop" => Ok(Self::Stop),
-            _ => Err("unknown hook type"),
+            _ => Err(UnknownHookType::new(value)),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::HookType;
+    use super::{HookType, UnknownHookType};
     use std::str::FromStr;
 
     #[test]
@@ -109,6 +134,14 @@ mod tests {
             let reparsed = HookType::from_str(hook.as_str()).expect("hook should parse");
             assert_eq!(reparsed, hook);
         }
+    }
+
+    #[test]
+    fn unknown_hook_type_preserves_original_value() {
+        let error = HookType::from_str("Nope").expect_err("unknown hook should fail");
+        assert_eq!(error, UnknownHookType::new("Nope"));
+        assert_eq!(error.as_str(), "Nope");
+        assert_eq!(error.to_string(), "unknown hook type `Nope`");
     }
 }
 

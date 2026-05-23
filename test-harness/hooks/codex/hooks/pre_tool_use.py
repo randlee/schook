@@ -14,5 +14,6 @@ from test_harness.hooks.codex.debounce import cancel_on_pretooluse
 
 
 if __name__ == "__main__":
+    # Codex can replay PreToolUse hooks; cancelation must stay safe on repeated delivery.
     cancel_on_pretooluse(sys.stdin.read())
     raise SystemExit(0)

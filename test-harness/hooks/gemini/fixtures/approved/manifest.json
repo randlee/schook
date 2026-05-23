@@ -1,0 +1,92 @@
+{
+  "provider": "gemini",
+  "gemini_version": "gemini-cli 0.42.0",
+  "capture_date": "2026-05-22T19:11:00Z",
+  "capture_root": "test-harness/hooks/gemini/fixtures/approved/",
+  "hook_registration": {
+    "scope": "user",
+    "path": "~/.gemini/settings.json",
+    "isolation": "temporary HOME with copied auth files and harness-only hook settings"
+  },
+  "hook_surfaces": [
+    {
+      "surface": "before-agent",
+      "status": "captured",
+      "payload_fixture": "before-agent.json",
+      "env_fixture": "before-agent.env.json",
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "non-zero blocks agent execution and surfaces the stderr text as the block reason while the CLI still exited 0 in the local probe",
+        "stdio_contract": "stderr is surfaced to the operator as the block reason; no stdout response contract was required for the captured path"
+      }
+    },
+    {
+      "surface": "before-tool",
+      "status": "captured",
+      "payload_fixture": "before-tool.json",
+      "env_fixture": "before-tool.env.json",
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "non-zero blocks the tool execution and surfaces the hook stderr in the tool error path; the overall CLI still exited 0 in the local probe",
+        "stdio_contract": "stderr is surfaced as the tool block reason; no stdout response contract was required for the captured path"
+      }
+    },
+    {
+      "surface": "after-tool",
+      "status": "captured",
+      "payload_fixture": "after-tool.json",
+      "env_fixture": "after-tool.env.json",
+      "control_semantics": {
+        "blocking": true,
+        "exit_code_contract": "non-zero marks the tool result blocked after the tool runs and surfaces hook stderr in the tool error path; the overall CLI still exited 0 in the local probe",
+        "stdio_contract": "stderr is surfaced as the tool-result block reason; no stdout response contract was required for the captured path"
+      }
+    },
+    {
+      "surface": "after-agent",
+      "status": "captured",
+      "payload_fixture": "after-agent.json",
+      "env_fixture": "after-agent.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "captured as a post-response hook; failure warnings are surfaced on stderr, but the isolated non-zero exit path was not re-run cleanly after quota exhaustion",
+        "stdio_contract": "stderr warnings are surfaced to the operator; no stdout response contract was required for the captured path"
+      },
+      "caveat": "provider quota exhaustion prevented a later clean isolated non-zero rerun, so shell-exit evidence remains partial for this post-response surface"
+    },
+    {
+      "surface": "session-start-startup",
+      "status": "captured",
+      "payload_fixture": "session-start-startup.json",
+      "env_fixture": "session-start-startup.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "non-zero produced a warning but the agent still completed and the CLI exited 0 in the local probe",
+        "stdio_contract": "stderr warnings are surfaced to the operator; hook stdout was not required for the captured path"
+      }
+    },
+    {
+      "surface": "session-start-resume",
+      "status": "captured",
+      "payload_fixture": "session-start-resume.json",
+      "env_fixture": "session-start-resume.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "same observed semantics as startup SessionStart; non-zero warning path did not stop the resumed turn in local probes",
+        "stdio_contract": "stderr warnings are surfaced to the operator; hook stdout was not required for the captured path"
+      }
+    },
+    {
+      "surface": "session-end",
+      "status": "captured",
+      "payload_fixture": "session-end.json",
+      "env_fixture": "session-end.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "captured as a post-exit hook; failure warnings are surfaced on stderr, but the isolated non-zero exit path was later confounded by provider quota exhaustion",
+        "stdio_contract": "stderr warnings are surfaced to the operator; no stdout response contract was required for the captured path"
+      },
+      "caveat": "provider quota exhaustion prevented a later clean isolated non-zero rerun, so shell-exit evidence remains partial for this post-exit surface"
+    }
+  ]
+}

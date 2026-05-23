@@ -61,7 +61,7 @@ impl ManifestProvider for AgentSpawnGatesHandler {
             name: "agent-spawn-gates".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![HookType::PreToolUse],
-            matchers: vec![ManifestMatcher::from("Agent")],
+            matchers: vec![ManifestMatcher::new("Agent").expect("builtin matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,

@@ -1,7 +1,7 @@
 ---
 id: N.1
 title: Codex Harness Schema Capture
-status: planned
+status: complete
 branch: feature/pN-s1-codex-harness-schema-capture
 worktree: ../schook-worktrees/feature/pN-s1-codex-harness-schema-capture
 target: plan/phase-N
@@ -15,7 +15,7 @@ phase: N
 sprint: N.1
 worktree: ../schook-worktrees/feature/pN-s1-codex-harness-schema-capture
 branch: feature/pN-s1-codex-harness-schema-capture
-status: planned
+status: complete
 estimated_scope: large
 ```
 

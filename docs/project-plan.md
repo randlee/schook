@@ -87,19 +87,22 @@ Important planning rule:
 | `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
 | `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
 | `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
-| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture planning, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
+| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture evidence, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `docs/phase-N/normalization-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
 
 Phase N boundary update:
 
-- `Phase N` currently authorizes harness capture, provider evidence docs,
-  normalization inventory, and the final promotion-gate record only
-- `Phase N` does not authorize Codex or Gemini runtime adapter implementation
+- this branch carries the proposed `Phase N` promotion result for
+  integration-author review; the authoritative readiness verdict remains
+  `PENDING` on the branch until merge-time fill per `ADR-SHK-007`
+- `Phase N` itself does not implement Codex or Gemini runtime adapter work;
+  any follow-on runtime sprint is limited to the surfaces proposed in
+  `docs/phase-N/release-checklist.md` once the readiness verdict is filled at
+  merge time
 - `Phase N` execution detail lives in `docs/plan-phase-N.md` and `docs/phase-N/`;
   the section-4 row in this document is a summary pointer rather than a
   standalone section-10 sprint block
 - `docs/phase-N/readiness.md` is the authoritative verdict record for the
-  phase; `N.4` is the step that changes the `Phase N` row from `In progress`
-  to `Completed`
+  phase; `N.4` completed the row transition from `In progress` to `Completed`
 
 Phase N planning-branch note:
 
@@ -951,13 +954,31 @@ Entry rule:
 ### Phase N: Cross-Provider Harness-Planning Expansion
 
 Status:
-- in progress
+- completed
 
 Execution detail:
 - authoritative `Phase N` execution detail lives in `docs/plan-phase-N.md`
   and `docs/phase-N/`
 - the section-4 `Phase N` row in this document is the summary pointer for the
   phase rather than a standalone sprint-detail record
+
+Final verdict summary:
+- `docs/phase-N/readiness.md` remains `PENDING` on this branch per
+  `ADR-SHK-007`
+- proposed follow-on runtime scope:
+  - Codex `SessionStart`
+  - Codex `PreToolUse`
+  - Gemini `SessionStart`
+  - Gemini `SessionEnd`
+  - Gemini `BeforeAgent`
+  - Gemini `BeforeTool`
+  - Gemini `AfterTool`
+- proposed deferred follow-on scope:
+  - Codex `notify`
+  - Codex `Stop`
+  - Codex `resume`
+  - Codex `fork`
+  - Gemini `AfterAgent`
 
 ### S10-VERSION-BUMP-1: Claude Version-Bump Detection
 

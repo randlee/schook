@@ -32,3 +32,4 @@ toml = "0.8.20"
 
 [dev-dependencies]
 sc-hooks-test = { version = "0.1.0", path = "../sc-hooks-test" }
+serial_test = "3.2.0"
