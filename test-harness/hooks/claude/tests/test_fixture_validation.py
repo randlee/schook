@@ -39,6 +39,7 @@ def test_fixture_manifest_matches_expected_hook_surfaces(claude_root: Path, expe
 
 
 @pytest.mark.provider_claude
+@pytest.mark.live_capture
 def test_capture_scripts_write_raw_payload_files(tmp_path: Path, claude_root: Path, expected_hooks: dict[str, str]) -> None:
     hooks_dir = claude_root / "hooks"
     capture_root = tmp_path / "captures"
@@ -78,6 +79,7 @@ def test_capture_scripts_write_raw_payload_files(tmp_path: Path, claude_root: Pa
 
 
 @pytest.mark.provider_claude
+@pytest.mark.live_capture
 def test_capture_scripts_redact_sensitive_env_values(tmp_path: Path, claude_root: Path) -> None:
     hooks_dir = claude_root / "hooks"
     capture_root = tmp_path / "captures"

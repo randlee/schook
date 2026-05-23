@@ -353,6 +353,10 @@ Adjacent but not part of the current eight-hook baseline:
 
 ## N.3 Normalization Carry-Forward
 
+This section is planning carry-forward only. `N.3` is not merged yet on the
+current branch, so these mappings remain anticipated rather than authoritative
+runtime-normalization outcomes.
+
 Claude baseline fields that contributed to `N.3` canonical mapping candidates:
 
 - `session_id`
