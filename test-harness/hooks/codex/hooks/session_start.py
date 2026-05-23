@@ -32,4 +32,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Codex can replay SessionStart hooks; capture + forward behavior must remain idempotent.
     raise SystemExit(main())

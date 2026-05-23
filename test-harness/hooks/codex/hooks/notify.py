@@ -14,5 +14,6 @@ from test_harness.hooks.codex.debounce import schedule_stop
 
 
 if __name__ == "__main__":
+    # Codex can replay notify hooks; scheduling must stay safe on repeated delivery.
     schedule_stop(sys.argv[1] if len(sys.argv) > 1 else "")
     raise SystemExit(0)

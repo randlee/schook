@@ -1,6 +1,6 @@
 {
   "client": "codex_exec",
-  "cwd": "$REPO_ROOT",
+  "cwd": "/synthetic/test/codex-harness",
   "input-messages": [
     "Run pwd then reply exactly OK."
   ],

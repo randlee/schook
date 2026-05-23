@@ -14,5 +14,6 @@ from test_harness.hooks.codex.debounce import capture_stop
 
 
 if __name__ == "__main__":
+    # The local Stop probe may be retried; capture must stay safe on repeated delivery.
     capture_stop(sys.stdin.read())
     raise SystemExit(0)

@@ -17,8 +17,8 @@
   ],
   "session_id": "a760f75c-055a-46f9-bcbb-447c47a22f3c",
   "tool_input": {
-    "command": "gh issue list --repo randlee/schook --limit 100",
-    "description": "List all issues on randlee/schook"
+    "command": "gh issue list --repo synthetic-org/schook --limit 100",
+    "description": "List all issues on synthetic-org/schook"
   },
   "tool_name": "Bash",
   "transcript_path": "/synthetic/test/claude-transcripts/claude-harness/a760f75c-055a-46f9-bcbb-447c47a22f3c.jsonl"
