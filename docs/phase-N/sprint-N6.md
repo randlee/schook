@@ -24,7 +24,7 @@ target: integrate/phase-N
 
 - `test-harness/hooks/codex/`
 - `test_harness/hooks/codex/`
-- shared harness files only where Codex must align outward behavior to Claude
+- `test-harness/hooks/README.md`
 
 ## Deliverables
 
