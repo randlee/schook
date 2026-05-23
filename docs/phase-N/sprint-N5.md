@@ -11,10 +11,9 @@ target: integrate/phase-N
 
 ## Goal
 
-- verify the existing Claude harness, API doc, models, fixtures, and tests
-  against current local/global Claude behavior
-- refresh only what has drifted
-- confirm the shared external harness contract that Codex and Gemini must match
+- leave the Claude provider deliverables current against local/global Claude
+  evidence
+- freeze one shared external harness contract that Codex and Gemini must match
 
 ## Hard Dependencies
 
@@ -30,10 +29,11 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- current `docs/hook-api/claude-hook-api.md`
-- current Claude Pydantic models
-- current Claude approved fixtures/tests
-- one written shared-harness baseline for later provider sprints
+- `docs/hook-api/claude-hook-api.md`
+- `test_harness/hooks/claude/models/payloads.py`
+- `test-harness/hooks/claude/fixtures/approved/`
+- `test-harness/hooks/claude/tests/`
+- `test-harness/hooks/README.md`
 
 ## Production-Ready Expectation
 
@@ -51,11 +51,14 @@ docs/hook-api/claude-hook-api.md
 
 ## Acceptance Criteria
 
-- the four listed deliverables are each either:
-  - confirmed current from local evidence
-  - or updated to match local evidence
-- the later provider sprints can cite one explicit Claude-derived external
-  harness contract
+- `docs/hook-api/claude-hook-api.md` matches the approved Claude fixtures
+- `test_harness/hooks/claude/models/payloads.py` validates the approved Claude
+  fixtures
+- `test-harness/hooks/claude/fixtures/approved/` is the approved Claude
+  fixture set used by the tests
+- `test-harness/hooks/claude/tests/` validates the approved Claude fixtures
+- `test-harness/hooks/README.md` states the shared external harness contract
+  later provider sprints must match
 
 ## Out Of Scope
 

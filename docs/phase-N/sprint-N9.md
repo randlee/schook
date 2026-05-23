@@ -11,9 +11,8 @@ target: integrate/phase-N
 
 ## Goal
 
-- verify the Gemini API doc and Gemini models against the approved Gemini
-  fixtures
-- tighten only real drift, missing proof, or layout inconsistency
+- leave the Gemini API-doc and model deliverables current against the approved
+  Gemini fixtures
 
 ## Hard Dependencies
 
@@ -28,9 +27,9 @@ target: integrate/phase-N
 
 ## Deliverables
 
-- verified `docs/hook-api/gemini-hook-api.md`
-- verified Gemini Pydantic models
-- verified Gemini model-validation tests
+- `docs/hook-api/gemini-hook-api.md`
+- `test_harness/hooks/gemini/models/payloads.py`
+- `test-harness/hooks/gemini/tests/`
 
 ## Production-Ready Expectation
 
@@ -45,10 +44,11 @@ def validate_gemini_hook_payload(payload: Any) -> GeminiHookPayload
 
 ## Acceptance Criteria
 
-- the three listed deliverables are each either:
-  - confirmed current from the approved Gemini fixtures
-  - or updated to match the approved Gemini fixtures
-- Gemini model/test layout still follows the shared provider pattern
+- `docs/hook-api/gemini-hook-api.md` matches the approved Gemini fixtures
+- `test_harness/hooks/gemini/models/payloads.py` validates the approved Gemini
+  fixtures
+- `test-harness/hooks/gemini/tests/` validates the approved Gemini fixtures
+- Gemini model/test layout follows the shared provider pattern
 
 ## Out Of Scope
 
