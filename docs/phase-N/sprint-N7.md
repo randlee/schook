@@ -24,7 +24,7 @@ target: integrate/phase-N
 
 - `test-harness/hooks/gemini/`
 - `test_harness/hooks/gemini/`
-- shared harness files only where Gemini must align outward behavior to Claude
+- `test-harness/hooks/README.md`
 
 ## Deliverables
 
