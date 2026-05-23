@@ -10,6 +10,24 @@ different.
 All verified facts below come from `N.2` repo-owned Gemini fixtures, env
 snapshots, or direct local control-semantics probes.
 
+## Model Entry Points
+
+Current Gemini payload validation entrypoint:
+
+```python
+def validate_gemini_hook_payload(payload: Any) -> GeminiHookPayload
+```
+
+Approved fixture examples referenced by this document:
+
+- `test-harness/hooks/gemini/fixtures/approved/session-start-startup.json`
+- `test-harness/hooks/gemini/fixtures/approved/session-start-resume.json`
+- `test-harness/hooks/gemini/fixtures/approved/session-end.json`
+- `test-harness/hooks/gemini/fixtures/approved/before-agent.json`
+- `test-harness/hooks/gemini/fixtures/approved/before-tool.json`
+- `test-harness/hooks/gemini/fixtures/approved/after-tool.json`
+- `test-harness/hooks/gemini/fixtures/approved/after-agent.json`
+
 ## Registration Model
 
 Current verified local activation path:
