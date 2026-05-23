@@ -381,7 +381,7 @@ high-level release or architecture story requires it.
 
 For repeatable Claude reruns from the harness worktree:
 
-1. `cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing`
+1. `cd /path/to/schook`
 2. `CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh`
 3. run the printed `claude --model ... --setting-sources local --settings ...`
    command exactly

@@ -227,7 +227,7 @@ Current verified anchor:
 Observed facts from the current harness:
 
 - `SessionStart(source="startup")` captured `cwd ==
-  CLAUDE_PROJECT_DIR == /Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture`
+  CLAUDE_PROJECT_DIR == /synthetic/test/claude-harness-root`
 - `PreCompact`, `SessionStart(source="compact")`, `SessionEnd(reason="clear")`,
   and `SessionStart(source="clear")` also captured the same
   `CLAUDE_PROJECT_DIR` value in hook env
