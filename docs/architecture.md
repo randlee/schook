@@ -375,6 +375,25 @@ on `integrate/phase-N` before `N.3` / `N.4` begin.
 - future phases may reuse this pattern only when the owning phase plan and
   readiness ledger cite `ADR-SHK-007` explicitly
 
+### 9.2d Planned Shared Provider-Harness Contract
+
+The post-`Phase N` verification track keeps Claude, Codex, and Gemini on one
+shared external harness contract:
+
+- each provider keeps the same top-level harness layout under
+  `test-harness/hooks/<provider>/`
+- each provider keeps approved fixtures as the long-lived contract evidence
+- each provider keeps provider-local Pydantic payload models under
+  `test_harness/hooks/<provider>/models/`
+- each provider validates the approved fixtures through the same pytest-driven
+  harness flow
+- the repo exposes stable `just test hooks claude`, `just test hooks codex`,
+  and `just test hooks gemini` entrypoints once the verification track closes
+
+This contract keeps the permanent harness reusable across providers while
+allowing provider-local schema differences inside the provider models and
+provider evidence docs.
+
 ### 9.2a Planned Version-Bump Detection Boundary
 
 The hook harness must also track which AI CLI version produced the latest
