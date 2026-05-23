@@ -89,9 +89,8 @@ Observed live notes:
 
 ## Runner Usage
 
-Use [run-capture.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup/test-harness/hooks/claude/scripts/run-capture.sh)
-to launch a Claude session against one canned prompt while writing artifacts to
-the harness tree.
+Use `test-harness/hooks/claude/scripts/run-capture.sh` to launch a Claude
+session against one canned prompt while writing artifacts to the harness tree.
 
 Example:
 
@@ -113,14 +112,14 @@ Behavior:
 - leaves raw payload files in the harness capture directory
 
 For manual interactive runs, use
-[prepare-manual-launch.sh](/Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup/test-harness/hooks/claude/scripts/prepare-manual-launch.sh).
-It prints a temporary settings file path and the exact `claude` command to run
-with harness-local hooks.
+`test-harness/hooks/claude/scripts/prepare-manual-launch.sh`. It prints a
+temporary settings file path and the exact `claude` command to run with
+harness-local hooks.
 
 Recommended manual rerun flow:
 
 ```bash
-cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup
+cd /path/to/schook
 CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh
 ```
 
@@ -130,7 +129,7 @@ command exactly.
 For the interactive helper used during this live pass:
 
 ```bash
-cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-harness-followup
+cd /path/to/schook
 uv run --with pexpect \
   test-harness/hooks/claude/scripts/run-interactive-capture.py \
   notification
