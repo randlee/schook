@@ -51,7 +51,7 @@ Verified payload fields:
 | `permission_mode` | string | captured as `"bypassPermissions"` |
 | `session_id` | string | stable startup session id; matches later `notify.thread-id` in the same run |
 | `source` | string | captured as `"startup"` |
-| `transcript_path` | string | Codex transcript path for the session |
+| `transcript_path` | string | Codex transcript path for the session; captured with a leading `~`, so expand it before absolute filesystem use |
 
 Verified environment fields:
 
@@ -113,7 +113,7 @@ Verified payload fields:
 | `tool_name` | string | captured as `"Bash"` |
 | `tool_use_id` | string | stable tool invocation id |
 | `tool_input.command` | string | captured command for Bash tool use |
-| `transcript_path` | string | Codex transcript path for the session |
+| `transcript_path` | string | Codex transcript path for the session; captured with a leading `~`, so expand it before absolute filesystem use |
 
 ### `Stop` — Not Reliable
 
