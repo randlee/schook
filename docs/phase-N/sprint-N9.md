@@ -45,9 +45,10 @@ def validate_gemini_hook_payload(payload: Any) -> GeminiHookPayload
 
 ## Acceptance Criteria
 
-- `docs/hook-api/gemini-hook-api.md` matches the approved Gemini fixtures
-- Gemini Pydantic models validate the approved Gemini fixtures
-- Gemini model/test layout follows the shared provider pattern
+- the three listed deliverables are each either:
+  - confirmed current from the approved Gemini fixtures
+  - or updated to match the approved Gemini fixtures
+- Gemini model/test layout still follows the shared provider pattern
 
 ## Out Of Scope
 

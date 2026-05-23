@@ -49,10 +49,10 @@ test-harness/hooks/gemini/tests/
 
 ## Acceptance Criteria
 
-- Gemini harness is confirmed runnable
-- Gemini approved fixtures are confirmed against local evidence
-- Gemini tests validate schema-bearing fixtures
-- Gemini presents the same external harness contract Claude does
+- the three listed deliverables are each either:
+  - confirmed current from local Gemini evidence
+  - or updated to match local Gemini evidence
+- Gemini keeps the same external harness contract Claude exposes
 
 ## Out Of Scope
 

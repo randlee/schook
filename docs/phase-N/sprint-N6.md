@@ -49,10 +49,10 @@ test-harness/hooks/codex/tests/
 
 ## Acceptance Criteria
 
-- Codex harness is confirmed runnable
-- Codex approved fixtures are confirmed against local evidence
-- Codex tests validate schema-bearing fixtures
-- Codex presents the same external harness contract Claude does
+- the three listed deliverables are each either:
+  - confirmed current from local Codex evidence
+  - or updated to match local Codex evidence
+- Codex keeps the same external harness contract Claude exposes
 
 ## Out Of Scope
 

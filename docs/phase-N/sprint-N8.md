@@ -47,9 +47,10 @@ def validate_codex_fixture_manifest(payload: Any) -> CodexFixtureManifest
 
 ## Acceptance Criteria
 
-- `docs/hook-api/codex-hook-api.md` matches the approved Codex fixtures
-- Codex Pydantic models validate the approved Codex fixtures
-- Codex model/test layout follows the shared provider pattern
+- the three listed deliverables are each either:
+  - confirmed current from the approved Codex fixtures
+  - or updated to match the approved Codex fixtures
+- Codex model/test layout still follows the shared provider pattern
 
 ## Out Of Scope
 
