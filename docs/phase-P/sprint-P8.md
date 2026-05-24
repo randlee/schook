@@ -40,6 +40,8 @@ target: integrate/phase-P
 
 - `PRR-009` and `LOGR-QA-004` are closed or explicitly carried with a bounded
   release note
+- shared spawn-helper retry behavior is production-verified with explicit test
+  coverage for the retained retry paths, not only shaped in code
 - operator docs match the actual install/alias behavior
 
 ## Out Of Scope
@@ -49,5 +51,6 @@ target: integrate/phase-P
 
 ## Required Validation
 
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
 - `git diff --check`

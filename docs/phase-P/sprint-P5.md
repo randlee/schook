@@ -42,6 +42,10 @@ target: integrate/phase-P
 - the resulting behavior matches the production Codex hook model this repo is
   replacing
 - Codex parity is no longer blocked on `notify`, `Stop`, or `resume`
+- `plugins/agent-session-foundation/` is updated as needed for the retained
+  Codex lifecycle surfaces and its changed behavior is covered by runtime tests
+- `plugins/atm-extension/` is updated as needed for the retained Codex
+  lifecycle surfaces and its changed behavior is covered by runtime tests
 - any supported-platform limit is documented explicitly instead of being hidden
   behind an implicit Unix-only implementation
 - there is no direct Codex-specific runtime bypass around

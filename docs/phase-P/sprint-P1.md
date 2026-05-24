@@ -37,7 +37,11 @@ target: integrate/phase-P
 - harness support for Codex `fork` if the surface is still worth carrying; if
   not, a documented disposition with evidence
 - approved Codex fixtures, models, and tests for every retained surface
-- updated Codex API doc and findings docs that match the real harness state
+- updated `docs/hook-api/codex-hook-api.md` that matches the real harness state
+- updated `docs/requirements.md` rows for retained or deferred Codex lifecycle
+  surfaces
+- updated `docs/traceability.md` rows for retained or deferred Codex lifecycle
+  surfaces
 
 ## Acceptance Criteria
 
@@ -46,6 +50,10 @@ target: integrate/phase-P
   - confirmed unsupported / non-exercisable with explicit evidence
   - explicitly deferred again with a justified ruling
 - `docs/hook-api/codex-hook-api.md` matches the retained Codex surfaces
+- `docs/requirements.md` records the retained or deferred Codex lifecycle
+  surfaces with no stale pre-Phase-P wording
+- `docs/traceability.md` records the retained or deferred Codex lifecycle
+  surfaces with no stale pre-Phase-P wording
 - Codex fixture/model/test coverage is green for the retained surfaces
 
 ## Out Of Scope

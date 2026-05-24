@@ -50,6 +50,24 @@ target: integrate/phase-P
 - explicit cross-platform gate so new Phase P runtime work is not allowed to be
   Mac/Unix-only by default
 
+## Required Contract Samples
+
+Expected curated `just lint` entrypoint shape:
+
+```just
+default: help
+
+help:
+    @python3 .just/print_help.py
+
+lint target:
+    @python3 .just/run_lint.py {{target}}
+```
+
+The landed `justfile` may include private helper recipes, but `P.3` must
+preserve one public `just lint <target>` entrypoint that mirrors the curated
+`../atm-core` pattern.
+
 ## Acceptance Criteria
 
 - `schook` exposes the adopted `sc-lint` suite through the same curated
@@ -76,4 +94,7 @@ target: integrate/phase-P
 ## Required Validation
 
 - `just help`
+- `just lint modules`
+- `just lint sc-boundary`
+- `just lint sc-portability`
 - `git diff --check`

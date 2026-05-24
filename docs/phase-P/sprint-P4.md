@@ -63,6 +63,7 @@ pub(crate) enum LifecycleHook {
     CodexNotify,
     CodexStop,
     CodexResume,
+    CodexFork,
     GeminiAfterAgent,
 }
 
@@ -78,6 +79,9 @@ pub(crate) struct CanonicalHookMappingRow<'a> {
 
 The exact Rust type names may differ in the landed code, but `P.4` must
 produce an equivalent typed contract plus the published table artifact above.
+If `P.1` lands Codex `fork` as unsupported or explicitly deferred, `P.4` must
+still record that disposition in the mapping table and lifecycle-compatibility
+rules instead of silently dropping the surface from the canonical inventory.
 
 ## Acceptance Criteria
 

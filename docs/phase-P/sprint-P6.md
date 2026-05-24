@@ -42,6 +42,10 @@ target: integrate/phase-P
 - the resulting behavior matches the production Gemini hook model this repo is
   replacing
 - Gemini parity is no longer blocked on `AfterAgent`
+- `plugins/agent-session-foundation/` is updated as needed for Gemini
+  `AfterAgent` and its changed behavior is covered by runtime tests
+- `plugins/atm-extension/` is updated as needed for Gemini `AfterAgent` and
+  its changed behavior is covered by runtime tests
 - any supported-platform limit is documented explicitly instead of being hidden
   behind an implicit Unix-only implementation
 - there is no direct Gemini-specific runtime bypass around
