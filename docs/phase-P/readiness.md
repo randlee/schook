@@ -29,6 +29,16 @@ Sprint planning status convention:
 - sprint docs remain `status: planned` until execution closes the sprint on the
   implementation line
 
+## Pre-Sprint Kickoff Checklist
+
+Before any `Phase P` sprint starts, the handoff or working notes must record:
+
+- accepted `Phase O` baseline commit: `da6e450`
+- confirmation that `just test hooks claude`, `just test hooks codex`, and
+  `just test hooks gemini` were green on that accepted `Phase O` baseline
+- the single owning implementation path for each behavior being extended, with
+  no provider-specific bypass around `ProviderHookNormalizer`
+
 ## Final Verdict Record
 
 The final section of this document must record:
@@ -58,7 +68,7 @@ The final section of this document must record:
 
 Final release verdict:
 
-- `integration_author`: `PENDING`
+- `integration_author`: `team-lead`
 - `integrate_phase_p_candidate`: `PENDING`
 - `release_verdict`: `PENDING`
 - `provider_verdicts`: `PENDING`
