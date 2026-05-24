@@ -27,6 +27,18 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --workspace
 ```
 
+Install the local runtime and source-owned plugin binaries used by the machine
+cutover path:
+
+```bash
+cargo install --path crates/sc-hooks-cli --root ~/.local --force
+cargo install --path plugins/agent-session-foundation --root ~/.local --force
+cargo install --path plugins/agent-spawn-gates --root ~/.local --force
+cargo install --path plugins/atm-extension --root ~/.local --force
+cargo install --path plugins/tool-output-gates --root ~/.local --force
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 Install the CLI from this repo:
 
 Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
@@ -41,6 +53,24 @@ If you do not want to install yet, run the CLI directly from the workspace:
 ```bash
 cargo run -p sc-hooks-cli -- --help
 ```
+
+Run the local provider cutover helper:
+
+```bash
+just install local-cutover
+```
+
+That command writes:
+- `~/.claude/settings.json`
+- `~/.codex/hooks.json`
+- `~/.gemini/settings.json`
+
+It also stages the shared local runtime root at:
+- `~/.local/share/sc-hooks/runtime-layout`
+
+Rollback backups are written next to each provider config as:
+- `settings.json.sc-hooks.bak`
+- `hooks.json.sc-hooks.bak`
 
 ## Quick Start
 
@@ -91,6 +121,7 @@ sc-hooks handlers --events
 printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks run PreToolUse Bash --sync
 sc-hooks fire PreToolUse Write
 sc-hooks test guard-paths
+sc-hooks install
 ```
 
 ## Workspace Map

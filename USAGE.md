@@ -27,6 +27,17 @@ For local development without installing:
 cargo run -p sc-hooks-cli -- --help
 ```
 
+For the local provider cutover path used in `Phase O`, also install the
+runtime plugin executables:
+
+```bash
+cargo install --path plugins/agent-session-foundation --root ~/.local --force
+cargo install --path plugins/agent-spawn-gates --root ~/.local --force
+cargo install --path plugins/atm-extension --root ~/.local --force
+cargo install --path plugins/tool-output-gates --root ~/.local --force
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 Naming note:
 - [docs/requirements.md](docs/requirements.md) uses `sc-hooks` as the product command label in acceptance scenarios.
 - The current Cargo package and binary artifact in this repo is `sc-hooks-cli`, so the executable examples below use `sc-hooks-cli`.
@@ -146,8 +157,18 @@ Use install-plan generation to produce matcher-driven Claude settings entries:
 sc-hooks-cli install
 ```
 
+Current local cutover behavior:
+- updates `~/.claude/settings.json`
+- updates `~/.codex/hooks.json`
+- updates `~/.gemini/settings.json`
+- writes the shared machine-local runtime root at
+  `~/.local/share/sc-hooks/runtime-layout`
+- writes rollback backups beside each provider config using the
+  `.sc-hooks.bak` suffix
+
 The current runtime generates settings from plugin-declared matchers rather
-than blanket wildcard routing.
+than blanket wildcard routing, and the machine-local cutover path rewrites the
+supported provider configs to call that shared runtime root.
 
 ## Example Invocations
 

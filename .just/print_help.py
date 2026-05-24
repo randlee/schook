@@ -10,6 +10,8 @@ SECTIONS = (
         (
             ("help", "Show this help."),
             ("build", "Build the full workspace."),
+            ("install", "Run the local provider cutover install surface."),
+            ("install local-cutover", "Write local Claude/Codex/Gemini cutover configs."),
             ("test", "Run the full workspace test suite."),
             ("test hooks claude", "Run the Claude hook harness pytest suite."),
             ("test hooks codex", "Run the Codex hook harness pytest suite."),

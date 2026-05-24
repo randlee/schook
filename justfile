@@ -38,6 +38,10 @@ _lint-sc-boundary:
 build:
     cargo build --workspace
 
+# Run the repo install/cutover helper surface.
+install target='local-cutover':
+    {{python_cmd}} .just/run_install.py {{target}}
+
 # Run the full workspace test suite.
 test target='workspace' provider='':
     {{python_cmd}} .just/run_test.py {{target}} {{provider}}

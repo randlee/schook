@@ -51,7 +51,7 @@ enum Commands {
     /// Diagnostic trigger with synthetic/real payload
     Fire(FireArgs),
 
-    /// Generate .claude/settings.json hook entries
+    /// Generate local provider cutover config for supported agents
     Install,
 
     /// Show resolved configuration
@@ -339,12 +339,33 @@ fn run() -> Result<(), CliError> {
             println!("{rendered}");
         }
         Commands::Install => {
-            let config = config::load_default_config()?;
-            let plan = install::write_default_settings(&config)?;
-            println!("wrote .claude/settings.json");
-            for warning in &plan.warnings {
-                warn!("warning: {warning}");
-                let _ = writeln!(std::io::stderr(), "warning: {warning}");
+            match config::load_default_config() {
+                Ok(config) => {
+                    let plan = install::write_default_settings(&config)?;
+                    println!("wrote .claude/settings.json");
+                    for warning in &plan.warnings {
+                        warn!("warning: {warning}");
+                        let _ = writeln!(std::io::stderr(), "warning: {warning}");
+                    }
+                }
+                Err(err) => {
+                    warn!("warning: skipping repo-local settings generation: {err}");
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "warning: skipping repo-local settings generation: {err}"
+                    );
+                }
+            }
+
+            for provider in install::TargetProvider::all() {
+                let plan = install::write_local_provider_cutover(provider).map_err(|err| {
+                    CliError::internal_with_source("local provider cutover failed", err)
+                })?;
+                println!("wrote local {} cutover", provider.as_str());
+                for warning in &plan.warnings {
+                    warn!("warning: {warning}");
+                    let _ = writeln!(std::io::stderr(), "warning: {warning}");
+                }
             }
         }
         Commands::Config => {
