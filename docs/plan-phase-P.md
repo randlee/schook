@@ -46,7 +46,8 @@ Missing provider surfaces to add first:
   - `notify`
   - `Stop`
   - `resume`
-  - `fork` if still supported and worth carrying as a real runtime surface
+  - `fork` if `P.1` harness evidence confirms it is exercisable and `P.1`
+    retains it as supported
 - Gemini:
   - `AfterAgent`
 

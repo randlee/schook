@@ -35,12 +35,20 @@ target: integrate/phase-P
 - requirements/traceability updates closing the Gemini parity delta
 - Gemini handler implementation available through the shared Rust runtime path,
   not through a side-channel provider-specific path
+- explicit plugin-side behavioral contract for Gemini `AfterAgent`:
+  - `plugins/agent-session-foundation/` owns persisted session-state updates
+    and provider-specific lifecycle state transitions that follow normalized
+    Gemini `AfterAgent` events
+  - `plugins/atm-extension/` owns relay/identity/ATM behavior driven by
+    normalized Gemini `AfterAgent` events where the plugin already participates
+    in the shared runtime path
 
 ## Acceptance Criteria
 
 - `AfterAgent` runs through the shared runtime path
-- the resulting behavior matches the production Gemini hook model this repo is
-  replacing
+- the resulting behavior matches the retained Gemini harness/API evidence landed
+  in `P.2`, including the fixture-backed hook/payload expectations documented
+  in `docs/hook-api/gemini-hook-api.md`
 - Gemini parity is no longer blocked on `AfterAgent`
 - `plugins/agent-session-foundation/` is updated as needed for Gemini
   `AfterAgent` and its changed behavior is covered by runtime tests

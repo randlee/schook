@@ -35,11 +35,10 @@ target: integrate/phase-P
 - authoritative closure or explicit release-track disposition for:
   - `RULING-NEEDED-ECR-001`
   - `RULING-NEEDED-ECR-002`
-  - `RULING-NEEDED-NT-CLI-002`
   - `RULING-NEEDED-HRN-005`
   - `RULING-NEEDED-COW-003`
-- any required portability rulings needed to keep the runtime line honest about
-  supported-platform behavior
+- portability rulings for any Unix-only behavior introduced by `P.5` or `P.6`
+  that is not already documented in those sprints
 
 ## Acceptance Criteria
 

@@ -32,7 +32,8 @@ target: integrate/phase-P
 
 ## Deliverables
 
-- extended canonical lifecycle type inventory for the newly retained surfaces
+- extended `CanonicalHook` provider-specific type inventory for the newly
+  retained surfaces
 - updated provider-to-canonical compatibility rules
 - updated `sc-lint-boundary` records if the normalization seam grows
 - architecture and requirement updates that freeze the new lifecycle contract
@@ -58,13 +59,28 @@ Authoritative mapping-table row shape:
 Required runtime-boundary contract additions:
 
 ```rust
-pub(crate) enum LifecycleHook {
-    ClaudeStop,
-    CodexNotify,
-    CodexStop,
-    CodexResume,
-    CodexFork,
-    GeminiAfterAgent,
+pub(crate) enum CanonicalHook {
+    Codex(CodexHook),
+    Gemini(GeminiHook),
+}
+
+pub(crate) enum CodexHook {
+    SessionStart,
+    PreToolUse,
+    Notify,
+    Stop,
+    Resume,
+    // Fork appears only if `P.1` retains it as supported.
+    Fork,
+}
+
+pub(crate) enum GeminiHook {
+    SessionStart,
+    SessionEnd,
+    BeforeAgent,
+    BeforeTool,
+    AfterTool,
+    AfterAgent,
 }
 
 pub(crate) struct CanonicalHookMappingRow<'a> {
@@ -79,9 +95,14 @@ pub(crate) struct CanonicalHookMappingRow<'a> {
 
 The exact Rust type names may differ in the landed code, but `P.4` must
 produce an equivalent typed contract plus the published table artifact above.
-If `P.1` lands Codex `fork` as unsupported or explicitly deferred, `P.4` must
-still record that disposition in the mapping table and lifecycle-compatibility
-rules instead of silently dropping the surface from the canonical inventory.
+`P.4` extends the existing `CanonicalHook` / `CodexHook` / `GeminiHook`
+hierarchy established by `Phase O`; it does not introduce a peer top-level
+canonical hook enum unless a new ADR explicitly approves that architecture
+change first. If `P.1` lands Codex `fork` as unsupported or explicitly
+deferred, `P.4` must still record that disposition in the mapping table and
+lifecycle-compatibility rules instead of silently dropping the surface from the
+canonical inventory, and the Rust canonical hook type inventory must not carry
+live variants for `P.1`-ruled-unsupported surfaces.
 
 ## Acceptance Criteria
 
@@ -91,6 +112,9 @@ rules instead of silently dropping the surface from the canonical inventory.
 - the compatibility table and boundary docs match the landed code
 - the cross-agent mapping table exists and is sufficient to compare Claude,
   Codex, and Gemini parity surface-by-surface
+- `P.4` extends the existing `CanonicalHook` hierarchy instead of introducing
+  a peer canonical hook family, unless a new approved ADR explicitly records
+  that architectural change
 - any existing Codex- or Gemini-specific runtime bypass path is either removed
   in this sprint or called out as a blocking defect
 

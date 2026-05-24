@@ -18,8 +18,6 @@ target: integrate/phase-P
 
 ## Hard Dependencies
 
-- accepted `P.1`
-- accepted `P.2`
 - existing `sc-lint-boundary` baseline from `Phase O`
 - local `../sc-lint` tool inventory
 
@@ -84,6 +82,9 @@ preserve one public `just lint <target>` entrypoint that mirrors the curated
   - `lint pytests`
   - `lint sc-boundary`
   - `lint sc-portability`
+- existing `just test hooks claude`, `just test hooks codex`, and
+  `just test hooks gemini` entrypoints remain functional after the `justfile`
+  restructuring; the new `just lint` surface is additive
 - the Phase P runtime sprints treat cross-platform portability as a hard gate,
   not a late review note
 

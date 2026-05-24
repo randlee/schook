@@ -35,12 +35,21 @@ target: integrate/phase-P
 - requirements/traceability updates closing the Codex parity delta
 - Codex handler implementation available through the shared Rust runtime path,
   not through a side-channel provider-specific path
+- explicit plugin-side behavioral contract for the retained Codex lifecycle
+  surfaces:
+  - `plugins/agent-session-foundation/` owns persisted session-state updates
+    and provider-specific lifecycle state transitions that follow normalized
+    Codex hook events
+  - `plugins/atm-extension/` owns relay/identity/ATM behavior driven by those
+    normalized Codex hook events where the plugin already participates in the
+    shared runtime path
 
 ## Acceptance Criteria
 
 - the retained Codex lifecycle surfaces run through the shared runtime path
-- the resulting behavior matches the production Codex hook model this repo is
-  replacing
+- the resulting behavior matches the retained Codex harness/API evidence landed
+  in `P.1`, including the fixture-backed hook/payload expectations documented
+  in `docs/hook-api/codex-hook-api.md`
 - Codex parity is no longer blocked on `notify`, `Stop`, or `resume`
 - `plugins/agent-session-foundation/` is updated as needed for the retained
   Codex lifecycle surfaces and its changed behavior is covered by runtime tests
