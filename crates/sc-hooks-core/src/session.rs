@@ -64,6 +64,8 @@ pub enum Provider {
     Claude,
     /// OpenAI Codex CLI.
     Codex,
+    /// Google Gemini CLI.
+    Gemini,
 }
 
 impl Provider {
@@ -72,6 +74,7 @@ impl Provider {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
+            Self::Gemini => "gemini",
         }
     }
 }

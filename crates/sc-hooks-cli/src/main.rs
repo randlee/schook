@@ -458,6 +458,7 @@ fn normalize_run_payload(
 fn runtime_provider_from_env() -> Option<RuntimeProvider> {
     match metadata::current_agent_type().as_deref() {
         Some("codex") => Some(RuntimeProvider::Codex),
+        Some("gemini") => Some(RuntimeProvider::Gemini),
         _ => None,
     }
 }
