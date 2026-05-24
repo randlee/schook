@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::events::HookType;
-use crate::normalization::NormalizationError;
 use crate::session::{AiCurrentDir, AiRootDir, SessionId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -67,8 +66,14 @@ impl RootDivergenceNotice {
 /// Shared error type for hook parsing, validation, persistence, and runtime failures.
 pub enum HookError {
     /// Provider-specific input failed runtime normalization into the canonical seam.
-    #[error(transparent)]
-    Normalization(#[from] NormalizationError),
+    #[error("{message}")]
+    Normalization {
+        /// Human-readable normalization failure detail.
+        message: String,
+        #[source]
+        /// Internal normalization-error inventory preserved for in-crate recovery-hint inspection.
+        source: BoxedError,
+    },
 
     /// Hook payload JSON could not be parsed or validated.
     #[error("invalid payload near {input_excerpt}")]
@@ -137,9 +142,24 @@ pub enum HookError {
 }
 
 impl HookError {
+    /// Returns the retryable recovery hint for provider normalization, when present.
+    pub fn normalization_recovery_hint(&self) -> Option<&'static str> {
+        match self.normalization_source() {
+            Some(crate::normalization::NormalizationError::RetryableGateInput {
+                recovery_hint,
+                ..
+            }) => Some(*recovery_hint),
+            _ => None,
+        }
+    }
+
     /// Creates a `Normalization` error from the provider normalization seam.
-    pub fn normalization(source: NormalizationError) -> Self {
-        Self::Normalization(source)
+    pub(crate) fn normalization(source: crate::normalization::NormalizationError) -> Self {
+        let message = source.to_string();
+        Self::Normalization {
+            message,
+            source: Box::new(source),
+        }
     }
 
     /// Creates an `InvalidContext` error without a source.
@@ -212,6 +232,15 @@ impl HookError {
         Self::Internal {
             message: message.into(),
             source: Some(Box::new(source)),
+        }
+    }
+
+    fn normalization_source(&self) -> Option<&crate::normalization::NormalizationError> {
+        match self {
+            Self::Normalization { source, .. } => {
+                source.downcast_ref::<crate::normalization::NormalizationError>()
+            }
+            _ => None,
         }
     }
 

@@ -1,7 +1,7 @@
 ---
 id: O.3
 title: Runtime Normalization Foundation
-status: planned
+status: complete
 branch: feature/pO-s3-runtime-normalization-foundation
 worktree: ../schook-worktrees/feature/pO-s3-runtime-normalization-foundation
 target: integrate/phase-O
@@ -181,11 +181,13 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   second parallel dispatch model
 - invalid hook/payload combinations are rejected explicitly through the locked
   compatibility table in `docs/architecture.md` section
-  `3.4 Planned Phase O Runtime Boundary`, with
+  `3.4 Provider Runtime Normalization Boundary`, with
   `NormalizationError::InvalidPayloadForHook` as the required failure path
 - the chosen normalization-error taxonomy is recorded explicitly and enters the
-  host error surface as `HookError::Normalization(NormalizationError)` unless a
-  newer explicit architecture ruling supersedes that choice before O.3 begins
+  host error surface as `HookError::Normalization { message, source }`, where
+  the private `NormalizationError` inventory remains the internal source behind
+  the public error envelope unless a newer explicit architecture ruling
+  supersedes that choice
 - retryable-vs-fatal normalization failures are defined explicitly for the
   approved `HKR-010` gate surfaces
 - `RetryableGateInput` carries a non-optional `recovery_hint` field populated

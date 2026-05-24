@@ -72,6 +72,27 @@ Rollback backups are written next to each provider config as:
 - `settings.json.sc-hooks.bak`
 - `hooks.json.sc-hooks.bak`
 
+## Rollback
+
+Restore the provider configs from the cutover backups:
+
+```bash
+cp ~/.claude/settings.json.sc-hooks.bak ~/.claude/settings.json
+cp ~/.codex/hooks.json.sc-hooks.bak ~/.codex/hooks.json
+cp ~/.gemini/settings.json.sc-hooks.bak ~/.gemini/settings.json
+```
+
+If a backup is absent, the cutover likely created that provider config from
+scratch. In that case, remove the generated config to return to the no-local-hook
+baseline, or replace it from a separate operator-managed backup before using
+the provider again:
+
+```bash
+rm -f ~/.claude/settings.json
+rm -f ~/.codex/hooks.json
+rm -f ~/.gemini/settings.json
+```
+
 ## Quick Start
 
 The runtime shape is:

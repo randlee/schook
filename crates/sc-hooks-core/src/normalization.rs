@@ -15,11 +15,9 @@ mod private {
 }
 
 /// Internal runtime provider source for the Phase O normalization seam.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProviderHookSource {
-    #[error("codex")]
     Codex,
-    #[error("gemini")]
     Gemini,
 }
 
@@ -90,11 +88,8 @@ pub(crate) struct ToolName<'a>(pub(crate) Cow<'a, str>);
 pub(crate) struct HookEventName<'a>(pub(crate) Cow<'a, str>);
 
 /// Named provider-normalization failures attached to `HookError`.
-// NormalizationError is pub to satisfy HookError's pub surface; O3-003 tracks
-// the planned pub(crate) tightening once the boundary refactor lands.
-#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum NormalizationError {
+pub(crate) enum NormalizationError {
     #[error("missing required field `{field}`")]
     MissingRequiredField { field: &'static str },
     #[error("invalid field `{field}`: {reason}")]
@@ -102,9 +97,9 @@ pub enum NormalizationError {
         field: &'static str,
         reason: &'static str,
     },
-    #[error("invalid payload kind `{payload_kind}` for {hook}")]
+    #[error("invalid payload kind `{payload_kind}` for {hook:?}")]
     InvalidPayloadForHook {
-        hook: &'static str,
+        hook: CanonicalHook,
         payload_kind: &'static str,
     },
     #[error("retryable gate input failure for `{field}`: {reason}. {recovery_hint}")]
@@ -115,7 +110,7 @@ pub enum NormalizationError {
     },
     #[error("unsupported approved surface `{hook}` for {provider}")]
     UnsupportedApprovedSurface {
-        provider: &'static str,
+        provider: ProviderHookSource,
         hook: &'static str,
     },
 }
@@ -235,7 +230,7 @@ impl ProviderHookNormalizer for CodexHookNormalizer {
             }
             other => Err(HookError::normalization(
                 NormalizationError::UnsupportedApprovedSurface {
-                    provider: raw.provider.as_str(),
+                    provider: raw.provider,
                     hook: hook_label(other),
                 },
             )),
@@ -406,7 +401,7 @@ impl ProviderHookNormalizer for GeminiHookNormalizer {
             }
             other => Err(HookError::normalization(
                 NormalizationError::UnsupportedApprovedSurface {
-                    provider: raw.provider.as_str(),
+                    provider: raw.provider,
                     hook: hook_label(other),
                 },
             )),
@@ -503,7 +498,7 @@ fn ensure_payload_compatible(
     } else {
         Err(HookError::normalization(
             NormalizationError::InvalidPayloadForHook {
-                hook: canonical_hook_label(hook),
+                hook: hook.clone(),
                 payload_kind: payload_kind(payload),
             },
         ))
@@ -594,7 +589,7 @@ fn runtime_payload(
         })),
         (bad_hook, bad_payload) => Err(HookError::normalization(
             NormalizationError::InvalidPayloadForHook {
-                hook: canonical_hook_label(bad_hook),
+                hook: bad_hook.clone(),
                 payload_kind: payload_kind(&bad_payload),
             },
         )),
@@ -632,24 +627,18 @@ fn hook_label(value: &str) -> &'static str {
     }
 }
 
+impl std::fmt::Display for ProviderHookSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 impl ProviderHookSource {
     fn as_str(self) -> &'static str {
         match self {
             Self::Codex => "codex",
             Self::Gemini => "gemini",
         }
-    }
-}
-
-fn canonical_hook_label(value: &CanonicalHook) -> &'static str {
-    match value {
-        CanonicalHook::Codex(CodexHook::SessionStart) => "Codex::SessionStart",
-        CanonicalHook::Codex(CodexHook::PreToolUse) => "Codex::PreToolUse",
-        CanonicalHook::Gemini(GeminiHook::SessionStart) => "Gemini::SessionStart",
-        CanonicalHook::Gemini(GeminiHook::SessionEnd) => "Gemini::SessionEnd",
-        CanonicalHook::Gemini(GeminiHook::BeforeAgent) => "Gemini::BeforeAgent",
-        CanonicalHook::Gemini(GeminiHook::BeforeTool) => "Gemini::BeforeTool",
-        CanonicalHook::Gemini(GeminiHook::AfterTool) => "Gemini::AfterTool",
     }
 }
 
@@ -849,10 +838,10 @@ mod tests {
         .into_hook_context(None)
         .expect_err("invalid pairing should fail");
 
-        assert!(matches!(
-            err,
-            HookError::Normalization(NormalizationError::InvalidPayloadForHook { .. })
-        ));
+        assert!(
+            err.to_string()
+                .contains("invalid payload kind `tool_use` for Codex(SessionStart)")
+        );
     }
 
     #[test]
@@ -869,14 +858,12 @@ mod tests {
         })
         .expect_err("missing cwd should fail");
 
-        assert!(matches!(
-            err,
-            HookError::Normalization(NormalizationError::RetryableGateInput {
-                field: "cwd",
-                recovery_hint: _,
-                ..
-            })
-        ));
+        assert_eq!(
+            err.normalization_recovery_hint(),
+            Some(
+                "Gemini BeforeTool must include cwd so runtime gates can resolve the project root."
+            )
+        );
     }
 
     #[test]

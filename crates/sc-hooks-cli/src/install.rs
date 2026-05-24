@@ -36,18 +36,18 @@ PostToolUse = ["tool-output-gates"]
 "#;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct InstallSettings {
+pub(crate) struct InstallSettings {
     pub hooks: BTreeMap<String, Vec<MatcherEntry>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct MatcherEntry {
+pub(crate) struct MatcherEntry {
     pub matcher: String,
     pub hooks: Vec<CommandHook>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct CommandHook {
+pub(crate) struct CommandHook {
     #[serde(rename = "type")]
     pub hook_type: String,
     pub command: String,
@@ -56,7 +56,7 @@ pub struct CommandHook {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InstallPlan {
+pub(crate) struct InstallPlan {
     pub settings: InstallSettings,
     pub warnings: Vec<String>,
 }
@@ -126,7 +126,7 @@ struct HandlerInstallSpec {
     async_range: AsyncBucketRange,
 }
 
-pub fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
+pub(crate) fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
     let plan = build_settings(config)?;
     let path = Path::new(DEFAULT_SETTINGS_PATH);
     if let Some(parent) = path.parent() {
@@ -188,7 +188,7 @@ pub(crate) fn write_local_provider_cutover(
     }
 }
 
-pub fn build_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
+pub(crate) fn build_settings(config: &ScHooksConfig) -> Result<InstallPlan, CliError> {
     let mut hooks_output = BTreeMap::new();
     let mut warnings = Vec::new();
 

@@ -1,7 +1,7 @@
 ---
 id: O.5
 title: Gemini Runtime Parity
-status: planned
+status: complete
 branch: feature/pO-s5-gemini-runtime-parity
 worktree: ../schook-worktrees/feature/pO-s5-gemini-runtime-parity
 target: integrate/phase-O

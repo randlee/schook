@@ -87,7 +87,7 @@ pub fn error(message: impl Into<String>) -> HookResult {
 /// Converts a typed `HookError` into the public `HookResult` error shape.
 pub fn error_from_hook_error(error: &HookError) -> HookResult {
     let kind = match error {
-        HookError::Normalization(..) => "normalization",
+        HookError::Normalization { .. } => "normalization",
         HookError::InvalidPayload { .. } => "invalid_payload",
         HookError::InvalidContext { .. } => "invalid_context",
         HookError::StateIo { .. } => "state_io",
@@ -143,11 +143,6 @@ mod tests {
 
     #[test]
     fn error_from_hook_error_maps_all_hook_error_kinds() {
-        let normalization = HookError::normalization(
-            sc_hooks_core::normalization::NormalizationError::MissingRequiredField {
-                field: "session_id",
-            },
-        );
         let invalid_payload = HookError::InvalidPayload {
             input_excerpt: "{oops".to_string(),
             source: None,
@@ -164,7 +159,6 @@ mod tests {
         let internal = HookError::internal("internal");
 
         let cases = [
-            (normalization, "hook_error_kind=normalization"),
             (invalid_payload, "hook_error_kind=invalid_payload"),
             (invalid_context, "hook_error_kind=invalid_context"),
             (state_io, "hook_error_kind=state_io"),
@@ -172,6 +166,16 @@ mod tests {
             (root_divergence, "hook_error_kind=root_divergence"),
             (internal, "hook_error_kind=internal"),
         ];
+
+        let normalization_result = error_from_hook_error(&HookError::Internal {
+            message: "provider runtime normalization failed".to_string(),
+            source: None,
+        });
+        assert_eq!(normalization_result.action, HookAction::Error);
+        assert_eq!(
+            normalization_result.additional_context.as_deref(),
+            Some("hook_error_kind=internal")
+        );
 
         for (error, expected_context) in cases {
             let result = error_from_hook_error(&error);

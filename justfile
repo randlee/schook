@@ -42,7 +42,7 @@ build:
 install target='local-cutover':
     {{python_cmd}} .just/run_install.py {{target}}
 
-# Run the full workspace test suite.
+# Run the full workspace test suite or the exact hook harness entrypoints.
 test target='workspace' provider='':
     {{python_cmd}} .just/run_test.py {{target}} {{provider}}
 

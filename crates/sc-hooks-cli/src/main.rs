@@ -22,9 +22,7 @@ use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::normalization::{
-    NormalizationError, RuntimeProvider, normalize_runtime_dispatch,
-};
+use sc_hooks_core::normalization::{RuntimeProvider, normalize_runtime_dispatch};
 use sc_hooks_core::session::SessionId;
 use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
@@ -495,10 +493,9 @@ fn extract_session_id(payload: &serde_json::Value) -> Result<Option<SessionId>, 
 }
 
 fn cli_error_for_normalization(err: HookError) -> CliError {
-    match err {
-        HookError::Normalization(NormalizationError::RetryableGateInput { .. }) => {
-            CliError::blocked(format!("provider runtime normalization failed: {err}"))
-        }
-        other => CliError::plugin_error_with_source("provider runtime normalization failed", other),
+    if err.normalization_recovery_hint().is_some() {
+        CliError::blocked_with_source("provider runtime normalization failed", err)
+    } else {
+        CliError::plugin_error_with_source("provider runtime normalization failed", err)
     }
 }

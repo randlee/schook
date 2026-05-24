@@ -170,6 +170,27 @@ The current runtime generates settings from plugin-declared matchers rather
 than blanket wildcard routing, and the machine-local cutover path rewrites the
 supported provider configs to call that shared runtime root.
 
+## Rollback
+
+Restore the provider configs from the cutover backups:
+
+```bash
+cp ~/.claude/settings.json.sc-hooks.bak ~/.claude/settings.json
+cp ~/.codex/hooks.json.sc-hooks.bak ~/.codex/hooks.json
+cp ~/.gemini/settings.json.sc-hooks.bak ~/.gemini/settings.json
+```
+
+If a backup file is absent, the cutover created that provider config from
+scratch. Remove the generated file to return to the no-local-hook baseline, or
+replace it from a separate operator-managed backup before using that provider
+again:
+
+```bash
+rm -f ~/.claude/settings.json
+rm -f ~/.codex/hooks.json
+rm -f ~/.gemini/settings.json
+```
+
 ## Example Invocations
 
 Example 1: validate a checked runtime layout
