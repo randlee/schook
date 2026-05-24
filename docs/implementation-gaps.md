@@ -33,12 +33,11 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 
-- Status: `active`
+- Status: `deferred past Phase O`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Integration-author owner:
-  - record and maintain the authoritative `Phase O` disposition for this item
-    before the `O.3` branch is cut
+- Recorded owner:
+  - `randlee`
 - Current note:
   - `HookError` is still a single cross-crate error enum spanning payload,
     validation, state-I/O, divergence, and internal failures

@@ -1,0 +1,47 @@
+error[E0603]: struct `NormalizedHookContext` is private
+ --> tests/ui/provider_hook_normalizer_external_impl.rs:2:5
+  |
+2 |     NormalizedHookContext, ProviderHookInput, ProviderHookNormalizer, ProviderHookSource,
+  |     ^^^^^^^^^^^^^^^^^^^^^ private struct
+  |
+note: the struct `NormalizedHookContext` is defined here
+ --> src/normalization.rs
+  |
+  | pub(crate) struct NormalizedHookContext<'a> {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: struct `ProviderHookInput` is private
+ --> tests/ui/provider_hook_normalizer_external_impl.rs:2:28
+  |
+2 |     NormalizedHookContext, ProviderHookInput, ProviderHookNormalizer, ProviderHookSource,
+  |                            ^^^^^^^^^^^^^^^^^ private struct
+  |
+note: the struct `ProviderHookInput` is defined here
+ --> src/normalization.rs
+  |
+  | pub(crate) struct ProviderHookInput<'a> {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: trait `ProviderHookNormalizer` is private
+ --> tests/ui/provider_hook_normalizer_external_impl.rs:2:47
+  |
+2 |     NormalizedHookContext, ProviderHookInput, ProviderHookNormalizer, ProviderHookSource,
+  |                                               ^^^^^^^^^^^^^^^^^^^^^^ private trait
+  |
+note: the trait `ProviderHookNormalizer` is defined here
+ --> src/normalization.rs
+  |
+  | pub(crate) trait ProviderHookNormalizer: private::Sealed {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0603]: enum `ProviderHookSource` is private
+ --> tests/ui/provider_hook_normalizer_external_impl.rs:2:71
+  |
+2 |     NormalizedHookContext, ProviderHookInput, ProviderHookNormalizer, ProviderHookSource,
+  |                                                                       ^^^^^^^^^^^^^^^^^^ private enum
+  |
+note: the enum `ProviderHookSource` is defined here
+ --> src/normalization.rs
+  |
+  | pub(crate) enum ProviderHookSource {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
