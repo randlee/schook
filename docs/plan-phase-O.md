@@ -19,8 +19,9 @@ fixture refresh.
 - prerequisite verdict: the authoritative `Phase N` verdict is recorded on
   `integrate/phase-N` in `docs/phase-N/readiness.md`; the develop-branch
   planning copy is not the execution ledger for `Phase O`
-- develop-branch Phase N planning docs still show only `N.1` through `N.4`
-  rows in `docs/phase-N/readiness.md`
+- develop-branch Phase N planning docs now include `N.1` through `N.10`, but
+  `docs/phase-N/readiness.md` on `develop` remains a planning copy rather than
+  the execution ledger for `Phase O`
 - prerequisite provider verification for `Phase O` execution is therefore:
   accepted `N.5` through `N.10` outputs present on the `integrate/phase-N`
   execution baseline, not merely present in the develop-branch planning copy

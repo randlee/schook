@@ -57,14 +57,14 @@ pub(crate) trait ProviderHookNormalizer: private::Sealed {
     ) -> Result<NormalizedHookContext<'a>, HookError>;
 }
 
-pub struct ProviderHookInput<'a> {
-    pub provider: ProviderHookSource,
-    pub raw: &'a serde_json::Value,
-    pub event: Option<&'a str>,
-    pub metadata_path: Option<&'a Path>,
+pub(crate) struct ProviderHookInput<'a> {
+    pub(crate) provider: ProviderHookSource,
+    pub(crate) raw: &'a serde_json::Value,
+    pub(crate) event: Option<&'a str>,
+    pub(crate) metadata_path: Option<&'a Path>,
 }
 
-pub enum ProviderHookSource {
+pub(crate) enum ProviderHookSource {
     Codex,
     Gemini,
 }
@@ -131,6 +131,7 @@ Normalization error inventory:
 pub enum NormalizationError {
     MissingRequiredField { field: &'static str },
     InvalidFieldValue { field: &'static str, reason: &'static str },
+    InvalidPayloadForHook { hook: CanonicalHook, payload_kind: &'static str },
     RetryableGateInput { field: &'static str, reason: &'static str },
     UnsupportedApprovedSurface { provider: ProviderHookSource, hook: &'static str },
 }
@@ -155,17 +156,24 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
 - `NormalizedHookContext` is the canonical provider-normalized input and feeds
   the existing `HookContext` construction path; `Phase O` does not create a
   second parallel dispatch model
+- invalid hook/payload combinations are rejected explicitly through the locked
+  compatibility table in `docs/architecture.md` section `3.4`, with
+  `NormalizationError::InvalidPayloadForHook` as the required failure path
 - the chosen normalization-error taxonomy is recorded explicitly and enters the
   host error surface as `HookError::Normalization(NormalizationError)` unless a
   newer explicit architecture ruling supersedes that choice before O.3 begins
 - retryable-vs-fatal normalization failures are defined explicitly for the
   approved `HKR-010` gate surfaces
+- the implementation records how retryable normalization failures carry
+  structured recovery metadata before `RetryableGateInput` is promoted to code
 - approved Codex fixtures normalize into canonical runtime hook/event data
 - approved Gemini fixtures normalize into canonical runtime hook/event data
 - Claude remains the existing baseline runtime path and is documented as the
   behavior Codex and Gemini normalize into for later parity sprints
 - deferred `Phase N` surfaces are not implemented or implied as supported
 - normalization tests cite approved fixtures and pass
+- normalization tests include a deterministic compatibility/property check that
+  rejects invalid approved-surface hook/payload combinations
 - boundary lint fails if provider-specific parsing bypasses the normalization
   trait boundary or if external impls are introduced
 

@@ -959,8 +959,9 @@ Execution detail:
   phase rather than a standalone sprint-detail record
 
 Final verdict summary:
-- `docs/phase-N/readiness.md` remains `PENDING` on this branch per
-  `ADR-SHK-007`
+- `docs/phase-N/readiness.md` records the accepted `PARTIAL_GO` verdict at
+  merge `8891c3d`, with `ADR-SHK-007` limiting authoritative verdict writes to
+  the integration branch rather than to sprint branches
 - proposed follow-on runtime scope:
   - Codex `SessionStart`
   - Codex `PreToolUse`
