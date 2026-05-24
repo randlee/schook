@@ -24,10 +24,11 @@ target: integrate/phase-O
 ## Exact Targets
 
 - `crates/sc-hooks-cli/src/`
-- `plugins/agent-session-foundation/`
-- `plugins/agent-spawn-gates/`
-- `plugins/tool-output-gates/`
-- `plugins/atm-extension/`
+- `crates/sc-hooks-core/src/`
+- `crates/sc-hooks-cli/tests/`
+- `.sc-hooks/plugins/`
+- `docs/requirements.md`
+- `docs/traceability.md`
 - `test-harness/hooks/codex/`
 
 ## Deliverables
@@ -35,6 +36,8 @@ target: integrate/phase-O
 - Codex runtime support for `SessionStart`
 - Codex runtime support for `PreToolUse`
 - Codex end-to-end runtime tests on the generic plugin path
+- Codex-specific requirement/traceability updates for the runtime behavior
+  closed in this sprint
 
 ## Acceptance Criteria
 
@@ -42,7 +45,12 @@ target: integrate/phase-O
   generic runtime path
 - Codex `PreToolUse` drives the existing gate and ATM extension logic through
   the generic runtime path
+- the required Codex ATM-extension behavior is limited to the same metadata
+  enrichment already proved for Claude: canonical session/team identity
+  inheritance plus retryable gate failures on blocked tool execution
 - Codex runtime tests pass against the approved fixture baseline
+- `docs/requirements.md` and `docs/traceability.md` update the Codex portion
+  of `HKR-006` and `HKR-010` for the behavior actually closed in `O.4`
 
 ## Out Of Scope
 

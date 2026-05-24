@@ -25,7 +25,6 @@ target: integrate/phase-O
 
 - `crates/sc-hooks-core/src/session.rs`
 - `crates/sc-hooks-core/src/context.rs`
-- `crates/sc-hooks-sdk/src/traits.rs`
 - `crates/sc-hooks-cli/src/resolution.rs`
 - `test-harness/hooks/gemini/tests/__init__.py`
 - `pyproject.toml`

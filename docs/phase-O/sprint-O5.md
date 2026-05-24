@@ -24,10 +24,11 @@ target: integrate/phase-O
 ## Exact Targets
 
 - `crates/sc-hooks-cli/src/`
-- `plugins/agent-session-foundation/`
-- `plugins/agent-spawn-gates/`
-- `plugins/tool-output-gates/`
-- `plugins/atm-extension/`
+- `crates/sc-hooks-core/src/`
+- `crates/sc-hooks-cli/tests/`
+- `.sc-hooks/plugins/`
+- `docs/requirements.md`
+- `docs/traceability.md`
 - `test-harness/hooks/gemini/`
 
 ## Deliverables
@@ -36,6 +37,8 @@ target: integrate/phase-O
 - Gemini runtime support for `SessionEnd`, `BeforeAgent`, `BeforeTool`, and
   `AfterTool`
 - Gemini end-to-end runtime tests on the generic plugin path
+- Gemini-specific requirement/traceability updates for the runtime behavior
+  closed in this sprint
 
 ## Acceptance Criteria
 
@@ -44,13 +47,16 @@ target: integrate/phase-O
 - Gemini `SessionEnd` drives the canonical terminal-session path and session
   cleanup behavior through the generic runtime path
 - Gemini `BeforeAgent` drives the generic agent-spawn gate path, including any
-  approved ATM-extension metadata enrichment that already exists for Claude
+  approved ATM-extension metadata enrichment already proved for Claude:
+  canonical session/team identity inheritance
 - Gemini `BeforeTool` drives the generic tool-gate path through the same
   provider-agnostic plugin stack
 - Gemini `AfterTool` drives the generic post-tool path, including any approved
-  ATM-extension or tool-output gate behavior that already exists for Claude
+  tool-output gate behavior already proved for Claude
 - Gemini runtime tests pass against the approved fixture baseline
 - provider-local Gemini fields stay outside the canonical runtime contract
+- `docs/requirements.md` and `docs/traceability.md` update the Gemini portion
+  of `HKR-006` and `HKR-010` for the behavior actually closed in `O.5`
 
 ## Out Of Scope
 

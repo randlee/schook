@@ -31,6 +31,7 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
 | `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` begins. |
 | `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` / `N.4` begin. |
+| `ADR-SHK-008` | Provider runtime normalization must pass through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. This ADR is planned for `Phase O` and must be introduced by `O.2`/`O.3` before Codex or Gemini runtime parity begins. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
@@ -100,6 +101,24 @@ Important boundary:
 | `plugins/policy-enforcer` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/save-context` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/template-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
+
+## 3.4 Planned Phase O Runtime Boundary
+
+`Phase O` introduces one planned provider-normalization seam ahead of Codex and
+Gemini runtime parity:
+
+- provider raw payloads are normalized through one sealed
+  `ProviderHookNormalizer` boundary
+- the resulting `NormalizedHookContext` then feeds the existing `HookContext`
+  construction path rather than creating a second parallel runtime dispatch
+  flow
+- `sc-lint-boundary` enforces the seam with `boundary.internal_only` and
+  `boundary.forbid_external_impls` rules on the normalization types
+- provider-local fields remain outside the canonical runtime contract until
+  new approved fixture evidence promotes them
+
+This section is a planned `Phase O` architecture commitment, not current
+release behavior.
 
 ## 3.3 Public Contract Vs Internal Typed Model
 

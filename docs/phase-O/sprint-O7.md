@@ -31,17 +31,25 @@ target: integrate/phase-O
 
 ## Deliverables
 
-- `crates/sc-hooks-cli/src/install.rs` updates that own the local provider
-  install-plan or cutover helper behavior used by this sprint
+- `crates/sc-hooks-cli/src/install.rs` helper behavior that writes the local
+  provider install/cutover plan used by this sprint
 - one local install/cutover path for Claude, Codex, and Gemini on this machine
 - rollback instructions
 - machine-local smoke-test record for the supported providers
 
+## Required Signatures
+
+```rust
+fn write_local_provider_cutover(
+    provider: Provider,
+) -> Result<InstallPlan, InstallError>;
+```
+
 ## Acceptance Criteria
 
-- `crates/sc-hooks-cli/src/install.rs` implements the install-plan or cutover
-  helper behavior named by the sprint docs, and that behavior is exercised once
-  during the machine-local cutover validation
+- `crates/sc-hooks-cli/src/install.rs` implements the local provider cutover
+  helper signature documented by this sprint, and that behavior is exercised
+  once during the machine-local cutover validation
 - the documented local cutover path installs the normalized runtime for Claude,
   Codex, and Gemini on this machine
 - rollback steps are documented and tested once

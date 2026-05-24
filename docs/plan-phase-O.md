@@ -17,7 +17,11 @@ fixture refresh.
 - integration branch: `integrate/phase-O`
 - prerequisite baseline: `integrate/phase-N` at `89ad9cb`
 - prerequisite verdict: `Phase N` closed `PARTIAL_GO`
-- prerequisite provider verification: `N.5` through `N.10` complete
+- develop-branch Phase N planning docs still show only `N.1` through `N.4`
+  rows in `docs/phase-N/readiness.md`
+- prerequisite provider verification for `Phase O` execution is therefore:
+  accepted `N.5` through `N.10` outputs present on the `integrate/phase-N`
+  execution baseline, not merely present in the develop-branch planning copy
 
 Approved `Phase N` runtime surfaces:
 
@@ -65,9 +69,7 @@ Rules:
 - `Phase N` remains accepted on `integrate/phase-N`
 - provider harness verification remains green for Claude, Codex, and Gemini
 - runtime work is limited to the approved `Phase N` surfaces listed above
-- `CDR-B` is merged or its required control-doc/runtime reconciliation is
-  otherwise present on the execution baseline before the first runtime sprint
-  starts
+- `CDR-B` is merged to the execution baseline before `O.3` begins
 
 ## Sprint Sequence
 
@@ -216,6 +218,8 @@ deliverables, acceptance criteria, and closure rules.
 - `sc-lint-boundary` enforcement must be installed before normalization begins
 - the normalization boundary must be one sealed trait surface with
   lint-detected no-bypass enforcement
+- `NormalizedHookContext` feeds the existing `HookContext` construction path;
+  `Phase O` does not run a second parallel runtime dispatch path
 - deferred `Phase N` surfaces remain out of scope unless a later explicit phase
   reopens them
 - Cursor remains out of scope for `Phase O`; `HKR-007` stays deferred

@@ -36,6 +36,9 @@ target: integrate/phase-O
 - cross-provider parity tests for Claude, Codex, and Gemini approved surfaces
 - observability proof for the approved cross-provider runtime path
 - control-doc updates for the normalized runtime boundary
+- final cross-provider consolidation of the `HKR-006` and `HKR-010`
+  requirement/traceability rows after the per-provider updates from `O.4` and
+  `O.5`
 
 ## Acceptance Criteria
 

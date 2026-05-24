@@ -62,6 +62,18 @@ test hooks provider:
     {{python_cmd}} .just/run_hook_tests.py {{provider}}
 ```
 
+Boundary record:
+
+```toml
+# boundaries/provider-normalization.toml
+name = "provider-normalization"
+crate = "crates/sc-hooks-core"
+
+[attributes]
+internal_only = ["crate::normalization::private"]
+forbid_external_impls = ["crate::normalization::ProviderHookNormalizer"]
+```
+
 ## Acceptance Criteria
 
 - the repo exposes `just` entrypoints in the same top-level pattern used by

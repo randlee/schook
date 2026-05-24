@@ -31,6 +31,7 @@ target: integrate/phase-O
 - `crates/sc-hooks-core/src/`
 - `crates/sc-hooks-cli/src/`
 - `crates/sc-hooks-cli/tests/`
+- `docs/architecture.md`
 - `test-harness/hooks/codex/`
 - `test-harness/hooks/gemini/`
 
@@ -40,6 +41,9 @@ target: integrate/phase-O
 - one sealed normalization trait boundary
 - fixture-backed normalization tests
 - one documented normalization boundary for provider-specific vs canonical data
+- `docs/architecture.md` runtime-boundary section describing the
+  `ProviderHookNormalizer` seam, canonical type surface, and lint-enforcement
+  policy
 
 ## Required Signatures
 
@@ -71,6 +75,31 @@ pub struct NormalizedHookContext<'a> {
 }
 ```
 
+Approved canonical hooks:
+
+```rust
+pub enum CanonicalHook {
+    CodexSessionStart,
+    CodexPreToolUse,
+    GeminiSessionStart,
+    GeminiSessionEnd,
+    GeminiBeforeAgent,
+    GeminiBeforeTool,
+    GeminiAfterTool,
+}
+```
+
+Canonical payload contract:
+
+```rust
+pub enum CanonicalPayload<'a> {
+    Empty,
+    ToolUse { tool_name: Cow<'a, str>, body: &'a serde_json::Value },
+    SessionLifecycle { body: &'a serde_json::Value },
+    AgentLifecycle { body: &'a serde_json::Value },
+}
+```
+
 Linted boundary marker:
 
 ```rust
@@ -85,6 +114,9 @@ pub trait ProviderHookNormalizer { /* ... */ }
 
 - provider raw payload handling enters the runtime only through one sealed
   normalization trait boundary
+- `NormalizedHookContext` is the canonical provider-normalized input and feeds
+  the existing `HookContext` construction path; `Phase O` does not create a
+  second parallel dispatch model
 - approved Codex fixtures normalize into canonical runtime hook/event data
 - approved Gemini fixtures normalize into canonical runtime hook/event data
 - deferred `Phase N` surfaces are not implemented or implied as supported
