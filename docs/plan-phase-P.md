@@ -22,6 +22,10 @@ Normalization in `Phase P` is not just fixture capture. It must produce:
   - provider-local fields retained outside the canonical contract
   - exact variables available from each provider surface
 
+Planned artifact:
+
+- `docs/phase-P/canonical-hook-mapping.md`
+
 That table is the parity contract for `schook`. It exists so Claude, Codex, and
 Gemini can be compared directly and so provider parity gaps stay explicit.
 
@@ -232,7 +236,7 @@ Execution worktree:
   - `docs/requirements.md`
   - `docs/traceability.md`
   - `boundaries/`
-  - the authoritative cross-agent lifecycle mapping table
+  - `docs/phase-P/canonical-hook-mapping.md`
 - `P.5`:
   - Codex runtime path updates in `crates/` and `plugins/`
   - Codex runtime parity tests

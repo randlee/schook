@@ -28,6 +28,7 @@ target: integrate/phase-P
 - `docs/requirements.md`
 - `docs/traceability.md`
 - `boundaries/`
+- `docs/phase-P/canonical-hook-mapping.md`
 
 ## Deliverables
 
@@ -44,6 +45,39 @@ target: integrate/phase-P
   - provider-local fields not promoted into the canonical contract
 - explicit removal plan for any direct provider-specific runtime path that
   bypasses `ProviderHookNormalizer`
+
+## Required Contract Samples
+
+Authoritative mapping-table row shape:
+
+```md
+| Provider | Provider Hook | Canonical Hook | Canonical Payload | Available Variables | Provider-Local Fields | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+```
+
+Required runtime-boundary contract additions:
+
+```rust
+pub(crate) enum LifecycleHook {
+    ClaudeStop,
+    CodexNotify,
+    CodexStop,
+    CodexResume,
+    GeminiAfterAgent,
+}
+
+pub(crate) struct CanonicalHookMappingRow<'a> {
+    pub(crate) provider: ProviderHookSource,
+    pub(crate) provider_hook: &'a str,
+    pub(crate) canonical_hook: CanonicalHook,
+    pub(crate) canonical_payload: &'static str,
+    pub(crate) available_variables: &'a [&'a str],
+    pub(crate) provider_local_fields: &'a [&'a str],
+}
+```
+
+The exact Rust type names may differ in the landed code, but `P.4` must
+produce an equivalent typed contract plus the published table artifact above.
 
 ## Acceptance Criteria
 
