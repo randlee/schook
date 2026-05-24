@@ -134,7 +134,11 @@ pub(crate) enum NormalizationError {
     MissingRequiredField { field: &'static str },
     InvalidFieldValue { field: &'static str, reason: &'static str },
     InvalidPayloadForHook { hook: CanonicalHook, payload_kind: &'static str },
-    RetryableGateInput { field: &'static str, reason: &'static str },
+    RetryableGateInput {
+        field: &'static str,
+        reason: &'static str,
+        recovery_hint: Option<&'static str>,
+    },
     UnsupportedApprovedSurface { provider: ProviderHookSource, hook: &'static str },
 }
 ```
@@ -142,6 +146,9 @@ pub(crate) enum NormalizationError {
 `CanonicalHook` is only required to support `Debug`, so any `thiserror`
 formatting for `InvalidPayloadForHook` should use `{hook:?}` rather than
 assuming a `Display` impl.
+
+The `#[sc_lint(...)]` attributes below are the planned proc-macro boundary
+markers used alongside the O.2 TOML boundary record, not a replacement for it.
 
 Linted boundary marker:
 
@@ -175,8 +182,8 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   newer explicit architecture ruling supersedes that choice before O.3 begins
 - retryable-vs-fatal normalization failures are defined explicitly for the
   approved `HKR-010` gate surfaces
-- the implementation records how retryable normalization failures carry
-  structured recovery metadata before `RetryableGateInput` is promoted to code
+- `RetryableGateInput` carries a `recovery_hint` field populated with an
+  actionable operator message before the variant is promoted to code
 - approved Codex fixtures normalize into canonical runtime hook/event data
 - approved Gemini fixtures normalize into canonical runtime hook/event data
 - Claude remains the existing baseline runtime path and is documented as the
