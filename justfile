@@ -53,7 +53,8 @@ test target='workspace' provider='':
     elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "gemini" ]; then \
       {{python_cmd}} .just/run_hook_tests.py gemini; \
     else \
-      {{python_cmd}} .just/run_test.py {{target}} {{provider}}; \
+      printf '%s\n' "error: expected 'just test workspace' or 'just test hooks <claude|codex|gemini>'" >&2; \
+      exit 1; \
     fi
 
 # Remove workspace build artifacts.
