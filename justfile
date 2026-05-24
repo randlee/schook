@@ -38,9 +38,23 @@ _lint-sc-boundary:
 build:
     cargo build --workspace
 
-# Run the full workspace test suite.
+# Run the repo install/cutover helper surface.
+install target='local-cutover':
+    {{python_cmd}} .just/run_install.py {{target}}
+
+# Run the full workspace test suite or the exact hook harness entrypoints.
 test target='workspace' provider='':
-    {{python_cmd}} .just/run_test.py {{target}} {{provider}}
+    @if [ "{{target}}" = "workspace" ] && [ -z "{{provider}}" ]; then \
+      {{python_cmd}} .just/run_test.py workspace; \
+    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "claude" ]; then \
+      {{python_cmd}} .just/run_hook_tests.py claude; \
+    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "codex" ]; then \
+      {{python_cmd}} .just/run_hook_tests.py codex; \
+    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "gemini" ]; then \
+      {{python_cmd}} .just/run_hook_tests.py gemini; \
+    else \
+      {{python_cmd}} .just/run_test.py {{target}} {{provider}}; \
+    fi
 
 # Remove workspace build artifacts.
 clean:

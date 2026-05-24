@@ -160,8 +160,8 @@ seam before generic runtime dispatch:
   surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
   the public contract
 - `NormalizationError` is the named error inventory used by
-  `HookError::Normalization(NormalizationError)` for provider normalization
-  failures
+  `HookError::Normalization { message, source }` for provider normalization
+  failures, with `NormalizationError` retained as the private source taxonomy
 - provider/runtime consistency is frozen by the seal mechanism,
   normalization-error taxonomy, required internal type set, and
   `(provider × hook × payload)` compatibility rules in this document
@@ -212,7 +212,7 @@ seam before generic runtime dispatch:
   remains the baseline runtime path that Codex and Gemini normalize into for
   plugin-parity work
 
-Planned internal type ownership for `Phase O`:
+Deferred O.7 install/cutover-only internal type ownership:
 
 - `Provider`
   - current session-state provider enum in `sc-hooks-core::session`

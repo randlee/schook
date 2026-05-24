@@ -22,9 +22,7 @@ use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
 use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::normalization::{
-    NormalizationError, RuntimeProvider, normalize_runtime_dispatch,
-};
+use sc_hooks_core::normalization::{RuntimeProvider, normalize_runtime_dispatch};
 use sc_hooks_core::session::SessionId;
 use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
@@ -51,7 +49,7 @@ enum Commands {
     /// Diagnostic trigger with synthetic/real payload
     Fire(FireArgs),
 
-    /// Generate .claude/settings.json hook entries
+    /// Generate local provider cutover config for supported agents
     Install,
 
     /// Show resolved configuration
@@ -339,12 +337,33 @@ fn run() -> Result<(), CliError> {
             println!("{rendered}");
         }
         Commands::Install => {
-            let config = config::load_default_config()?;
-            let plan = install::write_default_settings(&config)?;
-            println!("wrote .claude/settings.json");
-            for warning in &plan.warnings {
-                warn!("warning: {warning}");
-                let _ = writeln!(std::io::stderr(), "warning: {warning}");
+            match config::load_default_config() {
+                Ok(config) => {
+                    let plan = install::write_default_settings(&config)?;
+                    println!("wrote .claude/settings.json");
+                    for warning in &plan.warnings {
+                        warn!("warning: {warning}");
+                        let _ = writeln!(std::io::stderr(), "warning: {warning}");
+                    }
+                }
+                Err(err) => {
+                    warn!("warning: skipping repo-local settings generation: {err}");
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "warning: skipping repo-local settings generation: {err}"
+                    );
+                }
+            }
+
+            for provider in install::TargetProvider::all() {
+                let plan = install::write_local_provider_cutover(provider).map_err(|err| {
+                    CliError::internal_with_source("local provider cutover failed", err)
+                })?;
+                println!("wrote local {} cutover", provider.as_str());
+                for warning in &plan.warnings {
+                    warn!("warning: {warning}");
+                    let _ = writeln!(std::io::stderr(), "warning: {warning}");
+                }
             }
         }
         Commands::Config => {
@@ -474,10 +493,9 @@ fn extract_session_id(payload: &serde_json::Value) -> Result<Option<SessionId>, 
 }
 
 fn cli_error_for_normalization(err: HookError) -> CliError {
-    match err {
-        HookError::Normalization(NormalizationError::RetryableGateInput { .. }) => {
-            CliError::blocked(format!("provider runtime normalization failed: {err}"))
-        }
-        other => CliError::plugin_error_with_source("provider runtime normalization failed", other),
+    if err.normalization_recovery_hint().is_some() {
+        CliError::blocked_with_source("provider runtime normalization failed", err)
+    } else {
+        CliError::plugin_error_with_source("provider runtime normalization failed", err)
     }
 }

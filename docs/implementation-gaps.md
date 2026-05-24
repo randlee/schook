@@ -45,8 +45,9 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     should not be done implicitly inside the observability closeout
   - disposition for `Phase O`: explicitly deferred past `Phase O` so `O.3`
     may attach provider-normalization failures at
-    `HookError::Normalization(NormalizationError)` without reopening the public
-    error-surface split mid-sprint
+    `HookError::Normalization { message, source }` without reopening the public
+    error-surface split mid-sprint; the named `NormalizationError` inventory
+    remains the private source behind that envelope
   - recommendation: take an explicit architecture ruling after `Phase O` on
     whether the next release track wants a stable multi-type error taxonomy or
     to freeze the current monolithic enum deliberately

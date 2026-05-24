@@ -1,7 +1,7 @@
 ---
 id: O.4
 title: Codex Runtime Parity
-status: planned
+status: complete
 branch: feature/pO-s4-codex-runtime-parity
 worktree: ../schook-worktrees/feature/pO-s4-codex-runtime-parity
 target: integrate/phase-O

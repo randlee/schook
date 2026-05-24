@@ -22,8 +22,8 @@ just lint sc-boundary
 
 Current preferred backend on this machine:
 
-- Homebrew-installed `sc-lint-boundary 0.1.0`
-- binary path: `/opt/homebrew/bin/sc-lint-boundary`
+- discover `sc-lint-boundary` from `PATH`
+- prefer the Homebrew-installed `sc-lint-boundary 0.1.0` when discovery succeeds
 
 Explicit fallback:
 

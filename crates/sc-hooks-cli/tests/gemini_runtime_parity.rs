@@ -237,6 +237,7 @@ fn gemini_runtime_path_updates_session_state_gate_and_cleanup() {
     let record: Value = serde_json::from_str(&rendered).expect("state should parse");
     assert_eq!(record["provider"], "gemini");
     assert_eq!(record["extensions"]["atm"]["atm_team"], "schook");
+    assert_eq!(record["extensions"]["atm"]["atm_identity"], "chook");
     assert_eq!(
         record["extensions"]["spawn_gate"]["last_requested_spawn"]["spawn_kind"],
         "named_agent"
@@ -329,9 +330,8 @@ fn gemini_retryable_normalization_failure_surfaces_recovery_hint() {
         .as_str()
         .expect("error should be present");
     assert!(error.contains("provider runtime normalization failed"));
-    assert!(
-        error.contains(
-            "Retry after Gemini emits the complete AfterTool response payload for the approved shell surface."
-        )
+    assert_eq!(
+        events[0]["recovery_hint"],
+        "Retry after Gemini emits the complete AfterTool response payload for the approved shell surface."
     );
 }

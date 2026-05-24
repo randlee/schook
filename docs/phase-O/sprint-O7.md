@@ -1,7 +1,7 @@
 ---
 id: O.7
 title: Local Deployment And Cutover
-status: planned
+status: complete
 branch: feature/pO-s7-local-cutover
 worktree: ../schook-worktrees/feature/pO-s7-local-cutover
 target: integrate/phase-O

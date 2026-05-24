@@ -183,6 +183,14 @@ impl CliError {
         }
     }
 
+    /// Creates a blocked error with a source.
+    pub fn blocked_with_source(reason: impl Into<String>, source: impl Into<BoxedError>) -> Self {
+        Self::Blocked {
+            reason: reason.into(),
+            source: Some(source.into()),
+        }
+    }
+
     /// Creates a plugin error without a source.
     pub fn plugin_error(message: impl Into<String>) -> Self {
         Self::PluginError {
@@ -240,6 +248,30 @@ impl CliError {
             Self::Internal { .. } => sc_hooks_core::exit_codes::INTERNAL_ERROR,
         }
     }
+
+    /// Returns the retryable recovery hint for provider normalization failures, when present.
+    pub fn normalization_recovery_hint(&self) -> Option<&'static str> {
+        match self {
+            Self::Blocked { source, .. }
+            | Self::PluginError { source, .. }
+            | Self::Timeout { source, .. }
+            | Self::AuditFailure { source, .. }
+            | Self::Internal { source, .. } => source.as_deref().and_then(|source| {
+                let source: &(dyn std::error::Error + 'static) = source;
+                find_recovery_hint_in_error_chain(source)
+            }),
+            _ => None,
+        }
+    }
+}
+
+fn find_recovery_hint_in_error_chain(
+    err: &(dyn std::error::Error + 'static),
+) -> Option<&'static str> {
+    if let Some(hook_err) = err.downcast_ref::<sc_hooks_core::errors::HookError>() {
+        return hook_err.normalization_recovery_hint();
+    }
+    err.source().and_then(find_recovery_hint_in_error_chain)
 }
 
 fn format_optional_source(

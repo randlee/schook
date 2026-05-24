@@ -230,8 +230,8 @@ fn codex_retryable_normalization_failure_surfaces_recovery_hint() {
         .as_str()
         .expect("error should be present");
     assert!(error.contains("provider runtime normalization failed"));
-    assert!(
-        error
-            .contains("Retry after Codex emits the complete PreToolUse payload for the Bash tool.")
+    assert_eq!(
+        events[0]["recovery_hint"],
+        "Retry after Codex emits the complete PreToolUse payload for the Bash tool."
     );
 }

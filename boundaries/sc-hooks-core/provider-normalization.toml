@@ -4,11 +4,11 @@ owner_crate_path = "sc_hooks_core"
 name = "ProviderNormalization"
 
 [public]
-facade = "normalize_provider_hook"
+facade = "normalize_runtime_dispatch"
 
 [implementation]
-type = "normalize_provider_hook"
-module = "sc_hooks_core"
+type = "ProviderHookNormalizer"
+module = "sc_hooks_core::normalization"
 visibility = "public"
 constructor = "none"
 
@@ -16,7 +16,7 @@ constructor = "none"
 roots = []
 
 [dependencies]
-allowed_dependents = []
+allowed_dependents = ["sc-hooks-cli"]
 allowed_dependencies = []
 forbidden_edges = []
 

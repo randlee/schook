@@ -1,7 +1,7 @@
 ---
 id: O.2
 title: `sc-lint` Setup And Boundary Enforcement
-status: planned
+status: complete
 branch: feature/pO-s2-sc-lint-setup
 worktree: ../schook-worktrees/feature/pO-s2-sc-lint-setup
 target: integrate/phase-O
@@ -62,9 +62,6 @@ lint target='all':
 _lint-sc-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
 
-test hooks provider:
-    {{python_cmd}} .just/run_hook_tests.py {{provider}}
-
 test hooks claude:
     {{python_cmd}} .just/run_hook_tests.py claude
 
@@ -78,13 +75,20 @@ test hooks gemini:
 Boundary record:
 
 ```toml
-# boundaries/provider-normalization.toml
-name = "provider-normalization"
-crate = "crates/sc-hooks-core"
+# boundaries/sc-hooks-core/provider-normalization.toml
+boundary_id = "BOUNDARY-ProviderNormalization"
+owner_package = "sc-hooks-core"
+owner_crate_path = "sc_hooks_core"
+name = "ProviderNormalization"
 
-[attributes]
-internal_only = ["crate::normalization::private"]
-forbid_external_impls = ["crate::normalization::ProviderHookNormalizer"]
+[public]
+facade = "normalize_runtime_dispatch"
+
+[implementation]
+type = "ProviderHookNormalizer"
+module = "sc_hooks_core::normalization"
+visibility = "public"
+constructor = "none"
 ```
 
 ## Acceptance Criteria
