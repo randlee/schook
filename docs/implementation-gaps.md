@@ -39,9 +39,13 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     validation, state-I/O, divergence, and internal failures
   - splitting it now would be a public API break across the core/sdk surface and
     should not be done implicitly inside the observability closeout
-  - recommendation: take an explicit architecture ruling on whether the next
-    release track wants a stable multi-type error taxonomy or to freeze the
-    current monolithic enum deliberately
+  - disposition for `Phase O`: explicitly deferred past `Phase O` so `O.3`
+    may attach provider-normalization failures at
+    `HookError::Normalization(NormalizationError)` without reopening the public
+    error-surface split mid-sprint
+  - recommendation: take an explicit architecture ruling after `Phase O` on
+    whether the next release track wants a stable multi-type error taxonomy or
+    to freeze the current monolithic enum deliberately
 
 ### RULING-NEEDED-ECR-002: Backtrace Capture Policy
 

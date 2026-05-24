@@ -123,8 +123,13 @@ Internal implementation detail:
 - `Provider`
 - `ProviderHookSource` (planned `Phase O` internal type)
 - `TargetProvider`
+- `SessionId` (planned `Phase O` internal type)
+- `ToolName` (planned `Phase O` internal type)
+- `HookEventName` (planned `Phase O` internal type)
 - `NormalizedHookContext` (planned `Phase O` internal type)
 - `CanonicalHook` (planned `Phase O` internal type)
+- `CodexHook` (planned `Phase O` internal type)
+- `GeminiHook` (planned `Phase O` internal type)
 - `CanonicalPayload` (planned `Phase O` internal type)
 - `NormalizationError` (planned `Phase O` internal type)
 
@@ -138,8 +143,11 @@ Gemini runtime parity:
 - the resulting `NormalizedHookContext` then feeds the existing `HookContext`
   construction path rather than creating a second parallel runtime dispatch
   flow
-- `sc-lint-boundary` enforces the seam with `boundary.internal_only` and
-  `boundary.forbid_external_impls` rules on the normalization types
+- `sc-lint-boundary` enforces the seam through `boundary.internal_only` on the
+  private normalization module and `boundary.forbid_external_impls` on the
+  `ProviderHookNormalizer` trait; canonical type visibility remains an
+  implementation rule enforced by crate-private signatures rather than
+  additional lint attributes in `O.2`
 - provider-local fields remain outside the canonical runtime contract until
   new approved fixture evidence promotes them
 - `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
@@ -414,8 +422,8 @@ Still deferred beyond that harness-planning expansion:
 
 `ADR-SHK-006` governs the `Phase N` normalization boundary:
 
-This ADR was introduced by the `Phase N` planning branch and must be present
-on `integrate/phase-N` before `N.3` begins.
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
 
 - a field is canonical only if approved fixtures from at least two providers
   show compatible semantics for that field
@@ -432,8 +440,8 @@ on `integrate/phase-N` before `N.3` begins.
 
 `ADR-SHK-007` governs the shared-readiness write pattern for `Phase N`:
 
-This ADR was introduced by the `Phase N` planning branch and must be present
-on `integrate/phase-N` before `N.3` / `N.4` begin.
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
 
 - sprint execution branches treat shared readiness ledgers as read-only
 - the integration author is the sole writer for accepted sprint rows and final

@@ -100,6 +100,9 @@ forbid_external_impls = ["crate::normalization::ProviderHookNormalizer"]
   sprints will rely on
 - boundary lint runs in this repo and can detect `internal_only` and
   `forbid_external_impls` violations on the normalization boundary
+- the sprint records and validates the exact lint-coverage scope: the
+  `internal_only` module seam and the `ProviderHookNormalizer` trait, not the
+  full canonical type set
 - the sprint documents whether the machine is using the Homebrew-installed
   `sc-lint-boundary` binary or the explicit repo-local fallback path
 - if neither the pinned Homebrew binary nor the documented repo-local fallback

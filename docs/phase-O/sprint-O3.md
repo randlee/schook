@@ -22,6 +22,8 @@ target: integrate/phase-O
 - current `origin/integrate/phase-N` accepted baseline
 - approved provider fixtures, models, and hook API docs from `Phase N`
 - `CDR-B` merged to the execution baseline
+- `RULING-NEEDED-ECR-001` disposition recorded as closed or explicitly
+  deferred past `Phase O` before the `O.3` branch is cut
 - `sc-lint-boundary` enforcement active in this repo
 
 ## Exact Targets
@@ -73,31 +75,31 @@ pub(crate) enum ProviderHookSource {
 Canonical normalized data:
 
 ```rust
-pub struct NormalizedHookContext<'a> {
-    pub hook: CanonicalHook,
-    pub event: Option<HookEventName<'a>>,
-    pub session_id: Option<SessionId<'a>>,
-    pub project_root: Option<&'a Path>,
-    pub current_dir: Option<&'a Path>,
-    pub tool_name: Option<ToolName<'a>>,
-    pub payload: CanonicalPayload<'a>,
+pub(crate) struct NormalizedHookContext<'a> {
+    pub(crate) hook: CanonicalHook,
+    pub(crate) event: Option<HookEventName<'a>>,
+    pub(crate) session_id: Option<SessionId<'a>>,
+    pub(crate) project_root: Option<&'a Path>,
+    pub(crate) current_dir: Option<&'a Path>,
+    pub(crate) tool_name: Option<ToolName<'a>>,
+    pub(crate) payload: CanonicalPayload<'a>,
 }
 ```
 
 Approved canonical hooks:
 
 ```rust
-pub enum CanonicalHook {
+pub(crate) enum CanonicalHook {
     Codex(CodexHook),
     Gemini(GeminiHook),
 }
 
-pub enum CodexHook {
+pub(crate) enum CodexHook {
     SessionStart,
     PreToolUse,
 }
 
-pub enum GeminiHook {
+pub(crate) enum GeminiHook {
     SessionStart,
     SessionEnd,
     BeforeAgent,
@@ -109,7 +111,7 @@ pub enum GeminiHook {
 Canonical payload contract:
 
 ```rust
-pub enum CanonicalPayload<'a> {
+pub(crate) enum CanonicalPayload<'a> {
     Empty,
     ToolUse { tool_name: ToolName<'a>, body: &'a serde_json::Value },
     SessionLifecycle { body: &'a serde_json::Value },
@@ -120,15 +122,15 @@ pub enum CanonicalPayload<'a> {
 Canonical newtypes:
 
 ```rust
-pub struct SessionId<'a>(pub Cow<'a, str>);
-pub struct ToolName<'a>(pub Cow<'a, str>);
-pub struct HookEventName<'a>(pub Cow<'a, str>);
+pub(crate) struct SessionId<'a>(pub(crate) Cow<'a, str>);
+pub(crate) struct ToolName<'a>(pub(crate) Cow<'a, str>);
+pub(crate) struct HookEventName<'a>(pub(crate) Cow<'a, str>);
 ```
 
 Normalization error inventory:
 
 ```rust
-pub enum NormalizationError {
+pub(crate) enum NormalizationError {
     MissingRequiredField { field: &'static str },
     InvalidFieldValue { field: &'static str, reason: &'static str },
     InvalidPayloadForHook { hook: CanonicalHook, payload_kind: &'static str },
@@ -136,6 +138,10 @@ pub enum NormalizationError {
     UnsupportedApprovedSurface { provider: ProviderHookSource, hook: &'static str },
 }
 ```
+
+`CanonicalHook` is only required to support `Debug`, so any `thiserror`
+formatting for `InvalidPayloadForHook` should use `{hook:?}` rather than
+assuming a `Display` impl.
 
 Linted boundary marker:
 
@@ -153,6 +159,8 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   normalization trait boundary
 - the normalization trait is crate-private and a compile-fail boundary test
   proves external impls are rejected
+- all canonical normalization types remain `pub(crate)` in the implemented
+  crate
 - `NormalizedHookContext` is the canonical provider-normalized input and feeds
   the existing `HookContext` construction path; `Phase O` does not create a
   second parallel dispatch model
