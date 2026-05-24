@@ -39,8 +39,16 @@ target: integrate/phase-O
 
 ## Acceptance Criteria
 
-- Gemini approved surfaces drive canonical runtime behavior through the generic
-  plugin path
+- Gemini `SessionStart` drives canonical session-state creation and root/current
+  directory updates through the generic runtime path
+- Gemini `SessionEnd` drives the canonical terminal-session path and session
+  cleanup behavior through the generic runtime path
+- Gemini `BeforeAgent` drives the generic agent-spawn gate path, including any
+  approved ATM-extension metadata enrichment that already exists for Claude
+- Gemini `BeforeTool` drives the generic tool-gate path through the same
+  provider-agnostic plugin stack
+- Gemini `AfterTool` drives the generic post-tool path, including any approved
+  ATM-extension or tool-output gate behavior that already exists for Claude
 - Gemini runtime tests pass against the approved fixture baseline
 - provider-local Gemini fields stay outside the canonical runtime contract
 

@@ -21,7 +21,9 @@ target: integrate/phase-O
 - `O.2` complete
 - current `origin/integrate/phase-N` accepted baseline
 - approved provider fixtures, models, and hook API docs from `Phase N`
-- `CDR-B` merged or otherwise present on the execution baseline
+- `CDR-B` merged to the execution baseline, or the execution branch cites the
+  exact reconciliation commit that carries the required `CDR-B` control-doc and
+  runtime updates
 - `sc-lint-boundary` enforcement active in this repo
 
 ## Exact Targets
@@ -51,6 +53,21 @@ pub trait ProviderHookNormalizer: private::Sealed {
         &self,
         raw: Self::RawPayload<'a>,
     ) -> Result<NormalizedHookContext<'a>, HookError>;
+}
+```
+
+Canonical normalized data:
+
+```rust
+pub struct NormalizedHookContext<'a> {
+    pub provider: HookProvider,
+    pub hook: CanonicalHook,
+    pub event: Option<Cow<'a, str>>,
+    pub session_id: Option<Cow<'a, str>>,
+    pub project_root: Option<&'a Path>,
+    pub current_dir: Option<&'a Path>,
+    pub tool_name: Option<Cow<'a, str>>,
+    pub payload: CanonicalPayload<'a>,
 }
 ```
 

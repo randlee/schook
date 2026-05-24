@@ -42,7 +42,15 @@ target: integrate/phase-O
 - Claude, Codex, and Gemini approved surfaces all execute through the same
   generic plugin stack
 - observability and error semantics remain stable across approved providers
-- control docs describe only the runtime behavior actually proved in this phase
+- `docs/requirements.md` updates `HKR-006` and `HKR-010` to describe only the
+  provider runtime behavior actually proved in `Phase O`, while `HKR-007`
+  remains deferred
+- `docs/traceability.md` updates the `HKR-006` and `HKR-010` rows to cite the
+  final cross-provider runtime tests and the stable `just test hooks <provider>`
+  commands
+- `docs/architecture.md` updates section `1.1 Stable Product ADR IDs`,
+  section `2. Current System Boundary`, and the runtime-boundary section added
+  by `O.3` so they match only the behavior proved in `O.3` through `O.6`
 
 ## Out Of Scope
 

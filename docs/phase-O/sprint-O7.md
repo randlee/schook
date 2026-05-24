@@ -31,12 +31,17 @@ target: integrate/phase-O
 
 ## Deliverables
 
+- `crates/sc-hooks-cli/src/install.rs` updates that own the local provider
+  install-plan or cutover helper behavior used by this sprint
 - one local install/cutover path for Claude, Codex, and Gemini on this machine
 - rollback instructions
 - machine-local smoke-test record for the supported providers
 
 ## Acceptance Criteria
 
+- `crates/sc-hooks-cli/src/install.rs` implements the install-plan or cutover
+  helper behavior named by the sprint docs, and that behavior is exercised once
+  during the machine-local cutover validation
 - the documented local cutover path installs the normalized runtime for Claude,
   Codex, and Gemini on this machine
 - rollback steps are documented and tested once
@@ -52,6 +57,7 @@ target: integrate/phase-O
 ## Required Validation
 
 - `cargo test --workspace`
+- `cargo run -p sc-hooks-cli -- install`
 - `just test hooks claude`
 - `just test hooks codex`
 - `just test hooks gemini`

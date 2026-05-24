@@ -13,7 +13,8 @@ target: integrate/phase-O
 
 - close the pre-existing hygiene and layout issues that should not bleed into
   runtime-normalization work
-- close `SEAL-001` before the runtime adapter line starts
+- carry forward the accepted `SEAL-001` closure decision before the runtime
+  adapter line starts
 
 ## Hard Dependencies
 
@@ -26,33 +27,33 @@ target: integrate/phase-O
 - `crates/sc-hooks-core/src/context.rs`
 - `crates/sc-hooks-sdk/src/traits.rs`
 - `crates/sc-hooks-cli/src/resolution.rs`
-- `test_harness/hooks/gemini/tests/__init__.py`
+- `test-harness/hooks/gemini/tests/__init__.py`
 - `pyproject.toml`
 - `docs/implementation-gaps.md`
 
 ## Deliverables
 
-- `test_harness/hooks/gemini/tests/__init__.py` plus the matching
+- `test-harness/hooks/gemini/tests/__init__.py` plus the matching
   `pyproject.toml` package entry
 - `active_pid` validation hardening in `sc-hooks-core/src/session.rs`
 - `HookContext.event` lifetime fix in `sc-hooks-core/src/context.rs`
 - `HandlerRejected.reason` condition-path propagation in
   `sc-hooks-cli/src/resolution.rs`
-- sealed `ManifestProvider`, `SyncHandler`, and `AsyncHandler` traits plus the
-  replacing `SEAL-001` closure note in `docs/implementation-gaps.md`
+- `SEAL-001` closure carried forward in `docs/implementation-gaps.md` with an
+  explicit Phase O note that the unsealed-trait decision remains in force and
+  is not reopened by `O.1`
 
 ## Acceptance Criteria
 
-- `test_harness/hooks/gemini/tests/__init__.py` exists and the Gemini test
+- `test-harness/hooks/gemini/tests/__init__.py` exists and the Gemini test
   package is wired the same way as Codex in `pyproject.toml`
 - `active_pid` no longer deserializes through `#[serde(default)]` and zero is
   rejected by record validation
 - `HookContext.event` no longer forces unnecessary `'static` allocation
 - condition errors in `resolution.rs` are captured into
   `HandlerRejected.reason`
-- `ManifestProvider`, `SyncHandler`, and `AsyncHandler` are sealed and
-  `docs/implementation-gaps.md` replaces the prior `SEAL-001` closure note
-  with the new sealed-trait outcome
+- `docs/implementation-gaps.md` states that `SEAL-001` remains closed under
+  the accepted unsealed-trait decision and is not reopened in `Phase O`
 
 ## Out Of Scope
 

@@ -77,7 +77,8 @@ Purpose:
 
 - close pre-existing Rust best-practices and harness-layout issues that block a
   clean runtime-normalization baseline
-- close `SEAL-001` before runtime-normalization work begins
+- carry forward the accepted `SEAL-001` closure decision explicitly before
+  runtime-normalization work begins
 
 Execution branch:
 - `feature/pO-s1-codebase-hygiene`
@@ -178,11 +179,12 @@ Execution worktree:
 - `O.1`:
   - `docs/implementation-gaps.md`
   - `pyproject.toml`
-  - `test_harness/hooks/gemini/tests/__init__.py`
+  - `test-harness/hooks/gemini/tests/__init__.py`
   - hygiene fixes in `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, and
     `crates/sc-hooks-sdk/`
 - `O.2`:
   - repo-local `just` wrapper integration in `justfile` and `.just/`
+  - `docs/sc-lint-boundary.md`
   - `boundaries/` records for the normalization boundary
   - `sc-lint-boundary` attributes/dependencies needed for boundary enforcement
 - `O.3`:
@@ -222,7 +224,8 @@ deliverables, acceptance criteria, and closure rules.
 - `HKR-010` closes in `Phase O` only when spawn/tool/ATM behavior works through
   the normalized runtime path with exact retryable failures preserved
 - `O.1` closes the pre-existing hygiene set before runtime normalization:
-  `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and `SEAL-001`
+  `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and the carried-forward `SEAL-001`
+  closure decision
 - provider-specific parsing belongs behind the normalization trait; generic
   plugin logic remains provider-agnostic
 - no provider-local field may be promoted into the canonical runtime contract

@@ -30,12 +30,14 @@ target: integrate/phase-O
 - `crates/sc-hooks-cli/Cargo.toml`
 - `crates/sc-hooks-sdk/Cargo.toml`
 - `boundaries/`
-- docs describing the repo-local lint surface
+- `docs/sc-lint-boundary.md`
 
 ## Deliverables
 
 - repo-local `just` wrapper surface following the top-level `../atm-core`
   pattern
+- stable `just test hooks claude`, `just test hooks codex`, and
+  `just test hooks gemini` entrypoints owned by this repo-level command surface
 - boundary definitions for the normalization seam
 - lint commands that fail when the normalization boundary is bypassed
 
@@ -55,6 +57,9 @@ lint target='all':
 [private]
 _lint-sc-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
+
+test hooks provider:
+    {{python_cmd}} .just/run_hook_tests.py {{provider}}
 ```
 
 ## Acceptance Criteria
@@ -64,6 +69,8 @@ _lint-sc-boundary:
 - the `just lint sc-boundary` path is backed by `sc-lint-boundary`, using the
   Homebrew-installed binary when available or the explicit repo-local fallback
   from `../sc-lint`
+- the same `just` surface owns `just test hooks claude`, `just test hooks codex`,
+  and `just test hooks gemini`
 - `boundaries/` records exist for the normalization seam the later runtime
   sprints will rely on
 - boundary lint runs in this repo and can detect `internal_only` and
@@ -78,6 +85,9 @@ _lint-sc-boundary:
 
 ## Required Validation
 
+- `cargo check --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `just help`
 - `just lint sc-boundary`
+- `just test hooks claude`
 - `git diff --check`
