@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "Phase O lands the normalization foundation in O.3 and adopts it across runtime parity sprints O.4 and O.5."
-)]
-
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
@@ -33,7 +28,6 @@ pub(crate) enum ProviderHookSource {
 pub(crate) struct ProviderHookInput<'a> {
     pub(crate) provider: ProviderHookSource,
     pub(crate) raw: &'a Value,
-    pub(crate) event: Option<&'a str>,
     pub(crate) metadata_path: Option<&'a Path>,
 }
 
@@ -74,7 +68,6 @@ pub(crate) enum GeminiHook {
 /// Canonical payload families accepted by the runtime normalization seam.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum CanonicalPayload<'a> {
-    Empty,
     ToolUse {
         tool_name: ToolName<'a>,
         body: &'a Value,
@@ -442,13 +435,11 @@ pub fn normalize_runtime_dispatch(
         RuntimeProvider::Codex => normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Codex,
             raw,
-            event: None,
             metadata_path: None,
         })?,
         RuntimeProvider::Gemini => normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw,
-            event: None,
             metadata_path: None,
         })?,
     };
@@ -623,7 +614,6 @@ fn llm_content(body: &Value) -> Option<&str> {
 
 fn payload_kind(payload: &CanonicalPayload<'_>) -> &'static str {
     match payload {
-        CanonicalPayload::Empty => "empty",
         CanonicalPayload::ToolUse { .. } => "tool_use",
         CanonicalPayload::SessionLifecycle { .. } => "session_lifecycle",
         CanonicalPayload::AgentLifecycle { .. } => "agent_lifecycle",
@@ -727,7 +717,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Codex,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("codex session start should normalize");
@@ -744,7 +733,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Codex,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("codex pre tool use should normalize");
@@ -762,7 +750,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("gemini session start should normalize");
@@ -779,7 +766,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("gemini session end should normalize");
@@ -796,7 +782,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("gemini before agent should normalize");
@@ -814,7 +799,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("gemini before tool should normalize");
@@ -832,7 +816,6 @@ mod tests {
         let context = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect("gemini after tool should normalize");
@@ -882,7 +865,6 @@ mod tests {
         let err = normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Gemini,
             raw: &raw,
-            event: None,
             metadata_path: None,
         })
         .expect_err("missing cwd should fail");
