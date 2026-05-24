@@ -22,7 +22,7 @@ target: integrate/phase-O
 - current `origin/integrate/phase-N` accepted baseline
 - approved provider fixtures, models, and hook API docs from `Phase N`
 - `CDR-B` merged or otherwise present on the execution baseline
-- `sc-lint` boundary enforcement active in this repo
+- `sc-lint-boundary` enforcement active in this repo
 
 ## Exact Targets
 
@@ -38,6 +38,31 @@ target: integrate/phase-O
 - one sealed normalization trait boundary
 - fixture-backed normalization tests
 - one documented normalization boundary for provider-specific vs canonical data
+
+## Required Signatures
+
+Normalization seam:
+
+```rust
+pub trait ProviderHookNormalizer: private::Sealed {
+    type RawPayload<'a>;
+
+    fn normalize<'a>(
+        &self,
+        raw: Self::RawPayload<'a>,
+    ) -> Result<NormalizedHookContext<'a>, HookError>;
+}
+```
+
+Linted boundary marker:
+
+```rust
+#[sc_lint(boundary.internal_only)]
+mod private;
+
+#[sc_lint(boundary.forbid_external_impls)]
+pub trait ProviderHookNormalizer { /* ... */ }
+```
 
 ## Acceptance Criteria
 

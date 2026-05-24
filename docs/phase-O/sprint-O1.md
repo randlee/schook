@@ -32,11 +32,14 @@ target: integrate/phase-O
 
 ## Deliverables
 
-- `PN-008` closed
-- `RBP-1` closed
-- `RBP-2` closed
-- `RBP-4` closed
-- `SEAL-001` closed
+- `test_harness/hooks/gemini/tests/__init__.py` plus the matching
+  `pyproject.toml` package entry
+- `active_pid` validation hardening in `sc-hooks-core/src/session.rs`
+- `HookContext.event` lifetime fix in `sc-hooks-core/src/context.rs`
+- `HandlerRejected.reason` condition-path propagation in
+  `sc-hooks-cli/src/resolution.rs`
+- sealed `ManifestProvider`, `SyncHandler`, and `AsyncHandler` traits plus the
+  replacing `SEAL-001` closure note in `docs/implementation-gaps.md`
 
 ## Acceptance Criteria
 
@@ -48,7 +51,8 @@ target: integrate/phase-O
 - condition errors in `resolution.rs` are captured into
   `HandlerRejected.reason`
 - `ManifestProvider`, `SyncHandler`, and `AsyncHandler` are sealed and
-  `docs/implementation-gaps.md` closes `SEAL-001`
+  `docs/implementation-gaps.md` replaces the prior `SEAL-001` closure note
+  with the new sealed-trait outcome
 
 ## Out Of Scope
 

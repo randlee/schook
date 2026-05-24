@@ -39,6 +39,24 @@ target: integrate/phase-O
 - boundary definitions for the normalization seam
 - lint commands that fail when the normalization boundary is bypassed
 
+## Required Signatures
+
+Public `just` surface:
+
+```just
+default: help
+
+help:
+    {{python_cmd}} .just/print_help.py
+
+lint target='all':
+    {{python_cmd}} .just/run_lint.py {{target}}
+
+[private]
+_lint-sc-boundary:
+    {{python_cmd}} .just/lint_sc_boundary.py
+```
+
 ## Acceptance Criteria
 
 - the repo exposes `just` entrypoints in the same top-level pattern used by
