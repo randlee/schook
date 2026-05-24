@@ -137,7 +137,8 @@ struct BashToolInput {
 struct BashPayload {
     #[serde(rename = "session_id")]
     _session_id: String,
-    tool_name: String,
+    #[serde(rename = "tool_name")]
+    _tool_name: String,
     tool_input: BashToolInput,
 }
 
@@ -217,15 +218,15 @@ impl SyncHandler for AtmExtensionHandler {
 }
 
 fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
-    let payload: BashPayload = context.payload()?;
-    if payload.tool_name != "Bash" {
+    let payload_value = context.payload_value()?;
+    if payload_value.get("tool_name").and_then(Value::as_str) != Some("Bash") {
         return Ok(proceed());
     }
+    let payload: BashPayload = context.payload()?;
 
     let Some((store, record)) = load_record_for_context(&context)? else {
         return Ok(proceed());
     };
-    let payload_value = context.payload_value()?;
     let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
         return Ok(proceed());
     };
@@ -253,15 +254,15 @@ fn handle_pre_tool_use(context: HookContext) -> Result<HookResult, HookError> {
 }
 
 fn handle_post_tool_use(context: HookContext) -> Result<HookResult, HookError> {
-    let payload: BashPayload = context.payload()?;
-    if payload.tool_name != "Bash" {
+    let payload_value = context.payload_value()?;
+    if payload_value.get("tool_name").and_then(Value::as_str) != Some("Bash") {
         return Ok(proceed());
     }
+    let payload: BashPayload = context.payload()?;
 
     let Some((store, record)) = load_record_for_context(&context)? else {
         return Ok(proceed());
     };
-    let payload_value = context.payload_value()?;
     let Some(routing) = resolve_atm_routing(payload_value, Some(&record)) else {
         return Ok(proceed());
     };

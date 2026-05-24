@@ -350,6 +350,7 @@ fn resolve_provider(context: &HookContext) -> Result<Provider, HookError> {
         .and_then(Value::as_str)
     {
         Some("codex") => Ok(Provider::Codex),
+        Some("gemini") => Ok(Provider::Gemini),
         Some("claude") | None => Ok(Provider::Claude),
         Some(other) => Err(HookError::validation(
             "agent.type",

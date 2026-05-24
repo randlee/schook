@@ -133,6 +133,8 @@ pub enum NormalizationError {
 pub enum RuntimeProvider {
     /// OpenAI Codex CLI approved runtime surfaces.
     Codex,
+    /// Google Gemini CLI approved runtime surfaces.
+    Gemini,
 }
 
 /// Canonical dispatch input emitted from the provider-normalization boundary.
@@ -439,6 +441,12 @@ pub fn normalize_runtime_dispatch(
     let context = match provider {
         RuntimeProvider::Codex => normalize_provider_hook(ProviderHookInput {
             provider: ProviderHookSource::Codex,
+            raw,
+            event: None,
+            metadata_path: None,
+        })?,
+        RuntimeProvider::Gemini => normalize_provider_hook(ProviderHookInput {
+            provider: ProviderHookSource::Gemini,
             raw,
             event: None,
             metadata_path: None,
@@ -898,5 +906,21 @@ mod tests {
         assert_eq!(dispatch.event.as_deref(), Some("Bash"));
         assert_eq!(dispatch.payload["tool_name"], "Bash");
         assert_eq!(dispatch.payload["tool_input"]["command"], "pwd");
+    }
+
+    #[test]
+    fn gemini_runtime_dispatch_returns_canonical_post_tool_surface() {
+        let raw = fixture(GEMINI_AFTER_TOOL);
+        let dispatch = normalize_runtime_dispatch(RuntimeProvider::Gemini, &raw).expect("dispatch");
+
+        assert_eq!(dispatch.hook, HookType::PostToolUse);
+        assert_eq!(dispatch.event.as_deref(), Some("Bash"));
+        assert_eq!(dispatch.payload["tool_name"], "Bash");
+        assert!(
+            dispatch.payload["tool_response"]["stdout"]
+                .as_str()
+                .expect("stdout")
+                .contains("/synthetic/test/gemini-harness")
+        );
     }
 }
