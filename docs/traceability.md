@@ -96,8 +96,10 @@ This table maps the most important documented requirements to current implementa
 | PRT-001 | implemented | `.github/workflows/ci.yml` | CI workflow | |
 | HKR-002 | implemented | `test-harness/hooks/claude/captures/raw/`, `test-harness/hooks/claude/tests/` | `test_fixture_validation.py`, `test_harness_structure.py` — harness structure and capture script contracts verified | |
 | HKR-003 | implemented | `docs/archive/plugin-plan-s9.md`, `docs/hook-api/claude-hook-api.md` | `test-harness/run-schema-drift.py` drift detection; plan and hook API docs were revised from captured fixtures including `resume` and `clear` evidence | |
+| HKR-006 | planned | `docs/plan-phase-O.md`, `docs/phase-O/sprint-O3.md`, `docs/phase-O/sprint-O4.md`, `docs/phase-O/sprint-O5.md` | `Phase O` plans Codex and Gemini runtime normalization only after the approved `Phase N` harness baseline and `CDR-B` merge are in place; Cursor stays deferred under `HKR-007` | `Phase O` has not executed yet; runtime parity remains planned only for the approved Codex and Gemini surfaces. |
 | HKR-008 | implemented | `sc-hooks-core/src/session.rs`, `plugins/agent-session-foundation/src/lib.rs`, `sc-hooks-core/src/storage.rs` | `sc-hooks-core/src/session.rs:429-534`, `plugins/agent-session-foundation` unit tests, and storage tests covering canonical-record validation, immutable root persistence, current-dir drift handling, and provider-root equality enforcement | |
 | HKR-009 | implemented | `plugins/agent-session-foundation/src/lib.rs` | `plugins/agent-session-foundation` unit tests covering atomic-write temp-plus-rename, skip-on-unchanged, and per-invocation observability emission | |
+| HKR-010 | planned | `docs/plan-phase-O.md`, `docs/phase-O/sprint-O4.md`, `docs/phase-O/sprint-O5.md`, `docs/phase-O/sprint-O6.md` | `Phase O` plans normalized-runtime parity for spawn/tool/ATM behavior on the approved Codex and Gemini surfaces, with exact retryable failures preserved through the shared runtime path | `Phase O` has not executed yet; Codex and Gemini parity for this requirement remains planned rather than implemented. |
 | HKR-011 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering extension-field enrichment, team linkage, and child identity override behavior | |
 | HKR-013 | implemented | `plugins/atm-extension/src/lib.rs` | `plugins/atm-extension` tests covering the four-stage relay pipeline, `ToolName` typed boundary, and relay-decision side-effect separation | |
 | HKR-014 | implemented | `docs/phase-N/sprint-N1.md`, `docs/phase-N/sprint-N2.md`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md` | `N.1` / `N.2` fixture manifests, findings ledgers, and provider-specific harness tests proving repo-owned raw stdin fixtures, env snapshots, and approved capture scope | `SC-PN-4` proposes follow-on runtime approval only for the approved provider surfaces; deferred surfaces remain named in `docs/phase-N/release-checklist.md` pending merge-time readiness authorization. |
@@ -127,6 +129,10 @@ This table maps the most important documented requirements to current implementa
   - prior text: env-var availability of `CLAUDE_PROJECT_DIR` in hook process context was unverified; implementation of the canonical session-state record keyed by `ai_root_dir` was specified but not capture-backed
   - current text: `CLAUDE_PROJECT_DIR` is confirmed as a hook-only env injection (present in hook process env, absent in the launch shell); `SessionStart(source="startup")` is the capture-backed surface for establishing immutable root; later `cwd` values may drift; the canonical session-state model now enforces immutable-root persistence, root-equality checks, and normalized consumer output
   - authorizing sprints: `S9-ENV-CAPTURE`, `S10-R1`
+- `HKR-006`
+  - prior text: Codex, Gemini, and Cursor runtime implementation all remained deferred after the Claude-first planning and harness phases
+  - current text: `Phase O` is the approved runtime-normalization phase for Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains deferred under `HKR-007`
+  - authorizing phase: `Phase O`
 - `BND-001a`
   - prior text: the documented `plugins/` source inventory listed nine crates and treated later additions as outside the branch baseline
   - current text: the documented `plugins/` source inventory lists all thirteen source crates in the branch and distinguishes the four non-scaffold runtime crates from the nine scaffold/reference crates
@@ -159,3 +165,7 @@ This table maps the most important documented requirements to current implementa
   - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
   - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
   - authorizing sprint: `S9-HP5`
+- `HKR-010`
+  - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
+  - current text: `Phase O` plans the Codex and Gemini normalized-runtime parity work needed to return this requirement to `Implemented` on those approved provider surfaces
+  - authorizing phase: `Phase O`

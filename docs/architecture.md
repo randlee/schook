@@ -29,15 +29,16 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
-| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` begins. |
-| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. This ADR was introduced by the `Phase N` planning branch and must be carried to `integrate/phase-N` before `N.3` / `N.4` begin. |
+| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
+| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
+| `ADR-SHK-008` | Provider runtime normalization must pass through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. This ADR is planned for `Phase O` and must be introduced by `O.2`/`O.3` before Codex or Gemini runtime parity begins. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-007` decisions in this document
+  through `ADR-SHK-008` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -119,6 +120,78 @@ Internal implementation detail:
 - `ResolutionError`
 - `ValidationError`
 - `CliError`
+- `Provider`
+- `ProviderHookSource` (planned `Phase O` internal type)
+- `TargetProvider`
+- `SessionId` (planned `Phase O` internal type)
+- `ToolName` (planned `Phase O` internal type)
+- `HookEventName` (planned `Phase O` internal type)
+- `NormalizedHookContext` (planned `Phase O` internal type)
+- `CanonicalHook` (planned `Phase O` internal type)
+- `CodexHook` (planned `Phase O` internal type)
+- `GeminiHook` (planned `Phase O` internal type)
+- `CanonicalPayload` (planned `Phase O` internal type)
+- `NormalizationError` (planned `Phase O` internal type)
+
+## 3.4 Planned Phase O Runtime Boundary
+
+`Phase O` introduces one planned provider-normalization seam ahead of Codex and
+Gemini runtime parity:
+
+- provider raw payloads are normalized through one sealed
+  `pub(crate)` `ProviderHookNormalizer` boundary
+- the resulting `NormalizedHookContext` then feeds the existing `HookContext`
+  construction path rather than creating a second parallel runtime dispatch
+  flow
+- `sc-lint-boundary` enforces the seam through `boundary.internal_only` on the
+  private normalization module and `boundary.forbid_external_impls` on the
+  `ProviderHookNormalizer` trait; canonical type visibility remains an
+  implementation rule enforced by crate-private signatures rather than
+  additional lint attributes in `O.2`
+- provider-local fields remain outside the canonical runtime contract until
+  new approved fixture evidence promotes them
+- `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
+  surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
+  the public contract
+- `NormalizationError` is the named O.3 error inventory for provider
+  normalization failures and is planned to enter the current error surface as
+  `HookError::Normalization(NormalizationError)` unless a later explicit
+  architecture ruling supersedes that approach before O.3 begins
+- provider/runtime consistency is locked before O.3 code starts by freezing:
+  the seal mechanism, normalization-error taxonomy, required newtype set, and
+  `(provider × hook × payload)` compatibility rules in this document
+- the approved compatibility set for that rule is:
+  - `CanonicalHook::Codex(CodexHook::SessionStart)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Codex(CodexHook::PreToolUse)` ->
+    `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::SessionStart)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::SessionEnd)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::BeforeAgent)` ->
+    `CanonicalPayload::AgentLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::BeforeTool)` ->
+    `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::AfterTool)` ->
+    `CanonicalPayload::ToolUse`
+- any other hook/payload pairing is invalid and must fail normalization as
+  `NormalizationError::InvalidPayloadForHook`
+- Claude does not route through a provider-normalization adapter in O.3;
+  Claude remains the existing baseline runtime path that Codex and Gemini must
+  normalize into for plugin-parity work
+
+This section is a planned `Phase O` architecture commitment, not current
+release behavior.
+
+Planned internal type ownership for `Phase O`:
+
+- `Provider`
+  - current session-state provider enum in `sc-hooks-core::session`
+  - remains runtime state metadata, not the install/cutover target selector
+- `TargetProvider`
+  - planned install/cutover target newtype for O.7 CLI-facing provider
+    selection; kept distinct from session-state provider metadata
 
 The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
 
@@ -349,8 +422,8 @@ Still deferred beyond that harness-planning expansion:
 
 `ADR-SHK-006` governs the `Phase N` normalization boundary:
 
-This ADR was introduced by the `Phase N` planning branch and must be present
-on `integrate/phase-N` before `N.3` begins.
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
 
 - a field is canonical only if approved fixtures from at least two providers
   show compatible semantics for that field
@@ -367,8 +440,8 @@ on `integrate/phase-N` before `N.3` begins.
 
 `ADR-SHK-007` governs the shared-readiness write pattern for `Phase N`:
 
-This ADR was introduced by the `Phase N` planning branch and must be present
-on `integrate/phase-N` before `N.3` / `N.4` begin.
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
 
 - sprint execution branches treat shared readiness ledgers as read-only
 - the integration author is the sole writer for accepted sprint rows and final
