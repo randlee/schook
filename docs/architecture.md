@@ -31,7 +31,7 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
 | `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
 | `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
-| `ADR-SHK-008` | Provider runtime normalization must pass through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. This ADR is planned for `Phase O` and must be introduced by `O.2`/`O.3` before Codex or Gemini runtime parity begins. |
+| `ADR-SHK-008` | Provider runtime normalization passes through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. Introduced by `Phase O` planning and now in force for the approved Codex and Gemini runtime surfaces. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
@@ -51,6 +51,9 @@ The host:
 - applies the supported `[observability]` config surface documented in
   `docs/observability-contract.md` while keeping sink registration and logger
   lifecycle internal to `sc-hooks-cli`
+- normalizes the approved Codex and Gemini provider payloads through the sealed
+  `ProviderHookNormalizer` boundary before they enter the generic runtime
+  dispatch path
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -121,22 +124,22 @@ Internal implementation detail:
 - `ValidationError`
 - `CliError`
 - `Provider`
-- `ProviderHookSource` (planned `Phase O` internal type)
+- `ProviderHookSource`
 - `TargetProvider`
-- `SessionId` (planned `Phase O` internal type)
-- `ToolName` (planned `Phase O` internal type)
-- `HookEventName` (planned `Phase O` internal type)
-- `NormalizedHookContext` (planned `Phase O` internal type)
-- `CanonicalHook` (planned `Phase O` internal type)
-- `CodexHook` (planned `Phase O` internal type)
-- `GeminiHook` (planned `Phase O` internal type)
-- `CanonicalPayload` (planned `Phase O` internal type)
-- `NormalizationError` (planned `Phase O` internal type)
+- `SessionId`
+- `ToolName`
+- `HookEventName`
+- `NormalizedHookContext`
+- `CanonicalHook`
+- `CodexHook`
+- `GeminiHook`
+- `CanonicalPayload`
+- `NormalizationError`
 
-## 3.4 Planned Phase O Runtime Boundary
+## 3.4 Provider Runtime Normalization Boundary
 
-`Phase O` introduces one planned provider-normalization seam ahead of Codex and
-Gemini runtime parity:
+The approved Codex and Gemini runtime surfaces now enter one provider-normalization
+seam before generic runtime dispatch:
 
 - provider raw payloads are normalized through one sealed
   `pub(crate)` `ProviderHookNormalizer` boundary rooted in
@@ -156,12 +159,11 @@ Gemini runtime parity:
 - `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
   surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
   the public contract
-- `NormalizationError` is the named O.3 error inventory for provider
-  normalization failures and is planned to enter the current error surface as
-  `HookError::Normalization(NormalizationError)` unless a later explicit
-  architecture ruling supersedes that approach before O.3 begins
-- provider/runtime consistency is locked before O.3 code starts by freezing:
-  the seal mechanism, normalization-error taxonomy, required newtype set, and
+- `NormalizationError` is the named error inventory used by
+  `HookError::Normalization(NormalizationError)` for provider normalization
+  failures
+- provider/runtime consistency is frozen by the seal mechanism,
+  normalization-error taxonomy, required internal type set, and
   `(provider × hook × payload)` compatibility rules in this document
 - the internal canonical type inventory for `O.3` is:
   - `ProviderHookSource`
@@ -206,12 +208,9 @@ Gemini runtime parity:
   - Gemini `AfterTool`
 - `RetryableGateInput.recovery_hint` is a required non-optional
   `&'static str` in the landed seam
-- Claude does not route through a provider-normalization adapter in O.3;
-  Claude remains the existing baseline runtime path that Codex and Gemini must
-  normalize into for plugin-parity work
-
-This section is a planned `Phase O` architecture commitment, not current
-release behavior.
+- Claude does not route through a provider-normalization adapter; Claude
+  remains the baseline runtime path that Codex and Gemini normalize into for
+  plugin-parity work
 
 Planned internal type ownership for `Phase O`:
 
