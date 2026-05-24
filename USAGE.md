@@ -96,7 +96,7 @@ allow_paths = []
 ```
 
 Current config rules come from [docs/requirements.md](docs/requirements.md):
-- recognized top-level sections are `[meta]`, `[context]`, `[hooks]`, and `[sandbox]`
+- recognized top-level sections are `[meta]`, `[context]`, `[hooks]`, `[sandbox]`, and `[observability]`
 - only `[meta]` and `[hooks]` are required
 
 ## Run The Dispatcher
