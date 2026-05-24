@@ -1,7 +1,7 @@
 ---
 id: O.6
 title: Cross-Provider Plugin Parity And End-To-End Validation
-status: planned
+status: complete
 branch: feature/pO-s6-cross-provider-plugin-parity
 worktree: ../schook-worktrees/feature/pO-s6-cross-provider-plugin-parity
 target: integrate/phase-O

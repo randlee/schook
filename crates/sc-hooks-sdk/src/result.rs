@@ -87,6 +87,7 @@ pub fn error(message: impl Into<String>) -> HookResult {
 /// Converts a typed `HookError` into the public `HookResult` error shape.
 pub fn error_from_hook_error(error: &HookError) -> HookResult {
     let kind = match error {
+        HookError::Normalization { .. } => "normalization",
         HookError::InvalidPayload { .. } => "invalid_payload",
         HookError::InvalidContext { .. } => "invalid_context",
         HookError::StateIo { .. } => "state_io",
@@ -165,6 +166,16 @@ mod tests {
             (root_divergence, "hook_error_kind=root_divergence"),
             (internal, "hook_error_kind=internal"),
         ];
+
+        let normalization_result = error_from_hook_error(&HookError::Internal {
+            message: "provider runtime normalization failed".to_string(),
+            source: None,
+        });
+        assert_eq!(normalization_result.action, HookAction::Error);
+        assert_eq!(
+            normalization_result.additional_context.as_deref(),
+            Some("hook_error_kind=internal")
+        );
 
         for (error, expected_context) in cases {
             let result = error_from_hook_error(&error);

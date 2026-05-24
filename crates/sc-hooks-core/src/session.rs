@@ -62,6 +62,10 @@ impl ActivePid {
 pub enum Provider {
     /// Anthropic Claude Code.
     Claude,
+    /// OpenAI Codex CLI.
+    Codex,
+    /// Google Gemini CLI.
+    Gemini,
 }
 
 impl Provider {
@@ -69,6 +73,8 @@ impl Provider {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
+            Self::Codex => "codex",
+            Self::Gemini => "gemini",
         }
     }
 }

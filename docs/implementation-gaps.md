@@ -24,6 +24,8 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     production-track plugin crates, and treat any future trait sealing as a
     deliberate architecture change requiring a migration plan rather than a
     silent hardening pass
+  - `Phase O` note: this ruling remains closed under the accepted
+    unsealed-trait decision and is not reopened by `O.1`
   - deferral note: sealed-trait migration is deferred until the public API
     stabilization gate for the next release-track boundary; any new trait
     methods must carry default implementations until that stabilization sprint is
@@ -31,9 +33,11 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 
-- Status: `active`
+- Status: `deferred past Phase O`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
+- Recorded owner:
+  - `randlee`
 - Current note:
   - `HookError` is still a single cross-crate error enum spanning payload,
     validation, state-I/O, divergence, and internal failures
@@ -41,8 +45,9 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     should not be done implicitly inside the observability closeout
   - disposition for `Phase O`: explicitly deferred past `Phase O` so `O.3`
     may attach provider-normalization failures at
-    `HookError::Normalization(NormalizationError)` without reopening the public
-    error-surface split mid-sprint
+    `HookError::Normalization { message, source }` without reopening the public
+    error-surface split mid-sprint; the named `NormalizationError` inventory
+    remains the private source behind that envelope
   - recommendation: take an explicit architecture ruling after `Phase O` on
     whether the next release track wants a stable multi-type error taxonomy or
     to freeze the current monolithic enum deliberately

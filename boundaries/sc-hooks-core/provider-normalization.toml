@@ -1,0 +1,36 @@
+boundary_id = "BOUNDARY-ProviderNormalization"
+owner_package = "sc-hooks-core"
+owner_crate_path = "sc_hooks_core"
+name = "ProviderNormalization"
+
+[public]
+facade = "normalize_runtime_dispatch"
+
+[implementation]
+type = "ProviderHookNormalizer"
+module = "sc_hooks_core::normalization"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = []
+
+[dependencies]
+allowed_dependents = ["sc-hooks-cli"]
+allowed_dependencies = []
+forbidden_edges = []
+
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
+
+[enforcement]
+lint_rules = ["LINT-PROVIDER-NORMALIZATION"]
+review_gates = ["internal_only", "forbid_external_impls"]
+
+[status]
+state = "concrete_landed"

@@ -20,6 +20,7 @@ use sc_hooks_core::session::{
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use serde_json::Value;
 
 /// Sync lifecycle handler that owns canonical session-state persistence for the
 /// verified Claude hook lifecycle surfaces.
@@ -46,6 +47,7 @@ struct SessionTransition {
 #[derive(Debug)]
 struct ResolvedRuntime {
     session_id: SessionId,
+    provider: Provider,
     active_pid: ActivePid,
     ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
@@ -207,6 +209,7 @@ fn resolve_runtime(
 ) -> Result<ResolvedRuntime, HookError> {
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
+    let provider = resolve_provider(context)?;
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
     let (ai_root_dir, root_divergence) =
         resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
@@ -214,6 +217,7 @@ fn resolve_runtime(
 
     Ok(ResolvedRuntime {
         session_id,
+        provider,
         active_pid,
         ai_root_dir,
         ai_current_dir,
@@ -315,7 +319,7 @@ fn build_next_record(
             }
         }
         None => CanonicalSessionRecord::new(
-            Provider::Claude,
+            resolved.provider,
             resolved.session_id.clone(),
             resolved.active_pid,
             resolved.ai_root_dir.clone().into_new_record_root()?,
@@ -325,6 +329,33 @@ fn build_next_record(
             event_name.clone(),
             resolved.transition.state_reason.clone(),
         ),
+    }
+}
+
+fn resolve_provider(context: &HookContext) -> Result<Provider, HookError> {
+    let Some(path) = context.metadata_path.as_ref() else {
+        return Ok(Provider::Claude);
+    };
+    let rendered = std::fs::read_to_string(path)
+        .map_err(|source| HookError::state_io(path.clone(), source))?;
+    let metadata: Value =
+        serde_json::from_str(&rendered).map_err(|source| HookError::InvalidPayload {
+            input_excerpt: rendered.chars().take(120).collect(),
+            source: Some(source),
+        })?;
+    match metadata
+        .get("agent")
+        .and_then(Value::as_object)
+        .and_then(|agent| agent.get("type"))
+        .and_then(Value::as_str)
+    {
+        Some("codex") => Ok(Provider::Codex),
+        Some("gemini") => Ok(Provider::Gemini),
+        Some("claude") | None => Ok(Provider::Claude),
+        Some(other) => Err(HookError::validation(
+            "agent.type",
+            format!("unsupported provider `{other}` for session foundation"),
+        )),
     }
 }
 

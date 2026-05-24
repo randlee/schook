@@ -1,7 +1,7 @@
 ---
 id: O.5
 title: Gemini Runtime Parity
-status: planned
+status: complete
 branch: feature/pO-s5-gemini-runtime-parity
 worktree: ../schook-worktrees/feature/pO-s5-gemini-runtime-parity
 target: integrate/phase-O
@@ -50,7 +50,9 @@ target: integrate/phase-O
   cleanup behavior through the generic runtime path
 - Gemini `BeforeAgent` drives the generic agent-spawn gate path, including any
   approved ATM-extension metadata enrichment already proved for Claude:
-  canonical session/team identity inheritance
+  canonical session/team identity inheritance. The isolated BeforeAgent ATM
+  enrichment proof is covered by the cross-provider end-to-end validation
+  carried forward into `O.6`.
 - Gemini `BeforeTool` drives the generic tool-gate path through the same
   provider-agnostic plugin stack
 - Gemini `AfterTool` drives the generic post-tool path, including any approved
