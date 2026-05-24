@@ -71,7 +71,21 @@ Rules:
 
 ## Sprint Sequence
 
-### O.1 Runtime Normalization Foundation
+### O.1 Codebase Hygiene And Harness Layout Parity
+
+Purpose:
+
+- close pre-existing Rust best-practices and harness-layout issues that block a
+  clean runtime-normalization baseline
+- close `SEAL-001` before runtime-normalization work begins
+
+Execution branch:
+- `feature/pO-s1-codebase-hygiene`
+
+Execution worktree:
+- `../schook-worktrees/feature/pO-s1-codebase-hygiene`
+
+### O.2 Runtime Normalization Foundation
 
 Purpose:
 
@@ -82,12 +96,12 @@ Purpose:
   parity work begins
 
 Execution branch:
-- `feature/pO-s1-runtime-normalization-foundation`
+- `feature/pO-s2-runtime-normalization-foundation`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s1-runtime-normalization-foundation`
+- `../schook-worktrees/feature/pO-s2-runtime-normalization-foundation`
 
-### O.2 Codex Runtime Parity
+### O.3 Codex Runtime Parity
 
 Purpose:
 
@@ -96,12 +110,12 @@ Purpose:
 - prove session-state, gate, and ATM-extension behavior on Codex
 
 Execution branch:
-- `feature/pO-s2-codex-runtime-parity`
+- `feature/pO-s3-codex-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s2-codex-runtime-parity`
+- `../schook-worktrees/feature/pO-s3-codex-runtime-parity`
 
-### O.3 Gemini Runtime Parity
+### O.4 Gemini Runtime Parity
 
 Purpose:
 
@@ -110,12 +124,12 @@ Purpose:
 - prove session-state, gate, and ATM-extension behavior on Gemini
 
 Execution branch:
-- `feature/pO-s3-gemini-runtime-parity`
+- `feature/pO-s4-gemini-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s3-gemini-runtime-parity`
+- `../schook-worktrees/feature/pO-s4-gemini-runtime-parity`
 
-### O.4 Cross-Provider Plugin Parity And E2E Validation
+### O.5 Cross-Provider Plugin Parity And E2E Validation
 
 Purpose:
 
@@ -125,12 +139,12 @@ Purpose:
   observability proof
 
 Execution branch:
-- `feature/pO-s4-cross-provider-plugin-parity`
+- `feature/pO-s5-cross-provider-plugin-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s4-cross-provider-plugin-parity`
+- `../schook-worktrees/feature/pO-s5-cross-provider-plugin-parity`
 
-### O.5 Local Deployment And Cutover
+### O.6 Local Deployment And Cutover
 
 Purpose:
 
@@ -139,27 +153,33 @@ Purpose:
 - finish with a documented rollback-safe local cutover path
 
 Execution branch:
-- `feature/pO-s5-local-cutover`
+- `feature/pO-s6-local-cutover`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s5-local-cutover`
+- `../schook-worktrees/feature/pO-s6-local-cutover`
 
 ## Sprint Artifact Summary
 
 - `O.1`:
+  - `docs/implementation-gaps.md`
+  - `pyproject.toml`
+  - `test_harness/hooks/gemini/tests/__init__.py`
+  - hygiene fixes in `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, and
+    `crates/sc-hooks-sdk/`
+- `O.2`:
   - runtime normalization code in `crates/sc-hooks-core/` and
     `crates/sc-hooks-cli/`
   - provider normalization tests backed by approved fixtures
-- `O.2`:
+- `O.3`:
   - Codex runtime adapter path
   - Codex end-to-end runtime tests
-- `O.3`:
+- `O.4`:
   - Gemini runtime adapter path
   - Gemini end-to-end runtime tests
-- `O.4`:
+- `O.5`:
   - cross-provider parity tests for Claude, Codex, and Gemini
   - runtime observability proof on approved surfaces
-- `O.5`:
+- `O.6`:
   - local install/cutover helpers and docs
   - machine-local smoke-test record for the supported providers
 
@@ -178,11 +198,13 @@ deliverables, acceptance criteria, and closure rules.
   surfaces; it does not reopen Cursor
 - `HKR-010` closes in `Phase O` only when spawn/tool/ATM behavior works through
   the normalized runtime path with exact retryable failures preserved
+- `O.1` closes the pre-existing hygiene set before runtime normalization:
+  `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and `SEAL-001`
 - provider-specific parsing belongs in the adapter layer; generic plugin logic
   remains provider-agnostic
 - no provider-local field may be promoted into the canonical runtime contract
   without new approved fixture evidence
-- `O.5` may cut over local agents only after `O.4` is accepted on
+- `O.6` may cut over local agents only after `O.5` is accepted on
   `integrate/phase-O`
 
 ## Initial Planning Outputs
@@ -194,3 +216,4 @@ deliverables, acceptance criteria, and closure rules.
 - `docs/phase-O/sprint-O3.md`
 - `docs/phase-O/sprint-O4.md`
 - `docs/phase-O/sprint-O5.md`
+- `docs/phase-O/sprint-O6.md`

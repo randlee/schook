@@ -1,62 +1,58 @@
 ---
 id: O.4
-title: Cross-Provider Plugin Parity And End-To-End Validation
+title: Gemini Runtime Parity
 status: planned
-branch: feature/pO-s4-cross-provider-plugin-parity
-worktree: ../schook-worktrees/feature/pO-s4-cross-provider-plugin-parity
+branch: feature/pO-s4-gemini-runtime-parity
+worktree: ../schook-worktrees/feature/pO-s4-gemini-runtime-parity
 target: integrate/phase-O
 ---
 
-# Sprint O.4 — Cross-Provider Plugin Parity And End-To-End Validation
+# Sprint O.4 — Gemini Runtime Parity
 
 ## Goal
 
-- prove that Claude, Codex, and Gemini all drive the same generic plugin stack
-  on their approved surfaces
-- freeze the runtime normalization boundary with end-to-end and observability
-  proof
+- make approved Gemini surfaces run through the same runtime/plugin path as
+  Claude
+- prove Gemini parity for session-state, gate, and ATM-extension behavior
 
 ## Hard Dependencies
 
 - `O.2` complete
-- `O.3` complete
 - current `origin/integrate/phase-O` branch head
+- local Gemini hooks remain available on this machine
 
 ## Exact Targets
 
 - `crates/sc-hooks-cli/src/`
-- `crates/sc-hooks-cli/tests/`
-- `plugins/`
-- `docs/requirements.md`
-- `docs/architecture.md`
-- `docs/traceability.md`
+- `plugins/agent-session-foundation/`
+- `plugins/agent-spawn-gates/`
+- `plugins/tool-output-gates/`
+- `plugins/atm-extension/`
+- `test-harness/hooks/gemini/`
 
 ## Deliverables
 
-- cross-provider parity tests for Claude, Codex, and Gemini approved surfaces
-- observability proof for the approved cross-provider runtime path
-- control-doc updates for the normalized runtime boundary
+- Gemini runtime support for `SessionStart`
+- Gemini runtime support for `SessionEnd`, `BeforeAgent`, `BeforeTool`, and
+  `AfterTool`
+- Gemini end-to-end runtime tests on the generic plugin path
 
 ## Acceptance Criteria
 
-- Claude, Codex, and Gemini approved surfaces all execute through the same
-  generic plugin stack
-- observability and error semantics remain stable across approved providers
-- control docs describe only the runtime behavior actually proved in this phase
+- Gemini approved surfaces drive canonical runtime behavior through the generic
+  plugin path
+- Gemini runtime tests pass against the approved fixture baseline
+- provider-local Gemini fields stay outside the canonical runtime contract
 
 ## Out Of Scope
 
-- local cutover
-- deferred `Phase N` surfaces
-- Cursor runtime work
+- Gemini `AfterAgent`
+- Codex deferred surfaces
+- local deployment and cutover
 
 ## Required Validation
 
-- `cargo check --workspace`
-- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
-- `pytest test-harness/hooks/ -q`
-- `just test hooks claude`
-- `just test hooks codex`
+- `pytest test-harness/hooks/gemini/tests/ -q`
 - `just test hooks gemini`
 - `git diff --check`

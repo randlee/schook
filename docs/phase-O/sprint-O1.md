@@ -1,56 +1,65 @@
 ---
 id: O.1
-title: Runtime Normalization Foundation
+title: Codebase Hygiene And Harness Layout Parity
 status: planned
-branch: feature/pO-s1-runtime-normalization-foundation
-worktree: ../schook-worktrees/feature/pO-s1-runtime-normalization-foundation
+branch: feature/pO-s1-codebase-hygiene
+worktree: ../schook-worktrees/feature/pO-s1-codebase-hygiene
 target: integrate/phase-O
 ---
 
-# Sprint O.1 — Runtime Normalization Foundation
+# Sprint O.1 — Codebase Hygiene And Harness Layout Parity
 
 ## Goal
 
-- implement the provider-to-canonical runtime normalization layer for approved
-  Codex and Gemini surfaces only
-- keep provider-specific parsing isolated from the generic runtime/plugin path
+- close the pre-existing hygiene and layout issues that should not bleed into
+  runtime-normalization work
+- close `SEAL-001` before the runtime adapter line starts
 
 ## Hard Dependencies
 
 - current `origin/integrate/phase-N` accepted baseline
-- approved provider fixtures, models, and hook API docs from `Phase N`
-- `CDR-B` merged or otherwise present on the execution baseline
+- current `docs/implementation-gaps.md` `SEAL-001` note
 
 ## Exact Targets
 
-- `crates/sc-hooks-core/src/`
-- `crates/sc-hooks-cli/src/`
-- `crates/sc-hooks-cli/tests/`
-- `test-harness/hooks/codex/`
-- `test-harness/hooks/gemini/`
+- `crates/sc-hooks-core/src/session.rs`
+- `crates/sc-hooks-core/src/context.rs`
+- `crates/sc-hooks-sdk/src/traits.rs`
+- `crates/sc-hooks-cli/src/resolution.rs`
+- `test_harness/hooks/gemini/tests/__init__.py`
+- `pyproject.toml`
+- `docs/implementation-gaps.md`
 
 ## Deliverables
 
-- runtime normalization code for approved Codex and Gemini surfaces
-- fixture-backed normalization tests
-- one documented normalization boundary for provider-specific vs canonical data
+- `PN-008` closed
+- `RBP-1` closed
+- `RBP-2` closed
+- `RBP-4` closed
+- `SEAL-001` closed
 
 ## Acceptance Criteria
 
-- approved Codex fixtures normalize into canonical runtime hook/event data
-- approved Gemini fixtures normalize into canonical runtime hook/event data
-- deferred `Phase N` surfaces are not implemented or implied as supported
-- normalization tests cite approved fixtures and pass
+- `test_harness/hooks/gemini/tests/__init__.py` exists and the Gemini test
+  package is wired the same way as Codex in `pyproject.toml`
+- `active_pid` no longer deserializes through `#[serde(default)]` and zero is
+  rejected by record validation
+- `HookContext.event` no longer forces unnecessary `'static` allocation
+- condition errors in `resolution.rs` are captured into
+  `HandlerRejected.reason`
+- `ManifestProvider`, `SyncHandler`, and `AsyncHandler` are sealed and
+  `docs/implementation-gaps.md` closes `SEAL-001`
 
 ## Out Of Scope
 
-- Codex `notify`, `Stop`, `resume`, `fork`
-- Gemini `AfterAgent`
+- runtime normalization
+- Codex runtime parity
+- Gemini runtime parity
 - local deployment and cutover
 
 ## Required Validation
 
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
-- `pytest test-harness/hooks/codex/tests/ -q`
 - `pytest test-harness/hooks/gemini/tests/ -q`
 - `git diff --check`

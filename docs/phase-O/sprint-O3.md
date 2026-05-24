@@ -1,25 +1,25 @@
 ---
 id: O.3
-title: Gemini Runtime Parity
+title: Codex Runtime Parity
 status: planned
-branch: feature/pO-s3-gemini-runtime-parity
-worktree: ../schook-worktrees/feature/pO-s3-gemini-runtime-parity
+branch: feature/pO-s3-codex-runtime-parity
+worktree: ../schook-worktrees/feature/pO-s3-codex-runtime-parity
 target: integrate/phase-O
 ---
 
-# Sprint O.3 — Gemini Runtime Parity
+# Sprint O.3 — Codex Runtime Parity
 
 ## Goal
 
-- make approved Gemini surfaces run through the same runtime/plugin path as
+- make approved Codex surfaces run through the same runtime/plugin path as
   Claude
-- prove Gemini parity for session-state, gate, and ATM-extension behavior
+- prove Codex parity for session-state, gate, and ATM-extension behavior
 
 ## Hard Dependencies
 
-- `O.1` complete
+- `O.2` complete
 - current `origin/integrate/phase-O` branch head
-- local Gemini hooks remain available on this machine
+- local Codex hooks remain available on this machine
 
 ## Exact Targets
 
@@ -28,31 +28,31 @@ target: integrate/phase-O
 - `plugins/agent-spawn-gates/`
 - `plugins/tool-output-gates/`
 - `plugins/atm-extension/`
-- `test-harness/hooks/gemini/`
+- `test-harness/hooks/codex/`
 
 ## Deliverables
 
-- Gemini runtime support for `SessionStart`
-- Gemini runtime support for `SessionEnd`, `BeforeAgent`, `BeforeTool`, and
-  `AfterTool`
-- Gemini end-to-end runtime tests on the generic plugin path
+- Codex runtime support for `SessionStart`
+- Codex runtime support for `PreToolUse`
+- Codex end-to-end runtime tests on the generic plugin path
 
 ## Acceptance Criteria
 
-- Gemini approved surfaces drive canonical runtime behavior through the generic
-  plugin path
-- Gemini runtime tests pass against the approved fixture baseline
-- provider-local Gemini fields stay outside the canonical runtime contract
+- Codex `SessionStart` drives canonical session-state updates through the
+  generic runtime path
+- Codex `PreToolUse` drives the existing gate and ATM extension logic through
+  the generic runtime path
+- Codex runtime tests pass against the approved fixture baseline
 
 ## Out Of Scope
 
-- Gemini `AfterAgent`
-- Codex deferred surfaces
+- Codex `notify`, `Stop`, `resume`, `fork`
+- Gemini runtime work
 - local deployment and cutover
 
 ## Required Validation
 
 - `cargo test --workspace`
-- `pytest test-harness/hooks/gemini/tests/ -q`
-- `just test hooks gemini`
+- `pytest test-harness/hooks/codex/tests/ -q`
+- `just test hooks codex`
 - `git diff --check`
