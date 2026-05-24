@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::events::HookType;
+use crate::normalization::NormalizationError;
 use crate::session::{AiCurrentDir, AiRootDir, SessionId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -65,6 +66,10 @@ impl RootDivergenceNotice {
 #[derive(Debug, Error)]
 /// Shared error type for hook parsing, validation, persistence, and runtime failures.
 pub enum HookError {
+    /// Provider-specific input failed runtime normalization into the canonical seam.
+    #[error(transparent)]
+    Normalization(#[from] NormalizationError),
+
     /// Hook payload JSON could not be parsed or validated.
     #[error("invalid payload near {input_excerpt}")]
     InvalidPayload {
@@ -132,6 +137,11 @@ pub enum HookError {
 }
 
 impl HookError {
+    /// Creates a `Normalization` error from the provider normalization seam.
+    pub fn normalization(source: NormalizationError) -> Self {
+        Self::Normalization(source)
+    }
+
     /// Creates an `InvalidContext` error without a source.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {

@@ -14,6 +14,8 @@ pub mod events;
 pub mod exit_codes;
 /// Manifest schema types.
 pub mod manifest;
+/// Provider runtime normalization seam.
+pub mod normalization;
 /// Shared process-spawn helpers.
 pub mod process;
 /// Hook result schema types.

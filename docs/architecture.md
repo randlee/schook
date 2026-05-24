@@ -139,10 +139,13 @@ Internal implementation detail:
 Gemini runtime parity:
 
 - provider raw payloads are normalized through one sealed
-  `pub(crate)` `ProviderHookNormalizer` boundary
+  `pub(crate)` `ProviderHookNormalizer` boundary rooted in
+  `sc_hooks_core::normalization`
+- the seam starts from `ProviderHookInput { provider, raw, event, metadata_path
+  }` and returns `NormalizedHookContext`
 - the resulting `NormalizedHookContext` then feeds the existing `HookContext`
-  construction path rather than creating a second parallel runtime dispatch
-  flow
+  construction path through `normalize_provider_hook()` rather than creating a
+  second parallel runtime dispatch flow
 - `sc-lint-boundary` enforces the seam through `boundary.internal_only` on the
   private normalization module and `boundary.forbid_external_impls` on the
   `ProviderHookNormalizer` trait; canonical type visibility remains an
@@ -160,6 +163,16 @@ Gemini runtime parity:
 - provider/runtime consistency is locked before O.3 code starts by freezing:
   the seal mechanism, normalization-error taxonomy, required newtype set, and
   `(provider × hook × payload)` compatibility rules in this document
+- the internal canonical type inventory for `O.3` is:
+  - `ProviderHookSource`
+  - `ProviderHookInput<'a>`
+  - `NormalizedHookContext<'a>`
+  - `CanonicalHook`
+  - `CanonicalPayload<'a>`
+  - `SessionId<'a>`
+  - `ToolName<'a>`
+  - `HookEventName<'a>`
+  - `NormalizationError`
 - the approved compatibility set for that rule is:
   - `CanonicalHook::Codex(CodexHook::SessionStart)` ->
     `CanonicalPayload::SessionLifecycle`
@@ -177,6 +190,22 @@ Gemini runtime parity:
     `CanonicalPayload::ToolUse`
 - any other hook/payload pairing is invalid and must fail normalization as
   `NormalizationError::InvalidPayloadForHook`
+- the runtime hook/event projection locked by `O.3` is:
+  - Codex `SessionStart` -> `HookType::SessionStart`
+  - Codex `PreToolUse` -> `HookType::PreToolUse("Bash")`
+  - Gemini `SessionStart` -> `HookType::SessionStart`
+  - Gemini `SessionEnd` -> `HookType::SessionEnd`
+  - Gemini `BeforeAgent` -> `HookType::PreToolUse("Agent")`
+  - Gemini `BeforeTool` -> `HookType::PreToolUse("Bash")`
+  - Gemini `AfterTool` -> `HookType::PostToolUse("Bash")`
+- `RetryableGateInput` is reserved for approved gate surfaces that would
+  otherwise produce vague blocking text:
+  - Codex `PreToolUse`
+  - Gemini `BeforeAgent`
+  - Gemini `BeforeTool`
+  - Gemini `AfterTool`
+- `RetryableGateInput.recovery_hint` is a required non-optional
+  `&'static str` in the landed seam
 - Claude does not route through a provider-normalization adapter in O.3;
   Claude remains the existing baseline runtime path that Codex and Gemini must
   normalize into for plugin-parity work
