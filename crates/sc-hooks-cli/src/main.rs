@@ -20,7 +20,12 @@ mod timeout;
 
 use clap::{Args, Parser, Subcommand};
 use log::{error, warn};
+use sc_hooks_core::errors::HookError;
 use sc_hooks_core::events::HookType;
+use sc_hooks_core::normalization::{
+    NormalizationError, RuntimeProvider, normalize_runtime_dispatch,
+};
+use sc_hooks_core::session::SessionId;
 use sc_hooks_sdk::manifest::{ManifestError, ManifestLoadError};
 use std::io::Write;
 use std::str::FromStr;
@@ -156,12 +161,45 @@ fn run() -> Result<(), CliError> {
     match cli.command {
         Commands::Run(args) => {
             let config = config::load_default_config()?;
-            let payload = read_optional_payload_from_stdin()?;
-            let mode = args.mode();
             let hook_type = HookType::from_str(&args.hook)
                 .map_err(|_| CliError::internal(format!("unknown hook type `{}`", args.hook)))?;
+            let payload = normalize_run_payload(
+                hook_type,
+                args.event.as_deref(),
+                read_optional_payload_from_stdin()?,
+            )
+            .map_err(|err| {
+                let cli_err = cli_error_for_normalization(err);
+                observability::emit_standard_degraded_signal(
+                    &config.observability,
+                    hook_type.as_str(),
+                    args.event.as_deref(),
+                    args.mode(),
+                    "provider_normalization",
+                    &cli_err,
+                );
+                if let Ok(project_root) = metadata::current_project_root() {
+                    observability::emit_full_audit_pre_dispatch_failure(
+                        observability::FullAuditPreDispatchFailureArgs {
+                            observability: &config.observability,
+                            hook: hook_type.as_str(),
+                            event: args.event.as_deref(),
+                            mode: args.mode(),
+                            project_root: &project_root,
+                            stage: "provider_normalization",
+                            err: &cli_err,
+                            payload: None,
+                        },
+                    );
+                }
+                cli_err
+            })?;
+            let mode = args.mode();
             let audit_project_root = metadata::current_project_root().ok();
-            let session_id = metadata::current_session_id();
+            let session_id = payload
+                .session_id
+                .clone()
+                .or_else(metadata::current_session_id);
             let disabled_plugins = session::load_disabled_plugins(
                 session_id
                     .as_ref()
@@ -173,20 +211,20 @@ fn run() -> Result<(), CliError> {
                 if let Some(project_root) = audit_project_root.as_ref() {
                     observability::emit_full_audit_invocation_received(
                         &config.observability,
-                        &args.hook,
-                        args.event.as_deref(),
+                        payload.hook_type.as_str(),
+                        payload.event.as_deref(),
                         mode,
                         project_root,
-                        payload.as_ref(),
+                        payload.payload.as_ref(),
                     );
                 }
                 let handlers =
                     resolution::resolve_chain(
                         &config,
-                        hook_type,
-                        args.event.as_deref(),
+                        payload.hook_type,
+                        payload.event.as_deref(),
                         mode,
-                        payload.as_ref(),
+                        payload.payload.as_ref(),
                         args.async_bucket.as_deref(),
                         &disabled_plugins,
                     )
@@ -204,8 +242,8 @@ fn run() -> Result<(), CliError> {
                         let cli_err = CliError::from(err);
                         observability::emit_standard_degraded_signal(
                             &config.observability,
-                            &args.hook,
-                            args.event.as_deref(),
+                            payload.hook_type.as_str(),
+                            payload.event.as_deref(),
                             mode,
                             stage,
                             &cli_err,
@@ -214,13 +252,13 @@ fn run() -> Result<(), CliError> {
                             observability::emit_full_audit_pre_dispatch_failure(
                                 observability::FullAuditPreDispatchFailureArgs {
                                     observability: &config.observability,
-                                    hook: &args.hook,
-                                    event: args.event.as_deref(),
+                                    hook: payload.hook_type.as_str(),
+                                    event: payload.event.as_deref(),
                                     mode,
                                     project_root,
                                     stage,
                                     err: &cli_err,
-                                    payload: payload.as_ref(),
+                                    payload: payload.payload.as_ref(),
                                 },
                             );
                         }
@@ -231,11 +269,11 @@ fn run() -> Result<(), CliError> {
                     if let Some(project_root) = audit_project_root.as_ref() {
                         observability::emit_full_audit_zero_match(
                             &config.observability,
-                            &args.hook,
-                            args.event.as_deref(),
+                            payload.hook_type.as_str(),
+                            payload.event.as_deref(),
                             mode,
                             project_root,
-                            payload.as_ref(),
+                            payload.payload.as_ref(),
                         );
                     }
                     return Ok(());
@@ -244,10 +282,10 @@ fn run() -> Result<(), CliError> {
                 match dispatch::execute_chain(
                     &handlers,
                     &config,
-                    hook_type,
-                    args.event.as_deref(),
+                    payload.hook_type,
+                    payload.event.as_deref(),
                     mode,
-                    payload.as_ref(),
+                    payload.payload.as_ref(),
                 )? {
                     dispatch::DispatchOutcome::Proceed => Ok(()),
                     dispatch::DispatchOutcome::Blocked { reason } => Err(CliError::blocked(reason)),
@@ -356,4 +394,89 @@ fn read_optional_payload_from_stdin() -> Result<Option<serde_json::Value>, CliEr
         .map_err(|err| CliError::plugin_error_with_source("invalid JSON payload on stdin", err))?;
 
     Ok(Some(parsed))
+}
+
+struct PreparedRunPayload {
+    hook_type: HookType,
+    event: Option<String>,
+    payload: Option<serde_json::Value>,
+    session_id: Option<SessionId>,
+}
+
+fn normalize_run_payload(
+    requested_hook: HookType,
+    requested_event: Option<&str>,
+    payload: Option<serde_json::Value>,
+) -> Result<PreparedRunPayload, HookError> {
+    let Some(raw_payload) = payload else {
+        return Ok(PreparedRunPayload {
+            hook_type: requested_hook,
+            event: requested_event.map(str::to_string),
+            payload: None,
+            session_id: None,
+        });
+    };
+
+    let Some(provider) = runtime_provider_from_env() else {
+        let session_id = extract_session_id(&raw_payload)?;
+        return Ok(PreparedRunPayload {
+            hook_type: requested_hook,
+            event: requested_event.map(str::to_string),
+            payload: Some(raw_payload),
+            session_id,
+        });
+    };
+
+    let normalized = normalize_runtime_dispatch(provider, &raw_payload)?;
+    if normalized.hook != requested_hook {
+        return Err(HookError::invalid_context(format!(
+            "provider normalization produced hook `{}` but the host requested `{}`",
+            normalized.hook.as_str(),
+            requested_hook.as_str()
+        )));
+    }
+    if normalized.event.as_deref() != requested_event {
+        return Err(HookError::validation(
+            "event",
+            format!(
+                "provider normalization produced event {:?} but the host requested {:?}",
+                normalized.event.as_deref(),
+                requested_event
+            ),
+        ));
+    }
+
+    let session_id = extract_session_id(&normalized.payload)?;
+    Ok(PreparedRunPayload {
+        hook_type: normalized.hook,
+        event: normalized.event,
+        payload: Some(normalized.payload),
+        session_id,
+    })
+}
+
+fn runtime_provider_from_env() -> Option<RuntimeProvider> {
+    match metadata::current_agent_type().as_deref() {
+        Some("codex") => Some(RuntimeProvider::Codex),
+        _ => None,
+    }
+}
+
+fn extract_session_id(payload: &serde_json::Value) -> Result<Option<SessionId>, HookError> {
+    match payload
+        .get("session_id")
+        .and_then(serde_json::Value::as_str)
+    {
+        Some(value) => Ok(Some(SessionId::new(value.to_string())?)),
+        None => Ok(None),
+    }
+}
+
+fn cli_error_for_normalization(err: HookError) -> CliError {
+    match err {
+        HookError::Normalization(NormalizationError::RetryableGateInput { .. }) => {
+            CliError::blocked(format!("provider runtime normalization failed: {err}"))
+        }
+        other => CliError::plugin_error_with_source("provider runtime normalization failed", other),
+    }
 }
