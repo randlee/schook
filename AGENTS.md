@@ -46,7 +46,7 @@ cargo test --workspace
 - Do the assigned work end to end in the designated worktree.
 - Commit and push before reporting completion.
 - Send completion status directly to the requesting ATM role.
-- Finish task loops with a blocking `atm read --team atm-dev --timeout ...` unless redirected.
+- Finish task loops with a blocking `atm read --team schook --timeout ...` unless redirected.
 
 ## Design Rules Summary
 
