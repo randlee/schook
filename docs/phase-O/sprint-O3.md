@@ -24,6 +24,8 @@ target: integrate/phase-O
 - `CDR-B` merged to the execution baseline
 - `RULING-NEEDED-ECR-001` disposition recorded as closed or explicitly
   deferred past `Phase O` before the `O.3` branch is cut
+- `docs/sc-lint-boundary.md` produced in `O.2` exists and records the
+  confirmed `#[sc_lint(...)]` attribute API before `O.3` implementation begins
 - `sc-lint-boundary` enforcement active in this repo
 
 ## Exact Targets
@@ -137,7 +139,7 @@ pub(crate) enum NormalizationError {
     RetryableGateInput {
         field: &'static str,
         reason: &'static str,
-        recovery_hint: Option<&'static str>,
+        recovery_hint: &'static str,
     },
     UnsupportedApprovedSurface { provider: ProviderHookSource, hook: &'static str },
 }
@@ -148,7 +150,9 @@ formatting for `InvalidPayloadForHook` should use `{hook:?}` rather than
 assuming a `Display` impl.
 
 The `#[sc_lint(...)]` attributes below are the planned proc-macro boundary
-markers used alongside the O.2 TOML boundary record, not a replacement for it.
+markers used alongside the O.2 TOML boundary record, not a replacement for it;
+`docs/sc-lint-boundary.md` is the confirming reference for that attribute API
+before O.3 code starts.
 
 Linted boundary marker:
 
@@ -182,8 +186,8 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   newer explicit architecture ruling supersedes that choice before O.3 begins
 - retryable-vs-fatal normalization failures are defined explicitly for the
   approved `HKR-010` gate surfaces
-- `RetryableGateInput` carries a `recovery_hint` field populated with an
-  actionable operator message before the variant is promoted to code
+- `RetryableGateInput` carries a non-optional `recovery_hint` field populated
+  with an actionable operator message before the variant is promoted to code
 - approved Codex fixtures normalize into canonical runtime hook/event data
 - approved Gemini fixtures normalize into canonical runtime hook/event data
 - Claude remains the existing baseline runtime path and is documented as the
