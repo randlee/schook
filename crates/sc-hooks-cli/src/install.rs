@@ -154,10 +154,13 @@ pub(crate) fn write_default_settings(config: &ScHooksConfig) -> Result<InstallPl
 pub(crate) fn write_local_provider_cutover(
     provider: TargetProvider,
 ) -> Result<InstallPlan, InstallError> {
-    let home = dirs::home_dir().ok_or_else(|| InstallError::WriteFailed {
-        path: PathBuf::from("~"),
-        reason: "unable to resolve home directory".to_string(),
-    })?;
+    let home = std::env::var_os("ATM_HOME")
+        .map(PathBuf::from)
+        .or_else(dirs::home_dir)
+        .ok_or_else(|| InstallError::WriteFailed {
+            path: PathBuf::from("~"),
+            reason: "unable to resolve home directory".to_string(),
+        })?;
     let runtime_root = home.join(LOCAL_RUNTIME_RELATIVE_ROOT);
     let runtime_plugin_root = runtime_root.join(LOCAL_RUNTIME_PLUGIN_DIR);
     let runtime_config_path = runtime_root.join(LOCAL_RUNTIME_CONFIG_PATH);
@@ -495,7 +498,7 @@ fn write_local_claude_cutover(
         for entry in entries {
             for hook in &mut entry.hooks {
                 hook.command =
-                    wrap_claude_command(&hook.command, runtime_root, state_root, cli_binary);
+                    wrap_claude_command(&hook.command, runtime_root, state_root, cli_binary)?;
             }
         }
     }
@@ -533,21 +536,23 @@ fn write_local_codex_cutover(
     backup_existing_config(TargetProvider::Codex, &target_path)?;
 
     let session_start = provider_shell_command(
+        TargetProvider::Codex,
         runtime_root,
         state_root,
         cli_binary,
         Some("codex"),
         Some("CODEX_SESSION_ID"),
         &["run", "SessionStart", "--sync"],
-    );
+    )?;
     let pre_tool_use = provider_shell_command(
+        TargetProvider::Codex,
         runtime_root,
         state_root,
         cli_binary,
         Some("codex"),
         Some("CODEX_SESSION_ID"),
         &["run", "PreToolUse", "Bash", "--sync"],
-    );
+    )?;
 
     let mut root = ensure_object(existing);
     root.insert(
@@ -596,45 +601,50 @@ fn write_local_gemini_cutover(
     backup_existing_config(TargetProvider::Gemini, &target_path)?;
 
     let session_start = provider_shell_command(
+        TargetProvider::Gemini,
         runtime_root,
         state_root,
         cli_binary,
         Some("gemini"),
         Some("GEMINI_SESSION_ID"),
         &["run", "SessionStart", "--sync"],
-    );
+    )?;
     let session_end = provider_shell_command(
+        TargetProvider::Gemini,
         runtime_root,
         state_root,
         cli_binary,
         Some("gemini"),
         Some("GEMINI_SESSION_ID"),
         &["run", "SessionEnd", "--sync"],
-    );
+    )?;
     let before_agent = provider_shell_command(
+        TargetProvider::Gemini,
         runtime_root,
         state_root,
         cli_binary,
         Some("gemini"),
         Some("GEMINI_SESSION_ID"),
         &["run", "PreToolUse", "Agent", "--sync"],
-    );
+    )?;
     let before_tool = provider_shell_command(
+        TargetProvider::Gemini,
         runtime_root,
         state_root,
         cli_binary,
         Some("gemini"),
         Some("GEMINI_SESSION_ID"),
         &["run", "PreToolUse", "Bash", "--sync"],
-    );
+    )?;
     let after_tool = provider_shell_command(
+        TargetProvider::Gemini,
         runtime_root,
         state_root,
         cli_binary,
         Some("gemini"),
         Some("GEMINI_SESSION_ID"),
         &["run", "PostToolUse", "Bash", "--sync"],
-    );
+    )?;
 
     let mut root = ensure_object(existing);
     root.insert(
@@ -859,7 +869,7 @@ fn wrap_claude_command(
     runtime_root: &Path,
     state_root: &Path,
     cli_binary: &Path,
-) -> String {
+) -> Result<String, InstallError> {
     let rewritten = command.replacen(
         "sc-hooks",
         &shell_quote(&cli_binary.display().to_string()),
@@ -877,17 +887,18 @@ cd {runtime_root} && exec {rewritten}",
         runtime_root = shell_quote(&runtime_root.display().to_string()),
         rewritten = rewritten,
     );
-    format!("/bin/sh -lc {}", shell_quote(&script))
+    shell_wrap_command(TargetProvider::Claude, &script)
 }
 
 fn provider_shell_command(
+    provider_target: TargetProvider,
     runtime_root: &Path,
     state_root: &Path,
     cli_binary: &Path,
     provider: Option<&str>,
     session_var: Option<&str>,
     args: &[&str],
-) -> String {
+) -> Result<String, InstallError> {
     let mut script = String::new();
     script.push_str(&format!(
         "export SC_HOOKS_STATE_DIR={}; ",
@@ -918,7 +929,20 @@ fn provider_shell_command(
         script.push(' ');
         script.push_str(&shell_quote(arg));
     }
-    format!("/bin/sh -lc {}", shell_quote(&script))
+    shell_wrap_command(provider_target, &script)
+}
+
+#[cfg(unix)]
+fn shell_wrap_command(_provider: TargetProvider, script: &str) -> Result<String, InstallError> {
+    Ok(format!("/bin/sh -lc {}", shell_quote(script)))
+}
+
+#[cfg(not(unix))]
+fn shell_wrap_command(provider: TargetProvider, _script: &str) -> Result<String, InstallError> {
+    Err(InstallError::UnsupportedProvider {
+        provider,
+        supported: &["claude", "codex", "gemini (unix-only local cutover)"],
+    })
 }
 
 fn shell_quote(value: &str) -> String {
@@ -1223,7 +1247,7 @@ PreToolUse = ["a", "b"]
     fn local_provider_cutover_writes_provider_configs_and_runtime_root() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let home = temp.path().join("home");
-        let _home = EnvVarGuard::set("HOME", &home);
+        let _home = EnvVarGuard::set("ATM_HOME", &home);
 
         fs::create_dir_all(home.join(".claude")).expect(".claude should create");
         fs::create_dir_all(home.join(".codex")).expect(".codex should create");
@@ -1361,7 +1385,7 @@ PreToolUse = ["a", "b"]
     fn local_provider_cutover_errors_when_provider_config_is_missing() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let home = temp.path().join("home");
-        let _home = EnvVarGuard::set("HOME", &home);
+        let _home = EnvVarGuard::set("ATM_HOME", &home);
         fs::create_dir_all(home.join(".local/bin")).expect("bin root should create");
         for binary in [
             "sc-hooks",

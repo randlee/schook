@@ -117,6 +117,9 @@ pub(crate) enum NormalizationError {
 
 /// Provider runtime surfaces that currently opt into the host normalization
 /// boundary.
+///
+/// Approved public exception: `sc-hooks-cli` consumes this enum across the
+/// crate boundary to select the provider-specific normalization entrypoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeProvider {
     /// OpenAI Codex CLI approved runtime surfaces.
@@ -126,6 +129,10 @@ pub enum RuntimeProvider {
 }
 
 /// Canonical dispatch input emitted from the provider-normalization boundary.
+///
+/// Approved public exception: `sc-hooks-cli` consumes this typed envelope
+/// across the crate boundary before converting it into the generic runtime
+/// dispatch path.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NormalizedRuntimeDispatch {
     /// Canonical hook type passed into generic runtime resolution/dispatch.

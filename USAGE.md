@@ -180,10 +180,10 @@ cp ~/.codex/hooks.json.sc-hooks.bak ~/.codex/hooks.json
 cp ~/.gemini/settings.json.sc-hooks.bak ~/.gemini/settings.json
 ```
 
-If a backup file is absent, the cutover created that provider config from
-scratch. Remove the generated file to return to the no-local-hook baseline, or
-replace it from a separate operator-managed backup before using that provider
-again:
+If a backup is absent, the cutover likely created that provider config from
+scratch. In that case, remove the generated config to return to the no-local-hook
+baseline, or replace it from a separate operator-managed backup before using
+the provider again:
 
 ```bash
 rm -f ~/.claude/settings.json
