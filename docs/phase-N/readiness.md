@@ -81,6 +81,12 @@ Promotion criteria:
 | N.2 | `88ebc36` | `ACCEPTED` | `merged to integrate/phase-N` | Gemini harness schema capture is frozen on the integration baseline. All locally exercisable Gemini hook surfaces were captured; workspace `.gemini/settings.json` activation remains outside the approved registration contract. |
 | N.3 | `acb2527` | `ACCEPTED` | `merged to integrate/phase-N` | Cross-provider normalization inventory is frozen on the integration baseline. Canonical candidates are limited to `session_id`, `cwd`, `transcript_path`, and `tool_input.command`; unresolved lifecycle families remain deferred. |
 | N.4 | `7855476` | `ACCEPTED` | `merged to integrate/phase-N` | Promotion gate audit complete. PARTIAL_GO verdict finalized. Approved surfaces per provider documented with deferred-surface follow-on sprint references. Follow-up QA fixes applied in PR #113. |
+| N.5 | `9d6dd57` | `ACCEPTED` | `merged to integrate/phase-N` | Claude harness and baseline verification complete. All locally exercisable Claude hook surfaces confirmed against repo-owned fixtures. PR #119. |
+| N.6 | `e26175d` | `ACCEPTED` | `merged to integrate/phase-N` | Codex provider harness verification complete. API doc and model fixtures confirmed against approved Codex surfaces. PR #120. |
+| N.7 | `d0528d8` | `ACCEPTED` | `merged to integrate/phase-N` | Gemini provider harness verification complete. API doc and model fixtures confirmed against approved Gemini surfaces. PR #121. |
+| N.8 | `2b7ebf5` | `ACCEPTED` | `merged to integrate/phase-N` | Codex API document and models verification complete. codex-hook-api.md and test_harness/hooks/codex/models/payloads.py aligned to approved fixtures. All QA follow-ups closed. PR #126. |
+| N.9 | `e725a37` | `ACCEPTED` | `merged to integrate/phase-N` | Gemini API document and models verification complete. gemini-hook-api.md and test_harness/hooks/gemini/models/payloads.py aligned to approved fixtures. |
+| N.10 | `43b5290` | `ACCEPTED` | `merged to integrate/phase-N` | Harness just integration complete. just test hooks claude/codex/gemini entrypoints live and documented. release-checklist.md finalized. |
 
 Final release verdict:
 

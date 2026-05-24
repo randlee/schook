@@ -1,7 +1,7 @@
 ---
 id: N.9
 title: Gemini API Document And Models Verification
-status: planned
+status: completed
 branch: feature/pN-s9-gemini-api-models-verify
 worktree: ../schook-worktrees/feature/pN-s9-gemini-api-models-verify
 target: integrate/phase-N

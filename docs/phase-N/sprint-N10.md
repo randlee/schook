@@ -1,7 +1,7 @@
 ---
 id: N.10
 title: Harness `just` Integration
-status: planned
+status: completed
 branch: feature/pN-s10-harness-just-integration
 worktree: ../schook-worktrees/feature/pN-s10-harness-just-integration
 target: integrate/phase-N

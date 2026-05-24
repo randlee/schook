@@ -1,7 +1,7 @@
 ---
 id: N.8
 title: Codex API Document And Models Verification
-status: planned
+status: completed
 branch: feature/pN-s8-codex-api-models-verify
 worktree: ../schook-worktrees/feature/pN-s8-codex-api-models-verify
 target: integrate/phase-N

@@ -1,7 +1,7 @@
 ---
 id: N.6
 title: Codex Harness Verification
-status: planned
+status: completed
 branch: feature/pN-s6-codex-harness-verify
 worktree: ../schook-worktrees/feature/pN-s6-codex-harness-verify
 target: integrate/phase-N
