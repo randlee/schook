@@ -168,13 +168,13 @@ fn build_hook_context(
     hook_name: Option<String>,
     event_name: Option<String>,
     metadata_path: Option<PathBuf>,
-) -> Result<HookContext, RunnerError> {
+) -> Result<HookContext<'static>, RunnerError> {
     let hook = resolve_hook_type(&raw_input, hook_name.as_deref())?;
     let event = resolve_event(&raw_input, event_name.as_deref());
     Ok(HookContext::new(hook, event, raw_input, metadata_path))
 }
 
-fn read_hook_context() -> Result<HookContext, RunnerError> {
+fn read_hook_context() -> Result<HookContext<'static>, RunnerError> {
     let raw_input = read_json_stdin()?;
     let hook_name = std::env::var("SC_HOOK_TYPE").ok();
     let event_name = std::env::var("SC_HOOK_EVENT").ok();
@@ -209,26 +209,25 @@ fn resolve_event(
     event_name: Option<&str>,
 ) -> Option<Cow<'static, str>> {
     event_name
-        .map(str::to_owned)
-        .or_else(|| std::env::var("SC_HOOK_EVENT").ok())
+        .map(|value| Cow::Owned(value.to_owned()))
+        .or_else(|| std::env::var("SC_HOOK_EVENT").ok().map(Cow::Owned))
         .or_else(|| {
             raw_input
                 .get("hook")
                 .and_then(|hook| hook.get("event"))
                 .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
+                .map(|value| Cow::Owned(value.to_owned()))
         })
-        .map(Cow::Owned)
 }
 
-fn run_sync_with_context<H: SyncHandler>(handler: &H, input: HookContext) -> HookResult {
+fn run_sync_with_context<H: SyncHandler>(handler: &H, input: HookContext<'_>) -> HookResult {
     match handler.handle(input) {
         Ok(result) => result,
         Err(error) => error_from_hook_error(&error),
     }
 }
 
-fn run_async_with_context<H: AsyncHandler>(handler: &H, input: HookContext) -> HookResult {
+fn run_async_with_context<H: AsyncHandler>(handler: &H, input: HookContext<'_>) -> HookResult {
     match handler.handle_async(input) {
         Ok(result) => result.into_hook_result(),
         Err(error) => error_from_hook_error(&error),
@@ -305,7 +304,7 @@ mod tests {
     impl AsyncHandler for DummyAsync {
         fn handle_async(
             &self,
-            _context: HookContext,
+            _context: HookContext<'_>,
         ) -> Result<crate::result::AsyncResult, HookError> {
             Ok(crate::result::AsyncResult::with_system_message("done"))
         }
@@ -462,7 +461,7 @@ mod tests {
         }
 
         impl SyncHandler for FailingSync {
-            fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+            fn handle(&self, _context: HookContext<'_>) -> Result<HookResult, HookError> {
                 Err(HookError::invalid_context("bad context"))
             }
         }
@@ -489,7 +488,7 @@ mod tests {
         }
 
         impl SyncHandler for SuccessfulSync {
-            fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+            fn handle(&self, _context: HookContext<'_>) -> Result<HookResult, HookError> {
                 Ok(crate::result::block("retryable"))
             }
         }
@@ -515,7 +514,7 @@ mod tests {
         impl AsyncHandler for FailingAsync {
             fn handle_async(
                 &self,
-                _context: HookContext,
+                _context: HookContext<'_>,
             ) -> Result<crate::result::AsyncResult, HookError> {
                 Err(HookError::internal("async fail"))
             }

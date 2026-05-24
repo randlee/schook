@@ -91,7 +91,7 @@ pub fn resolve_chain(
         )
         .map_err(|err| ResolutionError::HandlerRejected {
             plugin: handler_name.clone(),
-            reason: "payload conditions rejected this handler".to_string(),
+            reason: format!("payload conditions rejected this handler: {err}"),
             source: Some(Box::new(err)),
         })?;
 

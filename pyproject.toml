@@ -25,6 +25,7 @@ packages = [
   "test_harness.hooks.codex.tests",
   "test_harness.hooks.gemini",
   "test_harness.hooks.gemini.models",
+  "test_harness.hooks.gemini.tests",
 ]
 
 [tool.pytest.ini_options]

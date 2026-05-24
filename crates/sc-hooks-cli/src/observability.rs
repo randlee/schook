@@ -307,6 +307,7 @@ enum RedactionAction {
 pub struct HandlerResultRecord {
     pub handler: String,
     pub action: Cow<'static, str>,
+    /// Handler runtime is captured as `u128` and saturates when a sink requires `u64`.
     pub ms: u128,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_type: Option<Cow<'static, str>>,
@@ -336,6 +337,10 @@ pub struct DispatchEventArgs<'a> {
     pub project_root: &'a AiRootDir,
     pub observability: &'a ObservabilityConfig,
     pub payload: Option<&'a Value>,
+}
+
+fn saturating_ms_u64(value: u128) -> u64 {
+    value.min(u64::MAX as u128) as u64
 }
 
 /// Arguments required to emit one `session.root_divergence` observability event.
@@ -408,7 +413,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     );
     fields.insert(
         "total_ms".to_string(),
-        Value::from(args.total_ms.min(u64::MAX as u128) as u64),
+        Value::from(saturating_ms_u64(args.total_ms)),
     );
     fields.insert("exit".to_string(), Value::from(args.exit));
     if let Some(ai_notification) = args.ai_notification {
@@ -894,7 +899,7 @@ fn emit_full_audit_record(args: FullAuditRecordArgs<'_>) -> Result<(), CliError>
         stage: args.stage,
         handler_chain: args.handler_chain,
         handler_count: args.handler_chain.map(<[String]>::len),
-        total_ms: args.total_ms.map(|ms| ms.min(u64::MAX as u128) as u64),
+        total_ms: args.total_ms.map(saturating_ms_u64),
         exit: args.exit,
         error: args.error,
         ai_notification: args.ai_notification,

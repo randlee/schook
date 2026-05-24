@@ -9,21 +9,21 @@ use crate::events::HookType;
 
 #[derive(Debug, Clone, PartialEq)]
 /// Raw hook context passed from the host to a Rust plugin handler.
-pub struct HookContext {
+pub struct HookContext<'a> {
     /// Canonical hook name.
     pub hook: HookType,
     /// Optional matcher/event name.
-    pub event: Option<Cow<'static, str>>,
+    pub event: Option<Cow<'a, str>>,
     raw_input: Value,
     /// Optional path to the temp metadata file exported by the host.
     pub metadata_path: Option<PathBuf>,
 }
 
-impl HookContext {
+impl<'a> HookContext<'a> {
     /// Creates a hook context from parsed host input.
     pub fn new(
         hook: HookType,
-        event: Option<Cow<'static, str>>,
+        event: Option<Cow<'a, str>>,
         raw_input: Value,
         metadata_path: Option<PathBuf>,
     ) -> Self {
@@ -88,5 +88,24 @@ mod tests {
                 session_id: "abc".to_string()
             }
         );
+    }
+
+    #[test]
+    fn event_can_borrow_without_forcing_an_allocation() {
+        let event_name = "Write";
+        let context = HookContext::new(
+            HookType::PreToolUse,
+            Some(Cow::Borrowed(event_name)),
+            serde_json::json!({
+                "hook": { "type": "PreToolUse" },
+                "payload": {}
+            }),
+            None,
+        );
+
+        match context.event {
+            Some(Cow::Borrowed(value)) => assert_eq!(value, event_name),
+            other => panic!("expected borrowed event, got {other:?}"),
+        }
     }
 }

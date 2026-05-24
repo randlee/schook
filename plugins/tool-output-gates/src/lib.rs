@@ -376,7 +376,7 @@ mod tests {
         }
     }
 
-    fn bash_context(stdout: &str, tool_name: &str) -> HookContext {
+    fn bash_context(stdout: &str, tool_name: &str) -> HookContext<'static> {
         HookContext::new(
             HookType::PostToolUse,
             Some(std::borrow::Cow::Owned(tool_name.to_string())),
@@ -418,7 +418,7 @@ mod tests {
         path
     }
 
-    fn bash_context_with_payload(payload: Value) -> HookContext {
+    fn bash_context_with_payload(payload: Value) -> HookContext<'static> {
         HookContext::new(
             HookType::PostToolUse,
             Some(std::borrow::Cow::Borrowed("Bash")),

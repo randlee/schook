@@ -235,7 +235,7 @@ mod tests {
         session_id
     }
 
-    fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext {
+    fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext<'static> {
         HookContext::new(
             HookType::PreToolUse,
             Some(std::borrow::Cow::Owned(tool_name.to_string())),

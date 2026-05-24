@@ -350,7 +350,6 @@ pub struct CanonicalSessionRecord {
     schema_version: SchemaVersion,
     provider: Provider,
     session_id: SessionId,
-    #[serde(default)]
     active_pid: ActivePid,
     #[serde(default)]
     parent_session_id: Option<SessionId>,
@@ -608,6 +607,7 @@ impl CanonicalSessionRecord {
     pub fn validate(&self) -> Result<(), HookError> {
         validate_timestamp("created_at", &self.created_at)?;
         validate_timestamp("updated_at", &self.updated_at)?;
+        ActivePid::new(self.active_pid.get())?;
         StateRevision::new(self.state_revision.get())?;
         HookEventName::new(self.last_hook_event.as_str())?;
         validate_timestamp("last_hook_event_at", &self.last_hook_event_at)?;
@@ -1127,6 +1127,33 @@ mod tests {
         assert!(
             err.to_string()
                 .contains("must be absent unless agent_state is ended"),
+            "unexpected validation error: {err}"
+        );
+    }
+
+    #[test]
+    fn deserialize_requires_active_pid() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let err = serde_json::from_value::<CanonicalSessionRecord>(serde_json::json!({
+            "schema_version": "v1",
+            "provider": "claude",
+            "session_id": "session-missing-active-pid",
+            "ai_root_dir": temp.path().join("repo"),
+            "ai_current_dir": temp.path().join("repo"),
+            "session_start_source": "startup",
+            "agent_state": "starting",
+            "state_revision": 1,
+            "created_at": "2026-03-30T00:00:00Z",
+            "updated_at": "2026-03-30T00:00:00Z",
+            "last_hook_event": "SessionStart",
+            "last_hook_event_at": "2026-03-30T00:00:00Z",
+            "state_reason": "session_started",
+            "extensions": {}
+        }))
+        .expect_err("missing active_pid should fail deserialization");
+
+        assert!(
+            err.to_string().contains("active_pid"),
             "unexpected validation error: {err}"
         );
     }
