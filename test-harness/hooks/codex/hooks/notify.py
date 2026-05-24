@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from test_harness.hooks.codex.debounce import schedule_stop
+
+
+if __name__ == "__main__":
+    # Codex can replay notify hooks; scheduling must stay safe on repeated delivery.
+    schedule_stop(sys.argv[1] if len(sys.argv) > 1 else "")
+    raise SystemExit(0)

@@ -13,6 +13,27 @@ import tomllib
 from typing import Any
 from uuid import uuid4
 
+_ENV_REDACTION_EXACT_KEYS = {
+    "ATM_IDENTITY",
+    "ATM_OTEL_ENABLED",
+    "ATM_OTEL_PROTOCOL",
+    "ATM_TEAM",
+    "CODEX_CI",
+    "CODEX_MANAGED_BY_NPM",
+    "CODEX_MANAGED_PACKAGE_ROOT",
+    "CODEX_PROJECT_DIR",
+    "CODEX_THREAD_ID",
+}
+
+_ENV_REDACTION_SUBSTRINGS = (
+    "AUTH",
+    "HEADER",
+    "KEY",
+    "PASSWORD",
+    "SECRET",
+    "TOKEN",
+)
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -86,9 +107,22 @@ def _safe_str(value: Any) -> str | None:
     return None
 
 
+def _redact_env_value(key: str, value: str) -> str:
+    if key in _ENV_REDACTION_EXACT_KEYS:
+        return value
+    upper_key = key.upper()
+    if any(token in upper_key for token in _ENV_REDACTION_SUBSTRINGS):
+        return "<redacted>"
+    return value
+
+
 def _normalize_env_snapshot(hook_name: str, timestamp: str) -> dict[str, Any]:
     def filtered_env(prefix: str) -> dict[str, str]:
-        return {key: value for key, value in sorted(os.environ.items()) if key.startswith(prefix)}
+        return {
+            key: _redact_env_value(key, value)
+            for key, value in sorted(os.environ.items())
+            if key.startswith(prefix)
+        }
 
     return {
         "captured_at": timestamp,
@@ -109,6 +143,10 @@ def write_capture(hook_name: str, raw_text: str) -> None:
         root / f"{timestamp}-{hook_name}.env.json",
         _normalize_env_snapshot(hook_name, timestamp),
     )
+
+
+def capture_stop(raw_text: str) -> None:
+    write_capture("stop", raw_text)
 
 
 def _payload_project_dir(payload: dict[str, Any]) -> Path | None:
@@ -538,7 +576,7 @@ def schedule_stop(raw_text: str, now: datetime | None = None) -> Path | None:
     if not _within_project_scope(payload):
         return None
 
-    write_capture("stop", raw_text)
+    write_capture("notify", raw_text)
     current = now or _utc_now()
     key = _correlation_key(payload)
     canonical_project_dir = _canonical_project_dir(payload)

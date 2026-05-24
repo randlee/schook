@@ -520,7 +520,7 @@ impl ManifestBuilder {
                 name: name.into(),
                 mode,
                 hooks: Vec::new(),
-                matchers: vec![ManifestMatcher::from("*")],
+                matchers: vec![ManifestMatcher::new("*").expect("default matcher should be valid")],
                 payload_conditions: Vec::new(),
                 timeout_ms: None,
                 long_running: false,
@@ -700,8 +700,8 @@ mod tests {
         let manifest = ManifestBuilder::new("notify", sc_hooks_core::dispatch::DispatchMode::Async)
             .hooks([HookType::PostToolUse])
             .matchers([
-                ManifestMatcher::from("Write"),
-                ManifestMatcher::from("Bash"),
+                ManifestMatcher::new("Write").expect("test matcher should be valid"),
+                ManifestMatcher::new("Bash").expect("test matcher should be valid"),
             ])
             .response_time(100, 1000)
             .optional_field("team.name", FieldType::String, Some("non_empty"))

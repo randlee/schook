@@ -58,7 +58,7 @@ impl Drop for EnvGuard {
     }
 }
 
-fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookContext {
+fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookContext<'static> {
     HookContext::new(
         hook,
         event.map(|value| std::borrow::Cow::Owned(value.to_string())),

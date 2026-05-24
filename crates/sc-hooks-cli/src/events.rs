@@ -152,14 +152,15 @@ pub fn canonical_taxonomy() -> Vec<(&'static str, Vec<&'static str>)> {
 mod tests {
     use super::*;
 
+    fn matcher(value: &str) -> ManifestMatcher {
+        ManifestMatcher::new(value).expect("test matcher should be valid")
+    }
+
     #[test]
     fn validates_tool_hook_matchers_with_warning_for_unknown() {
         let result = validate_matchers_for_hook(
             HookType::PreToolUse,
-            &[
-                ManifestMatcher::from("Write"),
-                ManifestMatcher::from("FutureEvent"),
-            ],
+            &[matcher("Write"), matcher("FutureEvent")],
         );
 
         assert!(result.errors.is_empty());
@@ -169,10 +170,8 @@ mod tests {
 
     #[test]
     fn lifecycle_hooks_require_wildcard_only() {
-        let result = validate_matchers_for_hook(
-            HookType::SessionEnd,
-            &[ManifestMatcher::from("Write"), ManifestMatcher::from("*")],
-        );
+        let result =
+            validate_matchers_for_hook(HookType::SessionEnd, &[matcher("Write"), matcher("*")]);
 
         assert_eq!(result.errors.len(), 1);
         assert!(result.errors[0].contains("only supports wildcard"));
@@ -182,10 +181,7 @@ mod tests {
     fn notification_allows_idle_prompt_and_warns_unknown() {
         let result = validate_matchers_for_hook(
             HookType::Notification,
-            &[
-                ManifestMatcher::from("idle_prompt"),
-                ManifestMatcher::from("heartbeat"),
-            ],
+            &[matcher("idle_prompt"), matcher("heartbeat")],
         );
 
         assert!(result.errors.is_empty());

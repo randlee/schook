@@ -79,12 +79,6 @@ impl From<ManifestMatcher> for String {
     }
 }
 
-impl From<&str> for ManifestMatcher {
-    fn from(value: &str) -> Self {
-        Self(value.to_string())
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// Complete manifest schema emitted by a plugin executable.
 pub struct Manifest {

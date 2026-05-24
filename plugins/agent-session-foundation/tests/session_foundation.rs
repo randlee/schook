@@ -12,7 +12,7 @@ fn hook_context_with_payload(
     hook: HookType,
     event: Option<&str>,
     payload: serde_json::Value,
-) -> HookContext {
+) -> HookContext<'static> {
     HookContext::new(
         hook,
         event.map(|value| std::borrow::Cow::Owned(value.to_string())),

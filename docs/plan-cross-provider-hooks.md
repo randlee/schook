@@ -28,16 +28,20 @@ them as repo-owned evidence.
 
 ## Shared Entry Gates
 
-Cross-provider implementation must not begin until all of these are true:
+Cross-provider runtime implementation must not begin until all of these are
+true:
 
 1. the Claude-first track is stable in `sc-hooks`
-2. the provider has a `sc-hooks`-owned harness path and fixture set
-3. the provider has captured raw payloads for its first-pass hook surfaces
-4. the provider has validation models derived from those captured payloads
+2. the provider has a `sc-hooks`-owned harness path, approved fixtures, and
+   provider-specific validation models
+3. `N.3` has classified provider fields into canonical candidates,
+   provider-local fields, and unresolved differences per `ADR-SHK-006`
+4. `N.4` has recorded a readiness verdict in `docs/phase-N/readiness.md`
 5. the provider has a documented design boundary section stating what must not
-   be inferred from Claude
+   be inferred from Claude or from another provider
 
-Until those gates are satisfied, provider work remains planning-only.
+Until those gates are satisfied, provider work remains harness/documentation
+planning only.
 
 ## Shared Harness And Capture Requirements
 
@@ -112,17 +116,17 @@ it.
 Current Codex-facing evidence is summarized in
 [docs/hook-api/codex-hook-api.md](hook-api/codex-hook-api.md).
 
-Current useful planning facts:
+Current verified planning facts:
 
 - Codex is a separate compatibility target, not part of the Claude baseline
-- Codex frontmatter `PreToolUse` behavior is materially different from Claude's
-  stable `settings.json` hook surface
-- local Codex runtime surfaces worth preserving in planning include:
-  - `resume`
-  - `fork`
-  - `--cd`
-- current repo evidence is stronger on relay/session event handling than on raw
-  hook stdin payloads
+- repo-owned approved fixtures now exist for direct `SessionStart`,
+  `PreToolUse`, and `notify` (`agent-turn-complete`)
+- repo-owned env snapshots exist for each approved direct hook surface
+- `notify` and `PreToolUse` are sufficient to model the local debounce
+  prototype, but that prototype remains planning input only
+- `resume`, `fork`, and `Stop` remain relevant provider surfaces, but current
+  harness evidence classifies them as `confirmed-not-exercisable` or
+  unreliable rather than approved runtime baselines
 
 ### First-Pass Capture Targets
 
@@ -155,17 +159,20 @@ The first Codex pass should end with:
 - a schema-drift report owned by `schook`
 - a reconciled Codex API doc describing only verified fields and semantics
 
-### Current Blockers
+### Current Deferred Items
 
-Codex remains blocked by missing `sc-hooks`-owned artifacts:
+Codex is no longer blocked on first-pass schema capture. Current post-`Phase N`
+deferred items are:
 
-- no complete Codex fixture set covering all locally exercisable hook surfaces
-- no provider-specific Codex validation models covering all captured surfaces
-- no automated Codex schema-proof tests beyond the current debounce prototype;
-  the existing five debounce tests are baseline evidence only and do not close
-  the full Codex surface-capture scope
-- no Codex schema-drift report owned by `schook`
-- no reconciled provider-owned manifest of payload fields and hook env vars
+- `notify` remains outside the approved runtime baseline because the
+  turn-complete family (`notify` vs Claude `Stop` vs Gemini `AfterAgent`)
+  remains unresolved in `docs/phase-N/normalization-findings-ledger.md`
+- Codex-specific correlation fields such as `thread-id`, `turn-id`, and
+  `tool_use_id` remain provider-local only
+- `CODEX_THREAD_ID` remains explicitly non-canonical because approved env
+  fixtures show it can stay stale across new `codex exec` runs
+- `Stop`, `resume`, and `fork` remain `confirmed-not-exercisable` and are not
+  approved runtime assumptions
 
 ### Design Boundaries
 
@@ -181,21 +188,23 @@ Codex remains blocked by missing `sc-hooks`-owned artifacts:
 
 ### Current Verified Baseline
 
-A planning-stage Gemini hook API document now exists at
-[docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md). It is not yet
-a captured-evidence ledger. Current useful planning facts preserved there and
-from earlier evidence-gathering are:
+Current Gemini-facing evidence is summarized in
+[docs/hook-api/gemini-hook-api.md](hook-api/gemini-hook-api.md).
 
-- `gemini` is installed locally
-- Gemini exposes hook-management commands through `gemini hooks ...`
-- Gemini has resume-related surface via `--resume`
-- Gemini exposes output controls:
-  - `--output-format text`
-  - `--output-format json`
-  - `--output-format stream-json`
+Current verified planning facts:
 
-Those are planning inputs only. They are not yet a verified `sc-hooks` hook
-contract.
+- repo-owned approved fixtures now exist for:
+  - `SessionStart`
+  - `SessionEnd`
+  - `BeforeAgent`
+  - `BeforeTool`
+  - `AfterTool`
+  - `AfterAgent`
+- direct local probes verified `--resume latest`
+- direct local probes verified no hook-observable payload or env-key change
+  across `text`, `json`, and `stream-json`
+- the verified local registration path is user-scope `~/.gemini/settings.json`
+  under an isolated temporary `HOME`
 
 ### First-Pass Capture Targets
 
@@ -224,17 +233,20 @@ The first Gemini pass should end with:
 - a Gemini schema-drift report owned by `schook`
 - a provider-owned Gemini hook API evidence document
 
-### Current Blockers
+### Current Deferred Items
 
-Gemini remains blocked by missing `sc-hooks`-owned artifacts:
+Gemini is no longer blocked on first-pass schema capture. Current post-`Phase N`
+deferred items are:
 
-- no Gemini hook fixtures in this repo
-- no Gemini validation models
-- no automated Gemini schema-proof tests
-- no Gemini schema-drift report
-- no Gemini hook API evidence document reconciled to repo-owned Gemini fixture
-  evidence yet
-- no verified provider-owned session/root identity model
+- workspace `.gemini/settings.json` activation remains unresolved and stays out
+  of the approved registration contract
+- no approved canonical mapping yet for Gemini-only fields such as
+  `tool_response.returnDisplay`, `prompt_response`, and `stop_hook_active`
+- raw `tool_name = "run_shell_command"` remains provider-local until later
+  cross-provider tool-surface normalization proves a compatible canonical enum
+- `AfterAgent` remains outside the approved runtime baseline because the
+  shared turn-complete/post-response family remains unresolved in
+  `docs/phase-N/normalization-findings-ledger.md`
 
 ### Design Boundaries
 
@@ -318,24 +330,41 @@ If a provider fails at step 3, 4, 5, or 6, implementation stays deferred.
 
 ## Next Approved Phase
 
-The next cross-provider execution phase should run Codex and Gemini in
-parallel, both as schema-capture and normalization-prep tracks.
+The next cross-provider execution phase after `Phase N` should treat Codex and
+Gemini as fixture-backed provider candidates rather than planning placeholders.
+This branch proposes `PARTIAL_GO` in
+`docs/phase-N/release-checklist.md`, while `docs/phase-N/readiness.md` remains
+`PENDING` until merge-time fill by the integration author. If that proposed
+verdict is accepted at merge time, the next runtime phase should be approved
+only for the exact surfaces named there.
 
-Codex track:
+Codex approved follow-on track:
 
-1. build a Codex live-capture harness parallel to the Claude harness
-2. capture all locally exercisable Codex hook surfaces
-3. freeze approved fixtures and env snapshots
-4. build models and schema-drift reports
-5. reconcile the Codex API doc to match only those fixtures
+1. consume the approved Codex fixture/model baseline from `N.1`
+2. design the runtime adapter against the `N.3` normalization ledger only
+3. prove provider-specific correlation and root-recovery behavior in adapter
+   tests
+4. limit the first runtime pass to approved surfaces:
+   - `SessionStart`
+   - `PreToolUse`
+5. keep `notify`, `Stop`, `resume`, and `fork` deferred until a later sprint
+   closes the unresolved lifecycle family or captures the non-exercisable
+   surfaces directly
 
-Gemini track:
+Gemini approved follow-on track:
 
-1. build a Gemini live-capture harness parallel to the Claude harness
-2. identify and capture all locally exercisable Gemini hook surfaces
-3. freeze approved fixtures and env snapshots
-4. build models and schema-drift reports
-5. publish the first `schook`-owned Gemini hook API evidence doc
+1. consume the approved Gemini fixture/model baseline from `N.2`
+2. design the runtime adapter against the `N.3` normalization ledger only
+3. preserve Gemini registration-path and control-semantics differences as
+   provider-local behavior
+4. limit the first runtime pass to approved surfaces:
+   - `SessionStart`
+   - `SessionEnd`
+   - `BeforeAgent`
+   - `BeforeTool`
+   - `AfterTool`
+5. keep `AfterAgent` deferred until a later sprint closes the unresolved
+   turn-complete/post-response family
 
 Parallel completion criteria:
 
@@ -346,6 +375,8 @@ Parallel completion criteria:
   checks
 - mapping candidates into normalized `schooks` fields are explicitly listed and
   source-cited from fixtures
+- deferred lifecycle families and provider-local fields remain explicitly named
+  in `docs/phase-N/readiness.md` and the `N.3` normalization ledger
 
 ## Deliverable For A Later Approved Sprint
 

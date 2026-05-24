@@ -117,6 +117,27 @@ Execution branch:
 Execution worktree:
 - `../schook-worktrees/feature/pN-s4-promotion-gate`
 
+## Verification Follow-On Track
+
+After `N.1`-`N.4`, the approved follow-on verification track is:
+
+- `N.5` Claude harness and baseline verification
+- `N.6` Codex harness verification
+- `N.7` Gemini harness verification
+- `N.8` Codex API document and model verification
+- `N.9` Gemini API document and model verification
+- `N.10` harness `just` integration
+
+Authoritative sprint detail for that follow-on track lives in:
+
+- `docs/phase-N/plan-remediation.md`
+- `docs/phase-N/sprint-N5.md`
+- `docs/phase-N/sprint-N6.md`
+- `docs/phase-N/sprint-N7.md`
+- `docs/phase-N/sprint-N8.md`
+- `docs/phase-N/sprint-N9.md`
+- `docs/phase-N/sprint-N10.md`
+
 ## Sprint Artifact Summary
 
 `Phase N` uses one named artifact set throughout execution:

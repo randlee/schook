@@ -68,6 +68,7 @@ def test_type_change_generates_field_type_changed(claude_root: Path) -> None:
 
 
 @pytest.mark.provider_claude
+@pytest.mark.live_capture
 def test_html_report_structure_is_self_contained(tmp_path: Path) -> None:
     report = run_drift(tmp_path / "claude")
     html_path = Path(report.report_path)
@@ -77,4 +78,3 @@ def test_html_report_structure_is_self_contained(tmp_path: Path) -> None:
     assert '<meta charset="UTF-8">' in html_text or '<meta charset="UTF-8" />' in html_text
     assert "<link " not in html_text
     assert "<script src=" not in html_text
-
