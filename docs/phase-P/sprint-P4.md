@@ -17,6 +17,8 @@ target: integrate/phase-P
 
 ## Hard Dependencies
 
+- accepted `P.1`
+- accepted `P.2`
 - accepted `P.3`
 - current `ProviderHookNormalizer` boundary from `Phase O`
 
@@ -87,7 +89,7 @@ pub(crate) struct CanonicalHookMappingRow<'a> {
     pub(crate) provider: ProviderHookSource,
     pub(crate) provider_hook: &'a str,
     pub(crate) canonical_hook: CanonicalHook,
-    pub(crate) canonical_payload: &'static str,
+    pub(crate) canonical_payload_family: &'static str,
     pub(crate) available_variables: &'a [&'a str],
     pub(crate) provider_local_fields: &'a [&'a str],
 }
@@ -103,6 +105,10 @@ deferred, `P.4` must still record that disposition in the mapping table and
 lifecycle-compatibility rules instead of silently dropping the surface from the
 canonical inventory, and the Rust canonical hook type inventory must not carry
 live variants for `P.1`-ruled-unsupported surfaces.
+The mapping-row sample carries a doc/reporting label for the payload family
+only. It does not replace the typed `CanonicalPayload<'a>` runtime enum used
+inside the normalization seam or authorize stringly typed payload handling in
+the implementation.
 
 ## Acceptance Criteria
 

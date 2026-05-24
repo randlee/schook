@@ -142,6 +142,12 @@ Purpose:
 - produce the authoritative cross-agent mapping table for the retained
   lifecycle surfaces so parity is checked against one shared artifact
 
+Execution precondition:
+
+- `P.4` starts only after `P.1`, `P.2`, and `P.3` are all accepted, so the
+  canonical mapping rows are derived from accepted harness evidence plus the
+  accepted portability/boundary gate rather than speculative provider fields
+
 Execution branch:
 - `feature/pP-s4-lifecycle-normalization-extension`
 
