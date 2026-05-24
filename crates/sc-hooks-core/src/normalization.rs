@@ -127,6 +127,25 @@ pub enum NormalizationError {
     },
 }
 
+/// Provider runtime surfaces that currently opt into the host normalization
+/// boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeProvider {
+    /// OpenAI Codex CLI approved runtime surfaces.
+    Codex,
+}
+
+/// Canonical dispatch input emitted from the provider-normalization boundary.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NormalizedRuntimeDispatch {
+    /// Canonical hook type passed into generic runtime resolution/dispatch.
+    pub hook: HookType,
+    /// Canonical event name passed into generic runtime resolution/dispatch.
+    pub event: Option<String>,
+    /// Canonical payload passed into generic runtime resolution/dispatch.
+    pub payload: Value,
+}
+
 /// Compile-fail boundary proof: the trait is crate-private and cannot be
 /// implemented by external crates.
 #[sc_lint(boundary.forbid_external_impls)]
@@ -409,6 +428,28 @@ pub(crate) fn normalize_provider_hook<'a>(
         ProviderHookSource::Gemini => GeminiHookNormalizer.normalize(input)?,
     };
     normalized.into_hook_context(metadata_path)
+}
+
+/// Normalizes one approved provider payload into the canonical runtime dispatch
+/// surface used by the CLI host.
+pub fn normalize_runtime_dispatch(
+    provider: RuntimeProvider,
+    raw: &Value,
+) -> Result<NormalizedRuntimeDispatch, HookError> {
+    let context = match provider {
+        RuntimeProvider::Codex => normalize_provider_hook(ProviderHookInput {
+            provider: ProviderHookSource::Codex,
+            raw,
+            event: None,
+            metadata_path: None,
+        })?,
+    };
+
+    Ok(NormalizedRuntimeDispatch {
+        hook: context.hook,
+        event: context.event.clone().map(|value| value.into_owned()),
+        payload: context.payload_value()?.clone(),
+    })
 }
 
 impl<'a> NormalizedHookContext<'a> {
@@ -846,5 +887,16 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn codex_runtime_dispatch_returns_canonical_pre_tool_use_surface() {
+        let raw = fixture(CODEX_PRE_TOOL_USE);
+        let dispatch = normalize_runtime_dispatch(RuntimeProvider::Codex, &raw).expect("dispatch");
+
+        assert_eq!(dispatch.hook, HookType::PreToolUse);
+        assert_eq!(dispatch.event.as_deref(), Some("Bash"));
+        assert_eq!(dispatch.payload["tool_name"], "Bash");
+        assert_eq!(dispatch.payload["tool_input"]["command"], "pwd");
     }
 }

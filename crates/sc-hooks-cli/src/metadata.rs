@@ -138,6 +138,12 @@ pub fn current_session_id() -> Option<SessionId> {
         .and_then(|value| SessionId::new(value).ok())
 }
 
+pub fn current_agent_type() -> Option<String> {
+    std::env::var(ENV_AGENT_TYPE)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+}
+
 pub fn current_project_root() -> Result<AiRootDir, CliError> {
     let runtime = RuntimeMetadata::discover()?;
     AiRootDir::new(
