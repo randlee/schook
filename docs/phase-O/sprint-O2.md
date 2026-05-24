@@ -54,6 +54,8 @@ help:
 lint target='all':
     {{python_cmd}} .just/run_lint.py {{target}}
 
+# `just lint sc-boundary` dispatches through this private helper.
+
 [private]
 _lint-sc-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
@@ -81,6 +83,7 @@ forbid_external_impls = ["crate::normalization::ProviderHookNormalizer"]
 - the `just lint sc-boundary` path is backed by `sc-lint-boundary`, using the
   Homebrew-installed binary when available or the explicit repo-local fallback
   from `../sc-lint`
+- the public `just lint sc-boundary` entrypoint is documented as a wrapper over the private `_lint-sc-boundary` recipe rather than a separate implementation path
 - the same `just` surface owns `just test hooks claude`, `just test hooks codex`,
   and `just test hooks gemini`
 - `boundaries/` records exist for the normalization seam the later runtime

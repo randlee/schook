@@ -41,7 +41,7 @@ target: integrate/phase-O
 
 ```rust
 fn write_local_provider_cutover(
-    provider: Provider,
+    provider: sc_hooks_core::session::Provider,
 ) -> Result<InstallPlan, InstallError>;
 ```
 

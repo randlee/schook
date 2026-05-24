@@ -19,6 +19,8 @@ target: integrate/phase-O
 ## Hard Dependencies
 
 - current `origin/integrate/phase-N` accepted baseline
+- accepted `integrate/phase-N` hygiene findings set:
+  `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`
 - current `docs/implementation-gaps.md` `SEAL-001` note
 
 ## Exact Targets
@@ -45,12 +47,13 @@ target: integrate/phase-O
 ## Acceptance Criteria
 
 - `test-harness/hooks/gemini/tests/__init__.py` exists and the Gemini test
-  package is wired the same way as Codex in `pyproject.toml`
+  package is wired the same way as Codex in `pyproject.toml` (`PN-008`)
 - `active_pid` no longer deserializes through `#[serde(default)]` and zero is
-  rejected by record validation
+  rejected by record validation (`RBP-1`)
 - `HookContext.event` no longer forces unnecessary `'static` allocation
+  (`RBP-2`)
 - condition errors in `resolution.rs` are captured into
-  `HandlerRejected.reason`
+  `HandlerRejected.reason` (`RBP-4`)
 - `docs/implementation-gaps.md` states that `SEAL-001` remains closed under
   the accepted unsealed-trait decision and is not reopened in `Phase O`
 

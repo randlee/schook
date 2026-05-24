@@ -21,9 +21,7 @@ target: integrate/phase-O
 - `O.2` complete
 - current `origin/integrate/phase-N` accepted baseline
 - approved provider fixtures, models, and hook API docs from `Phase N`
-- `CDR-B` merged to the execution baseline, or the execution branch cites the
-  exact reconciliation commit that carries the required `CDR-B` control-doc and
-  runtime updates
+- `CDR-B` merged to the execution baseline
 - `sc-lint-boundary` enforcement active in this repo
 
 ## Exact Targets

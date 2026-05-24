@@ -16,7 +16,9 @@ fixture refresh.
 - planning branch: `docs/phase-O-planning`
 - integration branch: `integrate/phase-O`
 - prerequisite baseline: `integrate/phase-N` at `89ad9cb`
-- prerequisite verdict: `Phase N` closed `PARTIAL_GO`
+- prerequisite verdict: the authoritative `Phase N` verdict is recorded on
+  `integrate/phase-N` in `docs/phase-N/readiness.md`; the develop-branch
+  planning copy is not the execution ledger for `Phase O`
 - develop-branch Phase N planning docs still show only `N.1` through `N.4`
   rows in `docs/phase-N/readiness.md`
 - prerequisite provider verification for `Phase O` execution is therefore:
@@ -227,9 +229,10 @@ deliverables, acceptance criteria, and closure rules.
   surfaces; it does not reopen Cursor
 - `HKR-010` closes in `Phase O` only when spawn/tool/ATM behavior works through
   the normalized runtime path with exact retryable failures preserved
-- `O.1` closes the pre-existing hygiene set before runtime normalization:
-  `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and the carried-forward `SEAL-001`
-  closure decision
+- `O.1` closes the pre-existing hygiene set inherited from the accepted
+  `integrate/phase-N` baseline: `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and the
+  carried-forward `SEAL-001` closure decision; `sprint-O1.md` mirrors the
+  exact closure criteria for that inherited set
 - provider-specific parsing belongs behind the normalization trait; generic
   plugin logic remains provider-agnostic
 - no provider-local field may be promoted into the canonical runtime contract

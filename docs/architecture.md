@@ -102,24 +102,6 @@ Important boundary:
 | `plugins/save-context` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/template-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 
-## 3.4 Planned Phase O Runtime Boundary
-
-`Phase O` introduces one planned provider-normalization seam ahead of Codex and
-Gemini runtime parity:
-
-- provider raw payloads are normalized through one sealed
-  `ProviderHookNormalizer` boundary
-- the resulting `NormalizedHookContext` then feeds the existing `HookContext`
-  construction path rather than creating a second parallel runtime dispatch
-  flow
-- `sc-lint-boundary` enforces the seam with `boundary.internal_only` and
-  `boundary.forbid_external_impls` rules on the normalization types
-- provider-local fields remain outside the canonical runtime contract until
-  new approved fixture evidence promotes them
-
-This section is a planned `Phase O` architecture commitment, not current
-release behavior.
-
 ## 3.3 Public Contract Vs Internal Typed Model
 
 The public contract is not the Rust type graph.
@@ -138,6 +120,27 @@ Internal implementation detail:
 - `ResolutionError`
 - `ValidationError`
 - `CliError`
+
+## 3.4 Planned Phase O Runtime Boundary
+
+`Phase O` introduces one planned provider-normalization seam ahead of Codex and
+Gemini runtime parity:
+
+- provider raw payloads are normalized through one sealed
+  `ProviderHookNormalizer` boundary
+- the resulting `NormalizedHookContext` then feeds the existing `HookContext`
+  construction path rather than creating a second parallel runtime dispatch
+  flow
+- `sc-lint-boundary` enforces the seam with `boundary.internal_only` and
+  `boundary.forbid_external_impls` rules on the normalization types
+- provider-local fields remain outside the canonical runtime contract until
+  new approved fixture evidence promotes them
+- `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
+  surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
+  the public contract
+
+This section is a planned `Phase O` architecture commitment, not current
+release behavior.
 
 The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
 
