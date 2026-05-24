@@ -11,14 +11,14 @@ target: integrate/phase-O
 
 ## Goal
 
-- adopt the new `sc-lint` tooling in this repo before runtime-normalization
-  code begins
+- adopt `sc-lint-boundary` in this repo through `just` wrappers before
+  runtime-normalization code begins
 - enforce one hard lint-detected architectural boundary for normalization work
 
 ## Hard Dependencies
 
 - `O.1` complete
-- local or Homebrew-installed `sc-lint` release `0.1.x`, or the exact
+- local or Homebrew-installed `sc-lint-boundary` release `0.1.x`, or the exact
   repo-local fallback from `../sc-lint`
 
 ## Exact Targets
@@ -34,20 +34,24 @@ target: integrate/phase-O
 
 ## Deliverables
 
-- repo-local `sc-lint` command surface following the `../sc-lint` pattern
+- repo-local `just` wrapper surface following the top-level `../atm-core`
+  pattern
 - boundary definitions for the normalization seam
 - lint commands that fail when the normalization boundary is bypassed
 
 ## Acceptance Criteria
 
-- the repo exposes `sc-lint` entrypoints in the same top-level pattern used by
-  `../sc-lint` for help, lint, and CI-oriented lint invocation
+- the repo exposes `just` entrypoints in the same top-level pattern used by
+  `../atm-core` for help, lint, and CI-oriented invocation
+- the `just lint sc-boundary` path is backed by `sc-lint-boundary`, using the
+  Homebrew-installed binary when available or the explicit repo-local fallback
+  from `../sc-lint`
 - `boundaries/` records exist for the normalization seam the later runtime
   sprints will rely on
 - boundary lint runs in this repo and can detect `internal_only` and
   `forbid_external_impls` violations on the normalization boundary
 - the sprint documents whether the machine is using the Homebrew-installed
-  `sc-lint` binary or the explicit repo-local fallback path
+  `sc-lint-boundary` binary or the explicit repo-local fallback path
 
 ## Out Of Scope
 

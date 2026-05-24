@@ -89,8 +89,8 @@ Execution worktree:
 
 Purpose:
 
-- adopt `sc-lint` in this repo using the same help/layout pattern used by the
-  `sc-lint` repo
+- adopt `sc-lint-boundary` in this repo through `just` wrappers using the same
+  top-level help/lint/ci pattern used by `../atm-core`
 - add boundary-enforcement plumbing before normalization code starts
 
 Execution branch:
@@ -182,9 +182,9 @@ Execution worktree:
   - hygiene fixes in `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, and
     `crates/sc-hooks-sdk/`
 - `O.2`:
-  - repo-local `sc-lint` integration in `justfile` and `.just/`
+  - repo-local `just` wrapper integration in `justfile` and `.just/`
   - `boundaries/` records for the normalization boundary
-  - `sc-lint` attributes/dependencies needed for boundary enforcement
+  - `sc-lint-boundary` attributes/dependencies needed for boundary enforcement
 - `O.3`:
   - runtime normalization code in `crates/sc-hooks-core/` and
     `crates/sc-hooks-cli/`
@@ -211,7 +211,7 @@ deliverables, acceptance criteria, and closure rules.
 - `Phase O` is runtime-normalization work, not new schema-discovery work
 - approved fixtures, provider hook API docs, and provider models remain the
   source of truth for runtime behavior
-- `sc-lint` boundary enforcement must be installed before normalization begins
+- `sc-lint-boundary` enforcement must be installed before normalization begins
 - the normalization boundary must be one sealed trait surface with
   lint-detected no-bypass enforcement
 - deferred `Phase N` surfaces remain out of scope unless a later explicit phase
