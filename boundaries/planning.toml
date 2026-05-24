@@ -1,0 +1,17 @@
+[planning]
+current_sprint = "O.2"
+
+[planned_items."BOUNDARY-ProviderNormalization.public.facade"]
+scheduled_sprint = "O.3"
+tracking_id = "SC-O-3-NORM-001"
+expires_when = "sprint_before_current"
+
+[planned_items."BOUNDARY-ProviderNormalization.implementation.type"]
+scheduled_sprint = "O.3"
+tracking_id = "SC-O-3-NORM-002"
+expires_when = "sprint_before_current"
+
+[planned_items."BOUNDARY-ProviderNormalization.implementation.module"]
+scheduled_sprint = "O.3"
+tracking_id = "SC-O-3-NORM-003"
+expires_when = "sprint_before_current"

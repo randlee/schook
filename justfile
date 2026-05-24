@@ -1,6 +1,7 @@
 set windows-shell := ["pwsh", "-NoLogo", "-Command"]
 
 python_cmd := if os_family() == "windows" { "python" } else { "python3" }
+clippy_cmd := if os_family() == "windows" { "cargo clippy --workspace --all-targets --all-features --target x86_64-pc-windows-msvc -- -D warnings" } else { "cargo clippy --workspace --all-targets --all-features -- -D warnings" }
 
 # Show the curated repo task help.
 default: help
@@ -21,11 +22,23 @@ _fmt-check:
 fmt mode='check':
     {{python_cmd}} .just/run_fmt.py {{mode}}
 
+[private]
+_lint-fmt:
+    @just fmt check
+
+[private]
+_lint-clippy:
+    {{clippy_cmd}}
+
+[private]
+_lint-sc-boundary:
+    {{python_cmd}} .just/lint_sc_boundary.py
+
 # Build the full workspace.
 build:
     cargo build --workspace
 
-# Run workspace or harness tests.
+# Run the full workspace test suite.
 test target='workspace' provider='':
     {{python_cmd}} .just/run_test.py {{target}} {{provider}}
 
@@ -33,10 +46,14 @@ test target='workspace' provider='':
 clean:
     cargo clean
 
+# Run the repo lint surface.
+lint target='all':
+    {{python_cmd}} .just/run_lint.py {{target}}
+
 # Run the local CI-equivalent command set for the current repo surface.
 ci:
-    @just fmt check
-    @just test workspace
+    @just lint
+    @just test
     @just test hooks claude
     @just test hooks codex
     @just test hooks gemini
