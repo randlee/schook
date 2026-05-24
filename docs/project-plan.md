@@ -20,14 +20,13 @@ This plan is derived from:
 - `docs/architecture.md`
 
 Current open release-relevant drivers are:
-- pending merge of `CDR-B`, which owns the control-doc and hook-phase status
-  reconciliation still deferred in `docs/requirements.md`
-- pending merge of `CDR-A`, which pins `sc-observability` to crates.io
-  `v1.0.0` and aligns the typed observability API at the CLI boundary
 - `Phase N` harness-planning closure for Codex and Gemini provider evidence,
   normalization inventory, and promotion-gate planning
 - post-`Phase N` provider-harness verification for Claude, Codex, and Gemini
   deliverables plus stable `just test hooks <provider>` entrypoints
+- current-state CDR control-doc reconciliation so architecture,
+  requirements, and planning language fully match the plugin/runtime and
+  hook-phase state already present on `develop`
 
 Deferred rather than scheduled for this release plan:
 - `GAP-006`
@@ -86,12 +85,12 @@ Important planning rule:
 | S9 / Hook Phase 6 | Planned | cross-provider follow-on — provider harness-planning and promotion-gate prep only | `HKR-006`, `HKR-007` | Hook Phase 5 plus separate approval | provider follow-on planning docs only |
 | `CDR-1` / Change Drift Remediation | Completed | baseline confirmation and authoritative gap inventory against the hardened logging baseline | `F01`, `F02`, `F03`, `F08`, `CDR-I01`, `CDR-I02` | `integrate/cdr` refreshed from `integrate/logging-improvements` | integration-branch state plus `docs/project-plan.md` inventory-only updates |
 | `CDR-2` / Change Drift Remediation | Completed | final control-doc, inventory, traceability, README, and plugin-maturity reconciliation against the merged integration baseline | `F04`, `F05`, `F06`, `F07`, `CDR-I03`, `CDR-I04`, `CDR-I05` | `CDR-1` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md`, and runtime plugin metadata |
-| `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
-| `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
-| `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
+| `CDR-3` / Change Drift Remediation | Superseded | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
+| `CDR-A` | Completed | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
+| `CDR-B` | Superseded | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
 | Phase N | Completed | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture evidence, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `docs/phase-N/normalization-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
 | Phase N Follow-On | Completed | provider-harness verification — Claude baseline refresh, Codex/Gemini harness and provider-doc/model verification, final `just` entrypoints | `HKR-017` | Phase N | `docs/phase-N/plan-remediation.md`, `docs/phase-N/sprint-N5.md` through `docs/phase-N/sprint-N10.md`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile` |
-| Phase O | Planned | runtime hook normalization — pre-runtime hygiene closure, `sc-lint` boundary enforcement, approved Codex/Gemini surfaces to Claude parity, cross-provider plugin parity, and local-machine cutover | `HKR-006`, `HKR-010`, `HKR-017` | Phase N Follow-On plus `CDR-B` | `docs/plan-phase-O.md`, `docs/phase-O/`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, `boundaries/`, `justfile`, local provider install/cutover assets |
+| Phase O | Planned | runtime hook normalization — pre-runtime hygiene closure, `sc-lint` boundary enforcement, approved Codex/Gemini surfaces to Claude parity, cross-provider plugin parity, and local-machine cutover | `HKR-006`, `HKR-010`, `HKR-017` | Phase N Follow-On | `docs/plan-phase-O.md`, `docs/phase-O/`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, `boundaries/`, `justfile`, local provider install/cutover assets |
 
 Phase N closure note:
 
@@ -107,8 +106,8 @@ Phase N planning-branch note:
   `CDR-1`, `CDR-2`, and `CDR-3`; this branch records those reconciled
   statuses as documentation cleanup rather than as new implementation closure
   events
-- `CDR-B` remains the pending merge owner for reconciling hook-phase completion
-  history with deferred `HKR-*` requirement statuses in `docs/requirements.md`
+- the remaining CDR follow-on is a current-state reconciliation pass on top of
+  `develop`, not an `integrate/cdr` merge prerequisite
 
 ## 5. Execution Controls
 
