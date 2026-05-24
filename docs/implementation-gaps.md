@@ -24,6 +24,8 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     production-track plugin crates, and treat any future trait sealing as a
     deliberate architecture change requiring a migration plan rather than a
     silent hardening pass
+  - `Phase O` note: this ruling remains closed under the accepted
+    unsealed-trait decision and is not reopened by `O.1`
   - deferral note: sealed-trait migration is deferred until the public API
     stabilization gate for the next release-track boundary; any new trait
     methods must carry default implementations until that stabilization sprint is
@@ -34,6 +36,9 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 - Status: `active`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
+- Integration-author owner:
+  - record and maintain the authoritative `Phase O` disposition for this item
+    before the `O.3` branch is cut
 - Current note:
   - `HookError` is still a single cross-crate error enum spanning payload,
     validation, state-I/O, divergence, and internal failures
