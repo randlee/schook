@@ -10,6 +10,21 @@ bringing those surfaces through runtime normalization and parity on the shared
 Phase `P` also closes the remaining active implementation-gap items that were
 left intentionally out of `Phase O`.
 
+Normalization in `Phase P` is not just fixture capture. It must produce:
+
+- the permanent harness evidence for the newly retained provider surfaces
+- the Rust runtime handler implementation that makes those surfaces available
+  through `sc-hooks`
+- one authoritative cross-agent mapping table showing:
+  - provider hook name
+  - canonical hook mapping
+  - canonical payload family
+  - provider-local fields retained outside the canonical contract
+  - exact variables available from each provider surface
+
+That table is the parity contract for `schook`. It exists so Claude, Codex, and
+Gemini can be compared directly and so provider parity gaps stay explicit.
+
 ## Baseline
 
 - planning branch: `docs/phase-P-planning`
@@ -57,6 +72,8 @@ Rules:
   `just test hooks gemini` remain green on the baseline
 - the missing-hook expansion is treated as required production-parity work,
   not optional follow-on scope
+- the existing `ProviderHookNormalizer` seam remains the only allowed path into
+  generic runtime dispatch for provider-adapted surfaces
 
 ## Sprint Sequence
 
@@ -117,6 +134,8 @@ Purpose:
 - define the canonical treatment for Claude `Stop`, Codex `notify` /
   `Stop` / `resume`, and Gemini `AfterAgent` where semantics truly align
 - lock the new compatibility rules before provider runtime work starts
+- produce the authoritative cross-agent mapping table for the retained
+  lifecycle surfaces so parity is checked against one shared artifact
 
 Execution branch:
 - `feature/pP-s4-lifecycle-normalization-extension`
@@ -132,6 +151,8 @@ Purpose:
   path
 - close the remaining Codex parity gap with the live Python-hook behavior used
   on this machine
+- eliminate any Codex-specific dispatch path that bypasses the sealed
+  normalization trait seam
 
 Execution branch:
 - `feature/pP-s5-codex-missing-hook-runtime`
@@ -146,6 +167,8 @@ Purpose:
 - make Gemini `AfterAgent` run through the shared runtime/plugin path
 - close the remaining Gemini lifecycle parity gap with the live Python-hook
   behavior used on this machine
+- eliminate any Gemini-specific dispatch path that bypasses the sealed
+  normalization trait seam
 
 Execution branch:
 - `feature/pP-s6-gemini-missing-hook-runtime`
@@ -209,6 +232,7 @@ Execution worktree:
   - `docs/requirements.md`
   - `docs/traceability.md`
   - `boundaries/`
+  - the authoritative cross-agent lifecycle mapping table
 - `P.5`:
   - Codex runtime path updates in `crates/` and `plugins/`
   - Codex runtime parity tests

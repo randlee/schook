@@ -33,6 +33,8 @@ target: integrate/phase-P
 - Codex runtime support for the retained missing lifecycle surfaces
 - end-to-end Codex runtime tests for those surfaces
 - requirements/traceability updates closing the Codex parity delta
+- Codex handler implementation available through the shared Rust runtime path,
+  not through a side-channel provider-specific path
 
 ## Acceptance Criteria
 
@@ -42,6 +44,8 @@ target: integrate/phase-P
 - Codex parity is no longer blocked on `notify`, `Stop`, or `resume`
 - any supported-platform limit is documented explicitly instead of being hidden
   behind an implicit Unix-only implementation
+- there is no direct Codex-specific runtime bypass around
+  `ProviderHookNormalizer`; if one existed on branch entry, it is removed
 
 ## Out Of Scope
 

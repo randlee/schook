@@ -33,6 +33,8 @@ target: integrate/phase-P
 - Gemini runtime support for `AfterAgent`
 - end-to-end Gemini runtime tests for `AfterAgent`
 - requirements/traceability updates closing the Gemini parity delta
+- Gemini handler implementation available through the shared Rust runtime path,
+  not through a side-channel provider-specific path
 
 ## Acceptance Criteria
 
@@ -42,6 +44,8 @@ target: integrate/phase-P
 - Gemini parity is no longer blocked on `AfterAgent`
 - any supported-platform limit is documented explicitly instead of being hidden
   behind an implicit Unix-only implementation
+- there is no direct Gemini-specific runtime bypass around
+  `ProviderHookNormalizer`; if one existed on branch entry, it is removed
 
 ## Out Of Scope
 

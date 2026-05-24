@@ -35,6 +35,15 @@ target: integrate/phase-P
 - updated provider-to-canonical compatibility rules
 - updated `sc-lint-boundary` records if the normalization seam grows
 - architecture and requirement updates that freeze the new lifecycle contract
+- one authoritative cross-agent mapping table that records, for each retained
+  lifecycle surface:
+  - provider hook name
+  - canonical hook mapping
+  - canonical payload family
+  - available variables
+  - provider-local fields not promoted into the canonical contract
+- explicit removal plan for any direct provider-specific runtime path that
+  bypasses `ProviderHookNormalizer`
 
 ## Acceptance Criteria
 
@@ -42,6 +51,10 @@ target: integrate/phase-P
   tested canonical runtime path
 - no provider bypass path is introduced around the existing normalization seam
 - the compatibility table and boundary docs match the landed code
+- the cross-agent mapping table exists and is sufficient to compare Claude,
+  Codex, and Gemini parity surface-by-surface
+- any existing Codex- or Gemini-specific runtime bypass path is either removed
+  in this sprint or called out as a blocking defect
 
 ## Out Of Scope
 
