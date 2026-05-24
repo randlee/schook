@@ -172,7 +172,9 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
 - the normalization trait is crate-private and a compile-fail boundary test
   proves external impls are rejected
 - all canonical normalization types remain `pub(crate)` in the implemented
-  crate
+  crate, unless an explicit Phase O ruling records a narrower public exception;
+  the current approved exception file is
+  `docs/phase-O/rulings/O3-public-normalization-types.md`
 - all canonical normalization enum struct-variant fields carry explicit
   `pub(crate)` annotations or a code comment explaining any intentional
   omission
