@@ -89,28 +89,16 @@ Important planning rule:
 | `CDR-3` / Change Drift Remediation | Completed | residual gap-ledger reconciliation and post-`CDR-2` runtime review | `CDR-B05`–`CDR-B08`, `CDR-I06`–`CDR-I09` | `CDR-2` | `docs/implementation-gaps.md`, `docs/project-plan.md` |
 | `CDR-A` | Pending merge | pin `sc-observability` to crates.io v1.0.0; fix `observability.rs` typed API | `OBS-fix` | `develop` | `Cargo.toml`, `sc-hooks-cli/src/observability.rs` |
 | `CDR-B` | Pending merge | doc/arch reconciliation — promote production-track plugins, reconcile hook phase status | `CDR-B01`–`CDR-B08` | `integrate/cdr` | `docs/requirements.md`, `docs/architecture.md`, `docs/project-plan.md`, `docs/traceability.md`, `README.md` |
-| Phase N | In progress | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture evidence, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `docs/phase-N/normalization-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
-| Phase N Follow-On | Planned | provider-harness verification — Claude baseline refresh, Codex/Gemini harness and provider-doc/model verification, final `just` entrypoints | `HKR-017` | Phase N | `docs/phase-N/plan-remediation.md`, `docs/phase-N/sprint-N5.md` through `docs/phase-N/sprint-N10.md`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile` |
+| Phase N | Completed | approved Codex/Gemini harness-planning expansion — Codex debounce evidence, Gemini capture evidence, schema normalization, and promotion-gate planning | `HKR-014`, `HKR-015`, `HKR-016` | Hook Phase 5 | `docs/plan-phase-N.md`, `docs/phase-N/`, `docs/phase-N/codex-findings-ledger.md`, `docs/phase-N/gemini-findings-ledger.md`, `docs/phase-N/normalization-findings-ledger.md`, `test-harness/hooks/codex/`, `test-harness/hooks/gemini/`, `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md`, `docs/plan-cross-provider-hooks.md` |
+| Phase N Follow-On | Completed | provider-harness verification — Claude baseline refresh, Codex/Gemini harness and provider-doc/model verification, final `just` entrypoints | `HKR-017` | Phase N | `docs/phase-N/plan-remediation.md`, `docs/phase-N/sprint-N5.md` through `docs/phase-N/sprint-N10.md`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile` |
+| Phase O | Planned | runtime hook normalization — pre-runtime hygiene closure, `sc-lint` boundary enforcement, approved Codex/Gemini surfaces to Claude parity, cross-provider plugin parity, and local-machine cutover | `HKR-006`, `HKR-010`, `HKR-017` | Phase N Follow-On plus `CDR-B` | `docs/plan-phase-O.md`, `docs/phase-O/`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, `boundaries/`, `justfile`, local provider install/cutover assets |
 
-Phase N boundary update:
+Phase N closure note:
 
-- this branch carries the proposed `Phase N` promotion result for
-  integration-author review; the authoritative readiness verdict remains
-  `PENDING` on the branch until merge-time fill per `ADR-SHK-007`
-- `Phase N` itself does not implement Codex or Gemini runtime adapter work;
-  any follow-on runtime sprint is limited to the surfaces proposed in
-  `docs/phase-N/release-checklist.md` once the readiness verdict is filled at
-  merge time
-- `Phase N` execution detail lives in `docs/plan-phase-N.md` and `docs/phase-N/`;
-  the section-4 row in this document is a summary pointer rather than a
-  standalone section-10 sprint block
-- `docs/phase-N/readiness.md` is the authoritative verdict record for the
-  phase; `N.4` completed the row transition from `In progress` to `Completed`
-- post-`N.4` verification work for the provider harness lives in
-  `docs/phase-N/plan-remediation.md` and `docs/phase-N/sprint-N5.md` through
-  `docs/phase-N/sprint-N10.md`; that follow-on track verifies and tightens the
-  existing provider docs, models, fixtures, tests, and final `just`
-  integration rather than introducing new runtime scope
+- `Phase N` and `Phase N Follow-On` merged to `develop` via PR #127 at `8891c3d` (2026-05-24)
+- PARTIAL_GO verdict recorded in `docs/phase-N/readiness.md`; all N.1–N.10 sprints ACCEPTED
+- approved surfaces: Codex (`SessionStart`, `PreToolUse`), Gemini (`SessionStart`, `SessionEnd`, `BeforeAgent`, `BeforeTool`, `AfterTool`), Claude (all locally exercisable surfaces)
+- `docs/phase-N/readiness.md` is the authoritative verdict record
 
 Phase N planning-branch note:
 
@@ -971,8 +959,9 @@ Execution detail:
   phase rather than a standalone sprint-detail record
 
 Final verdict summary:
-- `docs/phase-N/readiness.md` remains `PENDING` on this branch per
-  `ADR-SHK-007`
+- `docs/phase-N/readiness.md` records the accepted `PARTIAL_GO` verdict at
+  merge `8891c3d`, with `ADR-SHK-007` limiting authoritative verdict writes to
+  the integration branch rather than to sprint branches
 - proposed follow-on runtime scope:
   - Codex `SessionStart`
   - Codex `PreToolUse`
