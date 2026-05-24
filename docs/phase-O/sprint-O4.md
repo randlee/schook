@@ -35,6 +35,8 @@ target: integrate/phase-O
 
 - Codex runtime support for `SessionStart`
 - Codex runtime support for `PreToolUse`
+- runtime plugin-path proof through `.sc-hooks/plugins/` for the Codex generic
+  gate and ATM behaviors this sprint closes
 - Codex end-to-end runtime tests on the generic plugin path
 - Codex-specific requirement/traceability updates for the runtime behavior
   closed in this sprint
@@ -60,6 +62,7 @@ target: integrate/phase-O
 
 ## Required Validation
 
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
 - `pytest test-harness/hooks/codex/tests/ -q`
 - `just test hooks codex`

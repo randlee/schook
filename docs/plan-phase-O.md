@@ -184,8 +184,10 @@ Execution worktree:
   - `docs/implementation-gaps.md`
   - `pyproject.toml`
   - `test-harness/hooks/gemini/tests/__init__.py`
-  - hygiene fixes in `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, and
-    `crates/sc-hooks-sdk/`
+  - `crates/sc-hooks-core/src/session.rs`
+  - `crates/sc-hooks-core/src/context.rs`
+  - `crates/sc-hooks-cli/src/resolution.rs`
+  - hygiene fixes in `crates/sc-hooks-sdk/`
 - `O.2`:
   - repo-local `just` wrapper integration in `justfile` and `.just/`
   - `docs/sc-lint-boundary.md`
@@ -199,9 +201,13 @@ Execution worktree:
 - `O.4`:
   - Codex runtime adapter path
   - Codex end-to-end runtime tests
+  - `docs/requirements.md`
+  - `docs/traceability.md`
 - `O.5`:
   - Gemini runtime adapter path
   - Gemini end-to-end runtime tests
+  - `docs/requirements.md`
+  - `docs/traceability.md`
 - `O.6`:
   - cross-provider parity tests for Claude, Codex, and Gemini
   - runtime observability proof on approved surfaces
@@ -218,10 +224,15 @@ deliverables, acceptance criteria, and closure rules.
 - approved fixtures, provider hook API docs, and provider models remain the
   source of truth for runtime behavior
 - `sc-lint-boundary` enforcement must be installed before normalization begins
+- the integration author must confirm `CDR-B` is merged to the execution
+  baseline before cutting the `O.3` branch
 - the normalization boundary must be one sealed trait surface with
   lint-detected no-bypass enforcement
 - `NormalizedHookContext` feeds the existing `HookContext` construction path;
   `Phase O` does not run a second parallel runtime dispatch path
+- before `O.3` code is written, `docs/architecture.md` must lock the seal
+  mechanism, normalization-error taxonomy, required newtype set, and
+  `(provider × hook × payload)` consistency rule for the normalization seam
 - deferred `Phase N` surfaces remain out of scope unless a later explicit phase
   reopens them
 - Cursor remains out of scope for `Phase O`; `HKR-007` stays deferred
@@ -235,8 +246,14 @@ deliverables, acceptance criteria, and closure rules.
   exact closure criteria for that inherited set
 - provider-specific parsing belongs behind the normalization trait; generic
   plugin logic remains provider-agnostic
+- `O.4` and `O.5` may execute in parallel after `O.3` is accepted because
+  their provider write scopes are intentionally disjoint apart from the shared
+  control-doc updates they each own explicitly
 - no provider-local field may be promoted into the canonical runtime contract
   without new approved fixture evidence
+- Claude remains the baseline runtime path during `Phase O`; O.3 normalizes
+  Codex and Gemini into Claude-equivalent generic plugin behavior rather than
+  re-normalizing Claude through a second adapter seam
 - `O.7` may cut over local agents only after `O.6` is accepted on
   `integrate/phase-O`
 

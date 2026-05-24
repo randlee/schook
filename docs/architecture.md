@@ -38,7 +38,7 @@ Crate-local ADR delegation:
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-007` decisions in this document
+  through `ADR-SHK-008` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -120,6 +120,12 @@ Internal implementation detail:
 - `ResolutionError`
 - `ValidationError`
 - `CliError`
+- `Provider`
+- `ProviderHookSource`
+- `TargetProvider`
+- `NormalizedHookContext`
+- `CanonicalPayload`
+- `NormalizationError`
 
 ## 3.4 Planned Phase O Runtime Boundary
 
@@ -127,7 +133,7 @@ Internal implementation detail:
 Gemini runtime parity:
 
 - provider raw payloads are normalized through one sealed
-  `ProviderHookNormalizer` boundary
+  `pub(crate)` `ProviderHookNormalizer` boundary
 - the resulting `NormalizedHookContext` then feeds the existing `HookContext`
   construction path rather than creating a second parallel runtime dispatch
   flow
@@ -138,9 +144,28 @@ Gemini runtime parity:
 - `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
   surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
   the public contract
+- `NormalizationError` is the named O.3 error inventory for provider
+  normalization failures and is planned to enter the current error surface as
+  `HookError::Normalization(NormalizationError)` unless a later explicit
+  architecture ruling supersedes that approach before O.3 begins
+- provider/runtime consistency is locked before O.3 code starts by freezing:
+  the seal mechanism, normalization-error taxonomy, required newtype set, and
+  `(provider × hook × payload)` compatibility rules in this document
+- Claude does not route through a provider-normalization adapter in O.3;
+  Claude remains the existing baseline runtime path that Codex and Gemini must
+  normalize into for plugin-parity work
 
 This section is a planned `Phase O` architecture commitment, not current
 release behavior.
+
+Planned internal type ownership for `Phase O`:
+
+- `Provider`
+  - current session-state provider enum in `sc-hooks-core::session`
+  - remains runtime state metadata, not the install/cutover target selector
+- `TargetProvider`
+  - planned install/cutover target newtype for O.7 CLI-facing provider
+    selection; kept distinct from session-state provider metadata
 
 The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
 

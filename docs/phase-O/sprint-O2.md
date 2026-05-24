@@ -18,7 +18,7 @@ target: integrate/phase-O
 ## Hard Dependencies
 
 - `O.1` complete
-- local or Homebrew-installed `sc-lint-boundary` release `0.1.x`, or the exact
+- local or Homebrew-installed `sc-lint-boundary` release `0.1.0`, or the exact
   repo-local fallback from `../sc-lint`
 
 ## Exact Targets
@@ -62,6 +62,15 @@ _lint-sc-boundary:
 
 test hooks provider:
     {{python_cmd}} .just/run_hook_tests.py {{provider}}
+
+test hooks claude:
+    {{python_cmd}} .just/run_hook_tests.py claude
+
+test hooks codex:
+    {{python_cmd}} .just/run_hook_tests.py codex
+
+test hooks gemini:
+    {{python_cmd}} .just/run_hook_tests.py gemini
 ```
 
 Boundary record:
@@ -81,17 +90,20 @@ forbid_external_impls = ["crate::normalization::ProviderHookNormalizer"]
 - the repo exposes `just` entrypoints in the same top-level pattern used by
   `../atm-core` for help, lint, and CI-oriented invocation
 - the `just lint sc-boundary` path is backed by `sc-lint-boundary`, using the
-  Homebrew-installed binary when available or the explicit repo-local fallback
-  from `../sc-lint`
+  Homebrew-installed `0.1.0` binary when available or the explicit repo-local
+  fallback from `../sc-lint`
 - the public `just lint sc-boundary` entrypoint is documented as a wrapper over the private `_lint-sc-boundary` recipe rather than a separate implementation path
-- the same `just` surface owns `just test hooks claude`, `just test hooks codex`,
-  and `just test hooks gemini`
+- the same `just` surface owns explicit `just test hooks claude`,
+  `just test hooks codex`, and `just test hooks gemini` entrypoints rather
+  than relying on a parameterized acceptance shortcut
 - `boundaries/` records exist for the normalization seam the later runtime
   sprints will rely on
 - boundary lint runs in this repo and can detect `internal_only` and
   `forbid_external_impls` violations on the normalization boundary
 - the sprint documents whether the machine is using the Homebrew-installed
   `sc-lint-boundary` binary or the explicit repo-local fallback path
+- if neither the pinned Homebrew binary nor the documented repo-local fallback
+  is available, `O.2` fails rather than silently skipping boundary enforcement
 
 ## Out Of Scope
 

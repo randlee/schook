@@ -41,8 +41,15 @@ target: integrate/phase-O
 
 ```rust
 fn write_local_provider_cutover(
-    provider: sc_hooks_core::session::Provider,
+    provider: TargetProvider,
 ) -> Result<InstallPlan, InstallError>;
+
+pub enum InstallError {
+    UnsupportedProvider(TargetProvider),
+    MissingProviderConfig { provider: TargetProvider, path: PathBuf },
+    WriteFailed { path: PathBuf, reason: String },
+    RollbackPlanFailed { provider: TargetProvider, reason: String },
+}
 ```
 
 ## Acceptance Criteria

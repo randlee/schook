@@ -26,7 +26,6 @@ target: integrate/phase-O
 
 - `crates/sc-hooks-cli/src/`
 - `crates/sc-hooks-cli/tests/`
-- `plugins/`
 - `docs/requirements.md`
 - `docs/architecture.md`
 - `docs/traceability.md`

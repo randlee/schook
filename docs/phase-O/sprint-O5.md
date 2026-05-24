@@ -36,6 +36,8 @@ target: integrate/phase-O
 - Gemini runtime support for `SessionStart`
 - Gemini runtime support for `SessionEnd`, `BeforeAgent`, `BeforeTool`, and
   `AfterTool`
+- runtime plugin-path proof through `.sc-hooks/plugins/` for the Gemini
+  generic gate and ATM behaviors this sprint closes
 - Gemini end-to-end runtime tests on the generic plugin path
 - Gemini-specific requirement/traceability updates for the runtime behavior
   closed in this sprint
@@ -66,6 +68,7 @@ target: integrate/phase-O
 
 ## Required Validation
 
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
 - `pytest test-harness/hooks/gemini/tests/ -q`
 - `just test hooks gemini`

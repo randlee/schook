@@ -39,6 +39,8 @@ target: integrate/phase-O
 - one sealed normalization trait boundary
 - fixture-backed normalization tests
 - one documented normalization boundary for provider-specific vs canonical data
+- named normalization-error inventory with the chosen `HookError` integration
+  path recorded explicitly
 - `docs/architecture.md` runtime-boundary section describing the
   `ProviderHookNormalizer` seam, canonical type surface, and lint-enforcement
   policy
@@ -48,13 +50,23 @@ target: integrate/phase-O
 Normalization seam:
 
 ```rust
-pub trait ProviderHookNormalizer: private::Sealed {
-    type RawPayload<'a>;
-
+pub(crate) trait ProviderHookNormalizer: private::Sealed {
     fn normalize<'a>(
         &self,
-        raw: Self::RawPayload<'a>,
+        raw: ProviderHookInput<'a>,
     ) -> Result<NormalizedHookContext<'a>, HookError>;
+}
+
+pub struct ProviderHookInput<'a> {
+    pub provider: ProviderHookSource,
+    pub raw: &'a serde_json::Value,
+    pub event: Option<&'a str>,
+    pub metadata_path: Option<&'a Path>,
+}
+
+pub enum ProviderHookSource {
+    Codex,
+    Gemini,
 }
 ```
 
@@ -62,13 +74,12 @@ Canonical normalized data:
 
 ```rust
 pub struct NormalizedHookContext<'a> {
-    pub provider: HookProvider,
     pub hook: CanonicalHook,
-    pub event: Option<Cow<'a, str>>,
-    pub session_id: Option<Cow<'a, str>>,
+    pub event: Option<HookEventName<'a>>,
+    pub session_id: Option<SessionId<'a>>,
     pub project_root: Option<&'a Path>,
     pub current_dir: Option<&'a Path>,
-    pub tool_name: Option<Cow<'a, str>>,
+    pub tool_name: Option<ToolName<'a>>,
     pub payload: CanonicalPayload<'a>,
 }
 ```
@@ -77,13 +88,21 @@ Approved canonical hooks:
 
 ```rust
 pub enum CanonicalHook {
-    CodexSessionStart,
-    CodexPreToolUse,
-    GeminiSessionStart,
-    GeminiSessionEnd,
-    GeminiBeforeAgent,
-    GeminiBeforeTool,
-    GeminiAfterTool,
+    Codex(CodexHook),
+    Gemini(GeminiHook),
+}
+
+pub enum CodexHook {
+    SessionStart,
+    PreToolUse,
+}
+
+pub enum GeminiHook {
+    SessionStart,
+    SessionEnd,
+    BeforeAgent,
+    BeforeTool,
+    AfterTool,
 }
 ```
 
@@ -92,9 +111,28 @@ Canonical payload contract:
 ```rust
 pub enum CanonicalPayload<'a> {
     Empty,
-    ToolUse { tool_name: Cow<'a, str>, body: &'a serde_json::Value },
+    ToolUse { tool_name: ToolName<'a>, body: &'a serde_json::Value },
     SessionLifecycle { body: &'a serde_json::Value },
     AgentLifecycle { body: &'a serde_json::Value },
+}
+```
+
+Canonical newtypes:
+
+```rust
+pub struct SessionId<'a>(pub Cow<'a, str>);
+pub struct ToolName<'a>(pub Cow<'a, str>);
+pub struct HookEventName<'a>(pub Cow<'a, str>);
+```
+
+Normalization error inventory:
+
+```rust
+pub enum NormalizationError {
+    MissingRequiredField { field: &'static str },
+    InvalidFieldValue { field: &'static str, reason: &'static str },
+    RetryableGateInput { field: &'static str, reason: &'static str },
+    UnsupportedApprovedSurface { provider: ProviderHookSource, hook: &'static str },
 }
 ```
 
@@ -105,18 +143,27 @@ Linted boundary marker:
 mod private;
 
 #[sc_lint(boundary.forbid_external_impls)]
-pub trait ProviderHookNormalizer { /* ... */ }
+pub(crate) trait ProviderHookNormalizer { /* ... */ }
 ```
 
 ## Acceptance Criteria
 
 - provider raw payload handling enters the runtime only through one sealed
   normalization trait boundary
+- the normalization trait is crate-private and a compile-fail boundary test
+  proves external impls are rejected
 - `NormalizedHookContext` is the canonical provider-normalized input and feeds
   the existing `HookContext` construction path; `Phase O` does not create a
   second parallel dispatch model
+- the chosen normalization-error taxonomy is recorded explicitly and enters the
+  host error surface as `HookError::Normalization(NormalizationError)` unless a
+  newer explicit architecture ruling supersedes that choice before O.3 begins
+- retryable-vs-fatal normalization failures are defined explicitly for the
+  approved `HKR-010` gate surfaces
 - approved Codex fixtures normalize into canonical runtime hook/event data
 - approved Gemini fixtures normalize into canonical runtime hook/event data
+- Claude remains the existing baseline runtime path and is documented as the
+  behavior Codex and Gemini normalize into for later parity sprints
 - deferred `Phase N` surfaces are not implemented or implied as supported
 - normalization tests cite approved fixtures and pass
 - boundary lint fails if provider-specific parsing bypasses the normalization
@@ -130,6 +177,7 @@ pub trait ProviderHookNormalizer { /* ... */ }
 
 ## Required Validation
 
+- `cargo fmt --check --all`
 - `cargo test --workspace`
 - `just lint sc-boundary`
 - `pytest test-harness/hooks/codex/tests/ -q`
