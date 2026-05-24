@@ -97,6 +97,9 @@ pub(crate) struct ToolName<'a>(pub(crate) Cow<'a, str>);
 pub(crate) struct HookEventName<'a>(pub(crate) Cow<'a, str>);
 
 /// Named provider-normalization failures attached to `HookError`.
+// NormalizationError is pub to satisfy HookError's pub surface; O3-003 tracks
+// the planned pub(crate) tightening once the boundary refactor lands.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum NormalizationError {
     #[error("missing required field `{field}`")]
