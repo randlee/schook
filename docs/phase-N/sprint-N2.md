@@ -1,7 +1,7 @@
 ---
 id: N.2
 title: Gemini Harness Schema Capture
-status: planned
+status: complete
 branch: feature/pN-s2-gemini-harness-schema-capture
 worktree: ../schook-worktrees/feature/pN-s2-gemini-harness-schema-capture
 target: plan/phase-N
@@ -15,7 +15,7 @@ phase: N
 sprint: N.2
 worktree: ../schook-worktrees/feature/pN-s2-gemini-harness-schema-capture
 branch: feature/pN-s2-gemini-harness-schema-capture
-status: planned
+status: complete
 estimated_scope: large
 ```
 

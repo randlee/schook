@@ -68,6 +68,23 @@ Run the fast harness suite:
 pytest test-harness/hooks/
 ```
 
+Run one provider suite through the stable `just` entrypoints:
+
+```bash
+just test hooks claude
+just test hooks codex
+just test hooks gemini
+```
+
+What each target runs:
+
+- `just test hooks claude`
+  runs `pytest test-harness/hooks/claude/tests/ -q`
+- `just test hooks codex`
+  runs `pytest test-harness/hooks/codex/tests/ -q`
+- `just test hooks gemini`
+  runs `pytest test-harness/hooks/gemini/tests/ -q`
+
 Run one non-interactive Claude surface:
 
 ```bash
@@ -381,7 +398,7 @@ high-level release or architecture story requires it.
 
 For repeatable Claude reruns from the harness worktree:
 
-1. `cd /Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing`
+1. `cd /path/to/schook`
 2. `CLAUDE_MODEL=haiku test-harness/hooks/claude/scripts/prepare-manual-launch.sh`
 3. run the printed `claude --model ... --setting-sources local --settings ...`
    command exactly

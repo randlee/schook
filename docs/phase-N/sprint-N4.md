@@ -1,10 +1,10 @@
 ---
 id: N.4
 title: Promotion Gate
-status: planned
+status: complete
 branch: feature/pN-s4-promotion-gate
 worktree: ../schook-worktrees/feature/pN-s4-promotion-gate
-target: plan/phase-N
+target: integrate/phase-N
 ---
 
 # Sprint N.4 — Promotion Gate
@@ -15,14 +15,14 @@ phase: N
 sprint: N.4
 worktree: ../schook-worktrees/feature/pN-s4-promotion-gate
 branch: feature/pN-s4-promotion-gate
-status: planned
+status: complete
 estimated_scope: medium
 ```
 
 ## Goal
 
-- decide whether Codex and Gemini have enough proven contract coverage for
-  runtime adapter work to begin
+- decide whether Codex and Gemini have enough proven contract coverage for the
+  next runtime-adapter phase to begin
 - freeze the final `Phase N` readiness record
 
 ## Hard Dependencies
@@ -72,6 +72,9 @@ silently dropped or partially deferred.
 - record the exact approved surfaces, deferred surfaces, open blocking
   findings, and open important findings that justify the final verdict
 - freeze the final readiness verdict
+- on the sprint branch, prepare the proposed verdict package while leaving the
+  authoritative `docs/phase-N/readiness.md` `N.4` row and final verdict
+  reserved for merge-time fill by the integration author per `ADR-SHK-007`
 - update `docs/project-plan.md` and `docs/plan-cross-provider-hooks.md` so
   they summarize and reference the final verdict from `docs/phase-N/readiness.md`
 - update `docs/traceability.md` for the final `Phase N` closure status of
@@ -125,19 +128,19 @@ explicit code samples or signatures showing the intended end state.
   "release_verdict": "GO | PARTIAL_GO | NO_GO",
   "providers": {
     "codex": {
-      "approved_surfaces": ["notify", "PreToolUse"],
-      "deferred_surfaces": ["Stop"],
+      "approved_surfaces": ["SessionStart", "PreToolUse"],
+      "deferred_surfaces": ["notify", "Stop", "resume", "fork"],
       "open_blocking_findings": 0,
       "open_important_findings": 0
     },
     "gemini": {
-      "approved_surfaces": [],
-      "deferred_surfaces": ["preTool", "postTool"],
+      "approved_surfaces": ["SessionStart", "SessionEnd", "BeforeAgent", "BeforeTool", "AfterTool"],
+      "deferred_surfaces": ["AfterAgent"],
       "open_blocking_findings": 0,
-      "open_important_findings": 1
+      "open_important_findings": 0
     }
   },
-  "next_action": "authorize-runtime-adapter-work | plan-follow-on-sprint"
+  "next_action": "authorize-runtime-adapter-work-for-approved-surfaces-only"
 }
 ```
 
@@ -151,7 +154,9 @@ explicit code samples or signatures showing the intended end state.
 ## Acceptance Criteria
 
 - `docs/phase-N/release-checklist.md` records the final promotion-gate result
-- `docs/phase-N/readiness.md` records the final `Phase N` verdict
+- `docs/phase-N/readiness.md` carries the merge-time fill shape for the final
+  `Phase N` verdict, and may remain `PENDING` on the sprint branch per
+  `ADR-SHK-007`
 - Codex and Gemini each have an explicit approved/deferred disposition
 - the phase leaves one authoritative go/no-go record for subsequent runtime
   work
@@ -174,6 +179,8 @@ explicit code samples or signatures showing the intended end state.
   `docs/phase-N/release-checklist.md` must record the hook trait seal
   prerequisite check, citing `docs/architecture.md` section `9.3` and the
   `N.4` promotion-gate review as the confirming audit artifact
+- this sprint closes with a documentation-only verdict; any runtime adapter
+  coding still requires a separate approved follow-on sprint
 
 ## Required Validation
 

@@ -23,7 +23,7 @@ pub trait ManifestProvider {
 /// `docs/implementation-gaps.md`.
 pub trait SyncHandler: ManifestProvider {
     /// Handles one synchronous hook invocation.
-    fn handle(&self, context: HookContext) -> Result<HookResult, HookError>;
+    fn handle(&self, context: HookContext<'_>) -> Result<HookResult, HookError>;
 }
 
 /// Async handler contract for runtime plugin crates.
@@ -33,7 +33,7 @@ pub trait SyncHandler: ManifestProvider {
 /// `docs/implementation-gaps.md`.
 pub trait AsyncHandler: ManifestProvider {
     /// Handles one asynchronous hook invocation.
-    fn handle_async(&self, context: HookContext) -> Result<AsyncResult, HookError>;
+    fn handle_async(&self, context: HookContext<'_>) -> Result<AsyncResult, HookError>;
 }
 
 #[cfg(test)]
@@ -54,7 +54,9 @@ mod tests {
                 name: "dummy-sync".to_string(),
                 mode: DispatchMode::Sync,
                 hooks: vec![HookType::PreToolUse],
-                matchers: vec![ManifestMatcher::from("Write")],
+                matchers: vec![
+                    ManifestMatcher::new("Write").expect("test matcher should be valid"),
+                ],
                 payload_conditions: Vec::new(),
                 timeout_ms: Some(1_000),
                 long_running: false,
@@ -68,7 +70,7 @@ mod tests {
     }
 
     impl SyncHandler for DummySync {
-        fn handle(&self, _context: HookContext) -> Result<HookResult, HookError> {
+        fn handle(&self, _context: HookContext<'_>) -> Result<HookResult, HookError> {
             Ok(crate::result::proceed())
         }
     }
@@ -82,7 +84,7 @@ mod tests {
     }
 
     impl AsyncHandler for DummyAsync {
-        fn handle_async(&self, _context: HookContext) -> Result<AsyncResult, HookError> {
+        fn handle_async(&self, _context: HookContext<'_>) -> Result<AsyncResult, HookError> {
             Ok(AsyncResult::with_context("async-context"))
         }
     }

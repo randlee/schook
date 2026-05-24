@@ -61,7 +61,7 @@ impl ManifestProvider for AgentSpawnGatesHandler {
             name: "agent-spawn-gates".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![HookType::PreToolUse],
-            matchers: vec![ManifestMatcher::from("Agent")],
+            matchers: vec![ManifestMatcher::new("Agent").expect("builtin matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
@@ -235,7 +235,7 @@ mod tests {
         session_id
     }
 
-    fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext {
+    fn agent_context(run_in_background: Option<bool>, tool_name: &str) -> HookContext<'static> {
         HookContext::new(
             HookType::PreToolUse,
             Some(std::borrow::Cow::Owned(tool_name.to_string())),

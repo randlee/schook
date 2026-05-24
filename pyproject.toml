@@ -19,12 +19,24 @@ packages = [
   "test_harness.hooks",
   "test_harness.hooks.claude",
   "test_harness.hooks.claude.models",
+  "test_harness.hooks.claude.tests",
   "test_harness.hooks.codex",
+  "test_harness.hooks.codex.models",
+  "test_harness.hooks.codex.tests",
+  "test_harness.hooks.gemini",
+  "test_harness.hooks.gemini.models",
+  "test_harness.hooks.gemini.tests",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["test-harness/hooks/claude/tests", "test-harness/hooks/codex/tests"]
-addopts = "-ra"
+testpaths = [
+  "test-harness/hooks/claude/tests",
+  "test-harness/hooks/codex/tests",
+  "test-harness/hooks/gemini/tests",
+  "test-harness/hooks/tests",
+]
+addopts = "-ra --import-mode=importlib"
+pythonpath = ["."]
 markers = [
   "provider_claude: tests for the Claude harness",
   "provider_codex: tests for the Codex harness",

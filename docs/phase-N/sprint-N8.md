@@ -1,7 +1,7 @@
 ---
 id: N.8
 title: Codex API Document And Models Verification
-status: planned
+status: completed
 branch: feature/pN-s8-codex-api-models-verify
 worktree: ../schook-worktrees/feature/pN-s8-codex-api-models-verify
 target: integrate/phase-N
@@ -17,6 +17,8 @@ target: integrate/phase-N
 ## Hard Dependencies
 
 - `N.6` complete
+- `N.7` is parallel, not sequential; the Gemini API-doc/model scope is disjoint
+  from this Codex API-doc/model scope
 - current `origin/integrate/phase-N` branch head
 
 ## Exact Targets
@@ -30,6 +32,19 @@ target: integrate/phase-N
 - `docs/hook-api/codex-hook-api.md`
 - `test_harness/hooks/codex/models/payloads.py`
 - `test-harness/hooks/codex/tests/`
+
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Signature Sample
+
+```python
+def validate_codex_hook_payload(payload: Any) -> CodexHookPayload
+def validate_codex_env_snapshot(payload: Any) -> CodexEnvSnapshot
+def validate_codex_fixture_manifest(payload: Any) -> CodexFixtureManifest
+```
 
 ## Acceptance Criteria
 

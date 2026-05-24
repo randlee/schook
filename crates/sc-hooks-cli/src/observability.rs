@@ -29,11 +29,18 @@ const SERVICE_NAME: &str = "sc-hooks";
 /// Bound debug excerpts to 160 chars so audit records stay compact and the
 /// debug-profile tests can assert a fixed truncation boundary.
 const DEBUG_EXCERPT_LIMIT: usize = 160;
+// LOGGER_STATE is process-global and intentionally initialized exactly once for
+// the first canonical ai_root_dir seen in this process. All later callers must
+// go through logger_state_from_cell() so concurrent access shares one logger
+// instance and root divergence becomes an explicit error instead of a race.
 // Lock ordering for test-only global overrides is fixed: tests must acquire
 // observability_lock() before TEST_LOGGER_ROOT_OVERRIDE so env mutation and root
 // override state never invert the shared mutex order.
 static LOGGER_STATE: OnceLock<Result<(AiRootDir, Logger), Arc<ObservabilityInitError>>> =
     OnceLock::new();
+// FULL_AUDIT_RUN follows the same process-global invariant as LOGGER_STATE: one
+// accepted canonical root per process, one cached run state, and helper-gated
+// access so concurrent callers either reuse that state or receive a root-mismatch error.
 static FULL_AUDIT_RUN: OnceLock<Result<FullAuditRunState, Arc<ObservabilityInitError>>> =
     OnceLock::new();
 #[cfg(test)]
@@ -300,6 +307,7 @@ enum RedactionAction {
 pub struct HandlerResultRecord {
     pub handler: String,
     pub action: Cow<'static, str>,
+    /// Handler runtime is captured as `u128` and saturates when a sink requires `u64`.
     pub ms: u128,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_type: Option<Cow<'static, str>>,
@@ -329,6 +337,10 @@ pub struct DispatchEventArgs<'a> {
     pub project_root: &'a AiRootDir,
     pub observability: &'a ObservabilityConfig,
     pub payload: Option<&'a Value>,
+}
+
+fn saturating_ms_u64(value: u128) -> u64 {
+    value.min(u64::MAX as u128) as u64
 }
 
 /// Arguments required to emit one `session.root_divergence` observability event.
@@ -401,7 +413,7 @@ pub fn emit_dispatch_event(args: DispatchEventArgs<'_>) -> Result<(), CliError> 
     );
     fields.insert(
         "total_ms".to_string(),
-        Value::from(args.total_ms.min(u64::MAX as u128) as u64),
+        Value::from(saturating_ms_u64(args.total_ms)),
     );
     fields.insert("exit".to_string(), Value::from(args.exit));
     if let Some(ai_notification) = args.ai_notification {
@@ -887,7 +899,7 @@ fn emit_full_audit_record(args: FullAuditRecordArgs<'_>) -> Result<(), CliError>
         stage: args.stage,
         handler_chain: args.handler_chain,
         handler_count: args.handler_chain.map(<[String]>::len),
-        total_ms: args.total_ms.map(|ms| ms.min(u64::MAX as u128) as u64),
+        total_ms: args.total_ms.map(saturating_ms_u64),
         exit: args.exit,
         error: args.error,
         ai_notification: args.ai_notification,

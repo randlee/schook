@@ -405,6 +405,8 @@ on `integrate/phase-N` before `N.3` begins.
   promoted into the canonical `schooks` contract
 - unresolved or disputed fields must remain in the normalization findings
   ledger until a later phase resolves them
+- `docs/phase-N/normalization-findings-ledger.md` is the authoritative ledger
+  for those unresolved and provider-local classifications during `Phase N`
 - runtime adapter work for Codex or Gemini remains deferred until `N.4`
   records a promotion verdict from the final readiness record
 

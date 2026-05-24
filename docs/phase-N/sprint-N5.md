@@ -1,7 +1,7 @@
 ---
 id: N.5
 title: Claude Harness And Baseline Verification
-status: planned
+status: completed
 branch: feature/pN-s5-claude-harness-verify
 worktree: ../schook-worktrees/feature/pN-s5-claude-harness-verify
 target: integrate/phase-N
@@ -34,6 +34,20 @@ target: integrate/phase-N
 - `test-harness/hooks/claude/fixtures/approved/`
 - `test-harness/hooks/claude/tests/`
 - `test-harness/hooks/README.md`
+
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/claude/fixtures/approved/
+test-harness/hooks/claude/tests/
+test_harness/hooks/claude/models/payloads.py
+docs/hook-api/claude-hook-api.md
+```
 
 ## Acceptance Criteria
 

@@ -70,7 +70,7 @@ impl ManifestProvider for ToolOutputGatesHandler {
             name: "tool-output-gates".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![HookType::PostToolUse],
-            matchers: vec![ManifestMatcher::from("Bash")],
+            matchers: vec![ManifestMatcher::new("Bash").expect("builtin matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
@@ -376,7 +376,7 @@ mod tests {
         }
     }
 
-    fn bash_context(stdout: &str, tool_name: &str) -> HookContext {
+    fn bash_context(stdout: &str, tool_name: &str) -> HookContext<'static> {
         HookContext::new(
             HookType::PostToolUse,
             Some(std::borrow::Cow::Owned(tool_name.to_string())),
@@ -418,7 +418,7 @@ mod tests {
         path
     }
 
-    fn bash_context_with_payload(payload: Value) -> HookContext {
+    fn bash_context_with_payload(payload: Value) -> HookContext<'static> {
         HookContext::new(
             HookType::PostToolUse,
             Some(std::borrow::Cow::Borrowed("Bash")),

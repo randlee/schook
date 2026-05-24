@@ -1,7 +1,7 @@
 ---
 id: N.6
 title: Codex Harness Verification
-status: planned
+status: completed
 branch: feature/pN-s6-codex-harness-verify
 worktree: ../schook-worktrees/feature/pN-s6-codex-harness-verify
 target: integrate/phase-N
@@ -33,6 +33,18 @@ target: integrate/phase-N
 - `test-harness/hooks/codex/fixtures/approved/`
 - `test-harness/hooks/codex/tests/`
 
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/codex/fixtures/approved/
+test-harness/hooks/codex/tests/
+```
+
 ## Acceptance Criteria
 
 - `test-harness/hooks/codex/captures/raw/` is the current raw-capture path for
@@ -40,7 +52,9 @@ target: integrate/phase-N
 - `test-harness/hooks/codex/fixtures/approved/` is the approved Codex fixture
   set used by the tests
 - `test-harness/hooks/codex/tests/` validates the approved Codex fixtures
-- Codex keeps the same external harness contract Claude exposes
+- Codex keeps the same external harness contract Claude exposes for directory
+  layout and `pytest` marker conventions; provider-specific manifest schema
+  differences remain acceptable
 
 ## Out Of Scope
 

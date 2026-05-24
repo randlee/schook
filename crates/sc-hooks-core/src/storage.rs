@@ -53,7 +53,7 @@ impl SessionStore {
     /// Loads a canonical record using the `session_id` present in hook payload JSON.
     pub fn load_by_hook_context(
         &self,
-        context: &HookContext,
+        context: &HookContext<'_>,
     ) -> Result<Option<CanonicalSessionRecord>, HookError> {
         let payload = context.payload_value()?;
         let session_id = payload

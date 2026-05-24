@@ -124,7 +124,7 @@ impl ManifestProvider for SessionFoundationHandler {
                 HookType::PreCompact,
                 HookType::Stop,
             ],
-            matchers: vec![ManifestMatcher::from("*")],
+            matchers: vec![ManifestMatcher::new("*").expect("wildcard matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,

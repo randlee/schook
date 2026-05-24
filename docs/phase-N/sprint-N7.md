@@ -1,7 +1,7 @@
 ---
 id: N.7
 title: Gemini Harness Verification
-status: planned
+status: completed
 branch: feature/pN-s7-gemini-harness-verify
 worktree: ../schook-worktrees/feature/pN-s7-gemini-harness-verify
 target: integrate/phase-N
@@ -32,6 +32,18 @@ target: integrate/phase-N
 - `test-harness/hooks/gemini/captures/raw/`
 - `test-harness/hooks/gemini/fixtures/approved/`
 - `test-harness/hooks/gemini/tests/`
+
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Contract Sample
+
+```text
+test-harness/hooks/gemini/fixtures/approved/
+test-harness/hooks/gemini/tests/
+```
 
 ## Acceptance Criteria
 

@@ -91,7 +91,7 @@ pub fn resolve_chain(
         )
         .map_err(|err| ResolutionError::HandlerRejected {
             plugin: handler_name.clone(),
-            reason: "payload conditions rejected this handler".to_string(),
+            reason: format!("payload conditions rejected this handler: {err}"),
             source: Some(Box::new(err)),
         })?;
 
@@ -235,21 +235,20 @@ mod tests {
 
     #[test]
     fn wildcard_matcher_matches_any_event() {
-        assert!(matches_event(&[ManifestMatcher::from("*")], Some("Write")));
-        assert!(matches_event(&[ManifestMatcher::from("*")], None));
+        let wildcard = ManifestMatcher::new("*").expect("wildcard matcher should be valid");
+        assert!(matches_event(
+            std::slice::from_ref(&wildcard),
+            Some("Write")
+        ));
+        assert!(matches_event(std::slice::from_ref(&wildcard), None));
     }
 
     #[test]
     fn explicit_matchers_require_event() {
-        assert!(matches_event(
-            &[ManifestMatcher::from("Write")],
-            Some("Write")
-        ));
-        assert!(!matches_event(
-            &[ManifestMatcher::from("Write")],
-            Some("Read")
-        ));
-        assert!(!matches_event(&[ManifestMatcher::from("Write")], None));
+        let matcher = ManifestMatcher::new("Write").expect("test matcher should be valid");
+        assert!(matches_event(std::slice::from_ref(&matcher), Some("Write")));
+        assert!(!matches_event(std::slice::from_ref(&matcher), Some("Read")));
+        assert!(!matches_event(std::slice::from_ref(&matcher), None));
     }
 
     #[test]

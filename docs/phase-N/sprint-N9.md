@@ -1,7 +1,7 @@
 ---
 id: N.9
 title: Gemini API Document And Models Verification
-status: planned
+status: completed
 branch: feature/pN-s9-gemini-api-models-verify
 worktree: ../schook-worktrees/feature/pN-s9-gemini-api-models-verify
 target: integrate/phase-N
@@ -30,6 +30,17 @@ target: integrate/phase-N
 - `docs/hook-api/gemini-hook-api.md`
 - `test_harness/hooks/gemini/models/payloads.py`
 - `test-harness/hooks/gemini/tests/`
+
+## Production-Ready Expectation
+
+Every listed deliverable is expected to land at a production-ready level for
+the verification scope this sprint claims.
+
+## Signature Sample
+
+```python
+def validate_gemini_hook_payload(payload: Any) -> GeminiHookPayload
+```
 
 ## Acceptance Criteria
 

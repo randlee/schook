@@ -39,7 +39,7 @@ Checklist results:
 | Hook trait seal prerequisite recorded | `DEFERRED-ACKNOWLEDGED` | `docs/architecture.md` section `9.3`, `docs/implementation-gaps.md` `SEAL-001`, `docs/phase-N/release-checklist.md` (`SC-PN-4` audit) | The promotion-gate audit confirms the prerequisite was reviewed. `SEAL-001` remains the active governing note, so any follow-on runtime phase must preserve that documented boundary rather than claiming a new sealed-trait closure. |
 | Provider API docs reconciled to merged captured evidence | `PASS` | `docs/hook-api/codex-hook-api.md`, `docs/hook-api/gemini-hook-api.md` | Both provider docs reflect the approved captured baseline on `integrate/phase-N`. |
 | Remaining open issues explicitly recorded | `PASS` | `docs/phase-N/readiness.md` | The final readiness record names deferred surfaces and next action. |
-| Promotion verdict recorded in authoritative ledger | `PENDING` | `docs/phase-N/readiness.md` | This branch leaves the authoritative readiness verdict for merge-time update by the integration author per `ADR-SHK-007`. The proposed verdict for review is `PARTIAL_GO`. |
+| Promotion verdict recorded in authoritative ledger | `PASS` | `docs/phase-N/readiness.md` | The authoritative readiness ledger now records the finalized `PARTIAL_GO` verdict, approved provider surfaces, deferred surfaces, and `team-lead` authorization on `integrate/phase-N`. |
 
 Open deferred items carried past promotion:
 - Codex `notify` remains deferred because the cross-provider turn-complete
@@ -50,7 +50,7 @@ Open deferred items carried past promotion:
 - provider-local fields such as raw `tool_name`, `source`, and
   `tool_response.returnDisplay` remain out of the canonical contract
 
-Proposed merge-time result:
+Final integrated result:
 - release checklist result: `PARTIAL_GO`
 - provider runtime adapter work: `authorize approved surfaces only`
 - next action: start the next approved runtime phase using only the proposed
@@ -68,11 +68,10 @@ Follow-on sprint references for deferred surfaces:
 ## QA Checklist Answers
 
 1. `ADR-SHK-007` ownership:
-   - `docs/phase-N/readiness.md` now leaves the `N.4` row and final verdict
-     `PENDING`
-   - `authorized_by` is now `TBD — integration author updates at merge time per ADR-SHK-007`
-   - the branch carries the proposed `PARTIAL_GO` analysis in this checklist,
-     not as the authoritative readiness verdict
+   - `docs/phase-N/readiness.md` is the authoritative integrated ledger
+   - `N.4` is recorded as `ACCEPTED`
+   - the final verdict is recorded as `PARTIAL_GO`
+   - `authorized_by` is `team-lead` with the recorded authorization timestamp
 2. Deferred-surface follow-on references:
    - every deferred Codex and Gemini surface now has an explicit `TBD` follow-on
      sprint reference above
