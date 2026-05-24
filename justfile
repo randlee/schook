@@ -53,7 +53,7 @@ test target='workspace' provider='':
     elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "gemini" ]; then \
       {{python_cmd}} .just/run_hook_tests.py gemini; \
     else \
-      echo "error: unknown test target '{{target}}' provider '{{provider}}'" >&2; exit 1; \
+      {{python_cmd}} .just/run_test.py {{target}} {{provider}}; \
     fi
 
 # Remove workspace build artifacts.
