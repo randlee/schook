@@ -91,6 +91,7 @@ pub(crate) struct NormalizedHookContext<'a> {
 Approved canonical hooks:
 
 ```rust
+#[derive(Debug)]
 pub(crate) enum CanonicalHook {
     Codex(CodexHook),
     Gemini(GeminiHook),
@@ -179,7 +180,8 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   the existing `HookContext` construction path; `Phase O` does not create a
   second parallel dispatch model
 - invalid hook/payload combinations are rejected explicitly through the locked
-  compatibility table in `docs/architecture.md` section `3.4`, with
+  compatibility table in `docs/architecture.md` section
+  `3.4 Planned Phase O Runtime Boundary`, with
   `NormalizationError::InvalidPayloadForHook` as the required failure path
 - the chosen normalization-error taxonomy is recorded explicitly and enters the
   host error surface as `HookError::Normalization(NormalizationError)` unless a

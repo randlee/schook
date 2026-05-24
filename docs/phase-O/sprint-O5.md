@@ -55,6 +55,9 @@ target: integrate/phase-O
   provider-agnostic plugin stack
 - Gemini `AfterTool` drives the generic post-tool path, including any approved
   tool-output gate behavior already proved for Claude
+- when a Gemini retryable normalization or gate failure occurs, the surfaced
+  operator-visible stderr message or observability event includes the
+  `recovery_hint` string from `RetryableGateInput`
 - Gemini runtime tests pass against the approved fixture baseline
 - provider-local Gemini fields stay outside the canonical runtime contract
 - `docs/requirements.md` and `docs/traceability.md` update the Gemini portion

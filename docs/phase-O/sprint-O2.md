@@ -38,6 +38,8 @@ target: integrate/phase-O
   pattern
 - stable `just test hooks claude`, `just test hooks codex`, and
   `just test hooks gemini` entrypoints owned by this repo-level command surface
+- `docs/sc-lint-boundary.md` documentation for the public
+  `just lint sc-boundary` wrapper over the private `_lint-sc-boundary` recipe
 - boundary definitions for the normalization seam
 - lint commands that fail when the normalization boundary is bypassed
 

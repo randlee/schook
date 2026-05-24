@@ -50,6 +50,9 @@ target: integrate/phase-O
 - the required Codex ATM-extension behavior is limited to the same metadata
   enrichment already proved for Claude: canonical session/team identity
   inheritance plus retryable gate failures on blocked tool execution
+- when a Codex retryable normalization or gate failure occurs, the surfaced
+  operator-visible stderr message or observability event includes the
+  `recovery_hint` string from `RetryableGateInput`
 - Codex runtime tests pass against the approved fixture baseline
 - `docs/requirements.md` and `docs/traceability.md` update the Codex portion
   of `HKR-006` and `HKR-010` for the behavior actually closed in `O.4`

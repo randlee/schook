@@ -40,12 +40,15 @@ target: integrate/phase-O
 ## Required Signatures
 
 ```rust
-fn write_local_provider_cutover(
+pub(crate) fn write_local_provider_cutover(
     provider: TargetProvider,
 ) -> Result<InstallPlan, InstallError>;
 
-pub enum InstallError {
-    UnsupportedProvider(TargetProvider),
+pub(crate) enum InstallError {
+    UnsupportedProvider {
+        provider: TargetProvider,
+        supported: &'static [&'static str],
+    },
     MissingProviderConfig { provider: TargetProvider, path: PathBuf },
     WriteFailed { path: PathBuf, reason: String },
     RollbackPlanFailed { provider: TargetProvider, path: Option<PathBuf>, reason: String },
@@ -60,6 +63,11 @@ pub enum InstallError {
 - the documented local cutover path installs the normalized runtime for Claude,
   Codex, and Gemini on this machine
 - rollback steps are documented and tested once
+- `write_local_provider_cutover` and `InstallError` use intentionally aligned
+  `pub(crate)` visibility because the cutover helper remains an internal CLI
+  surface rather than a new public SDK/API contract
+- `InstallError::UnsupportedProvider` reports the rejected provider together
+  with the supported provider list so the recovery path is operator-visible
 - `InstallError::RollbackPlanFailed` includes `path: Option<PathBuf>` so the
   failed restore target is reported when one is known
 - machine-local smoke tests prove the supported providers are using the

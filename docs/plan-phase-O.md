@@ -84,6 +84,10 @@ Purpose:
   clean runtime-normalization baseline
 - carry forward the accepted `SEAL-001` closure decision explicitly before
   runtime-normalization work begins
+- assign ownership for recording the `RULING-NEEDED-ECR-001` disposition in
+  `docs/implementation-gaps.md` before the `O.3` branch is cut, with the entry
+  explicitly marked either `closed` or `deferred past Phase O` and carrying the
+  rationale for that choice
 
 Execution branch:
 - `feature/pO-s1-codebase-hygiene`

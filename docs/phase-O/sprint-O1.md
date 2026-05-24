@@ -43,6 +43,9 @@ target: integrate/phase-O
 - `SEAL-001` closure carried forward in `docs/implementation-gaps.md` with an
   explicit Phase O note that the unsealed-trait decision remains in force and
   is not reopened by `O.1`
+- `docs/implementation-gaps.md` entry ownership for
+  `RULING-NEEDED-ECR-001`, recorded by the integration author before `O.3`
+  branch cut as either `closed` or `deferred past Phase O` with rationale
 
 ## Acceptance Criteria
 
@@ -56,6 +59,10 @@ target: integrate/phase-O
   `HandlerRejected.reason` (`RBP-4`)
 - `docs/implementation-gaps.md` states that `SEAL-001` remains closed under
   the accepted unsealed-trait decision and is not reopened in `Phase O`
+- `docs/implementation-gaps.md` records the authoritative
+  `RULING-NEEDED-ECR-001` disposition before `O.3` starts, and that record
+  names the integration author as the owner of the entry plus one of two
+  allowed outcomes only: `closed` or `deferred past Phase O` with rationale
 
 ## Out Of Scope
 

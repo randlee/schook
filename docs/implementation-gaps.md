@@ -91,9 +91,13 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     observability/audit output
   - forcing a full newtype conversion in the phase-end fix pass would widen the
     API churn beyond the targeted blocker set
-  - recommendation: schedule a focused cleanup if the team wants typed wrapper
-    boundaries for plugin names and matcher IDs, instead of doing it implicitly
-    in the observability closeout
+  - Phase O assignment: close this item in `O.6` so the remaining CLI-facing
+    plugin-name and matcher-ID typing work lands together with the
+    cross-provider plugin-parity validation that exercises those dispatch and
+    observability boundaries
+  - recommendation: keep the targeted cleanup scoped to the remaining
+    plugin-name and matcher-ID wrappers rather than broadening it into an
+    unbounded CLI surface rewrite
 
 ### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
 
