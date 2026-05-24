@@ -122,6 +122,12 @@ pub(crate) enum CanonicalPayload<'a> {
 }
 ```
 
+Approved phase-ending deviations from the original `O.3` planning signature are
+recorded in:
+
+- `docs/phase-O/rulings/O3-provider-hook-input-event.md`
+- `docs/phase-O/rulings/O3-canonical-payload-empty.md`
+
 Canonical newtypes:
 
 ```rust
