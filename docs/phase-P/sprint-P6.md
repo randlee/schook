@@ -59,5 +59,6 @@ target: integrate/phase-P
 ## Required Validation
 
 - `cargo test --workspace`
+- `just lint sc-portability`
 - `just test hooks gemini`
 - `git diff --check`

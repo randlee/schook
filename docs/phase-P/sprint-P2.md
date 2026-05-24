@@ -35,12 +35,20 @@ target: integrate/phase-P
 - Gemini tests that exercise the `AfterAgent` harness path
 - updated Gemini API doc and findings docs that treat `AfterAgent` as a real
   supported surface
+- updated `docs/requirements.md` rows for the retained Gemini `AfterAgent`
+  surface
+- updated `docs/traceability.md` rows for the retained Gemini `AfterAgent`
+  surface
 
 ## Acceptance Criteria
 
 - `AfterAgent` is no longer just historical evidence; it is present in the
   maintained Gemini fixture/model/test surface
 - `docs/hook-api/gemini-hook-api.md` matches the retained Gemini surface set
+- `docs/requirements.md` records the retained Gemini `AfterAgent` surface with
+  no stale pre-Phase-P wording
+- `docs/traceability.md` records the retained Gemini `AfterAgent` surface with
+  no stale pre-Phase-P wording
 - Gemini fixture/model/test coverage is green including `AfterAgent`
 
 ## Out Of Scope

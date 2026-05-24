@@ -73,6 +73,8 @@ preserve one public `just lint <target>` entrypoint that mirrors the curated
 - `schook` exposes the adopted `sc-lint` suite through the same curated
   `just lint` structure used in `../atm-core`
 - the planned lint surface explicitly includes:
+  - `lint fmt`
+  - `lint clippy`
   - `lint modules`
   - `lint deny`
   - `lint shear`

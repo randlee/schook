@@ -60,4 +60,5 @@ target: integrate/phase-P
 - `cargo check --workspace`
 - `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
+- `just lint sc-portability`
 - `git diff --check`
