@@ -33,6 +33,7 @@ Sprint planning status convention:
 
 The final section of this document must record:
 
+- `integration_author`
 - `integrate_phase_p_candidate`
 - `release_verdict`
 - `provider_verdicts`
@@ -57,6 +58,7 @@ The final section of this document must record:
 
 Final release verdict:
 
+- `integration_author`: `PENDING`
 - `integrate_phase_p_candidate`: `PENDING`
 - `release_verdict`: `PENDING`
 - `provider_verdicts`: `PENDING`

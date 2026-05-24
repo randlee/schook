@@ -34,12 +34,15 @@ target: integrate/phase-P
 - exhausted retry-path coverage for the shared spawn helper
 - final closeout updates for:
   - `PRR-009`
-  - `LOGR-QA-004`
+  - `LOGR-QA-004`, because `P.8` intentionally owns the exhausted-retry-path
+    test closure for the shared spawn helper rather than leaving that signed-off
+    conditional as a future touch-only follow-up
 
 ## Acceptance Criteria
 
 - `PRR-009` and `LOGR-QA-004` are closed or explicitly carried with a bounded
-  release note
+  release note; `LOGR-QA-004` is not treated as implicitly reopened unless this
+  sprint actually lands the named exhausted-retry-path coverage
 - shared spawn-helper retry behavior is production-verified with explicit test
   coverage for the retained retry paths, not only shaped in code
 - operator docs match the actual install/alias behavior
@@ -54,3 +57,11 @@ target: integrate/phase-P
 - `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

@@ -61,3 +61,11 @@ target: integrate/phase-P
 - `cargo test --workspace`
 - `just lint sc-portability`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

@@ -13,6 +13,8 @@ target: integrate/phase-P
 
 - add Gemini `AfterAgent` to the permanent harness as a fully verified retained
   surface
+- close the Gemini-side `HKR-017` harness-contract expansion with matching
+  `docs/requirements.md` and `docs/traceability.md` updates
 
 ## Hard Dependencies
 
@@ -39,6 +41,8 @@ target: integrate/phase-P
   surface
 - updated `docs/traceability.md` rows for the retained Gemini `AfterAgent`
   surface
+- `HKR-017` amendment text and traceability evidence updated for the retained
+  Gemini `AfterAgent` harness surface
 
 ## Acceptance Criteria
 
@@ -49,6 +53,8 @@ target: integrate/phase-P
   no stale pre-Phase-P wording
 - `docs/traceability.md` records the retained Gemini `AfterAgent` surface with
   no stale pre-Phase-P wording
+- the retained Gemini `AfterAgent` harness work is recorded as `HKR-017`
+  progress, with requirement and traceability updates landing in the same PR
 - Gemini fixture/model/test coverage is green including `AfterAgent`
 
 ## Out Of Scope
@@ -62,3 +68,11 @@ target: integrate/phase-P
 - `pytest test-harness/hooks/gemini/tests/ -q`
 - `just test hooks gemini`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

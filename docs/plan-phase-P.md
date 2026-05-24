@@ -80,6 +80,21 @@ Rules:
 - the existing `ProviderHookNormalizer` seam remains the only allowed path into
   generic runtime dispatch for provider-adapted surfaces
 
+## Pre-Sprint Kickoff Checklist
+
+Before any `Phase P` sprint starts, the handoff or working notes must record:
+
+- exact requirement IDs and implementation-gap IDs in scope
+- the `integrate/phase-O` baseline commit being used for the sprint
+- proof that `just test hooks claude`, `just test hooks codex`, and
+  `just test hooks gemini` were green on that baseline before new work started
+- the single owning implementation path for each behavior in scope, including
+  confirmation that no provider-specific bypass around `ProviderHookNormalizer`
+  is being introduced
+- the tests expected to fail before the sprint and pass after it
+- the docs that must change in the same PR as the code
+- the files, crates, and docs that define the sprint write scope
+
 ## Sprint Sequence
 
 ### P.1 Codex Missing-Hook Harness Expansion
@@ -91,6 +106,8 @@ Purpose:
   `Stop`, `resume`, and `fork`
 - update the Codex hook API doc, fixtures, models, and tests to match the
   actual supported Codex hook surface
+- close the Codex portion of the shared harness-contract expansion under
+  `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
 - `feature/pP-s1-codex-missing-hook-harness`
@@ -106,6 +123,8 @@ Purpose:
   first-class verified surface
 - update the Gemini hook API doc, fixtures, models, and tests to match the
   actual supported Gemini hook surface
+- close the Gemini portion of the shared harness-contract expansion under
+  `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
 - `feature/pP-s2-gemini-missing-hook-harness`
@@ -141,6 +160,9 @@ Purpose:
 - lock the new compatibility rules before provider runtime work starts
 - produce the authoritative cross-agent mapping table for the retained
   lifecycle surfaces so parity is checked against one shared artifact
+- land the same-PR architecture authorization required by `ADR-SHK-009` before
+  any retained lifecycle surface is treated as part of the canonical typed
+  inventory
 
 Execution precondition:
 

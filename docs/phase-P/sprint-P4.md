@@ -48,6 +48,12 @@ target: integrate/phase-P
   - provider-local fields not promoted into the canonical contract
 - explicit removal plan for any direct provider-specific runtime path that
   bypasses `ProviderHookNormalizer`
+- same-PR architecture authorization for the canonical typed-inventory
+  extension, recorded through `docs/architecture.md` under `ADR-SHK-009`
+- explicit `docs/requirements.md` amendment note stating that `P.4` may expand
+  the retained lifecycle surface inventory under `HKR-006` but does not, by
+  itself, close the `HKR-010` runtime gate because provider runtime parity is
+  still owned by `P.5` and `P.6`
 
 ## Required Contract Samples
 
@@ -72,7 +78,9 @@ pub(crate) enum CodexHook {
     Notify,
     Stop,
     Resume,
-    // Fork appears only if `P.1` retains it as supported.
+    // Fork appears only if `P.1` retains it as supported; otherwise this
+    // variant stays absent and the unsupported/deferred disposition is carried
+    // only in the mapping table plus the lifecycle-compatibility notes.
     Fork,
 }
 
@@ -118,11 +126,16 @@ the implementation.
 - the compatibility table and boundary docs match the landed code
 - the cross-agent mapping table exists and is sufficient to compare Claude,
   Codex, and Gemini parity surface-by-surface
+- `docs/architecture.md` carries the same-PR authorization for the canonical
+  typed-inventory extension through `ADR-SHK-009`
 - `P.4` extends the existing `CanonicalHook` hierarchy instead of introducing
   a peer canonical hook family, unless a new approved ADR explicitly records
   that architectural change
 - any existing Codex- or Gemini-specific runtime bypass path is either removed
   in this sprint or called out as a blocking defect
+- `P.4` explicitly records that its seam additions are consistent with the
+  current `RULING-NEEDED-ECR-001` deferral and that `P.7` cannot retroactively
+  remove already-landed seam additions without a new breaking-change sprint
 
 ## Out Of Scope
 
@@ -137,3 +150,11 @@ the implementation.
 - `cargo test --workspace`
 - `just lint sc-boundary`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

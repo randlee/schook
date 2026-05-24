@@ -14,6 +14,8 @@ target: integrate/phase-P
 - add the remaining Codex lifecycle surfaces to the permanent harness
 - turn the current deferred/missing Codex hook set into explicit verified
   evidence, approved fixtures, and tests
+- close the Codex-side `HKR-017` harness-contract expansion with matching
+  `docs/requirements.md` and `docs/traceability.md` updates
 
 ## Hard Dependencies
 
@@ -42,6 +44,8 @@ target: integrate/phase-P
   surfaces
 - updated `docs/traceability.md` rows for retained or deferred Codex lifecycle
   surfaces
+- `HKR-017` amendment text and traceability evidence updated for the retained
+  Codex missing-hook harness surface
 
 ## Acceptance Criteria
 
@@ -54,6 +58,8 @@ target: integrate/phase-P
   surfaces with no stale pre-Phase-P wording
 - `docs/traceability.md` records the retained or deferred Codex lifecycle
   surfaces with no stale pre-Phase-P wording
+- the retained Codex missing-hook harness work is recorded as `HKR-017`
+  progress, with requirement and traceability updates landing in the same PR
 - Codex fixture/model/test coverage is green for the retained surfaces
 
 ## Out Of Scope
@@ -67,3 +73,11 @@ target: integrate/phase-P
 - `pytest test-harness/hooks/codex/tests/ -q`
 - `just test hooks codex`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

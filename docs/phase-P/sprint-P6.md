@@ -33,6 +33,9 @@ target: integrate/phase-P
 - Gemini runtime support for `AfterAgent`
 - end-to-end Gemini runtime tests for `AfterAgent`
 - requirements/traceability updates closing the Gemini parity delta
+- explicit `docs/requirements.md` amendment note stating that `P.6` completes
+  the retained Gemini lifecycle runtime closure for `HKR-006` and updates
+  `HKR-010` only for the Gemini lifecycle surfaces proved in this sprint
 - Gemini handler implementation available through the shared Rust runtime path,
   not through a side-channel provider-specific path
 - explicit plugin-side behavioral contract for Gemini `AfterAgent`:
@@ -42,6 +45,9 @@ target: integrate/phase-P
   - `plugins/atm-extension/` owns relay/identity/ATM behavior driven by
     normalized Gemini `AfterAgent` events where the plugin already participates
     in the shared runtime path
+  - their `docs/architecture.md` section `3.2` classification remains
+    `Runtime implementation source crate`; `P.6` changes behavior and tests,
+    not plugin classification
 
 ## Acceptance Criteria
 
@@ -58,6 +64,9 @@ target: integrate/phase-P
   behind an implicit Unix-only implementation
 - there is no direct Gemini-specific runtime bypass around
   `ProviderHookNormalizer`; if one existed on branch entry, it is removed
+- `P.6` explicitly records that its seam additions remain consistent with the
+  current `RULING-NEEDED-ECR-001` deferral and that `P.7` cannot retroactively
+  remove already-landed seam additions without a new breaking-change sprint
 
 ## Out Of Scope
 
@@ -70,3 +79,11 @@ target: integrate/phase-P
 - `just lint sc-portability`
 - `just test hooks gemini`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?

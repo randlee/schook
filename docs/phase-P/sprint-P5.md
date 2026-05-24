@@ -33,6 +33,11 @@ target: integrate/phase-P
 - Codex runtime support for the retained missing lifecycle surfaces
 - end-to-end Codex runtime tests for those surfaces
 - requirements/traceability updates closing the Codex parity delta
+- explicit `docs/requirements.md` amendment note stating that `P.5` advances
+  `HKR-006` from retained lifecycle approval into active Codex runtime parity
+  and updates `HKR-010` only for the Codex lifecycle surfaces proved in this
+  sprint, with final cross-provider closure still reserved for later accepted
+  work
 - Codex handler implementation available through the shared Rust runtime path,
   not through a side-channel provider-specific path
 - explicit plugin-side behavioral contract for the retained Codex lifecycle
@@ -43,6 +48,9 @@ target: integrate/phase-P
   - `plugins/atm-extension/` owns relay/identity/ATM behavior driven by those
     normalized Codex hook events where the plugin already participates in the
     shared runtime path
+  - their `docs/architecture.md` section `3.2` classification remains
+    `Runtime implementation source crate`; `P.5` changes behavior and tests,
+    not plugin classification
 
 ## Acceptance Criteria
 
@@ -59,6 +67,9 @@ target: integrate/phase-P
   behind an implicit Unix-only implementation
 - there is no direct Codex-specific runtime bypass around
   `ProviderHookNormalizer`; if one existed on branch entry, it is removed
+- `P.5` explicitly records that its seam additions remain consistent with the
+  current `RULING-NEEDED-ECR-001` deferral and that `P.7` cannot retroactively
+  remove already-landed seam additions without a new breaking-change sprint
 
 ## Out Of Scope
 
@@ -71,3 +82,11 @@ target: integrate/phase-P
 - `just lint sc-portability`
 - `just test hooks codex`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What code was removed early rather than left in parallel?
+- Which files/crates were the owned write scope for the sprint?
+- What validation commands and direct tests proved the new contract?
+- What follow-on work is blocked or unblocked by this sprint?
