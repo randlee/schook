@@ -27,6 +27,15 @@ SECTIONS = (
             ("fmt apply", "Format the Rust workspace in place."),
         ),
     ),
+    (
+        "Lint",
+        (
+            ("lint", "Run the repo lint surface."),
+            ("lint fmt", "Run only the format gate."),
+            ("lint clippy", "Run only Clippy with warnings denied."),
+            ("lint sc-boundary", "Run the provider-normalization boundary lint wrapper."),
+        ),
+    ),
 )
 
 

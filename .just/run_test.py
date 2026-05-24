@@ -19,13 +19,13 @@ HOOK_TESTS = {
 
 
 def main(argv: list[str]) -> int:
-    repo_root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parent.parent
     target = argv[1] if len(argv) > 1 else "workspace"
     provider = argv[2] if len(argv) > 2 else ""
 
     if target == "workspace":
         for command in WORKSPACE_TEST:
-            completed = subprocess.run(command, cwd=repo_root)
+            completed = subprocess.run(command, cwd=root)
             if completed.returncode != 0:
                 return completed.returncode
         return 0
@@ -37,7 +37,7 @@ def main(argv: list[str]) -> int:
             print(f"unknown hooks provider: {provider}", file=sys.stderr)
             print(f"expected one of: {valid}", file=sys.stderr)
             return 2
-        return subprocess.run(command, cwd=repo_root).returncode
+        return subprocess.run(command, cwd=root).returncode
 
     print(f"unknown test target: {target}", file=sys.stderr)
     print("expected one of: workspace, hooks", file=sys.stderr)
