@@ -1,57 +1,61 @@
 ---
 id: O.2
-title: Runtime Normalization Foundation
+title: `sc-lint` Setup And Boundary Enforcement
 status: planned
-branch: feature/pO-s2-runtime-normalization-foundation
-worktree: ../schook-worktrees/feature/pO-s2-runtime-normalization-foundation
+branch: feature/pO-s2-sc-lint-setup
+worktree: ../schook-worktrees/feature/pO-s2-sc-lint-setup
 target: integrate/phase-O
 ---
 
-# Sprint O.2 — Runtime Normalization Foundation
+# Sprint O.2 — `sc-lint` Setup And Boundary Enforcement
 
 ## Goal
 
-- implement the provider-to-canonical runtime normalization layer for approved
-  Codex and Gemini surfaces only
-- keep provider-specific parsing isolated from the generic runtime/plugin path
+- adopt the new `sc-lint` tooling in this repo before runtime-normalization
+  code begins
+- enforce one hard lint-detected architectural boundary for normalization work
 
 ## Hard Dependencies
 
 - `O.1` complete
-- current `origin/integrate/phase-N` accepted baseline
-- approved provider fixtures, models, and hook API docs from `Phase N`
-- `CDR-B` merged or otherwise present on the execution baseline
+- local or Homebrew-installed `sc-lint` release `0.1.x`, or the exact
+  repo-local fallback from `../sc-lint`
 
 ## Exact Targets
 
-- `crates/sc-hooks-core/src/`
-- `crates/sc-hooks-cli/src/`
-- `crates/sc-hooks-cli/tests/`
-- `test-harness/hooks/codex/`
-- `test-harness/hooks/gemini/`
+- `justfile`
+- `.just/`
+- `Cargo.toml`
+- `crates/sc-hooks-core/Cargo.toml`
+- `crates/sc-hooks-cli/Cargo.toml`
+- `crates/sc-hooks-sdk/Cargo.toml`
+- `boundaries/`
+- docs describing the repo-local lint surface
 
 ## Deliverables
 
-- runtime normalization code for approved Codex and Gemini surfaces
-- fixture-backed normalization tests
-- one documented normalization boundary for provider-specific vs canonical data
+- repo-local `sc-lint` command surface following the `../sc-lint` pattern
+- boundary definitions for the normalization seam
+- lint commands that fail when the normalization boundary is bypassed
 
 ## Acceptance Criteria
 
-- approved Codex fixtures normalize into canonical runtime hook/event data
-- approved Gemini fixtures normalize into canonical runtime hook/event data
-- deferred `Phase N` surfaces are not implemented or implied as supported
-- normalization tests cite approved fixtures and pass
+- the repo exposes `sc-lint` entrypoints in the same top-level pattern used by
+  `../sc-lint` for help, lint, and CI-oriented lint invocation
+- `boundaries/` records exist for the normalization seam the later runtime
+  sprints will rely on
+- boundary lint runs in this repo and can detect `internal_only` and
+  `forbid_external_impls` violations on the normalization boundary
+- the sprint documents whether the machine is using the Homebrew-installed
+  `sc-lint` binary or the explicit repo-local fallback path
 
 ## Out Of Scope
 
-- Codex `notify`, `Stop`, `resume`, `fork`
-- Gemini `AfterAgent`
-- local deployment and cutover
+- provider runtime parity
+- local cutover
 
 ## Required Validation
 
-- `cargo test --workspace`
-- `pytest test-harness/hooks/codex/tests/ -q`
-- `pytest test-harness/hooks/gemini/tests/ -q`
+- `just help`
+- `just lint sc-boundary`
 - `git diff --check`

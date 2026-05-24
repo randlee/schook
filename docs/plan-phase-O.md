@@ -85,23 +85,38 @@ Execution branch:
 Execution worktree:
 - `../schook-worktrees/feature/pO-s1-codebase-hygiene`
 
-### O.2 Runtime Normalization Foundation
+### O.2 `sc-lint` Setup And Boundary Enforcement
+
+Purpose:
+
+- adopt `sc-lint` in this repo using the same help/layout pattern used by the
+  `sc-lint` repo
+- add boundary-enforcement plumbing before normalization code starts
+
+Execution branch:
+- `feature/pO-s2-sc-lint-setup`
+
+Execution worktree:
+- `../schook-worktrees/feature/pO-s2-sc-lint-setup`
+
+### O.3 Runtime Normalization Foundation
 
 Purpose:
 
 - implement the provider-to-canonical normalization layer for approved Codex
   and Gemini surfaces only
-- keep provider-specific parsing isolated from the generic runtime/plugin path
+- require one sealed normalization trait boundary so provider-specific parsing
+  cannot bypass the canonical runtime path
 - prove normalization against the approved provider fixtures before broader
   parity work begins
 
 Execution branch:
-- `feature/pO-s2-runtime-normalization-foundation`
+- `feature/pO-s3-runtime-normalization-foundation`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s2-runtime-normalization-foundation`
+- `../schook-worktrees/feature/pO-s3-runtime-normalization-foundation`
 
-### O.3 Codex Runtime Parity
+### O.4 Codex Runtime Parity
 
 Purpose:
 
@@ -110,12 +125,12 @@ Purpose:
 - prove session-state, gate, and ATM-extension behavior on Codex
 
 Execution branch:
-- `feature/pO-s3-codex-runtime-parity`
+- `feature/pO-s4-codex-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s3-codex-runtime-parity`
+- `../schook-worktrees/feature/pO-s4-codex-runtime-parity`
 
-### O.4 Gemini Runtime Parity
+### O.5 Gemini Runtime Parity
 
 Purpose:
 
@@ -124,12 +139,12 @@ Purpose:
 - prove session-state, gate, and ATM-extension behavior on Gemini
 
 Execution branch:
-- `feature/pO-s4-gemini-runtime-parity`
+- `feature/pO-s5-gemini-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s4-gemini-runtime-parity`
+- `../schook-worktrees/feature/pO-s5-gemini-runtime-parity`
 
-### O.5 Cross-Provider Plugin Parity And E2E Validation
+### O.6 Cross-Provider Plugin Parity And E2E Validation
 
 Purpose:
 
@@ -139,12 +154,12 @@ Purpose:
   observability proof
 
 Execution branch:
-- `feature/pO-s5-cross-provider-plugin-parity`
+- `feature/pO-s6-cross-provider-plugin-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s5-cross-provider-plugin-parity`
+- `../schook-worktrees/feature/pO-s6-cross-provider-plugin-parity`
 
-### O.6 Local Deployment And Cutover
+### O.7 Local Deployment And Cutover
 
 Purpose:
 
@@ -153,10 +168,10 @@ Purpose:
 - finish with a documented rollback-safe local cutover path
 
 Execution branch:
-- `feature/pO-s6-local-cutover`
+- `feature/pO-s7-local-cutover`
 
 Execution worktree:
-- `../schook-worktrees/feature/pO-s6-local-cutover`
+- `../schook-worktrees/feature/pO-s7-local-cutover`
 
 ## Sprint Artifact Summary
 
@@ -167,19 +182,24 @@ Execution worktree:
   - hygiene fixes in `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, and
     `crates/sc-hooks-sdk/`
 - `O.2`:
+  - repo-local `sc-lint` integration in `justfile` and `.just/`
+  - `boundaries/` records for the normalization boundary
+  - `sc-lint` attributes/dependencies needed for boundary enforcement
+- `O.3`:
   - runtime normalization code in `crates/sc-hooks-core/` and
     `crates/sc-hooks-cli/`
+  - one sealed normalization trait boundary plus lint-enforced no-bypass rules
   - provider normalization tests backed by approved fixtures
-- `O.3`:
+- `O.4`:
   - Codex runtime adapter path
   - Codex end-to-end runtime tests
-- `O.4`:
+- `O.5`:
   - Gemini runtime adapter path
   - Gemini end-to-end runtime tests
-- `O.5`:
+- `O.6`:
   - cross-provider parity tests for Claude, Codex, and Gemini
   - runtime observability proof on approved surfaces
-- `O.6`:
+- `O.7`:
   - local install/cutover helpers and docs
   - machine-local smoke-test record for the supported providers
 
@@ -191,6 +211,9 @@ deliverables, acceptance criteria, and closure rules.
 - `Phase O` is runtime-normalization work, not new schema-discovery work
 - approved fixtures, provider hook API docs, and provider models remain the
   source of truth for runtime behavior
+- `sc-lint` boundary enforcement must be installed before normalization begins
+- the normalization boundary must be one sealed trait surface with
+  lint-detected no-bypass enforcement
 - deferred `Phase N` surfaces remain out of scope unless a later explicit phase
   reopens them
 - Cursor remains out of scope for `Phase O`; `HKR-007` stays deferred
@@ -200,11 +223,11 @@ deliverables, acceptance criteria, and closure rules.
   the normalized runtime path with exact retryable failures preserved
 - `O.1` closes the pre-existing hygiene set before runtime normalization:
   `PN-008`, `RBP-1`, `RBP-2`, `RBP-4`, and `SEAL-001`
-- provider-specific parsing belongs in the adapter layer; generic plugin logic
-  remains provider-agnostic
+- provider-specific parsing belongs behind the normalization trait; generic
+  plugin logic remains provider-agnostic
 - no provider-local field may be promoted into the canonical runtime contract
   without new approved fixture evidence
-- `O.6` may cut over local agents only after `O.5` is accepted on
+- `O.7` may cut over local agents only after `O.6` is accepted on
   `integrate/phase-O`
 
 ## Initial Planning Outputs
@@ -217,3 +240,4 @@ deliverables, acceptance criteria, and closure rules.
 - `docs/phase-O/sprint-O4.md`
 - `docs/phase-O/sprint-O5.md`
 - `docs/phase-O/sprint-O6.md`
+- `docs/phase-O/sprint-O7.md`

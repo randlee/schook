@@ -1,57 +1,61 @@
 ---
 id: O.6
-title: Local Deployment And Cutover
+title: Cross-Provider Plugin Parity And End-To-End Validation
 status: planned
-branch: feature/pO-s6-local-cutover
-worktree: ../schook-worktrees/feature/pO-s6-local-cutover
+branch: feature/pO-s6-cross-provider-plugin-parity
+worktree: ../schook-worktrees/feature/pO-s6-cross-provider-plugin-parity
 target: integrate/phase-O
 ---
 
-# Sprint O.6 — Local Deployment And Cutover
+# Sprint O.6 — Cross-Provider Plugin Parity And End-To-End Validation
 
 ## Goal
 
-- deploy the normalized `sc-hooks` runtime for the supported agents on this
-  computer
-- finish with a rollback-safe local cutover path
+- prove that Claude, Codex, and Gemini all drive the same generic plugin stack
+  on their approved surfaces
+- freeze the runtime normalization boundary with end-to-end and observability
+  proof
 
 ## Hard Dependencies
 
+- `O.4` complete
 - `O.5` complete
 - current `origin/integrate/phase-O` branch head
-- local access to the provider runtime config paths on this machine
 
 ## Exact Targets
 
-- `crates/sc-hooks-cli/src/install.rs`
-- `justfile`
-- `README.md`
-- `USAGE.md`
-- local provider runtime config paths documented by the sprint
+- `crates/sc-hooks-cli/src/`
+- `crates/sc-hooks-cli/tests/`
+- `plugins/`
+- `docs/requirements.md`
+- `docs/architecture.md`
+- `docs/traceability.md`
 
 ## Deliverables
 
-- one local install/cutover path for Claude, Codex, and Gemini on this machine
-- rollback instructions
-- machine-local smoke-test record for the supported providers
+- cross-provider parity tests for Claude, Codex, and Gemini approved surfaces
+- observability proof for the approved cross-provider runtime path
+- control-doc updates for the normalized runtime boundary
 
 ## Acceptance Criteria
 
-- the documented local cutover path installs the normalized runtime for Claude,
-  Codex, and Gemini on this machine
-- rollback steps are documented and tested once
-- machine-local smoke tests prove the supported providers are using the
-  normalized runtime path
+- Claude, Codex, and Gemini approved surfaces all execute through the same
+  generic plugin stack
+- observability and error semantics remain stable across approved providers
+- control docs describe only the runtime behavior actually proved in this phase
 
 ## Out Of Scope
 
-- Cursor runtime work
+- local cutover
 - deferred `Phase N` surfaces
-- cross-machine fleet rollout beyond this computer
+- Cursor runtime work
 
 ## Required Validation
 
+- `cargo check --workspace`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
+- `pytest test-harness/hooks/ -q`
 - `just test hooks claude`
 - `just test hooks codex`
 - `just test hooks gemini`

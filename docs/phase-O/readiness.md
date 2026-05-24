@@ -56,11 +56,12 @@ Each provider verdict entry must record:
 | Sprint | Accepted Commit | Verdict | Current Status | Notes |
 | --- | --- | --- | --- | --- |
 | O.1 | `PENDING` | `PENDING` | `not started` | awaits `Phase N` accepted baseline on `integrate/phase-N`; closes `SEAL-001` and the pre-existing hygiene set before runtime work begins |
-| O.2 | `PENDING` | `PENDING` | `not started` | awaits `O.1` acceptance |
+| O.2 | `PENDING` | `PENDING` | `not started` | awaits `O.1` acceptance; installs `sc-lint` boundary enforcement for the runtime line |
 | O.3 | `PENDING` | `PENDING` | `not started` | awaits `O.2` acceptance |
-| O.4 | `PENDING` | `PENDING` | `not started` | awaits `O.2` acceptance |
-| O.5 | `PENDING` | `PENDING` | `not started` | awaits `O.3` and `O.4` acceptance |
-| O.6 | `PENDING` | `PENDING` | `not started` | awaits `O.5` acceptance |
+| O.4 | `PENDING` | `PENDING` | `not started` | awaits `O.3` acceptance |
+| O.5 | `PENDING` | `PENDING` | `not started` | awaits `O.3` acceptance |
+| O.6 | `PENDING` | `PENDING` | `not started` | awaits `O.4` and `O.5` acceptance |
+| O.7 | `PENDING` | `PENDING` | `not started` | awaits `O.6` acceptance |
 
 Final release verdict:
 
