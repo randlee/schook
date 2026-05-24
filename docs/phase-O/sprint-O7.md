@@ -48,7 +48,7 @@ pub enum InstallError {
     UnsupportedProvider(TargetProvider),
     MissingProviderConfig { provider: TargetProvider, path: PathBuf },
     WriteFailed { path: PathBuf, reason: String },
-    RollbackPlanFailed { provider: TargetProvider, reason: String },
+    RollbackPlanFailed { provider: TargetProvider, path: Option<PathBuf>, reason: String },
 }
 ```
 
@@ -60,6 +60,8 @@ pub enum InstallError {
 - the documented local cutover path installs the normalized runtime for Claude,
   Codex, and Gemini on this machine
 - rollback steps are documented and tested once
+- `InstallError::RollbackPlanFailed` includes `path: Option<PathBuf>` so the
+  failed restore target is reported when one is known
 - machine-local smoke tests prove the supported providers are using the
   normalized runtime path
 

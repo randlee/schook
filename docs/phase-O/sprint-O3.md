@@ -161,6 +161,9 @@ pub(crate) trait ProviderHookNormalizer { /* ... */ }
   proves external impls are rejected
 - all canonical normalization types remain `pub(crate)` in the implemented
   crate
+- all canonical normalization enum struct-variant fields carry explicit
+  `pub(crate)` annotations or a code comment explaining any intentional
+  omission
 - `NormalizedHookContext` is the canonical provider-normalized input and feeds
   the existing `HookContext` construction path; `Phase O` does not create a
   second parallel dispatch model
