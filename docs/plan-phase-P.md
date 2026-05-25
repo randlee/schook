@@ -134,10 +134,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s2-gemini-missing-hook-harness`
+- `feature/pP-s2-gemini-afteragent`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s2-gemini-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s2-gemini-afteragent`
 
 ### P.3 `sc-lint` Suite Adoption And Cross-Platform Gate
 
@@ -211,10 +211,10 @@ Purpose:
   normalization trait seam
 
 Execution branch:
-- `feature/pP-s6-gemini-missing-hook-runtime`
+- `feature/pP-s6-gemini-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s6-gemini-missing-hook-runtime`
+- `../schook-worktrees/feature/pP-s6-gemini-runtime-parity`
 
 ### P.7 Error, Boundary, And Portability Ruling Closeout
 
