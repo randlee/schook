@@ -496,10 +496,7 @@ fn ensure_cli_alias(bin_root: &Path, cli_binary: &Path) -> Result<(), InstallErr
     #[cfg(windows)]
     {
         let alias_path = bin_root.join(format!("{HOOKS_ALIAS_NAME}.cmd"));
-        let wrapper = format!(
-            "@echo off\r\n\"{}\" %*\r\n",
-            cli_binary.display()
-        );
+        let wrapper = format!("@echo off\r\n\"{}\" %*\r\n", cli_binary.display());
         write_file_atomic(&alias_path, wrapper.as_bytes()).map_err(|err| {
             InstallError::WriteFailed {
                 path: alias_path,
@@ -1368,7 +1365,9 @@ PreToolUse = ["a", "b"]
             }
             #[cfg(windows)]
             {
-                let alias_path = home.join(".local/bin").join(format!("{HOOKS_ALIAS_NAME}.cmd"));
+                let alias_path = home
+                    .join(".local/bin")
+                    .join(format!("{HOOKS_ALIAS_NAME}.cmd"));
                 let alias_body =
                     fs::read_to_string(&alias_path).expect("hooks alias wrapper should exist");
                 assert!(alias_body.contains("sc-hooks"));
