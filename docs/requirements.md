@@ -301,6 +301,10 @@ If a behavior is required for release but not yet fully proved, it must appear i
     `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
     disposition-only until accepted harness evidence proves they are
     exercisable retained runtime surfaces
+  - P.5 amendment: Codex retained lifecycle parity is now implemented for the
+    only retained live stop-family surface, `notify`, through the shared Rust
+    runtime path; Codex `Stop`, `resume`, and `fork` remain disposition-only
+    non-exercisable rows from `P.1`
 - `HKR-010`
   - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
   - current text: `Phase O` closed the Codex and Gemini normalized-runtime
@@ -315,6 +319,10 @@ If a behavior is required for release but not yet fully proved, it must appear i
     close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
     `P.5` and `P.6` still own the provider-runtime closure for those newly
     retained lifecycle surfaces
+  - P.5 amendment: no new Codex gate surface was added beyond the existing
+    normalized host path; `P.5` closes Codex runtime parity for the retained
+    `notify` stop-family surface while leaving the already-closed gate
+    behavior from `Phase O` unchanged
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`
