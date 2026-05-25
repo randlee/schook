@@ -464,62 +464,6 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
 }
 
 #[test]
-fn codex_stop_payload_uses_shared_stop_relay_path() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let repo_root = temp.path().join("repo-codex");
-    let state_root = temp.path().join("state");
-    let atm_home = temp.path().join("atm-home");
-    let tmp_root = temp.path().join("tmp");
-    fs::create_dir_all(&repo_root).expect("repo root");
-    fs::create_dir_all(&atm_home).expect("atm home");
-    fs::create_dir_all(&tmp_root).expect("tmp root");
-    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
-    write_session_record_for_provider(
-        &state_root,
-        &repo_root,
-        "sess-codex-stop",
-        9016,
-        Provider::Codex,
-    );
-    let identity_file = tmp_root.join("atm-hook-9016.json");
-    fs::write(&identity_file, "{}").expect("identity file should pre-exist");
-
-    let _env = EnvGuard::set(&[
-        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
-        ("ATM_HOME", atm_home.to_str().expect("utf8")),
-        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
-        ("ATM_TEAM", ""),
-        ("ATM_IDENTITY", ""),
-    ]);
-
-    AtmExtensionHandler
-        .handle(hook_context(
-            HookType::Stop,
-            None,
-            serde_json::json!({
-                "session_id": "sess-codex-stop",
-                "cwd": repo_root,
-                "stop_hook_active": false,
-                "last_assistant_message": "OK",
-            }),
-        ))
-        .expect("codex stop should succeed through shared relay path");
-
-    let record = load_record(&state_root, "sess-codex-stop");
-    assert_eq!(record["provider"], "codex");
-    assert_eq!(record["agent_state"], "idle");
-    assert_eq!(record["last_hook_event"], "Stop");
-
-    let events = fs::read_to_string(atm_home.join(".atm/daemon/hooks/events.jsonl"))
-        .expect("events file should exist");
-    let event: serde_json::Value =
-        serde_json::from_str(events.lines().next().expect("line")).expect("event should parse");
-    assert_eq!(event["event"], "stop");
-    assert_eq!(event["session_id"], "sess-codex-stop");
-    assert!(!identity_file.exists());
-}
-
-#[test]
 fn gemini_stop_payload_uses_shared_stop_relay_path() {
     let temp = tempfile::tempdir().expect("tempdir");
     let repo_root = temp.path().join("repo-gemini");
@@ -573,6 +517,62 @@ fn gemini_stop_payload_uses_shared_stop_relay_path() {
         serde_json::from_str(events.lines().next().expect("line")).expect("event should parse");
     assert_eq!(event["event"], "stop");
     assert_eq!(event["session_id"], "sess-gemini-stop");
+    assert!(!identity_file.exists());
+}
+
+#[test]
+fn codex_stop_payload_uses_shared_stop_relay_path() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let repo_root = temp.path().join("repo-codex");
+    let state_root = temp.path().join("state");
+    let atm_home = temp.path().join("atm-home");
+    let tmp_root = temp.path().join("tmp");
+    fs::create_dir_all(&repo_root).expect("repo root");
+    fs::create_dir_all(&atm_home).expect("atm home");
+    fs::create_dir_all(&tmp_root).expect("tmp root");
+    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
+    write_session_record_for_provider(
+        &state_root,
+        &repo_root,
+        "sess-codex-stop",
+        9016,
+        Provider::Codex,
+    );
+    let identity_file = tmp_root.join("atm-hook-9016.json");
+    fs::write(&identity_file, "{}").expect("identity file should pre-exist");
+
+    let _env = EnvGuard::set(&[
+        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
+        ("ATM_HOME", atm_home.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_TEAM", ""),
+        ("ATM_IDENTITY", ""),
+    ]);
+
+    AtmExtensionHandler
+        .handle(hook_context(
+            HookType::Stop,
+            None,
+            serde_json::json!({
+                "session_id": "sess-codex-stop",
+                "cwd": repo_root,
+                "stop_hook_active": false,
+                "last_assistant_message": "OK",
+            }),
+        ))
+        .expect("codex stop should succeed through shared relay path");
+
+    let record = load_record(&state_root, "sess-codex-stop");
+    assert_eq!(record["provider"], "codex");
+    assert_eq!(record["agent_state"], "idle");
+    assert_eq!(record["last_hook_event"], "Stop");
+
+    let events = fs::read_to_string(atm_home.join(".atm/daemon/hooks/events.jsonl"))
+        .expect("events file should exist");
+    let event: serde_json::Value =
+        serde_json::from_str(events.lines().next().expect("line")).expect("event should parse");
+    assert_eq!(event["event"], "stop");
+    assert_eq!(event["session_id"], "sess-codex-stop");
     assert!(!identity_file.exists());
 }
 
