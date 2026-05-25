@@ -76,3 +76,25 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement IDs changed status:
+  - `HKR-017` closed its Gemini-side retained harness expansion in `P.2`
+- Code removed early rather than left in parallel:
+  - none; this sprint promoted `AfterAgent` into the maintained Gemini harness
+    contract without adding a second runtime path
+- Owned write scope:
+  - `test-harness/hooks/gemini/`
+  - `docs/hook-api/gemini-hook-api.md`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+- Validation commands and direct tests that proved the new contract:
+  - `pytest test-harness/hooks/gemini/tests/ -q`
+  - `just test hooks gemini`
+  - `cargo test --workspace`
+  - `git diff --check`
+- Follow-on work blocked or unblocked by this sprint:
+  - closes the Gemini harness side of `HKR-017`
+  - unblocks `P.4` lifecycle-family normalization from accepted Gemini
+    `AfterAgent` evidence

@@ -81,3 +81,24 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement IDs changed status:
+  - `HKR-017` closed its Codex-side retained harness expansion in `P.1`
+- Code removed early rather than left in parallel:
+  - none; this sprint expanded the retained Codex harness surface without
+    introducing an alternate runtime path
+- Owned write scope:
+  - `crates/sc-hooks-test/`
+  - `test-harness/hooks/codex/`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+- Validation commands and direct tests that proved the new contract:
+  - `pytest test-harness/hooks/codex/tests/ -q`
+  - `just test hooks codex`
+  - `cargo test --workspace`
+  - `git diff --check`
+- Follow-on work blocked or unblocked by this sprint:
+  - unblocks `P.2` Gemini-side harness closure on the same shared contract
+  - contributes accepted Codex retained-surface evidence required by `P.4`

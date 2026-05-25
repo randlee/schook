@@ -87,7 +87,7 @@ Current release scope does not include:
 | DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting a standard `dispatch.complete` observability event. When `full` audit mode is active, the host may still append the documented zero-match audit record. | Runtime returns early on empty handler chains, standard mode keeps the zero-match fast path silent, and full mode records the zero-match attempt in the audit file contract. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
-| TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
+| TMO-003 | Implemented | Must | On timeout, the host shall use bounded platform-native termination: on Unix it shall send `SIGTERM`, wait one second, then force-kill if needed; on non-Unix targets it shall use the platform-native kill path and the same one-second grace window. | `terminate_then_kill()` implements the Unix TERM/kill sequence, while non-Unix targets follow the same one-second bounded platform-native termination contract. |
 | SES-001 | Implemented | Must | Disabled plugin state shall persist in `.sc-hooks/state/session.json`, keyed by session ID. | Session storage tracks disabled plugins per session. |
 | SES-002 | Implemented | Must | `SessionEnd` and `sc-hooks audit --reset` shall clear persisted disable state. | Main command handling calls `clear_session()` or `clear_all_sessions()`. |
 | TMO-004 | Implemented | Must | The release contract for `long_running` behavior is sync-only: sync handlers with `long_running=true` and no `timeout_ms` run without the default sync timeout; async manifests using `long_running=true` are invalid; SDK runner conveniences remain non-normative authoring helpers. | Manifest validation, audit behavior, timeout resolution, handler discovery, and `long_running_contract` tests all agree on the same contract. |
@@ -184,7 +184,7 @@ Observability Phase 1 completed these contract amendments:
 | DEF-016 | Implemented | Must | Production-grade audit mode shall support at least 50 simultaneous agents by sharding durable audit output into run-scoped files, bounding retention, and avoiding a single hot shared file. The target basis is planned ATM multi-agent repo-root operation plus eval and harness fan-out on the same checkout. | Integration and soak tests prove 50+ concurrent agents can emit audit records without corruption, unbounded contention, or unbounded disk growth. |
 | DEF-017 | Implemented | Must | Full audit mode shall record hook invocation attempts even when no handlers match or dispatch fails before handler execution, while `standard` mode keeps the current lower-volume dispatch-log posture. | Integration tests prove zero-match, resolution-failure, and pre-dispatch failure audit records in `full` mode, while the negative-branch and dispatch-preflight tests preserve the current `standard` degraded stderr contract. |
 | DEF-017a | Implemented | Must | The serialized `FullAuditRecord` and `FullAuditMeta` JSON key set shall remain documented and frozen in the observability contract so downstream harnesses and eval tooling can process full-audit files without reverse-engineering Rust struct names. | `docs/observability-contract.md` section 4.2 enumerates the serialized JSON key names for both record types, and integration tests keep the documented audit files machine-readable. |
-| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias. |
+| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only through the documented install-time alias path. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias delivered through the install/cutover alias wrapper. |
 
 ## 7. Deferred Items
 
@@ -277,6 +277,14 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: required-before-release Claude version-bump detection
   - current text: implemented Claude version-bump detection with direct script and test proof
   - authorizing sprint: `S10-VERSION-BUMP-1`
+- `TMO-003`
+  - prior text: On timeout, the host shall send `SIGTERM`, wait one second,
+    then force-kill if needed.
+  - current text: On timeout, the host shall use bounded platform-native
+    termination: on Unix it shall send `SIGTERM`, wait one second, then
+    force-kill if needed; on non-Unix targets it shall use the
+    platform-native kill path and the same one-second grace window.
+  - authorizing sprint: `P.7`
 
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
@@ -335,6 +343,14 @@ If a behavior is required for release but not yet fully proved, it must appear i
     close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
     `P.5` and `P.6` still own the provider-runtime closure for those newly
     retained lifecycle surfaces
+- `DEF-019`
+  - prior text: the canonical product, runtime, binary, service, and docs name
+    shall converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias only
+  - current text: the canonical product, runtime, binary, service, and docs
+    name converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias delivered through the install/cutover alias wrapper
+  - authorizing sprint: `P.8`
 - `HKR-006`
   - prior text: `Phase O` is the approved runtime-normalization phase for
     Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
