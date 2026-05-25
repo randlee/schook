@@ -87,7 +87,7 @@ Current release scope does not include:
 | DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting a standard `dispatch.complete` observability event. When `full` audit mode is active, the host may still append the documented zero-match audit record. | Runtime returns early on empty handler chains, standard mode keeps the zero-match fast path silent, and full mode records the zero-match attempt in the audit file contract. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
-| TMO-003 | Implemented | Must | On timeout, the host shall use bounded platform-native termination: on Unix it shall send `SIGTERM`, wait one second, then force-kill if needed; on non-Unix targets it shall use the platform-native kill path and the same one-second grace window. | `terminate_then_kill()` uses Unix `SIGTERM` plus forced kill behind `cfg(unix)` and falls back to platform-native child termination elsewhere. |
+| TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
 | SES-001 | Implemented | Must | Disabled plugin state shall persist in `.sc-hooks/state/session.json`, keyed by session ID. | Session storage tracks disabled plugins per session. |
 | SES-002 | Implemented | Must | `SessionEnd` and `sc-hooks audit --reset` shall clear persisted disable state. | Main command handling calls `clear_session()` or `clear_all_sessions()`. |
 | TMO-004 | Implemented | Must | The release contract for `long_running` behavior is sync-only: sync handlers with `long_running=true` and no `timeout_ms` run without the default sync timeout; async manifests using `long_running=true` are invalid; SDK runner conveniences remain non-normative authoring helpers. | Manifest validation, audit behavior, timeout resolution, handler discovery, and `long_running_contract` tests all agree on the same contract. |
@@ -184,7 +184,7 @@ Observability Phase 1 completed these contract amendments:
 | DEF-016 | Implemented | Must | Production-grade audit mode shall support at least 50 simultaneous agents by sharding durable audit output into run-scoped files, bounding retention, and avoiding a single hot shared file. The target basis is planned ATM multi-agent repo-root operation plus eval and harness fan-out on the same checkout. | Integration and soak tests prove 50+ concurrent agents can emit audit records without corruption, unbounded contention, or unbounded disk growth. |
 | DEF-017 | Implemented | Must | Full audit mode shall record hook invocation attempts even when no handlers match or dispatch fails before handler execution, while `standard` mode keeps the current lower-volume dispatch-log posture. | Integration tests prove zero-match, resolution-failure, and pre-dispatch failure audit records in `full` mode, while the negative-branch and dispatch-preflight tests preserve the current `standard` degraded stderr contract. |
 | DEF-017a | Implemented | Must | The serialized `FullAuditRecord` and `FullAuditMeta` JSON key set shall remain documented and frozen in the observability contract so downstream harnesses and eval tooling can process full-audit files without reverse-engineering Rust struct names. | `docs/observability-contract.md` section 4.2 enumerates the serialized JSON key names for both record types, and integration tests keep the documented audit files machine-readable. |
-| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only. | Control docs, binary naming, and public references converge on `sc-hooks`; the local install/cutover path writes a `hooks` wrapper beside the canonical binary, and operator docs state where the alias is and is not installed automatically. |
+| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias. |
 
 ## 7. Deferred Items
 
@@ -273,10 +273,6 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: console-sink dispatch coverage remained an operator-facing follow-up inside the broader observability phase
   - current text: console-sink dispatch coverage is implemented through the real `sc-hooks-cli` path; the remaining observability expansion work is carried by `DEF-010` through `DEF-019`
   - authorizing sprint: `S9-BONUS`
-- `DEF-019`
-  - prior text: the canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only
-  - current text: the canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only; `P.8` closes the local install/cutover alias path by writing a repo-owned `hooks` wrapper beside the canonical `sc-hooks` binary and documenting where that alias is and is not installed automatically
-  - authorizing sprint: `P.8`
 - `TST-008`
   - prior text: required-before-release Claude version-bump detection
   - current text: implemented Claude version-bump detection with direct script and test proof
@@ -353,28 +349,9 @@ If a behavior is required for release but not yet fully proved, it must appear i
     lifecycle runtime parity for the only retained live stop-family surface,
     `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
     and `fork` remain disposition-only non-exercisable rows from `P.1`.
-  - authorizing sprint: `P.5`
-- `HKR-006`
-  - prior text: `Phase O` is the approved runtime-normalization phase for
-    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
-    deferred under `HKR-007`. `Phase P` may then extend the retained
-    lifecycle inventory through the same sealed normalization seam for Codex
-    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
-    `fork` remain disposition-only until accepted harness evidence proves they
-    are exercisable retained runtime surfaces. `P.5` closes Codex retained
-    lifecycle runtime parity for the only retained live stop-family surface,
-    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
-    and `fork` remain disposition-only non-exercisable rows from `P.1`.
-  - current text: `Phase O` is the approved runtime-normalization phase for
-    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
-    deferred under `HKR-007`. `Phase P` may then extend the retained
-    lifecycle inventory through the same sealed normalization seam for Codex
-    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
-    `fork` remain disposition-only until accepted harness evidence proves they
-    are exercisable retained runtime surfaces. `P.6` closes Gemini retained
-    lifecycle runtime parity for the live `AfterAgent` stop-family surface
-    through the shared Rust runtime path.
-  - authorizing sprint: `P.6`
+    `P.6` closes Gemini retained lifecycle runtime parity for the live
+    `AfterAgent` stop-family surface through the shared Rust runtime path.
+  - authorizing sprints: `P.5`, `P.6`
 - `HKR-010`
   - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
     parity work needed to return this requirement to `Implemented` on those
@@ -387,27 +364,11 @@ If a behavior is required for release but not yet fully proved, it must appear i
     closure for those newly retained lifecycle surfaces. `P.5` adds no new
     Codex gate surface beyond the existing normalized host path and closes
     Codex runtime parity for the retained `notify` stop-family surface while
-    leaving the already-closed gate behavior from `Phase O` unchanged.
-  - authorizing sprint: `P.5`
-- `HKR-010`
-  - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
-    parity work needed to return this requirement to `Implemented` on those
-    approved provider surfaces. The retained lifecycle seam extension does
-    not, by itself, close provider runtime parity for Codex `notify` or
-    Gemini `AfterAgent`; `P.5` and `P.6` still own the provider-runtime
-    closure for those newly retained lifecycle surfaces. `P.5` adds no new
-    Codex gate surface beyond the existing normalized host path and closes
-    Codex runtime parity for the retained `notify` stop-family surface while
-    leaving the already-closed gate behavior from `Phase O` unchanged.
-  - current text: `Phase O` closed the Codex and Gemini normalized-runtime
-    parity work needed to return this requirement to `Implemented` on those
-    approved provider surfaces. The retained lifecycle seam extension does
-    not, by itself, close provider runtime parity for Codex `notify` or
-    Gemini `AfterAgent`; `P.5` and `P.6` still own the provider-runtime
-    closure for those newly retained lifecycle surfaces. `P.6` adds no new
-    Gemini gate surface beyond the existing normalized host path and closes
-    Gemini runtime parity for the live `AfterAgent` stop-family surface.
-  - authorizing sprint: `P.6`
+    leaving the already-closed gate behavior from `Phase O` unchanged. `P.6`
+    adds no new Gemini gate surface beyond the existing normalized host path
+    and closes Gemini runtime parity for the live `AfterAgent` stop-family
+    surface.
+  - authorizing sprints: `P.5`, `P.6`
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`

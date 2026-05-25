@@ -57,6 +57,11 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
       stop-family normalization path remain inside the existing
       `HookError::Normalization` envelope and do not reopen the error-surface
       split
+    - `P.6` plugin-side runtime seam additions that carry Gemini `AfterAgent`
+      through the shared `Stop` path inside `agent-session-foundation` and
+      `atm-extension` remain inside that same
+      `HookError::Normalization { message, source }` envelope and do not
+      reopen the error-surface split
     - `P.7` may not retroactively remove those landed seam additions without a
       new breaking-change sprint
   - recommendation: take an explicit architecture ruling after `Phase O` on
