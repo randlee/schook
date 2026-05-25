@@ -306,6 +306,16 @@ If a behavior is required for release but not yet fully proved, it must appear i
     evidence-backed dispositions for `Stop`, `resume`, and `fork` on that
     same shared harness shape
   - authorizing sprint: `P.1`
+- `HKR-017`
+  - prior text: the shared provider-harness contract ended at the accepted
+    `Phase N` verification baseline, leaving Gemini `AfterAgent` outside the
+    retained harness surface
+  - current text: `Phase P` extends the same shared provider-harness contract
+    for the retained missing lifecycle surfaces; `P.2` closes the Gemini side
+    by promoting `AfterAgent` into the maintained approved fixture/model/test
+    harness and aligning the Gemini API doc and traceability to that retained
+    surface
+  - authorizing sprint: `P.2`
 - `HKR-010`
   - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
   - current text: `Phase O` closed the Codex and Gemini normalized-runtime
