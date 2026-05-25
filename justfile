@@ -59,7 +59,7 @@ _lint-pytests:
     {{python_cmd}} .just/run_pytests.py
 
 [private]
-_lint-sc-boundary:
+_lint-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
 
 [private]

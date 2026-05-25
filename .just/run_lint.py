@@ -24,14 +24,14 @@ def build_tasks(repo_root: Path) -> dict[str, list[str]]:
         "manifests": [python_executable, str(repo_root / ".just/lint_manifests.py")],
         "spell": [python_executable, str(repo_root / ".just/lint_codespell.py")],
         "pytests": [python_executable, str(repo_root / ".just/run_pytests.py")],
-        "boundary": [python_executable, str(repo_root / ".just/lint_sc_boundary.py")],
+        "boundary": ["just", "_lint-boundary"],
         "portability": [python_executable, str(repo_root / ".just/lint_sc_portability.py")],
     }
 
 
 def resolve_task_names(target: str) -> list[str]:
     if target == "all":
-        return [*CARGO_LINT_ORDER, *PYTHON_LINT_ORDER]
+        return [*CARGO_LINT_ORDER, *PYTHON_LINT_ORDER, *EXTRA_LINTS]
     valid = {"all", *CARGO_LINT_ORDER, *PYTHON_LINT_ORDER, *EXTRA_LINTS}
     if target not in valid:
         valid_display = ", ".join(sorted(valid))
@@ -68,7 +68,10 @@ def main(argv: list[str]) -> int:
             returncode = run_task(tasks[name], repo_root)
             if returncode != 0:
                 return returncode
-        python_results = run_parallel([tasks[name] for name in PYTHON_LINT_ORDER], repo_root)
+        python_results = run_parallel(
+            [tasks[name] for name in (*PYTHON_LINT_ORDER, *EXTRA_LINTS)],
+            repo_root,
+        )
         for returncode in python_results:
             if returncode != 0:
                 return returncode

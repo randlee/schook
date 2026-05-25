@@ -8,7 +8,7 @@ just lint boundary
 just lint portability
 ```
 
-Those commands are wrappers over the private `just _lint-sc-boundary` and
+Those commands are wrappers over the private `just _lint-boundary` and
 `just _lint-portability` recipes in the repo `justfile`. The wrappers keep
 the public command surface aligned with the `../atm-core` help/lint pattern
 while reserving the implementation detail for helper scripts:
@@ -16,7 +16,7 @@ while reserving the implementation detail for helper scripts:
 ```text
 just lint boundary
   -> .just/run_lint.py boundary
-    -> just _lint-sc-boundary
+    -> just _lint-boundary
       -> .just/lint_sc_boundary.py
 
 just lint portability

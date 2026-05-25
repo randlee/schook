@@ -43,6 +43,8 @@ target: integrate/phase-P
 - CI has a dedicated `sc-lint` job that installs the published analyzers and
   runs both lint gates after `clippy`
 - the current workspace is proved green under `just lint portability`
+- `just lint all` runs boundary and portability in addition to the existing
+  lint surface
 
 ## Acceptance Criteria
 
@@ -51,6 +53,7 @@ target: integrate/phase-P
 - `cargo fmt --check --all` passes
 - `just lint boundary` passes without any `../sc-lint` fallback path
 - `just lint portability` passes with zero findings or recorded accepted gaps
+- `just lint all` includes both boundary and portability
 - `.github/workflows/ci.yml` contains a valid `sc-lint` job that installs
   `sc-lint-boundary@0.2.0` and `sc-lint-portability@0.2.0`
 - `git diff --check` is clean
@@ -68,6 +71,7 @@ target: integrate/phase-P
 - `cargo test --workspace`
 - `just lint boundary`
 - `just lint portability`
+- `just lint all`
 - `git diff --check`
 
 ## Sprint QA Checklist
@@ -102,9 +106,27 @@ target: integrate/phase-P
   - `cargo test --workspace`
   - `just lint boundary`
   - `just lint portability`
+  - `just lint all`
   - `git diff --check`
 - Follow-on status:
   - `P.9` removes the last local-source analyzer fallback from the public
     `just lint` surface and establishes the published `sc-lint` analyzer gate
     in CI, which unblocks a release-ready `integrate/phase-P` closeout without
     requiring a checkout of `../sc-lint`.
+
+## Integration QA Checklist Answers
+
+- AC traceability complete?
+  - yes; the deliverables and acceptance criteria now explicitly cover the
+    published wrapper behavior, the CI gate, and the `just lint all` inclusion
+    for boundary and portability.
+- No new `requirements.md` entries without `HKR-*` IDs?
+  - yes; `P.9` does not add or change any `requirements.md` entries.
+- No new `implementation-gaps.md` entries without `RULING-NEEDED-*` IDs?
+  - yes; `P.9` does not add or change any implementation-gap entries.
+- All amendment notes in standalone three-field block format?
+  - yes; `P.9` introduces no new amendment notes, so the existing format
+    remains unchanged.
+- No `plan-phase-P.md` branch mismatches introduced?
+  - yes; `docs/plan-phase-P.md` names `feature/pP-s9-sc-lint-portability` and
+    the matching worktree path consistently.
