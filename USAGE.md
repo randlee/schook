@@ -17,7 +17,7 @@ Install the CLI from this repo:
 Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
 
 ```bash
-cargo install --path sc-hooks-cli --root ~/.local
+cargo install --path crates/sc-hooks-cli --root ~/.local
 export PATH="$HOME/.local/bin:$PATH"
 ```
 

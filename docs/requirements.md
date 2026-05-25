@@ -273,6 +273,10 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: console-sink dispatch coverage remained an operator-facing follow-up inside the broader observability phase
   - current text: console-sink dispatch coverage is implemented through the real `sc-hooks-cli` path; the remaining observability expansion work is carried by `DEF-010` through `DEF-019`
   - authorizing sprint: `S9-BONUS`
+- `DEF-019`
+  - prior text: the canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only
+  - current text: the canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only; `P.8` closes the local install/cutover alias path by writing a repo-owned `hooks` wrapper beside the canonical `sc-hooks` binary and documenting where that alias is and is not installed automatically
+  - authorizing sprint: `P.8`
 - `TST-008`
   - prior text: required-before-release Claude version-bump detection
   - current text: implemented Claude version-bump detection with direct script and test proof

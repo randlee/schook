@@ -95,6 +95,10 @@ Important planning rule:
 
 Phase P progress note:
 
+- `P.8` completed the CLI alias and retry-coverage closeout on
+  `feature/pP-s8-observability-qa`, closing `PRR-009` and `LOGR-QA-004`
+  through the local install/cutover alias wrapper and explicit exhausted
+  retry-budget coverage
 - `P.4` completed the canonical hook-mapping and lifecycle-family normalization
   extension on `feature/pP-s4-canonical-hook-mapping`, landing the
   authoritative `docs/phase-P/canonical-hook-mapping.md` artifact while
