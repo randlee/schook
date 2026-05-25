@@ -95,3 +95,34 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement and gap status changes:
+  - `HKR-006` gained the `P.5` amendment closing Codex retained lifecycle
+    runtime parity for the retained live `notify` surface.
+  - `HKR-010` gained the `P.5` amendment recording that no new Codex gate
+    surface was added beyond the existing normalized host path.
+  - `RULING-NEEDED-ECR-001` gained a `Phase P` consistency note confirming the
+    `P.5` seam additions stay inside the existing `HookError::Normalization`
+    envelope and cannot be removed later without a breaking-change sprint.
+- Code removed early:
+  - no parallel Codex-specific side-channel path was left in place; the sprint
+    closed parity through the shared normalization/runtime path only.
+- Owned write scope:
+  - `crates/sc-hooks-core/src/normalization.rs`
+  - `plugins/agent-session-foundation/`
+  - `plugins/atm-extension/`
+  - `crates/sc-hooks-cli/tests/codex_runtime_parity.rs`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+- Validation that passed:
+  - `cargo fmt --check --all`
+  - `cargo clippy --all-targets --all-features -- -D warnings`
+  - `cargo test --workspace`
+  - `just lint sc-portability`
+  - `just test hooks codex`
+  - `git diff --check`
+- Follow-on status:
+  - `P.6` is unblocked and owns the remaining Gemini retained lifecycle runtime
+    parity work.
