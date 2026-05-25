@@ -83,6 +83,9 @@ jobs:
           path: ~/.cargo/bin
           key: ubuntu-sc-lint-binaries-0.2.0
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Install sc-lint analyzers
         shell: bash
         run: |
