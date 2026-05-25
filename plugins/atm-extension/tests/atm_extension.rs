@@ -71,12 +71,29 @@ fn hook_context(hook: HookType, event: Option<&str>, payload: Value) -> HookCont
 }
 
 fn write_session_record(state_root: &Path, ai_root_dir: &Path, session_id: &str, active_pid: u32) {
+    write_session_record_for_provider(
+        state_root,
+        ai_root_dir,
+        session_id,
+        active_pid,
+        Provider::Claude,
+    );
+}
+
+fn write_session_record_for_provider(
+    state_root: &Path,
+    ai_root_dir: &Path,
+    session_id: &str,
+    active_pid: u32,
+    provider: Provider,
+) {
     write_session_record_with_current_dir(
         state_root,
         ai_root_dir,
         &ai_root_dir.join("subdir"),
         session_id,
         active_pid,
+        provider,
     );
 }
 
@@ -86,10 +103,11 @@ fn write_session_record_with_current_dir(
     ai_current_dir: &Path,
     session_id: &str,
     active_pid: u32,
+    provider: Provider,
 ) {
     let store = SessionStore::new(StateRoot::new(state_root).expect("state root"));
     let record = CanonicalSessionRecord::new(
-        Provider::Claude,
+        provider,
         SessionId::new(session_id.to_string()).expect("session id"),
         ActivePid::new(active_pid).expect("pid"),
         AiRootDir::new(ai_root_dir).expect("ai root dir"),
@@ -219,7 +237,14 @@ fn pre_tool_use_reads_atm_toml_from_ai_root_dir_when_cwd_drifted() {
     fs::create_dir_all(&drift_dir).expect("drift dir");
     fs::create_dir_all(&tmp_root).expect("tmp root");
     write_atm_toml(&repo_root, "atm-dev", "arch-hook");
-    write_session_record_with_current_dir(&state_root, &repo_root, &drift_dir, "sess-drift", 9010);
+    write_session_record_with_current_dir(
+        &state_root,
+        &repo_root,
+        &drift_dir,
+        "sess-drift",
+        9010,
+        Provider::Claude,
+    );
 
     let _env = EnvGuard::set(&[
         ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
@@ -435,6 +460,63 @@ fn stop_and_teammate_idle_map_to_idle_and_append_relay_events() {
     assert_eq!(stop_event["event"], "stop");
     assert_eq!(teammate_event["event"], "teammate_idle");
     assert!(teammate_event["received_at"].is_string());
+    assert!(!identity_file.exists());
+}
+
+#[test]
+fn gemini_stop_payload_uses_shared_stop_relay_path() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let repo_root = temp.path().join("repo-gemini");
+    let state_root = temp.path().join("state");
+    let atm_home = temp.path().join("atm-home");
+    let tmp_root = temp.path().join("tmp");
+    fs::create_dir_all(&repo_root).expect("repo root");
+    fs::create_dir_all(&atm_home).expect("atm home");
+    fs::create_dir_all(&tmp_root).expect("tmp root");
+    write_atm_toml(&repo_root, "atm-dev", "arch-hook");
+    write_session_record_for_provider(
+        &state_root,
+        &repo_root,
+        "sess-gemini-stop",
+        9016,
+        Provider::Gemini,
+    );
+    let identity_file = tmp_root.join("atm-hook-9016.json");
+    fs::write(&identity_file, "{}").expect("identity file should pre-exist");
+
+    let _env = EnvGuard::set(&[
+        ("SC_HOOKS_STATE_DIR", state_root.to_str().expect("utf8")),
+        ("ATM_HOME", atm_home.to_str().expect("utf8")),
+        ("ATM_HOOK_TMP_DIR", tmp_root.to_str().expect("utf8")),
+        ("ATM_TEAM", ""),
+        ("ATM_IDENTITY", ""),
+    ]);
+
+    AtmExtensionHandler
+        .handle(hook_context(
+            HookType::Stop,
+            None,
+            serde_json::json!({
+                "session_id": "sess-gemini-stop",
+                "cwd": repo_root,
+                "stop_hook_active": false,
+                "prompt": "hello",
+                "prompt_response": "world",
+            }),
+        ))
+        .expect("gemini stop should succeed through shared relay path");
+
+    let record = load_record(&state_root, "sess-gemini-stop");
+    assert_eq!(record["provider"], "gemini");
+    assert_eq!(record["agent_state"], "idle");
+    assert_eq!(record["last_hook_event"], "Stop");
+
+    let events = fs::read_to_string(atm_home.join(".atm/daemon/hooks/events.jsonl"))
+        .expect("events file should exist");
+    let event: serde_json::Value =
+        serde_json::from_str(events.lines().next().expect("line")).expect("event should parse");
+    assert_eq!(event["event"], "stop");
+    assert_eq!(event["session_id"], "sess-gemini-stop");
     assert!(!identity_file.exists());
 }
 

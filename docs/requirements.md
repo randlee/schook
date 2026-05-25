@@ -225,7 +225,7 @@ Detailed post-capture runtime design for this track lives in
 | HKR-014 | Implemented | Must | `Phase N` shall capture Codex and Gemini hook contracts only from repo-owned raw stdin fixtures, hook-process environment snapshots, provider-specific validation models, and approved findings ledgers; relay-side observations and provider memory may inform planning but must not be promoted into canonical fixture inventory without direct harness capture. | `N.1` and `N.2` now provide approved fixture manifests, provider tests, findings ledgers, and provider API docs for every audited captured or `confirmed-not-exercisable` surface in the current phase scope. |
 | HKR-015 | Implemented | Must | `Phase N` normalization shall promote a field into canonical `schooks` mapping candidates only when approved fixtures from at least two providers show compatible semantics; provider-specific fields remain provider-local and unresolved fields remain in the normalization findings ledger until a later phase resolves them. | `docs/phase-N/normalization-checklist.md` and `docs/phase-N/normalization-findings-ledger.md` now classify canonical candidates, provider-local fields, and unresolved differences under `ADR-SHK-006`, while runtime adapter work remains deferred pending the `N.4` verdict. |
 | HKR-016 | Implemented | Must | Parallel `Phase N` sprint branches shall treat `docs/phase-N/readiness.md` as read-only, while the integration author remains the sole writer for accepted sprint rows and final verdict updates. This execution-ownership rule must be documented as an architectural decision and cited by the phase plan and readiness ledger. | `docs/architecture.md` cites `ADR-SHK-007`, `docs/plan-phase-N.md` and `docs/phase-N/readiness.md` reference that ADR directly, and `N.3` keeps readiness writes on the integration-author path only. |
-| HKR-017 | Planned | Must | The post-`Phase N` provider-harness verification track shall keep Claude, Codex, and Gemini on one shared external harness contract: matching directory conventions, approved-fixture ownership, provider Pydantic model validation, provider hook API docs, and stable `just test hooks <provider>` entrypoints. Verification work may refresh or tighten existing provider artifacts, but it shall not introduce new runtime provider scope. | `docs/phase-N/plan-remediation.md` plus `N.5` through `N.10` define one provider-harness verification track where each provider closes with a current hook API doc, current provider models, approved fixtures/tests, and the final `just` targets exercise the same external harness shape across Claude, Codex, and Gemini. |
+| HKR-017 | Planned | Must | The post-`Phase N` provider-harness verification track shall keep Claude, Codex, and Gemini on one shared external harness contract: matching directory conventions, approved-fixture ownership, provider Pydantic model validation, provider hook API docs, and stable `just test hooks <provider>` entrypoints. Verification work may refresh or tighten existing provider artifacts, but it shall not introduce new runtime provider scope. | `docs/phase-N/plan-remediation.md` plus `N.5` through `N.10` define the shared provider-harness verification baseline. `Phase P` extends that same harness contract only for the missing retained provider surfaces: `P.1` closes the Codex side by carrying `notify`, `Stop`, `resume`, and `fork` to approved fixture-backed or evidence-backed disposition, and `P.2` closes the Gemini `AfterAgent` side on the same shared harness shape. |
 
 Additional verified Claude provider surface outside the current baseline:
 - `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
@@ -301,6 +301,16 @@ If a behavior is required for release but not yet fully proved, it must appear i
     `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
     disposition-only until accepted harness evidence proves they are
     exercisable retained runtime surfaces
+- `HKR-017`
+  - prior text: the shared provider-harness contract ended at the accepted
+    `Phase N` verification baseline, leaving Gemini `AfterAgent` outside the
+    retained harness surface
+  - current text: `Phase P` extends the same shared provider-harness contract
+    for the retained missing lifecycle surfaces; `P.2` closes the Gemini side
+    by promoting `AfterAgent` into the maintained approved fixture/model/test
+    harness and aligning the Gemini API doc and traceability to that retained
+    surface
+  - authorizing sprint: `P.2`
 - `HKR-010`
   - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
   - current text: `Phase O` closed the Codex and Gemini normalized-runtime
@@ -315,6 +325,10 @@ If a behavior is required for release but not yet fully proved, it must appear i
     close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
     `P.5` and `P.6` still own the provider-runtime closure for those newly
     retained lifecycle surfaces
+  - P.6 amendment: Gemini retained lifecycle parity is now implemented for the
+    live `AfterAgent` stop-family surface through the shared Rust runtime path;
+    no additional Gemini gate surface was added beyond the existing normalized
+    host path
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`

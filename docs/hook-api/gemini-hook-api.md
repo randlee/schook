@@ -3,9 +3,9 @@
 ## Purpose
 
 This document records the currently verified Gemini-facing hook surfaces that
-matter to `sc-hooks` planning. It is intentionally separate from the Claude and
-Codex documents because Gemini's hook activation path and control semantics are
-different.
+matter to `sc-hooks` planning and retained harness support. It is intentionally
+separate from the Claude and Codex documents because Gemini's hook activation
+path and control semantics are different.
 
 All verified facts below come from `N.2` repo-owned Gemini fixtures, env
 snapshots, or direct local control-semantics probes.
@@ -158,6 +158,14 @@ Control semantics:
 
 ### `AfterAgent`
 
+Retained Phase P harness disposition:
+
+- `AfterAgent` is a maintained Gemini harness surface, not only historical
+  capture evidence
+- approved fixture/model/test coverage for this surface lives under the shared
+  `test-harness/hooks/gemini/` contract alongside the other retained Gemini
+  surfaces
+
 Verified payload fields:
 
 | Field | Type | Notes |
@@ -173,6 +181,9 @@ Control semantics:
 - failure warnings were surfaced on stderr
 - the isolated non-zero exit path was not re-run cleanly after quota exhaustion,
   so it remains only partially isolated evidence
+- the retained harness disposition is still supported because the approved
+  payload/env fixtures, model validation, and direct tests for the normal
+  `AfterAgent` path are current and maintained
 
 ## Resume Continuity
 
