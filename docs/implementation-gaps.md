@@ -70,7 +70,9 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-ECR-002: Backtrace Capture Policy
 
-- Status: `active`
+- Status: `deferred past Phase P`
+- Recorded owner:
+  - `randlee`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
 - Current note:
@@ -79,8 +81,12 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     boundary
   - the current release keeps source chaining intact without introducing a
     partially scoped backtrace policy
-  - recommendation: decide the product-wide backtrace policy together with any
-    future error-surface split so the public error contract changes once
+  - no implementation work landed on the `ECR-002` surface in `Phase P`; the
+    accepted `ECR-001` seam additions remain isolated from this broader
+    backtrace-boundary question
+  - deferred to `Phase Q` or later, with the recorded owner responsible for
+    re-evaluating the product-wide backtrace policy together with any future
+    public error-surface split
 
 ### RULING-NEEDED-TS-001: Ended-State Transition Guard
 
@@ -114,61 +120,62 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
 
-- Status: `active`
+- Status: `closed in P.7`
 - Owner area:
   - `sc-hooks-test`, docs
-- Current note:
+- Closure note:
   - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
     shell fixture helpers stay reusable from one crate-local test surface
   - moving it to `tests/` would force extra public helper exposure or duplicate
     fixture wiring without changing the runtime contract being proved
-  - recommendation: keep the unix-gated library test module in place until a
+  - accepted posture: keep the unix-gated library test module in place until a
     larger `sc-hooks-test` surface split is approved
+  - the non-Unix path already uses `std::process::Command`, which is the
+    platform-native process surface and does not require a second test-module
+    ownership pattern
 
 ### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
 
-- Status: `active`
+- Status: `closed in P.7`
 - Owner area:
   - `sc-hooks-cli`, docs
-- Current note:
+- Closure note:
   - `execute_chain()` still clones handler names into a `Vec<String>` because
     dispatch-complete and full-audit emission need an owned chain snapshot that
     survives independent result construction and error returns
   - removing that allocation cleanly would require a broader change to the
     observability/audit argument surface rather than a small mechanical patch
-  - recommendation: keep the owned snapshot for now and revisit only if profiling
-    shows it is a real hot-path cost
+  - accepted posture: keep the owned `Vec<String>` snapshot for the current
+    load profile
+  - any future `Cow` refactor remains deferred pending profiling evidence that
+    the allocation is a real hot-path cost
 
 ### PRR-009: Missing `hooks` CLI Alias
 
-- Status: `active`
+- Status: `closed in P.8`
 - Owner area:
   - packaging, install docs, release docs
 - Current note:
-  - the naming direction is frozen on `sc-hooks` as canonical with `hooks` as a
-    convenience alias, but this repo does not yet ship an alias wrapper,
-    symlink, or install-time alias mechanism
-  - release/docs work should not imply that invoking `hooks` is already a
-    guaranteed supported path until packaging or install output creates that
-    alias explicitly
-  - recommendation: implement the alias in release packaging/install flow or
-    downgrade any remaining “supported alias” language to planned follow-on text
+  - `P.8` closed this by adding the install-time alias wrapper through
+    `ensure_cli_alias()` in `crates/sc-hooks-cli/src/install.rs`
+  - `USAGE.md` now documents the supported `hooks` alias path alongside the
+    canonical `sc-hooks` install/cutover flow
+  - `docs/project-plan.md` records `PRR-009` as closed by `P.8`
 
 ### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
 
-- Status: `active with quality-mgr sign-off`
+- Status: `closed in P.8`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-test`, docs
 - Current note:
-  - `retry_executable_file_busy()` now centralizes the bounded retry behavior
-    used by the host and test harness, but there is still no direct test that
-    proves the fully exhausted `ExecutableFileBusy` path returns the final
-    retryable error
-  - this is explicitly signed off for the current merge because the helper is
-    now single-owned, behaviorally simple, and already covered for successful
-    retry and immediate non-retryable failure
-  - recommendation: add one focused exhausted-retry-path unit test only if a
-    later change touches the helper behavior again
+  - `P.8` closed this by adding direct exhausted-retry-path coverage in
+    `crates/sc-hooks-core/src/process.rs` via
+    `returns_final_executable_file_busy_after_retry_budget_exhausted()`
+  - the shared retry helper remains single-owned and now has explicit proof for
+    successful retry, immediate non-retryable failure, and retry-budget
+    exhaustion
+  - `docs/project-plan.md` records `LOGR-QA-004` as closed by `P.8`, and the
+    merged integration baseline passes `cargo test --workspace`
 
 ## Closed Items
 

@@ -87,7 +87,7 @@ Current release scope does not include:
 | DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting a standard `dispatch.complete` observability event. When `full` audit mode is active, the host may still append the documented zero-match audit record. | Runtime returns early on empty handler chains, standard mode keeps the zero-match fast path silent, and full mode records the zero-match attempt in the audit file contract. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
-| TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
+| TMO-003 | Implemented | Must | On timeout, the host shall use bounded platform-native termination: on Unix it shall send `SIGTERM`, wait one second, then force-kill if needed; on non-Unix targets it shall use the platform-native kill path and the same one-second grace window. | `terminate_then_kill()` implements the Unix TERM/kill sequence, while non-Unix targets follow the same one-second bounded platform-native termination contract. |
 | SES-001 | Implemented | Must | Disabled plugin state shall persist in `.sc-hooks/state/session.json`, keyed by session ID. | Session storage tracks disabled plugins per session. |
 | SES-002 | Implemented | Must | `SessionEnd` and `sc-hooks audit --reset` shall clear persisted disable state. | Main command handling calls `clear_session()` or `clear_all_sessions()`. |
 | TMO-004 | Implemented | Must | The release contract for `long_running` behavior is sync-only: sync handlers with `long_running=true` and no `timeout_ms` run without the default sync timeout; async manifests using `long_running=true` are invalid; SDK runner conveniences remain non-normative authoring helpers. | Manifest validation, audit behavior, timeout resolution, handler discovery, and `long_running_contract` tests all agree on the same contract. |
@@ -184,7 +184,7 @@ Observability Phase 1 completed these contract amendments:
 | DEF-016 | Implemented | Must | Production-grade audit mode shall support at least 50 simultaneous agents by sharding durable audit output into run-scoped files, bounding retention, and avoiding a single hot shared file. The target basis is planned ATM multi-agent repo-root operation plus eval and harness fan-out on the same checkout. | Integration and soak tests prove 50+ concurrent agents can emit audit records without corruption, unbounded contention, or unbounded disk growth. |
 | DEF-017 | Implemented | Must | Full audit mode shall record hook invocation attempts even when no handlers match or dispatch fails before handler execution, while `standard` mode keeps the current lower-volume dispatch-log posture. | Integration tests prove zero-match, resolution-failure, and pre-dispatch failure audit records in `full` mode, while the negative-branch and dispatch-preflight tests preserve the current `standard` degraded stderr contract. |
 | DEF-017a | Implemented | Must | The serialized `FullAuditRecord` and `FullAuditMeta` JSON key set shall remain documented and frozen in the observability contract so downstream harnesses and eval tooling can process full-audit files without reverse-engineering Rust struct names. | `docs/observability-contract.md` section 4.2 enumerates the serialized JSON key names for both record types, and integration tests keep the documented audit files machine-readable. |
-| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias. |
+| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only through the documented install-time alias path. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias delivered through the install/cutover alias wrapper. |
 
 ## 7. Deferred Items
 
@@ -225,7 +225,7 @@ Detailed post-capture runtime design for this track lives in
 | HKR-014 | Implemented | Must | `Phase N` shall capture Codex and Gemini hook contracts only from repo-owned raw stdin fixtures, hook-process environment snapshots, provider-specific validation models, and approved findings ledgers; relay-side observations and provider memory may inform planning but must not be promoted into canonical fixture inventory without direct harness capture. | `N.1` and `N.2` now provide approved fixture manifests, provider tests, findings ledgers, and provider API docs for every audited captured or `confirmed-not-exercisable` surface in the current phase scope. |
 | HKR-015 | Implemented | Must | `Phase N` normalization shall promote a field into canonical `schooks` mapping candidates only when approved fixtures from at least two providers show compatible semantics; provider-specific fields remain provider-local and unresolved fields remain in the normalization findings ledger until a later phase resolves them. | `docs/phase-N/normalization-checklist.md` and `docs/phase-N/normalization-findings-ledger.md` now classify canonical candidates, provider-local fields, and unresolved differences under `ADR-SHK-006`, while runtime adapter work remains deferred pending the `N.4` verdict. |
 | HKR-016 | Implemented | Must | Parallel `Phase N` sprint branches shall treat `docs/phase-N/readiness.md` as read-only, while the integration author remains the sole writer for accepted sprint rows and final verdict updates. This execution-ownership rule must be documented as an architectural decision and cited by the phase plan and readiness ledger. | `docs/architecture.md` cites `ADR-SHK-007`, `docs/plan-phase-N.md` and `docs/phase-N/readiness.md` reference that ADR directly, and `N.3` keeps readiness writes on the integration-author path only. |
-| HKR-017 | Planned | Must | The post-`Phase N` provider-harness verification track shall keep Claude, Codex, and Gemini on one shared external harness contract: matching directory conventions, approved-fixture ownership, provider Pydantic model validation, provider hook API docs, and stable `just test hooks <provider>` entrypoints. Verification work may refresh or tighten existing provider artifacts, but it shall not introduce new runtime provider scope. | `docs/phase-N/plan-remediation.md` plus `N.5` through `N.10` define the shared provider-harness verification baseline. `Phase P` extends that same harness contract only for the missing retained provider surfaces: `P.1` closes the Codex side by carrying `notify`, `Stop`, `resume`, and `fork` to approved fixture-backed or evidence-backed disposition, and `P.2` closes the Gemini `AfterAgent` side on the same shared harness shape. |
+| HKR-017 | Implemented | Must | The post-`Phase N` provider-harness verification track shall keep Claude, Codex, and Gemini on one shared external harness contract: matching directory conventions, approved-fixture ownership, provider Pydantic model validation, provider hook API docs, and stable `just test hooks <provider>` entrypoints. Verification work may refresh or tighten existing provider artifacts, but it shall not introduce new runtime provider scope. | `docs/phase-N/plan-remediation.md` plus `N.5` through `N.10` define the shared provider-harness verification baseline. `Phase P` completed that same harness contract for the missing retained provider surfaces: `P.1` closed the Codex side by carrying `notify`, `Stop`, `resume`, and `fork` to approved fixture-backed or evidence-backed disposition, and `P.2` closed the Gemini `AfterAgent` side on the same shared harness shape. |
 
 Additional verified Claude provider surface outside the current baseline:
 - `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
@@ -277,6 +277,14 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: required-before-release Claude version-bump detection
   - current text: implemented Claude version-bump detection with direct script and test proof
   - authorizing sprint: `S10-VERSION-BUMP-1`
+- `TMO-003`
+  - prior text: On timeout, the host shall send `SIGTERM`, wait one second,
+    then force-kill if needed.
+  - current text: On timeout, the host shall use bounded platform-native
+    termination: on Unix it shall send `SIGTERM`, wait one second, then
+    force-kill if needed; on non-Unix targets it shall use the
+    platform-native kill path and the same one-second grace window.
+  - authorizing sprint: `P.7`
 
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
@@ -290,17 +298,32 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: Codex, Gemini, and Cursor runtime implementation all remained deferred after the Claude-first planning and harness phases
   - current text: `Phase O` is the approved runtime-normalization phase for Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains deferred under `HKR-007`
   - authorizing phase: `Phase O`
-  - O.4 amendment: the approved Codex runtime surfaces made `HKR-006`
-    partially implemented on the cross-provider path before Gemini parity and
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`
+  - current text: `O.4` partially implemented `HKR-006` by proving the
+    approved Codex runtime surfaces on the cross-provider path before Gemini
+    parity and cross-provider consolidation landed
+  - authorizing sprint: `O.4`
+- `HKR-006`
+  - prior text: `O.4` partially implemented `HKR-006` by proving the approved
+    Codex runtime surfaces on the cross-provider path before Gemini parity and
     cross-provider consolidation landed
-  - O.5/O.6 amendment: Gemini parity and the final Claude/Codex/Gemini
-    plugin-path consolidation are now complete on the approved provider
+  - current text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
     surfaces
-  - P.4 amendment: `Phase P` may extend the retained lifecycle inventory
+  - authorizing sprint: `O.5` / `O.6`
+- `HKR-006`
+  - prior text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
+    surfaces
+  - current text: `Phase P` may extend the retained lifecycle inventory
     through the same sealed normalization seam for Codex `notify` and Gemini
     `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
     disposition-only until accepted harness evidence proves they are
     exercisable retained runtime surfaces
+  - authorizing sprint: `P.4`
 - `HKR-017`
   - prior text: the shared provider-harness contract ended at the accepted
     `Phase N` verification baseline, leaving Codex `notify`, `Stop`,
@@ -335,6 +358,14 @@ If a behavior is required for release but not yet fully proved, it must appear i
     close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
     `P.5` and `P.6` still own the provider-runtime closure for those newly
     retained lifecycle surfaces
+- `DEF-019`
+  - prior text: the canonical product, runtime, binary, service, and docs name
+    shall converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias only
+  - current text: the canonical product, runtime, binary, service, and docs
+    name converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias delivered through the install/cutover alias wrapper
+  - authorizing sprint: `P.8`
 - `HKR-006`
   - prior text: `Phase O` is the approved runtime-normalization phase for
     Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
@@ -351,7 +382,25 @@ If a behavior is required for release but not yet fully proved, it must appear i
     and `fork` remain disposition-only non-exercisable rows from `P.1`.
     `P.6` closes Gemini retained lifecycle runtime parity for the live
     `AfterAgent` stop-family surface through the shared Rust runtime path.
-  - authorizing sprints: `P.5`, `P.6`
+  - authorizing sprint: `P.5`
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` may then extend the retained
+    lifecycle inventory through the same sealed normalization seam for Codex
+    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only until accepted harness evidence proves they
+    are exercisable retained runtime surfaces. `P.5` closes Codex retained
+    lifecycle runtime parity for the only retained live stop-family surface,
+    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
+    and `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - current text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` then completes the retained Gemini
+    lifecycle runtime parity for the live `AfterAgent` stop-family surface
+    through the shared Rust runtime path, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - authorizing sprint: `P.6`
 - `HKR-010`
   - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
     parity work needed to return this requirement to `Implemented` on those
