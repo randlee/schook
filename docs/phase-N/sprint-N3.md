@@ -93,7 +93,7 @@ silently dropped or partially deferred.
 - update the `HKR-014`, `HKR-015`, and `HKR-016` traceability rows from
   `planned` to `implemented`, citing the accepted fixture evidence,
   normalization ledger, `ADR-SHK-007`, and readiness-ownership docs
-- if normalization tooling encounters a missing or unparseable fixture, it
+- if normalization tooling encounters a missing or unparsable fixture, it
   must emit a structured error identifying the provider, fixture path, and
   missing or invalid field rather than raising a bare exception; add a
   normalization harness test that exercises this path
@@ -158,7 +158,7 @@ pub struct SessionId(String);
   `Completed`
 - `docs/traceability.md` records `HKR-014`, `HKR-015`, and `HKR-016` as
   `implemented` with accepted evidence citations
-- normalization harness tests prove missing or unparseable fixtures fail with
+- normalization harness tests prove missing or unparsable fixtures fail with
   structured provider/path/field diagnostics rather than a bare exception
 - sprint closure is based on complete classification of the reviewed
   field-family matrix, not on a pre-set count of canonical candidates or

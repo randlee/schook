@@ -1385,7 +1385,6 @@ fn dispatch_message(
 mod tests {
     use super::*;
     use crate::config::CapturePayloads;
-    use std::ffi::OsString;
     use std::fs;
     use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -1422,54 +1421,16 @@ mod tests {
         LoggerRootOverrideGuard { previous }
     }
 
-    struct EnvGuard {
-        _lock: MutexGuard<'static, ()>,
-        saved: Vec<(&'static str, Option<OsString>)>,
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            for (key, value) in self.saved.drain(..) {
-                match value {
-                    Some(value) => {
-                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
-                        unsafe { std::env::set_var(key, value) }
-                    }
-                    None => {
-                        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
-                        unsafe { std::env::remove_var(key) }
-                    }
-                }
-            }
-        }
-    }
-
-    fn scoped_env(overrides: &[(&'static str, Option<&str>)]) -> EnvGuard {
-        let lock = observability_lock()
+    fn with_scoped_env<T>(
+        overrides: &[(&'static str, Option<&str>)],
+        body: impl FnOnce() -> T,
+    ) -> T {
+        let _lock = observability_lock()
             .lock()
             .unwrap_or_else(|err| err.into_inner());
-        let mut saved = overrides
-            .iter()
-            .map(|(key, _)| (*key, std::env::var_os(key)))
-            .collect::<Vec<_>>();
-        saved.push((TEST_MODE_ENV, std::env::var_os(TEST_MODE_ENV)));
-
-        for (key, value) in overrides {
-            match value {
-                Some(value) => {
-                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
-                    unsafe { std::env::set_var(key, value) }
-                }
-                None => {
-                    // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
-                    unsafe { std::env::remove_var(key) }
-                }
-            }
-        }
-        // SAFETY: env mutation is serialized through observability_lock() held by _lock for the lifetime of this guard.
-        unsafe { std::env::set_var(TEST_MODE_ENV, "1") }
-
-        EnvGuard { _lock: lock, saved }
+        let mut scoped = overrides.to_vec();
+        scoped.push((TEST_MODE_ENV, Some("1")));
+        temp_env::with_vars(scoped, body)
     }
 
     fn emit_sample_dispatch(
@@ -1623,16 +1584,22 @@ mod tests {
         let cell = OnceLock::new();
 
         let first = {
-            let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, None)]);
-            let state =
-                logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
-                    .expect("first logger init should succeed");
-            &state.1 as *const Logger
+            with_scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, None)], || {
+                let state =
+                    logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
+                        .expect("first logger init should succeed");
+                &state.1 as *const Logger
+            })
         };
-        let _forced = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))]);
-        let state = logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
-            .expect("cached logger should be reused");
-        let second = &state.1 as *const Logger;
+        let second = with_scoped_env(
+            &[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))],
+            || {
+                let state =
+                    logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default())
+                        .expect("cached logger should be reused");
+                &state.1 as *const Logger
+            },
+        );
 
         assert_eq!(
             first, second,
@@ -1643,21 +1610,32 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn logger_state_from_cell_reuses_cached_init_failure() {
-        let _forced = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))]);
         let root = crate::test_support::shared_observability_root();
         let project_root = AiRootDir::new(root).expect("root should be absolute");
         let cell = OnceLock::new();
 
-        let first =
-            match logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default()) {
-                Ok(_) => panic!("forced init failure should be cached"),
-                Err(err) => err,
-            };
-        let second =
-            match logger_state_from_cell(&cell, &project_root, &ObservabilityConfig::default()) {
-                Ok(_) => panic!("cached init failure should be reused"),
-                Err(err) => err,
-            };
+        let (first, second) = with_scoped_env(
+            &[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("logger_init"))],
+            || {
+                let first = match logger_state_from_cell(
+                    &cell,
+                    &project_root,
+                    &ObservabilityConfig::default(),
+                ) {
+                    Ok(_) => panic!("forced init failure should be cached"),
+                    Err(err) => err,
+                };
+                let second = match logger_state_from_cell(
+                    &cell,
+                    &project_root,
+                    &ObservabilityConfig::default(),
+                ) {
+                    Ok(_) => panic!("cached init failure should be reused"),
+                    Err(err) => err,
+                };
+                (first, second)
+            },
+        );
 
         assert!(matches!(
             first.as_ref(),
@@ -1699,7 +1677,6 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn full_mode_emit_failure_returns_error_from_emit_sample_dispatch() {
-        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("emit"))]);
         let root = crate::test_support::shared_observability_root();
         let project_root = AiRootDir::new(root).expect("root should be absolute");
         let observability = ObservabilityConfig {
@@ -1707,8 +1684,13 @@ mod tests {
             ..ObservabilityConfig::default()
         };
 
-        let err = emit_sample_dispatch(&project_root, &observability)
-            .expect_err("forced emit failure should return an error");
+        let err = with_scoped_env(
+            &[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("emit"))],
+            || {
+                emit_sample_dispatch(&project_root, &observability)
+                    .expect_err("forced emit failure should return an error")
+            },
+        );
         assert!(
             err.to_string()
                 .contains("forced observability emit failure")
@@ -1718,7 +1700,6 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn full_mode_append_failure_returns_error_from_emit_full_audit_record() {
-        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_append"))]);
         let temp = tempfile::tempdir().expect("tempdir should create");
         let project_root =
             AiRootDir::new(temp.path().to_path_buf()).expect("root should be absolute");
@@ -1727,33 +1708,37 @@ mod tests {
             ..ObservabilityConfig::default()
         };
 
-        let err = emit_full_audit_record(FullAuditRecordArgs {
-            name: "hook.invocation.received",
-            hook: "PreToolUse",
-            event: Some("Write"),
-            mode: sc_hooks_core::dispatch::DispatchMode::Sync,
-            project_root: &project_root,
-            observability: &observability,
-            outcome: "received",
-            stage: None,
-            handler_chain: None,
-            total_ms: None,
-            exit: None,
-            error: None,
-            recovery_hint: None,
-            ai_notification: None,
-            degraded: None,
-            results: None,
-            payload: None,
-        })
-        .expect_err("forced full audit append failure should return an error");
+        let err = with_scoped_env(
+            &[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_append"))],
+            || {
+                emit_full_audit_record(FullAuditRecordArgs {
+                    name: "hook.invocation.received",
+                    hook: "PreToolUse",
+                    event: Some("Write"),
+                    mode: sc_hooks_core::dispatch::DispatchMode::Sync,
+                    project_root: &project_root,
+                    observability: &observability,
+                    outcome: "received",
+                    stage: None,
+                    handler_chain: None,
+                    total_ms: None,
+                    exit: None,
+                    error: None,
+                    recovery_hint: None,
+                    ai_notification: None,
+                    degraded: None,
+                    results: None,
+                    payload: None,
+                })
+                .expect_err("forced full audit append failure should return an error")
+            },
+        );
         assert!(err.to_string().contains("forced full audit append failure"));
     }
 
     #[cfg(debug_assertions)]
     #[test]
     fn full_audit_run_state_with_cell_keeps_prune_failure_non_blocking() {
-        let _env = scoped_env(&[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_prune"))]);
         let temp = tempfile::tempdir().expect("tempdir should create");
         let project_root =
             AiRootDir::new(temp.path().to_path_buf()).expect("root should be absolute");
@@ -1763,13 +1748,18 @@ mod tests {
             ..ObservabilityConfig::default()
         };
 
-        let state = full_audit_run_state_with_cell(
-            &cell,
-            resolve_full_audit_root(&project_root, &observability),
-            &project_root,
-            &observability,
-        )
-        .expect("prune failure should remain non-blocking");
+        let state = with_scoped_env(
+            &[(TEST_FORCE_OBSERVABILITY_FAILURE_ENV, Some("audit_prune"))],
+            || {
+                full_audit_run_state_with_cell(
+                    &cell,
+                    resolve_full_audit_root(&project_root, &observability),
+                    &project_root,
+                    &observability,
+                )
+                .expect("prune failure should remain non-blocking")
+            },
+        );
         assert!(
             state.meta_path.exists(),
             "full audit meta file should still be initialized on prune failure"

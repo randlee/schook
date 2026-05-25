@@ -731,8 +731,7 @@ fn write_identity_file(
     fs::write(path, rendered)?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+        fs::set_permissions(path, std::os::unix::fs::PermissionsExt::from_mode(0o600))?;
     }
     Ok(())
 }
