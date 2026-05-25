@@ -1,9 +1,9 @@
 ---
 id: P.3
 title: sc-lint Suite Adoption And Cross-Platform Gate
-status: planned
-branch: feature/pP-s3-sc-lint-suite-adoption
-worktree: ../schook-worktrees/feature/pP-s3-sc-lint-suite-adoption
+status: complete
+branch: feature/pP-s3-lint-portability
+worktree: ../schook-worktrees/feature/pP-s3-lint-portability
 target: integrate/phase-P
 ---
 
@@ -56,10 +56,10 @@ Expected curated `just lint` entrypoint shape:
 default: help
 
 help:
-    @python3 .just/print_help.py
+    {{python_cmd}} .just/print_help.py
 
-lint target:
-    @python3 .just/run_lint.py {{target}}
+lint target='all':
+    {{python_cmd}} .just/run_lint.py {{target}}
 ```
 
 The landed `justfile` may include private helper recipes, but `P.3` must
@@ -108,4 +108,6 @@ preserve one public `just lint <target>` entrypoint that mirrors the curated
 - What code was removed early rather than left in parallel?
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
+- What backend label and clean PASS result did `just lint sc-portability`
+  report on the final branch state?
 - What follow-on work is blocked or unblocked by this sprint?

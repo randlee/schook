@@ -76,18 +76,7 @@ install target='local-cutover':
 
 # Run the full workspace test suite or the exact hook harness entrypoints.
 test target='workspace' provider='':
-    @if [ "{{target}}" = "workspace" ] && [ -z "{{provider}}" ]; then \
-      {{python_cmd}} .just/run_test.py workspace; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "claude" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py claude; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "codex" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py codex; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "gemini" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py gemini; \
-    else \
-      printf '%s\n' "error: expected 'just test workspace' or 'just test hooks <claude|codex|gemini>'" >&2; \
-      exit 1; \
-    fi
+    {{python_cmd}} .just/run_test.py {{target}} {{provider}}
 
 # Remove workspace build artifacts.
 clean:

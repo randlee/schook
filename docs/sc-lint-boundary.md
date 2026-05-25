@@ -36,12 +36,20 @@ Explicit fallback:
 
 - repo-local `../sc-lint`
 - invoked through `cargo run --manifest-path <sc-lint>/Cargo.toml -p sc-lint-boundary -- ...`
+- wrapper search walks up to three parent levels from the repo root:
+  - `../sc-lint`
+  - `../../sc-lint`
+  - `../../../sc-lint`
 
 Current preferred portability backend:
 
 - discover `sc-lint-portability` from `PATH`
 - otherwise use repo-local `../sc-lint`
 - invoked through `cargo run --manifest-path <sc-lint>/Cargo.toml -p sc-lint-portability -- ...`
+- wrapper search walks the same three fallback candidates:
+  - `../sc-lint`
+  - `../../sc-lint`
+  - `../../../sc-lint`
 
 If either backend is unavailable, the matching public lint command fails
 immediately instead of silently skipping enforcement.
