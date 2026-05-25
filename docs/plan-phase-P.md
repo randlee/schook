@@ -195,10 +195,10 @@ Purpose:
   normalization trait seam
 
 Execution branch:
-- `feature/pP-s5-codex-missing-hook-runtime`
+- `feature/pP-s5-codex-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s5-codex-missing-hook-runtime`
+- `../schook-worktrees/feature/pP-s5-codex-runtime-parity`
 
 ### P.6 Gemini Missing-Hook Runtime Parity
 
