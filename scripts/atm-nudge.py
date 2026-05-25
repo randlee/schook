@@ -327,7 +327,7 @@ def build_message(team: str, payload: dict[str, object] | None = None) -> str:
             f"<atm><action>read atm --team {team}</action>"
             f"<action>ack the message</action>"
             f"<action>{acknowledgement}</action>"
-            f"<action>complete associated work immediately</action>"
+            f"<action>complete associated work immediately and do not stop after queue inspection</action>"
             f'<when idle="immediate" busy="complete tasks based on established priority"/>'
             f'<console announce="concise" pause="false"/></atm>'
         )
@@ -335,7 +335,7 @@ def build_message(team: str, payload: dict[str, object] | None = None) -> str:
     return (
         f"<atm><action>read atm --team {team}</action>"
         f"<action>ack the message</action>"
-        f"<action>execute the assigned task</action>"
+        f"<action>execute the assigned task and do not stop after queue inspection</action>"
         f'<when idle="immediate" busy="after-current-task"/>'
         f'<console announce="concise" pause="false"/></atm>'
     )
