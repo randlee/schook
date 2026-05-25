@@ -315,7 +315,7 @@ the debounce behavior and the approved fixture/manifest contract.
 | `test_notify_prefers_session_record_and_sends_atm_idle_notice` | notify uses the canonical session record and writes the idle ATM notice state |
 | `test_manifest_has_required_top_level_keys` | approved manifest validates and records audited surfaces |
 | `test_manifest_records_non_exercisable_codex_surfaces_with_reasons` | `Stop`, `resume`, and `fork` stay dispositioned with explicit evidence notes |
-| `test_approved_payload_fixtures_validate_against_models` | approved payload fixtures validate against provider models |
+| `test_approved_payload_fixtures_validate_against_models` | approved payload fixtures validate against provider models and assert the sanitized synthetic `cwd` prefix `/synthetic/test/codex-harness` |
 | `test_approved_env_fixtures_validate_and_redact_sensitive_values` | approved env fixtures validate and redact sensitive values |
 | `test_session_start_and_stop_capture_scripts_write_raw_files` | direct SessionStart and direct Stop wrappers write raw capture files |
 | `test_manifest_records_cd_scenario_through_approved_fixtures` | `--cd` scenario is preserved in approved fixtures |
