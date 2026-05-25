@@ -26,7 +26,8 @@ class HelpSurfaceTests(unittest.TestCase):
         self.assertIn("lint manifests", rendered)
         self.assertIn("lint spell", rendered)
         self.assertIn("lint pytests", rendered)
-        self.assertIn("lint sc-portability", rendered)
+        self.assertIn("lint boundary", rendered)
+        self.assertIn("lint portability", rendered)
 
     def test_print_help_keeps_hook_test_entrypoints(self) -> None:
         mod = load_module("print_help", ".just/print_help.py")

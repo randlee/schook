@@ -19,6 +19,7 @@ def load_module(name: str, relative_path: str):
 class LintSurfaceTests(unittest.TestCase):
     def test_run_lint_exports_phase_p_targets(self) -> None:
         mod = load_module("run_lint", ".just/run_lint.py")
+        tasks = mod.build_tasks(Path(__file__).resolve().parents[2])
         expected = {
             "fmt",
             "clippy",
@@ -29,10 +30,19 @@ class LintSurfaceTests(unittest.TestCase):
             "manifests",
             "spell",
             "pytests",
-            "sc-boundary",
-            "sc-portability",
+            "boundary",
+            "portability",
         }
-        self.assertTrue(expected.issubset(mod.TARGETS.keys()))
+        self.assertTrue(expected.issubset(tasks.keys()))
+
+    def test_run_lint_all_excludes_extra_sc_lint_targets(self) -> None:
+        mod = load_module("run_lint", ".just/run_lint.py")
+        self.assertEqual(
+            mod.resolve_task_names("all"),
+            [*mod.CARGO_LINT_ORDER, *mod.PYTHON_LINT_ORDER, *mod.EXTRA_LINTS],
+        )
+        self.assertIn("boundary", mod.resolve_task_names("all"))
+        self.assertIn("portability", mod.resolve_task_names("all"))
 
     def test_run_hook_tests_preserves_provider_surface(self) -> None:
         mod = load_module("run_hook_tests", ".just/run_hook_tests.py")

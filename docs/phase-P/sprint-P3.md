@@ -43,8 +43,8 @@ target: integrate/phase-P
   - `manifests`
   - `spell`
   - `pytests`
-  - `sc-boundary`
-  - `sc-portability`
+  - `boundary`
+  - `portability`
 - explicit cross-platform gate so new Phase P runtime work is not allowed to be
   Mac/Unix-only by default
 
@@ -75,7 +75,7 @@ test target provider:
 
 `P.3-fix-R1` replaced the older inline POSIX-shell branching with this Python
 delegate shape so the public `just test hooks <provider>` surface remains
-portable once `sc-portability` becomes a hard gate.
+portable once `portability` becomes a hard gate.
 
 ## Acceptance Criteria
 
@@ -91,8 +91,8 @@ portable once `sc-portability` becomes a hard gate.
   - `lint manifests`
   - `lint spell`
   - `lint pytests`
-  - `lint sc-boundary`
-  - `lint sc-portability`
+  - `lint boundary`
+  - `lint portability`
 - existing `just test hooks claude`, `just test hooks codex`, and
   `just test hooks gemini` entrypoints remain functional after the `justfile`
   restructuring; the new `just lint` surface is additive
@@ -109,8 +109,8 @@ portable once `sc-portability` becomes a hard gate.
 
 - `just help`
 - `just lint modules`
-- `just lint sc-boundary`
-- `just lint sc-portability`
+- `just lint boundary`
+- `just lint portability`
 - `git diff --check`
 
 ## Sprint QA Checklist
@@ -119,7 +119,7 @@ portable once `sc-portability` becomes a hard gate.
 - What code was removed early rather than left in parallel?
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
-- What backend label and clean PASS result did `just lint sc-portability`
+- What backend label and clean PASS result did `just lint portability`
   report on the final branch state?
 - What follow-on work is blocked or unblocked by this sprint?
 
@@ -136,12 +136,12 @@ portable once `sc-portability` becomes a hard gate.
   `docs/sc-lint-boundary.md`, `docs/cross-platform-guidelines.md`,
   `docs/phase-P/sprint-P3.md`, and `docs/plan-phase-P.md`.
 - Validation commands and direct tests:
-  `just help`, `just lint modules`, `just lint sc-boundary`,
-  `just lint sc-portability`, `just test hooks claude`,
+  `just help`, `just lint modules`, `just lint boundary`,
+  `just lint portability`, `just test hooks claude`,
   `just test hooks codex`, `just test hooks gemini`, `cargo test --workspace`,
   and `git diff --check`.
-- `just lint sc-portability` backend label and PASS result:
+- `just lint portability` backend label and PASS result:
   `backend=repo-local:/Users/randlee/Documents/github/sc-lint status=pass findings=0`.
 - Follow-on work blocked or unblocked:
   unblocks `P.4`, `P.5`, `P.6`, and `P.7` to treat
-  `just lint sc-portability` as a required hard gate for new runtime changes.
+  `just lint portability` as a required hard gate for new runtime changes.

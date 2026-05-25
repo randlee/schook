@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -12,38 +11,14 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-def sc_lint_repo_candidates(root: Path) -> list[Path]:
-    return [
-        root.parent / "sc-lint",
-        root.parent.parent / "sc-lint",
-        root.parent.parent.parent / "sc-lint",
-    ]
-
-
 def resolve_backend(root: Path) -> tuple[list[str], str]:
     installed = shutil.which("sc-lint-portability")
     if installed:
         return [installed], f"path:{installed}"
 
-    for candidate in sc_lint_repo_candidates(root):
-        cargo_toml = candidate / "Cargo.toml"
-        if cargo_toml.exists():
-            return (
-                [
-                    "cargo",
-                    "run",
-                    "-q",
-                    "--manifest-path",
-                    str(cargo_toml),
-                    "-p",
-                    "sc-lint-portability",
-                    "--",
-                ],
-                f"repo-local:{candidate}",
-            )
-
     raise SystemExit(
-        "sc-lint-portability unavailable: install the CLI or provide the ../sc-lint fallback"
+        "sc-lint-portability unavailable: install `randlee/tap/sc-lint` via Homebrew "
+        "or run `cargo install sc-lint-portability@0.2.0`."
     )
 
 

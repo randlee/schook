@@ -146,7 +146,7 @@ Purpose:
 - adopt the full in-repo `sc-lint` lint pattern that is already used in
   `../sc-lint` and follows the curated `just lint` style used in `../atm-core`
 - wire the available `sc-lint` lint surfaces into this repo, including
-  `sc-boundary` and `sc-portability`
+  `sc-boundary` and the user-facing `portability` gate
 - make cross-platform portability a hard gate before new runtime parity work
   lands so Phase P does not drift into Unix-only implementation
 
@@ -245,6 +245,23 @@ Execution branch:
 Execution worktree:
 - `../schook-worktrees/feature/pP-s8-observability-qa`
 
+### P.9 Published `sc-lint` Portability Gate
+
+Purpose:
+
+- remove the repo-local `../sc-lint` fallback from the public lint wrappers so
+  `schook` uses the published `0.2.0` analyzers directly
+- preserve the stable public lint surface while renaming the user-facing
+  portability command to `just lint portability`
+- add a dedicated CI `sc-lint` job that installs the published analyzers and
+  proves the boundary and portability gates on Linux
+
+Execution branch:
+- `feature/pP-s9-sc-lint-portability`
+
+Execution worktree:
+- `../schook-worktrees/feature/pP-s9-sc-lint-portability`
+
 ## Sprint Artifact Summary
 
 - `P.1`:
@@ -263,7 +280,7 @@ Execution worktree:
   - `docs/cross-platform-guidelines.md`
   - repo-local wrappers for the available `sc-lint` surfaces from `../sc-lint`
   - `fmt`, `clippy`, `modules`, `deny`, `shear`, `version`, `manifests`,
-    `spell`, `pytests`, `sc-boundary`, and `sc-portability` under the
+    `spell`, `pytests`, `sc-boundary`, and `portability` under the
     `../atm-core` `just lint` pattern
 - `P.4`:
   - `crates/sc-hooks-core/`
@@ -286,3 +303,11 @@ Execution worktree:
   - install/packaging alias work for `hooks`
   - retry-path coverage in `sc-hooks-core` / `sc-hooks-test`
   - release/operator docs
+- `P.9`:
+  - `.just/lint_sc_boundary.py`
+  - `.just/lint_sc_portability.py`
+  - `.just/run_lint.py`
+  - `justfile`
+  - `.github/workflows/ci.yml`
+  - `docs/sc-lint-boundary.md`
+  - `docs/phase-P/sprint-P9.md`

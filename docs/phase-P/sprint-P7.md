@@ -59,7 +59,7 @@ target: integrate/phase-P
 - `cargo check --workspace`
 - `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
-- `just lint sc-portability`
+- `just lint portability`
 - `git diff --check`
 
 ## Sprint QA Checklist
@@ -95,7 +95,7 @@ target: integrate/phase-P
   - `cargo check --workspace`
   - `cargo clippy --all-targets --all-features -- -D warnings`
   - `cargo test --workspace`
-  - `just lint sc-portability`
+  - `just lint portability`
   - `git diff --check`
 - Follow-on status:
   - `P.7` closes the active ruling set named in the Phase P plan and leaves

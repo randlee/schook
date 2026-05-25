@@ -76,7 +76,7 @@ target: integrate/phase-P
 ## Required Validation
 
 - `cargo test --workspace`
-- `just lint sc-portability`
+- `just lint portability`
 - `just test hooks gemini`
 - `git diff --check`
 
@@ -106,7 +106,7 @@ target: integrate/phase-P
   - `docs/phase-P/sprint-P6.md`
 - Validation that passed:
   - `cargo test --workspace`
-  - `just lint sc-portability`
+  - `just lint portability`
   - `just test hooks gemini`
   - `git diff --check`
 - Follow-on work:
