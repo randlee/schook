@@ -3,6 +3,7 @@ name = "sc-hooks-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -33,3 +34,4 @@ toml = "0.8.20"
 [dev-dependencies]
 sc-hooks-test = { version = "0.1.0", path = "../sc-hooks-test" }
 serial_test = "3.2.0"
+temp-env = "0.3.6"

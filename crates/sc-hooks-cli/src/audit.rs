@@ -489,11 +489,9 @@ fn push_sandbox_exceeded(report: &mut AuditReport, strict: bool, diagnostic: Aud
 fn warn_on_plugins_dir_permissions(report: &mut AuditReport) {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-
         let plugin_dir = Path::new(".sc-hooks/plugins");
         if let Ok(metadata) = std::fs::metadata(plugin_dir) {
-            let mode = metadata.permissions().mode();
+            let mode = std::os::unix::fs::PermissionsExt::mode(&metadata.permissions());
             if mode & 0o022 != 0 {
                 report.push_warning(AuditDiagnostic::PluginsDirPermissive {
                     path: plugin_dir.display().to_string(),
@@ -507,10 +505,8 @@ fn warn_on_plugins_dir_permissions(report: &mut AuditReport) {
 fn warn_on_plugin_integrity(handler_name: &str, plugin_path: &Path, report: &mut AuditReport) {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::{MetadataExt, PermissionsExt};
-
         if let Ok(metadata) = std::fs::metadata(plugin_path) {
-            let mode = metadata.permissions().mode();
+            let mode = std::os::unix::fs::PermissionsExt::mode(&metadata.permissions());
             if mode & 0o002 != 0 {
                 report.push_warning(AuditDiagnostic::PluginWorldWritable {
                     handler_name: handler_name.to_string(),
@@ -521,7 +517,7 @@ fn warn_on_plugin_integrity(handler_name: &str, plugin_path: &Path, report: &mut
 
             // SAFETY: `geteuid` has no preconditions and returns the current effective UID.
             let effective_uid = unsafe { nix::libc::geteuid() };
-            if metadata.uid() != effective_uid {
+            if std::os::unix::fs::MetadataExt::uid(&metadata) != effective_uid {
                 report.push_warning(AuditDiagnostic::PluginWrongOwner {
                     handler_name: handler_name.to_string(),
                     path: plugin_path.display().to_string(),
@@ -575,13 +571,12 @@ mod tests {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let mut perms = temp
                 .as_file()
                 .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
-            perms.set_mode(0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
             temp.as_file()
                 .set_permissions(perms)
                 .expect("plugin should be made executable");

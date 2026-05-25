@@ -1,9 +1,9 @@
 ---
 id: P.2
 title: Gemini Missing-Hook Harness Expansion
-status: planned
-branch: feature/pP-s2-gemini-missing-hook-harness
-worktree: ../schook-worktrees/feature/pP-s2-gemini-missing-hook-harness
+status: complete
+branch: feature/pP-s2-gemini-afteragent
+worktree: ../schook-worktrees/feature/pP-s2-gemini-afteragent
 target: integrate/phase-P
 ---
 

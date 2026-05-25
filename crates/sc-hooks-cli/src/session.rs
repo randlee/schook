@@ -253,37 +253,10 @@ mod tests {
         ENV_LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    struct EnvGuard {
-        _lock: MutexGuard<'static, ()>,
-        original: Option<std::ffi::OsString>,
-    }
-
-    impl EnvGuard {
-        fn set(value: &Path) -> Self {
-            let lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
-            let original = std::env::var_os("SC_HOOKS_STATE_DIR");
-            // SAFETY: env mutation is serialized through env_lock() held by
-            // _lock for the lifetime of this guard.
-            unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
-            Self {
-                _lock: lock,
-                original,
-            }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            if let Some(value) = &self.original {
-                // SAFETY: env mutation is serialized through env_lock() held by
-                // _lock for the lifetime of this guard.
-                unsafe { std::env::set_var("SC_HOOKS_STATE_DIR", value) };
-            } else {
-                // SAFETY: env mutation is serialized through env_lock() held by
-                // _lock for the lifetime of this guard.
-                unsafe { std::env::remove_var("SC_HOOKS_STATE_DIR") };
-            }
-        }
+    fn with_state_dir<T>(value: &Path, body: impl FnOnce() -> T) -> T {
+        let _lock: MutexGuard<'static, ()> =
+            env_lock().lock().unwrap_or_else(|err| err.into_inner());
+        temp_env::with_var("SC_HOOKS_STATE_DIR", Some(value), body)
     }
 
     #[test]
@@ -291,16 +264,17 @@ mod tests {
     fn persists_and_loads_disabled_plugins() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+                .expect("disable state should persist");
+            mark_plugin_disabled(Some("session-a"), "notify", "timeout")
+                .expect("second plugin should persist");
 
-        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
-            .expect("disable state should persist");
-        mark_plugin_disabled(Some("session-a"), "notify", "timeout")
-            .expect("second plugin should persist");
-
-        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
-        assert!(loaded.contains("guard-paths"));
-        assert!(loaded.contains("notify"));
+            let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
+            assert!(loaded.contains("guard-paths"));
+            assert!(loaded.contains("notify"));
+        });
     }
 
     #[test]
@@ -308,10 +282,11 @@ mod tests {
     fn missing_state_file_is_fail_open() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
-
-        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
-        assert!(loaded.is_empty());
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
+            assert!(loaded.is_empty());
+        });
     }
 
     #[test]
@@ -319,14 +294,15 @@ mod tests {
     fn clear_session_removes_record() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+                .expect("disable state should persist");
+            clear_session(Some("session-a")).expect("session clear should succeed");
 
-        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
-            .expect("disable state should persist");
-        clear_session(Some("session-a")).expect("session clear should succeed");
-
-        let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
-        assert!(loaded.is_empty());
+            let loaded = load_disabled_plugins(Some("session-a")).expect("load should succeed");
+            assert!(loaded.is_empty());
+        });
     }
 
     #[test]
@@ -334,14 +310,15 @@ mod tests {
     fn disabled_at_is_iso8601_like_timestamp() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
-
-        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
-            .expect("disable state should persist");
-        let content =
-            fs::read_to_string(state_path().expect("state path")).expect("state file should exist");
-        assert!(content.contains('T'));
-        assert!(content.contains('Z'));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+                .expect("disable state should persist");
+            let content = fs::read_to_string(state_path().expect("state path"))
+                .expect("state file should exist");
+            assert!(content.contains('T'));
+            assert!(content.contains('Z'));
+        });
     }
 
     #[test]
@@ -349,14 +326,15 @@ mod tests {
     fn clear_all_sessions_removes_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+                .expect("disable state should persist");
+            assert!(state_path().expect("state path").exists());
 
-        mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
-            .expect("disable state should persist");
-        assert!(state_path().expect("state path").exists());
-
-        clear_all_sessions().expect("clear_all_sessions should succeed");
-        assert!(!state_path().expect("state path").exists());
+            clear_all_sessions().expect("clear_all_sessions should succeed");
+            assert!(!state_path().expect("state path").exists());
+        });
     }
 
     #[test]
@@ -364,15 +342,17 @@ mod tests {
     fn mark_plugin_disabled_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            let path = state_path().expect("state path");
+            fs::create_dir_all(path.parent().expect("parent"))
+                .expect("state dir should be creatable");
+            fs::write(path, "{not-json").expect("state file should be writable");
 
-        let path = state_path().expect("state path");
-        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
-        fs::write(path, "{not-json").expect("state file should be writable");
-
-        let err = mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
-            .expect_err("corrupt session state should not be silently reset on write");
-        assert!(err.to_string().contains("failed parsing session state"));
+            let err = mark_plugin_disabled(Some("session-a"), "guard-paths", "invalid-json")
+                .expect_err("corrupt session state should not be silently reset on write");
+            assert!(err.to_string().contains("failed parsing session state"));
+        });
     }
 
     #[test]
@@ -380,15 +360,17 @@ mod tests {
     fn clear_session_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            let path = state_path().expect("state path");
+            fs::create_dir_all(path.parent().expect("parent"))
+                .expect("state dir should be creatable");
+            fs::write(path, "{not-json").expect("state file should be writable");
 
-        let path = state_path().expect("state path");
-        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
-        fs::write(path, "{not-json").expect("state file should be writable");
-
-        let err = clear_session(Some("session-a"))
-            .expect_err("corrupt session state should not be silently reset on clear");
-        assert!(err.to_string().contains("failed parsing session state"));
+            let err = clear_session(Some("session-a"))
+                .expect_err("corrupt session state should not be silently reset on clear");
+            assert!(err.to_string().contains("failed parsing session state"));
+        });
     }
 
     #[test]
@@ -396,14 +378,16 @@ mod tests {
     fn load_disabled_plugins_fails_on_corrupt_state_file() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let _cwd = test_support::scoped_current_dir(temp.path());
-        let _env = EnvGuard::set(&temp.path().join(".sc-hooks/state"));
+        let state_dir = temp.path().join(".sc-hooks/state");
+        with_state_dir(&state_dir, || {
+            let path = state_path().expect("state path");
+            fs::create_dir_all(path.parent().expect("parent"))
+                .expect("state dir should be creatable");
+            fs::write(path, "{not-json").expect("state file should be writable");
 
-        let path = state_path().expect("state path");
-        fs::create_dir_all(path.parent().expect("parent")).expect("state dir should be creatable");
-        fs::write(path, "{not-json").expect("state file should be writable");
-
-        let err = load_disabled_plugins(Some("session-a"))
-            .expect_err("corrupt state should not silently fail open");
-        assert!(err.to_string().contains("failed parsing session state"));
+            let err = load_disabled_plugins(Some("session-a"))
+                .expect_err("corrupt state should not silently fail open");
+            assert!(err.to_string().contains("failed parsing session state"));
+        });
     }
 }

@@ -117,10 +117,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s1-codex-missing-hook-harness`
+- `feature/pP-s1-harness-expansion`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s1-codex-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s1-harness-expansion`
 
 ### P.2 Gemini Missing-Hook Harness Expansion
 
@@ -134,10 +134,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s2-gemini-missing-hook-harness`
+- `feature/pP-s2-gemini-afteragent`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s2-gemini-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s2-gemini-afteragent`
 
 ### P.3 `sc-lint` Suite Adoption And Cross-Platform Gate
 
@@ -151,10 +151,10 @@ Purpose:
   lands so Phase P does not drift into Unix-only implementation
 
 Execution branch:
-- `feature/pP-s3-sc-lint-suite-adoption`
+- `feature/pP-s3-lint-portability`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s3-sc-lint-suite-adoption`
+- `../schook-worktrees/feature/pP-s3-lint-portability`
 
 ### P.4 Lifecycle-Family Normalization Extension
 
