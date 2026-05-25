@@ -32,6 +32,8 @@ target: integrate/phase-Q
 - `test-harness/hooks/opencode/tests/test_harness_structure.py`
 - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
 - `test_harness/hooks/opencode/`
+- `test-harness/hooks/README.md` (`Q.6` owns the file; `Q.8` appends the
+  opencode entry only)
 - `docs/requirements.md`
 - `docs/traceability.md`
 

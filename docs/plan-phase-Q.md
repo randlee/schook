@@ -40,8 +40,17 @@ Current known planning inputs:
 - `HKR-019` governs the new curated smoke surface and CI-owned smoke gate
 - `ADR-SHK-010` freezes the `Phase Q` rule that smoke and next-provider
   harness work do not authorize new runtime parity claims
-- `RULING-NEEDED-ECR-002` remains a live implementation-gap item that may
-  affect smoke-test error-policy wording but does not block planning
+
+Carry-forward note:
+
+- `RULING-NEEDED-ECR-002` remains active in `docs/implementation-gaps.md`, but
+  `Phase Q` does not own that ruling
+- rationale: `Phase Q` adds smoke infrastructure plus Cursor/opencode
+  harness/doc-model scope only; it does not change the public cross-crate
+  error-type layout or backtrace policy where `ECR-002` would close
+- disposition: keep `ECR-002` out of the primary Phase Q driver set and carry
+  it forward to a later error-surface phase instead of implying closure inside
+  a smoke or provider-doc sprint
 
 ## Integration Branch
 

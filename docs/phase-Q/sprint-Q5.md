@@ -27,6 +27,7 @@ target: integrate/phase-Q
 - `.just/smoke/gemini.py`
 - `.just/smoke/fixtures/gemini/`
 - `docs/phase-Q/smoke-gemini.md`
+- `docs/traceability.md`
 
 ## Deliverables
 
@@ -40,6 +41,8 @@ target: integrate/phase-Q
   model under `.just/smoke/fixtures/gemini/`
 - record the accepted-baseline Gemini smoke result in
   `docs/phase-Q/smoke-gemini.md`
+- update the `HKR-019` traceability row as the single owning smoke sprint
+  because `Q.5` is the final Claude/Codex/Gemini smoke closeout
 
 ## CI Execution Model
 
@@ -56,7 +59,8 @@ Required Gemini smoke coverage:
 
 - `SessionStart`
 - `BeforeAgent`
-- retained shared stop-path behavior for `AfterAgent`
+- one retained tool or lifecycle surface already approved in the normalized
+  Gemini path
 - one logging/observability proof on the accepted baseline
 
 ## Acceptance Criteria
@@ -86,3 +90,5 @@ Required Gemini smoke coverage:
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the Gemini live runtime path end to end?
 - What follow-on work remains separate from smoke coverage?
+- Does `docs/traceability.md` now name `Q.5` as the single owner that closes
+  the `HKR-019` smoke-surface row?
