@@ -28,6 +28,17 @@ Sprint planning status convention:
 - sprint docs remain `status: planned` until execution closes the sprint on the
   implementation line
 
+## Pre-Sprint Kickoff Checklist
+
+Before any `Phase Q` sprint starts, the handoff or working notes must record:
+
+- accepted `Phase P` baseline commit
+- confirmation that `just test hooks claude`, `just test hooks codex`, and
+  `just test hooks gemini` were green on that accepted baseline
+- the single owning smoke or harness path being extended
+- confirmation that Cursor Agent and opencode remain harness-only in `Phase Q`
+  unless a later phase explicitly authorizes runtime support
+
 ## Initial State
 
 | Sprint | Accepted Commit | Verdict | Current Status | Notes |
@@ -44,7 +55,7 @@ Sprint planning status convention:
 
 Final release verdict:
 
-- `integration_author`: `PENDING`
+- `integration_author`: `team-lead`
 - `integrate_phase_q_candidate`: `PENDING`
 - `release_verdict`: `PENDING`
 - `provider_verdicts`: `PENDING`

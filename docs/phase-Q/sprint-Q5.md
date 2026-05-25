@@ -9,10 +9,14 @@ target: integrate/phase-Q
 
 # Sprint Q.5 — Gemini Smoke Tests
 
-## Purpose
+## Goal
 
 - implement executable smoke coverage for the Gemini runtime path through the
   new `just smoke` surface
+
+## Hard Dependencies
+
+- accepted `Q.2` smoke infrastructure
 
 ## Entry Criteria
 
@@ -20,19 +24,46 @@ target: integrate/phase-Q
 
 ## Exact Targets
 
-- Gemini smoke scripts and docs under the chosen smoke ownership path
+- `.just/run_smoke.py`
+- `.just/smoke/gemini.py`
+- `docs/phase-Q/smoke-gemini.md`
 
 ## Deliverables
 
 - end-to-end Gemini smoke scenarios covering retained live Gemini behavior
 - smoke result record for Gemini on the accepted baseline
 
+## Required Contract Samples
+
+Required Gemini smoke coverage:
+
+- `SessionStart`
+- `BeforeAgent`
+- retained shared stop-path behavior for `AfterAgent`
+- one logging/observability proof on the accepted baseline
+
 ## Acceptance Criteria
 
 - `just smoke` includes the Gemini path explicitly
 - Gemini smoke proves install, dispatch, lifecycle, and logging behavior
 
+## Out Of Scope
+
+- Claude smoke
+- Codex smoke
+- new Gemini runtime-surface expansion
+- Gemini harness/doc-model expansion
+
 ## Required Validation
 
+- `just smoke gemini`
 - `cargo test --workspace`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What smoke coverage was added and what was intentionally not added?
+- Which files or docs are the owned write scope for the sprint?
+- What validation proves the Gemini live runtime path end to end?
+- What follow-on work remains separate from smoke coverage?

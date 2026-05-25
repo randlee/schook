@@ -9,11 +9,15 @@ target: integrate/phase-Q
 
 # Sprint Q.8 — opencode Hook Harness
 
-## Purpose
+## Goal
 
 - add `opencode` as a maintained harness provider with approved fixtures,
-  provider models, and harness tests
+  harness tests, and control-doc ownership
 - land the missing control-doc ownership for opencode provider scope
+
+## Hard Dependencies
+
+- accepted `Q.2` smoke infrastructure
 
 ## Entry Criteria
 
@@ -21,24 +25,54 @@ target: integrate/phase-Q
 
 ## Exact Targets
 
-- `test-harness/hooks/opencode/`
-- `test_harness/hooks/opencode/`
+- `test-harness/hooks/opencode/fixtures/`
+- `test-harness/hooks/opencode/hooks/`
+- `test-harness/hooks/opencode/schema/`
+- `test-harness/hooks/opencode/tests/test_harness_structure.py`
+- `test-harness/hooks/opencode/tests/test_fixture_validation.py`
+- `test-harness/hooks/README.md`
 - `docs/requirements.md`
 - `docs/traceability.md`
 
 ## Deliverables
 
 - approved opencode fixtures
-- opencode provider models
 - opencode harness tests
 - control-doc updates that introduce and record the opencode provider scope
+
+## Required Contract Samples
+
+Required opencode harness layout:
+
+```text
+test-harness/hooks/opencode/
+  fixtures/
+  hooks/
+  schema/
+  tests/
+```
 
 ## Acceptance Criteria
 
 - opencode is represented as a maintained harness provider
 - the phase does not rely on undocumented implied opencode scope
 
+## Out Of Scope
+
+- opencode runtime normalization
+- opencode plugin parity
+- opencode machine cutover
+
 ## Required Validation
 
+- `pytest test-harness/hooks/opencode/tests/ -q`
 - `cargo test --workspace`
 - `git diff --check`
+
+## Sprint QA Checklist
+
+- Which requirement IDs or gap IDs changed status?
+- What previously undocumented scope is now explicit?
+- Which files or docs are the owned write scope for the sprint?
+- What validation proves opencode is a maintained harness provider now?
+- What runtime work remains explicitly out of scope?

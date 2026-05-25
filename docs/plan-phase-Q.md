@@ -33,11 +33,13 @@ permanent provider harness to cover the next documented providers:
 
 Current known planning inputs:
 
-- `HKR-007` still defers Cursor execution work; `Phase Q` starts by expanding
-  Cursor harness/docs only
-- no dedicated opencode requirement row exists yet in `docs/requirements.md`;
-  `Phase Q` must treat that as a control-doc addition to land with the first
-  opencode execution sprint, not as an implied undocumented scope
+- `HKR-007` now governs Cursor Agent harness/doc-model expansion only; Cursor
+  runtime parity remains out of scope for `Phase Q`
+- `HKR-018` governs the new opencode harness/doc-model expansion only;
+  opencode runtime parity remains out of scope for `Phase Q`
+- `HKR-019` governs the new curated smoke surface and CI-owned smoke gate
+- `ADR-SHK-010` freezes the `Phase Q` rule that smoke and next-provider
+  harness work do not authorize new runtime parity claims
 - `RULING-NEEDED-ECR-002` remains a live implementation-gap item that may
   affect smoke-test error-policy wording but does not block planning
 
@@ -63,6 +65,9 @@ Rules:
   `just test hooks gemini` remain green on the accepted baseline
 - the repo has one approved smoke entrypoint surface to own provider smoke
   execution rather than ad hoc shell commands
+- the smoke surface and Cursor/opencode harness follow-on are treated as the
+  only owning paths for `Phase Q`; no provider-specific bypass around those
+  contracts is allowed
 - Cursor/opencode work is treated as harness/doc-model expansion only unless a
   later phase explicitly authorizes runtime support
 
@@ -172,7 +177,7 @@ Entry criteria:
 Purpose:
 
 - turn `Cursor Agent` from a docs-only deferred provider into a maintained
-  harness provider with approved fixtures, provider models, and harness tests
+  harness provider with approved fixtures and harness tests
 - use the existing `test-harness/hooks/cursor-agent/` ownership boundary rather
   than inventing a second competing `cursor/` tree
 
@@ -207,7 +212,7 @@ Entry criteria:
 Purpose:
 
 - add `opencode` as a maintained harness provider with approved fixtures,
-  provider models, and harness tests
+  harness tests, and control-doc ownership
 - add the missing control-doc ownership needed for opencode provider scope
 
 Execution branch:
@@ -256,28 +261,45 @@ Entry criteria:
   - `docs/phase-Q/openshell-evaluation.md`
 - `Q.2`:
   - `justfile`
-  - `.just/`
+  - `.just/run_smoke.py`
+  - `.just/smoke/`
   - `.github/workflows/ci.yml`
-  - smoke operator docs
+  - `docs/phase-Q/smoke-surface.md`
 - `Q.3`:
-  - Claude smoke scripts, fixtures, and smoke docs
+  - `.just/smoke/claude.py`
+  - `docs/phase-Q/smoke-claude.md`
 - `Q.4`:
-  - Codex smoke scripts, fixtures, and smoke docs
+  - `.just/smoke/codex.py`
+  - `docs/phase-Q/smoke-codex.md`
 - `Q.5`:
-  - Gemini smoke scripts, fixtures, and smoke docs
+  - `.just/smoke/gemini.py`
+  - `docs/phase-Q/smoke-gemini.md`
 - `Q.6`:
-  - `test-harness/hooks/cursor-agent/`
-  - `test_harness/hooks/cursor-agent/`
+  - `test-harness/hooks/cursor-agent/fixtures/`
+  - `test-harness/hooks/cursor-agent/hooks/`
+  - `test-harness/hooks/cursor-agent/schema/`
+  - `test-harness/hooks/cursor-agent/tests/test_harness_structure.py`
+  - `test-harness/hooks/cursor-agent/tests/test_fixture_validation.py`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
 - `Q.7`:
   - `docs/hook-api/cursor-agent-hook-api.md`
-  - Cursor provider models and tests
+  - `test_harness/hooks/cursor_agent/models/payloads.py`
+  - `test_harness/hooks/cursor_agent/models/registry.py`
+  - `test-harness/hooks/cursor-agent/tests/test_payload_models.py`
 - `Q.8`:
-  - `test-harness/hooks/opencode/`
-  - `test_harness/hooks/opencode/`
-  - control-doc additions for opencode provider scope
+  - `test-harness/hooks/opencode/fixtures/`
+  - `test-harness/hooks/opencode/hooks/`
+  - `test-harness/hooks/opencode/schema/`
+  - `test-harness/hooks/opencode/tests/test_harness_structure.py`
+  - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
 - `Q.9`:
   - `docs/hook-api/opencode-agent-hook-api.md`
-  - opencode provider models and tests
+  - `test_harness/hooks/opencode/models/payloads.py`
+  - `test_harness/hooks/opencode/models/registry.py`
+  - `test-harness/hooks/opencode/tests/test_payload_models.py`
 
 ## Phase Exit Criteria
 
@@ -289,5 +311,7 @@ Entry criteria:
 - opencode harness, fixtures, provider models, and API doc are current
 - all new provider scope added in `Phase Q` is reflected in
   `docs/requirements.md`, `docs/traceability.md`, and `docs/project-plan.md`
+- the smoke ownership path is reflected in `docs/architecture.md` and no
+  smoke/provider-harness artifact is described as runtime parity by implication
 - no Cursor or opencode runtime claims are overstated beyond harness/doc-model
   support
