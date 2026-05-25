@@ -349,7 +349,9 @@ If a behavior is required for release but not yet fully proved, it must appear i
     lifecycle runtime parity for the only retained live stop-family surface,
     `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
     and `fork` remain disposition-only non-exercisable rows from `P.1`.
-  - authorizing sprint: `P.5`
+    `P.6` closes Gemini retained lifecycle runtime parity for the live
+    `AfterAgent` stop-family surface through the shared Rust runtime path.
+  - authorizing sprints: `P.5`, `P.6`
 - `HKR-010`
   - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
     parity work needed to return this requirement to `Implemented` on those
@@ -362,8 +364,11 @@ If a behavior is required for release but not yet fully proved, it must appear i
     closure for those newly retained lifecycle surfaces. `P.5` adds no new
     Codex gate surface beyond the existing normalized host path and closes
     Codex runtime parity for the retained `notify` stop-family surface while
-    leaving the already-closed gate behavior from `Phase O` unchanged.
-  - authorizing sprint: `P.5`
+    leaving the already-closed gate behavior from `Phase O` unchanged. `P.6`
+    adds no new Gemini gate surface beyond the existing normalized host path
+    and closes Gemini runtime parity for the live `AfterAgent` stop-family
+    surface.
+  - authorizing sprints: `P.5`, `P.6`
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`

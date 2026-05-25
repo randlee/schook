@@ -166,7 +166,7 @@ seam before generic runtime dispatch:
 - provider/runtime consistency is frozen by the seal mechanism,
   normalization-error taxonomy, required internal type set, and
   `(provider × hook × payload)` compatibility rules in this document
-- the internal canonical type inventory extended through `P.4` is:
+- the internal canonical type inventory extended through `P.6` is:
   - `ProviderHookSource`
   - `ProviderHookInput<'a>`
   - `NormalizedHookContext<'a>`
@@ -201,7 +201,7 @@ seam before generic runtime dispatch:
   rows in `docs/phase-P/canonical-hook-mapping.md`; they are not live
   canonical variants until accepted harness evidence proves they are
   exercisable runtime surfaces
-- the runtime hook/event projection extended through `P.4` is:
+- the runtime hook/event projection extended through `P.6` is:
   - Codex `SessionStart` -> `HookType::SessionStart`
   - Codex `PreToolUse` -> `HookType::PreToolUse("Bash")`
   - Codex `Notify` -> `HookType::Stop`

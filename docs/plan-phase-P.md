@@ -211,10 +211,10 @@ Purpose:
   normalization trait seam
 
 Execution branch:
-- `feature/pP-s6-gemini-missing-hook-runtime`
+- `feature/pP-s6-gemini-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s6-gemini-missing-hook-runtime`
+- `../schook-worktrees/feature/pP-s6-gemini-runtime-parity`
 
 ### P.7 Error, Boundary, And Portability Ruling Closeout
 
