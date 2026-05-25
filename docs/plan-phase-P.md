@@ -117,10 +117,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s1-codex-missing-hook-harness`
+- `feature/pP-s1-harness-expansion`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s1-codex-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s1-harness-expansion`
 
 ### P.2 Gemini Missing-Hook Harness Expansion
 

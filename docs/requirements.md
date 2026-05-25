@@ -307,6 +307,16 @@ If a behavior is required for release but not yet fully proved, it must appear i
     exercisable retained runtime surfaces
 - `HKR-017`
   - prior text: the shared provider-harness contract ended at the accepted
+    `Phase N` verification baseline, leaving Codex `notify`, `Stop`,
+    `resume`, and `fork` outside the retained harness surface
+  - current text: `Phase P` extends the same shared provider-harness contract
+    for the retained missing lifecycle surfaces; `P.1` closes the Codex side
+    by proving `notify` on the approved fixture-backed harness and recording
+    evidence-backed dispositions for `Stop`, `resume`, and `fork` on that
+    same shared harness shape
+  - authorizing sprint: `P.1`
+- `HKR-017`
+  - prior text: the shared provider-harness contract ended at the accepted
     `Phase N` verification baseline, leaving Gemini `AfterAgent` outside the
     retained harness surface
   - current text: `Phase P` extends the same shared provider-harness contract
