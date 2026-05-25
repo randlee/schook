@@ -211,9 +211,7 @@ pub fn load_manifest_from_executable(path: &Path) -> Result<Manifest, ManifestLo
         }
         #[cfg(unix)]
         {
-            use std::os::unix::process::ExitStatusExt;
-
-            if let Some(signal) = output.status.signal() {
+            if let Some(signal) = std::os::unix::process::ExitStatusExt::signal(&output.status) {
                 return Err(ManifestLoadError::TerminatedBySignal {
                     path,
                     signal,

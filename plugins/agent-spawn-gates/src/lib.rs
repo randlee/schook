@@ -190,30 +190,9 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    struct EnvGuard {
-        key: &'static str,
-        original: Option<std::ffi::OsString>,
-    }
-
-    impl EnvGuard {
-        fn set(key: &'static str, value: &std::path::Path) -> Self {
-            let original = std::env::var_os(key);
-            // SAFETY: tests serialize env mutation with a process-wide mutex.
-            unsafe { std::env::set_var(key, value) };
-            Self { key, original }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            if let Some(value) = &self.original {
-                // SAFETY: tests serialize env mutation with a process-wide mutex.
-                unsafe { std::env::set_var(self.key, value) };
-            } else {
-                // SAFETY: tests serialize env mutation with a process-wide mutex.
-                unsafe { std::env::remove_var(self.key) };
-            }
-        }
+    fn with_state_dir<T>(value: &std::path::Path, body: impl FnOnce() -> T) -> T {
+        let _guard = test_lock().lock().expect("lock");
+        temp_env::with_var("SC_HOOKS_STATE_DIR", Some(value), body)
     }
 
     fn write_record(state_root: &Path, project_root: &Path) -> SessionId {
@@ -266,90 +245,89 @@ mod tests {
 
     #[test]
     fn named_agent_is_blocked_when_project_requires_background_agents() {
-        let _guard = test_lock().lock().expect("lock");
         let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
-        fs::write(
-            project_root.path().join(".atm.toml"),
-            "[agent_spawn]\nbackground_only = true\n",
-        )
-        .expect("write .atm.toml");
-        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
-        let _session_id = write_record(state_root.path(), project_root.path());
-
-        let handler = AgentSpawnGatesHandler;
-        let result = handler
-            .handle(agent_context(Some(false), "Agent"))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some(
-                "Agent spawn blocked: this project requires background agents. Retry with `tool_input.run_in_background=true`."
+        with_state_dir(state_root.path(), || {
+            fs::write(
+                project_root.path().join(".atm.toml"),
+                "[agent_spawn]\nbackground_only = true\n",
             )
-        );
+            .expect("write .atm.toml");
+            let _session_id = write_record(state_root.path(), project_root.path());
+
+            let handler = AgentSpawnGatesHandler;
+            let result = handler
+                .handle(agent_context(Some(false), "Agent"))
+                .expect("handler result");
+
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+            assert_eq!(
+                result.reason.as_deref(),
+                Some(
+                    "Agent spawn blocked: this project requires background agents. Retry with `tool_input.run_in_background=true`."
+                )
+            );
+        });
     }
 
     #[test]
     fn background_agent_writes_linkage_into_canonical_state() {
-        let _guard = test_lock().lock().expect("lock");
         let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
-        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
-        let session_id = write_record(state_root.path(), project_root.path());
+        with_state_dir(state_root.path(), || {
+            let session_id = write_record(state_root.path(), project_root.path());
 
-        let handler = AgentSpawnGatesHandler;
-        let result = handler
-            .handle(agent_context(Some(true), "Agent"))
-            .expect("handler result");
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            let handler = AgentSpawnGatesHandler;
+            let result = handler
+                .handle(agent_context(Some(true), "Agent"))
+                .expect("handler result");
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
 
-        let store = SessionStore::new(StateRoot::new(state_root.path()).expect("state root"));
-        let updated = store
-            .load(&session_id)
-            .expect("load")
-            .expect("record should exist");
-        let linkage = &updated.extensions()["spawn_gate"]["last_requested_spawn"];
-        assert_eq!(linkage["spawn_kind"], "background_agent");
-        assert_eq!(linkage["parent_session_id"], "session-1");
-        assert_eq!(linkage["parent_active_pid"], 4242);
-        assert_eq!(linkage["run_in_background"], true);
+            let store = SessionStore::new(StateRoot::new(state_root.path()).expect("state root"));
+            let updated = store
+                .load(&session_id)
+                .expect("load")
+                .expect("record should exist");
+            let linkage = &updated.extensions()["spawn_gate"]["last_requested_spawn"];
+            assert_eq!(linkage["spawn_kind"], "background_agent");
+            assert_eq!(linkage["parent_session_id"], "session-1");
+            assert_eq!(linkage["parent_active_pid"], 4242);
+            assert_eq!(linkage["run_in_background"], true);
+        });
     }
 
     #[test]
     fn missing_atm_file_falls_back_to_generic_policy() {
-        let _guard = test_lock().lock().expect("lock");
         let state_root = tempfile::tempdir().expect("state root");
         let project_root = tempfile::tempdir().expect("project root");
-        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
-        let _session_id = write_record(state_root.path(), project_root.path());
+        with_state_dir(state_root.path(), || {
+            let _session_id = write_record(state_root.path(), project_root.path());
 
-        let handler = AgentSpawnGatesHandler;
-        let result = handler
-            .handle(agent_context(None, "Agent"))
-            .expect("handler result");
+            let handler = AgentSpawnGatesHandler;
+            let result = handler
+                .handle(agent_context(None, "Agent"))
+                .expect("handler result");
 
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+        });
     }
 
     #[test]
     fn missing_session_record_blocks_with_retryable_reason() {
-        let _guard = test_lock().lock().expect("lock");
         let state_root = tempfile::tempdir().expect("state root");
-        let _env = EnvGuard::set("SC_HOOKS_STATE_DIR", state_root.path());
+        with_state_dir(state_root.path(), || {
+            let handler = AgentSpawnGatesHandler;
+            let result = handler
+                .handle(agent_context(Some(true), "Agent"))
+                .expect("handler result");
 
-        let handler = AgentSpawnGatesHandler;
-        let result = handler
-            .handle(agent_context(Some(true), "Agent"))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some(
-                "Agent spawn blocked: canonical session state is unavailable. Retry after SessionStart establishes state for this session.",
-            )
-        );
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+            assert_eq!(
+                result.reason.as_deref(),
+                Some(
+                    "Agent spawn blocked: canonical session state is unavailable. Retry after SessionStart establishes state for this session.",
+                )
+            );
+        });
     }
 }
