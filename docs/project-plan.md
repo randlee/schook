@@ -99,6 +99,9 @@ Phase P progress note:
   extension on `feature/pP-s4-canonical-hook-mapping`, landing the
   authoritative `docs/phase-P/canonical-hook-mapping.md` artifact while
   leaving provider-runtime closure to `P.5` and `P.6`
+- `P.7` completed the ruling-closeout pass on
+  `feature/pP-s7-ruling-closeout`, explicitly deferring `ECR-001` and
+  `ECR-002` past `Phase P` while closing `HRN-005` and `COW-003`
 
 Phase N closure note:
 
