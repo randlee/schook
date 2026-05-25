@@ -240,10 +240,10 @@ Purpose:
 - finish the active implementation-gap ledger for the current release track
 
 Execution branch:
-- `feature/pP-s8-cli-and-retry-closeout`
+- `feature/pP-s8-observability-qa`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s8-cli-and-retry-closeout`
+- `../schook-worktrees/feature/pP-s8-observability-qa`
 
 ## Sprint Artifact Summary
 

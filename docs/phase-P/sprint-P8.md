@@ -1,9 +1,9 @@
 ---
 id: P.8
 title: CLI Alias And Retry-Coverage Closeout
-status: planned
-branch: feature/pP-s8-cli-and-retry-closeout
-worktree: ../schook-worktrees/feature/pP-s8-cli-and-retry-closeout
+status: complete
+branch: feature/pP-s8-observability-qa
+worktree: ../schook-worktrees/feature/pP-s8-observability-qa
 target: integrate/phase-P
 ---
 
@@ -65,3 +65,33 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement and gap status changes:
+  - `DEF-019` now points to the actual alias install behavior rather than
+    alias-only naming language with no install mechanism.
+  - `PRR-009` is closed in `P.8`.
+  - `LOGR-QA-004` is closed in `P.8`.
+- Code removed early:
+  - none; `P.8` closed packaging/install and retry-coverage gaps without
+    removing a parallel runtime path.
+- Owned write scope:
+  - `crates/sc-hooks-core/src/process.rs`
+  - `crates/sc-hooks-cli/src/install.rs`
+  - `docs/implementation-gaps.md`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+  - `docs/plan-phase-P.md`
+  - `docs/phase-P/sprint-P8.md`
+  - `README.md`
+  - `USAGE.md`
+  - `PUBLISHING.md`
+- Validation that passed:
+  - `cargo clippy --all-targets --all-features -- -D warnings`
+  - `cargo test --workspace`
+  - `git diff --check`
+- Follow-on status:
+  - `P.8` closes the remaining active Phase P operator-facing gap items on this
+    branch; any future alias expansion into additional release channels belongs
+    to release automation follow-on work, not the missing-hook parity track.
