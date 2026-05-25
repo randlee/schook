@@ -277,6 +277,14 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: required-before-release Claude version-bump detection
   - current text: implemented Claude version-bump detection with direct script and test proof
   - authorizing sprint: `S10-VERSION-BUMP-1`
+- `TMO-003`
+  - prior text: On timeout, the host shall send `SIGTERM`, wait one second,
+    then force-kill if needed.
+  - current text: On timeout, the host shall use bounded platform-native
+    termination: on Unix it shall send `SIGTERM`, wait one second, then
+    force-kill if needed; on non-Unix targets it shall use the platform-native
+    kill path and the same one-second grace window.
+  - authorizing sprint: `P.7`
 
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
