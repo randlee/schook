@@ -298,17 +298,32 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: Codex, Gemini, and Cursor runtime implementation all remained deferred after the Claude-first planning and harness phases
   - current text: `Phase O` is the approved runtime-normalization phase for Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains deferred under `HKR-007`
   - authorizing phase: `Phase O`
-  - O.4 amendment: the approved Codex runtime surfaces made `HKR-006`
-    partially implemented on the cross-provider path before Gemini parity and
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`
+  - current text: `O.4` partially implemented `HKR-006` by proving the
+    approved Codex runtime surfaces on the cross-provider path before Gemini
+    parity and cross-provider consolidation landed
+  - authorizing sprint: `O.4`
+- `HKR-006`
+  - prior text: `O.4` partially implemented `HKR-006` by proving the approved
+    Codex runtime surfaces on the cross-provider path before Gemini parity and
     cross-provider consolidation landed
-  - O.5/O.6 amendment: Gemini parity and the final Claude/Codex/Gemini
-    plugin-path consolidation are now complete on the approved provider
+  - current text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
     surfaces
-  - P.4 amendment: `Phase P` may extend the retained lifecycle inventory
+  - authorizing sprint: `O.5` / `O.6`
+- `HKR-006`
+  - prior text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
+    surfaces
+  - current text: `Phase P` may extend the retained lifecycle inventory
     through the same sealed normalization seam for Codex `notify` and Gemini
     `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
     disposition-only until accepted harness evidence proves they are
     exercisable retained runtime surfaces
+  - authorizing sprint: `P.4`
 - `HKR-017`
   - prior text: the shared provider-harness contract ended at the accepted
     `Phase N` verification baseline, leaving Codex `notify`, `Stop`,
@@ -367,7 +382,25 @@ If a behavior is required for release but not yet fully proved, it must appear i
     and `fork` remain disposition-only non-exercisable rows from `P.1`.
     `P.6` closes Gemini retained lifecycle runtime parity for the live
     `AfterAgent` stop-family surface through the shared Rust runtime path.
-  - authorizing sprints: `P.5`, `P.6`
+  - authorizing sprint: `P.5`
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` may then extend the retained
+    lifecycle inventory through the same sealed normalization seam for Codex
+    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only until accepted harness evidence proves they
+    are exercisable retained runtime surfaces. `P.5` closes Codex retained
+    lifecycle runtime parity for the only retained live stop-family surface,
+    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
+    and `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - current text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` then completes the retained Gemini
+    lifecycle runtime parity for the live `AfterAgent` stop-family surface
+    through the shared Rust runtime path, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - authorizing sprint: `P.6`
 - `HKR-010`
   - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
     parity work needed to return this requirement to `Implemented` on those

@@ -98,3 +98,20 @@ target: integrate/phase-P
   - closes the Gemini harness side of `HKR-017`
   - unblocks `P.4` lifecycle-family normalization from accepted Gemini
     `AfterAgent` evidence
+
+### Integration QA Questions
+
+- AC traceability complete?
+  - yes; `HKR-017` Gemini-side closure is reflected in `docs/requirements.md`
+    and `docs/traceability.md`, and the retained Gemini harness evidence is
+    linked from the sprint references
+- No new `requirements.md` entries without `HKR-*` IDs?
+  - yes; this sprint only updated existing `HKR-017` contract text and did
+    not introduce a new unnamed requirement
+- No new `implementation-gaps.md` entries without `RULING-NEEDED-*` IDs?
+  - yes; `P.2` did not add any new implementation-gap entry
+- All amendment notes in standalone three-field block format?
+  - yes; the `HKR-017` Gemini-side amendment is recorded as its own
+    prior/current/authorizing-sprint block
+- No `plan-phase-P.md` branch mismatches introduced?
+  - yes; `P.2` still points to `feature/pP-s2-gemini-afteragent` in the plan

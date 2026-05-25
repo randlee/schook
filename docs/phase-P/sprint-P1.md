@@ -102,3 +102,20 @@ target: integrate/phase-P
 - Follow-on work blocked or unblocked by this sprint:
   - unblocks `P.2` Gemini-side harness closure on the same shared contract
   - contributes accepted Codex retained-surface evidence required by `P.4`
+
+### Integration QA Questions
+
+- AC traceability complete?
+  - yes; `HKR-017` Codex-side closure is reflected in `docs/requirements.md`
+    and `docs/traceability.md`, and the retained Codex harness evidence is
+    linked from the sprint references
+- No new `requirements.md` entries without `HKR-*` IDs?
+  - yes; this sprint only updated existing `HKR-017` contract text and did
+    not introduce a new unnamed requirement
+- No new `implementation-gaps.md` entries without `RULING-NEEDED-*` IDs?
+  - yes; `P.1` did not add any new implementation-gap entry
+- All amendment notes in standalone three-field block format?
+  - yes; the `HKR-017` Codex-side amendment is recorded as its own
+    prior/current/authorizing-sprint block
+- No `plan-phase-P.md` branch mismatches introduced?
+  - yes; `P.1` still points to `feature/pP-s1-harness-expansion` in the plan
