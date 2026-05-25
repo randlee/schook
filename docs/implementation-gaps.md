@@ -141,34 +141,30 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### PRR-009: Missing `hooks` CLI Alias
 
-- Status: `active`
+- Status: `closed in P.8`
 - Owner area:
   - packaging, install docs, release docs
 - Current note:
-  - the naming direction is frozen on `sc-hooks` as canonical with `hooks` as a
-    convenience alias, but this repo does not yet ship an alias wrapper,
-    symlink, or install-time alias mechanism
-  - release/docs work should not imply that invoking `hooks` is already a
-    guaranteed supported path until packaging or install output creates that
-    alias explicitly
-  - recommendation: implement the alias in release packaging/install flow or
-    downgrade any remaining “supported alias” language to planned follow-on text
+  - `P.8` closed this by adding the install-time alias wrapper through
+    `ensure_cli_alias()` in `crates/sc-hooks-cli/src/install.rs`
+  - `USAGE.md` now documents the supported `hooks` alias path alongside the
+    canonical `sc-hooks` install/cutover flow
+  - `docs/project-plan.md` records `PRR-009` as closed by `P.8`
 
 ### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
 
-- Status: `active with quality-mgr sign-off`
+- Status: `closed in P.8`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-test`, docs
 - Current note:
-  - `retry_executable_file_busy()` now centralizes the bounded retry behavior
-    used by the host and test harness, but there is still no direct test that
-    proves the fully exhausted `ExecutableFileBusy` path returns the final
-    retryable error
-  - this is explicitly signed off for the current merge because the helper is
-    now single-owned, behaviorally simple, and already covered for successful
-    retry and immediate non-retryable failure
-  - recommendation: add one focused exhausted-retry-path unit test only if a
-    later change touches the helper behavior again
+  - `P.8` closed this by adding direct exhausted-retry-path coverage in
+    `crates/sc-hooks-core/src/process.rs` via
+    `returns_final_executable_file_busy_after_retry_budget_exhausted()`
+  - the shared retry helper remains single-owned and now has explicit proof for
+    successful retry, immediate non-retryable failure, and retry-budget
+    exhaustion
+  - `docs/project-plan.md` records `LOGR-QA-004` as closed by `P.8`, and the
+    merged integration baseline passes `cargo test --workspace`
 
 ## Closed Items
 
