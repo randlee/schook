@@ -4,24 +4,24 @@
 surface:
 
 ```bash
-just lint sc-boundary
-just lint sc-portability
+just lint boundary
+just lint portability
 ```
 
 Those commands are wrappers over the private `just _lint-sc-boundary` and
-`just _lint-sc-portability` recipes in the repo `justfile`. The wrappers keep
+`just _lint-portability` recipes in the repo `justfile`. The wrappers keep
 the public command surface aligned with the `../atm-core` help/lint pattern
 while reserving the implementation detail for helper scripts:
 
 ```text
-just lint sc-boundary
-  -> .just/run_lint.py sc-boundary
+just lint boundary
+  -> .just/run_lint.py boundary
     -> just _lint-sc-boundary
       -> .just/lint_sc_boundary.py
 
-just lint sc-portability
-  -> .just/run_lint.py sc-portability
-    -> just _lint-sc-portability
+just lint portability
+  -> .just/run_lint.py portability
+    -> just _lint-portability
       -> .just/lint_sc_portability.py
 ```
 
@@ -30,26 +30,15 @@ just lint sc-portability
 Current preferred boundary backend on this machine:
 
 - discover `sc-lint-boundary` from `PATH`
-- prefer the Homebrew-installed `sc-lint-boundary 0.1.0` when discovery succeeds
-
-Explicit fallback:
-
-- repo-local `../sc-lint`
-- invoked through `cargo run --manifest-path <sc-lint>/Cargo.toml -p sc-lint-boundary -- ...`
-- wrapper search walks up to three parent levels from the repo root:
-  - `../sc-lint`
-  - `../../sc-lint`
-  - `../../../sc-lint`
+- prefer the Homebrew-installed `randlee/tap/sc-lint` toolset or a direct
+  `cargo install sc-lint-boundary@0.2.0` installation when discovery succeeds
 
 Current preferred portability backend:
 
 - discover `sc-lint-portability` from `PATH`
-- otherwise use repo-local `../sc-lint`
-- invoked through `cargo run --manifest-path <sc-lint>/Cargo.toml -p sc-lint-portability -- ...`
-- wrapper search walks the same three fallback candidates:
-  - `../sc-lint`
-  - `../../sc-lint`
-  - `../../../sc-lint`
+- prefer the Homebrew-installed `randlee/tap/sc-lint` toolset or a direct
+  `cargo install sc-lint-portability@0.2.0` installation when discovery
+  succeeds
 
 If either backend is unavailable, the matching public lint command fails
 immediately instead of silently skipping enforcement.
@@ -75,5 +64,6 @@ The intended enforcement scope for `O.2` is narrow:
 This sprint installs the enforcement path. `O.3` lands the actual normalization
 trait and runtime types that will sit behind that boundary.
 
-For `Phase P`, portability joins that same required lint gate. New runtime
-surface work is not considered ready when `just lint sc-portability` is red.
+For `Phase P`, boundary and portability are paired required lint gates. New
+runtime surface work is not considered ready when either `just lint boundary`
+or `just lint portability` is red.

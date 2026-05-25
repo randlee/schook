@@ -141,7 +141,7 @@ the implementation.
 - `cargo check --workspace`
 - `cargo clippy --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
-- `just lint sc-boundary`
+- `just lint boundary`
 - `git diff --check`
 
 ## Sprint QA Checklist
@@ -171,7 +171,7 @@ the implementation.
   - `cargo check --workspace`
   - `cargo clippy --all-targets --all-features -- -D warnings`
   - `cargo test --workspace`
-  - `just lint sc-boundary`
+  - `just lint boundary`
   - `git diff --check`
 - Follow-on work:
   - `P.5` closes Codex retained provider-runtime parity

@@ -29,8 +29,8 @@ class LintSurfaceTests(unittest.TestCase):
             "manifests",
             "spell",
             "pytests",
-            "sc-boundary",
-            "sc-portability",
+            "boundary",
+            "portability",
         }
         self.assertTrue(expected.issubset(mod.TARGETS.keys()))
 

@@ -16,8 +16,8 @@ TARGETS = {
     "manifests": ["just", "_lint-manifests"],
     "spell": ["just", "_lint-spell"],
     "pytests": ["just", "_lint-pytests"],
-    "sc-boundary": ["just", "_lint-sc-boundary"],
-    "sc-portability": ["just", "_lint-sc-portability"],
+    "boundary": ["just", "_lint-sc-boundary"],
+    "portability": ["just", "_lint-portability"],
 }
 
 ALL_ORDER = (
@@ -30,8 +30,8 @@ ALL_ORDER = (
     "manifests",
     "spell",
     "pytests",
-    "sc-boundary",
-    "sc-portability",
+    "boundary",
+    "portability",
 )
 
 

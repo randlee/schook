@@ -5,7 +5,7 @@ harness, and documentation work.
 
 ## Phase P Gate
 
-- `just lint sc-portability` is a required pre-merge gate for `Phase P`
+- `just lint portability` is a required pre-merge gate for `Phase P`
   runtime-facing work
 - new Codex/Gemini runtime parity changes are not allowed to rely on
   Mac-only/Unix-only implementation paths without an explicit cross-platform

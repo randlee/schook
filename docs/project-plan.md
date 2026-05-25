@@ -108,6 +108,10 @@ Phase P progress note:
 - `P.7` completed the ruling-closeout pass on
   `feature/pP-s7-ruling-closeout`, explicitly deferring `ECR-001` and
   `ECR-002` past `Phase P` while closing `HRN-005` and `COW-003`
+- `P.9` hardens the published `sc-lint` gating path on
+  `feature/pP-s9-sc-lint-portability`, removing the repo-local `../sc-lint`
+  fallback from the public lint wrappers and adding a dedicated CI `sc-lint`
+  job for `sc-boundary` and `portability`
 
 Phase N closure note:
 

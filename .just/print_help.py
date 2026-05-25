@@ -42,8 +42,8 @@ SECTIONS = (
             ("lint manifests", "Run Cargo manifest policy checks."),
             ("lint spell", "Run the codespell content check."),
             ("lint pytests", "Run Python lint-tool unit tests."),
-            ("lint sc-boundary", "Run the provider-normalization boundary lint wrapper."),
-            ("lint sc-portability", "Run the cross-platform portability lint wrapper."),
+            ("lint boundary", "Run the provider-normalization boundary lint wrapper."),
+            ("lint portability", "Run the cross-platform portability lint wrapper."),
         ),
     ),
 )

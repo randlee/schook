@@ -84,7 +84,7 @@ target: integrate/phase-P
 ## Required Validation
 
 - `cargo test --workspace`
-- `just lint sc-portability`
+- `just lint portability`
 - `just test hooks codex`
 - `git diff --check`
 
@@ -120,7 +120,7 @@ target: integrate/phase-P
   - `cargo fmt --check --all`
   - `cargo clippy --all-targets --all-features -- -D warnings`
   - `cargo test --workspace`
-  - `just lint sc-portability`
+  - `just lint portability`
   - `just test hooks codex`
   - `git diff --check`
 - Follow-on status:
