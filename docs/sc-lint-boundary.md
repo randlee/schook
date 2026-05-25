@@ -1,37 +1,47 @@
 # `sc-lint-boundary` Wrapper
 
-`Phase O` uses one public boundary-lint entrypoint:
+`Phase P` keeps two public `sc-lint`-family entrypoints in the curated `just`
+surface:
 
 ```bash
-just lint sc-boundary
+just lint boundary
+just lint portability
 ```
 
-That command is a wrapper over the private `just _lint-sc-boundary` recipe in
-the repo `justfile`. The wrapper keeps the public command surface aligned with
-the `../atm-core` help/lint pattern while reserving the implementation detail
-for one helper script:
+Those commands are wrappers over the private `just _lint-boundary` and
+`just _lint-portability` recipes in the repo `justfile`. The wrappers keep
+the public command surface aligned with the `../atm-core` help/lint pattern
+while reserving the implementation detail for helper scripts:
 
 ```text
-just lint sc-boundary
-  -> .just/run_lint.py sc-boundary
-    -> just _lint-sc-boundary
+just lint boundary
+  -> .just/run_lint.py boundary
+    -> just _lint-boundary
       -> .just/lint_sc_boundary.py
+
+just lint portability
+  -> .just/run_lint.py portability
+    -> just _lint-portability
+      -> .just/lint_sc_portability.py
 ```
 
 ## Backend Selection
 
-Current preferred backend on this machine:
+Current preferred boundary backend on this machine:
 
 - discover `sc-lint-boundary` from `PATH`
-- prefer the Homebrew-installed `sc-lint-boundary 0.1.0` when discovery succeeds
+- prefer the Homebrew-installed `randlee/tap/sc-lint` toolset or a direct
+  `cargo install sc-lint-boundary@0.2.0` installation when discovery succeeds
 
-Explicit fallback:
+Current preferred portability backend:
 
-- repo-local `../sc-lint`
-- invoked through `cargo run --manifest-path <sc-lint>/Cargo.toml -p sc-lint-boundary -- ...`
+- discover `sc-lint-portability` from `PATH`
+- prefer the Homebrew-installed `randlee/tap/sc-lint` toolset or a direct
+  `cargo install sc-lint-portability@0.2.0` installation when discovery
+  succeeds
 
-If neither backend is available, `just lint sc-boundary` fails immediately
-instead of silently skipping boundary enforcement.
+If either backend is unavailable, the matching public lint command fails
+immediately instead of silently skipping enforcement.
 
 ## What The Wrapper Enforces
 
@@ -53,3 +63,7 @@ The intended enforcement scope for `O.2` is narrow:
 
 This sprint installs the enforcement path. `O.3` lands the actual normalization
 trait and runtime types that will sit behind that boundary.
+
+For `Phase P`, boundary and portability are paired required lint gates. New
+runtime surface work is not considered ready when either `just lint boundary`
+or `just lint portability` is red.

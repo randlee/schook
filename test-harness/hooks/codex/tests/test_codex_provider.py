@@ -124,7 +124,7 @@ def test_notify_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) 
 
 @pytest.mark.provider_codex
 def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -> None:
-    """PreToolUse cancelation is intentionally tolerant of partial payloads by design."""
+    """PreToolUse cancellation is intentionally tolerant of partial payloads by design."""
     capture_root = tmp_path / "captures"
     state_root = tmp_path / "state"
     repo_root = tmp_path / "repo"
@@ -357,6 +357,20 @@ def test_manifest_has_required_top_level_keys(codex_root: Path) -> None:
 
 
 @pytest.mark.provider_codex
+def test_manifest_records_non_exercisable_codex_surfaces_with_reasons(codex_root: Path) -> None:
+    manifest_path = codex_root / "fixtures" / "approved" / "manifest.json"
+    manifest = validate_codex_fixture_manifest(json.loads(manifest_path.read_text(encoding="utf-8")))
+
+    dispositions = {surface.surface: surface for surface in manifest.hook_surfaces}
+    for surface_name in ("Stop", "resume", "fork"):
+        surface = dispositions[surface_name]
+        assert surface.status == "confirmed-not-exercisable"
+        assert surface.reason
+        assert surface.payload_fixture is None
+        assert surface.env_fixture is None
+
+
+@pytest.mark.provider_codex
 def test_approved_payload_fixtures_validate_against_models(
     codex_root: Path, expected_hooks: dict[str, str]
 ) -> None:
@@ -455,3 +469,14 @@ def test_manifest_records_cd_scenario_through_approved_fixtures(codex_root: Path
         "PreToolUse (--cd)",
         "notify (--cd)",
     } <= manifest_surfaces
+
+
+@pytest.mark.provider_codex
+def test_codex_hook_api_records_non_exercisable_surface_dispositions(codex_root: Path) -> None:
+    doc_path = Path.cwd() / "docs" / "hook-api" / "codex-hook-api.md"
+    doc_text = doc_path.read_text(encoding="utf-8")
+
+    assert "### `Stop` — Not Reliable" in doc_text
+    assert "### `resume` — Not Exercisable In The Noninteractive Harness" in doc_text
+    assert "### `fork` — Not Exercisable In The Noninteractive Harness" in doc_text
+    assert "confirmed-not-exercisable" in doc_text

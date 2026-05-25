@@ -31,8 +31,40 @@ _lint-clippy:
     {{clippy_cmd}}
 
 [private]
-_lint-sc-boundary:
+_lint-modules:
+    {{python_cmd}} .just/lint_cargo_modules.py
+
+[private]
+_lint-deny:
+    {{python_cmd}} .just/lint_cargo_deny.py
+
+[private]
+_lint-shear:
+    {{python_cmd}} .just/lint_cargo_shear.py
+
+[private]
+_lint-version:
+    {{python_cmd}} .just/check_version_sync.py
+
+[private]
+_lint-manifests:
+    {{python_cmd}} .just/lint_manifests.py
+
+[private]
+_lint-spell:
+    {{python_cmd}} .just/lint_codespell.py
+
+[private]
+_lint-pytests:
+    {{python_cmd}} .just/run_pytests.py
+
+[private]
+_lint-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
+
+[private]
+_lint-portability:
+    {{python_cmd}} .just/lint_sc_portability.py
 
 # Build the full workspace.
 build:
@@ -44,18 +76,7 @@ install target='local-cutover':
 
 # Run the full workspace test suite or the exact hook harness entrypoints.
 test target='workspace' provider='':
-    @if [ "{{target}}" = "workspace" ] && [ -z "{{provider}}" ]; then \
-      {{python_cmd}} .just/run_test.py workspace; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "claude" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py claude; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "codex" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py codex; \
-    elif [ "{{target}}" = "hooks" ] && [ "{{provider}}" = "gemini" ]; then \
-      {{python_cmd}} .just/run_hook_tests.py gemini; \
-    else \
-      printf '%s\n' "error: expected 'just test workspace' or 'just test hooks <claude|codex|gemini>'" >&2; \
-      exit 1; \
-    fi
+    {{python_cmd}} .just/run_test.py {{target}} {{provider}}
 
 # Remove workspace build artifacts.
 clean:

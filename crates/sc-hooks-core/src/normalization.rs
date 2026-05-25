@@ -52,6 +52,7 @@ pub(crate) enum CanonicalHook {
 pub(crate) enum CodexHook {
     SessionStart,
     PreToolUse,
+    Notify,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +62,7 @@ pub(crate) enum GeminiHook {
     BeforeAgent,
     BeforeTool,
     AfterTool,
+    AfterAgent,
 }
 
 /// Canonical payload families accepted by the runtime normalization seam.
@@ -74,6 +76,9 @@ pub(crate) enum CanonicalPayload<'a> {
         body: &'a Value,
     },
     AgentLifecycle {
+        body: &'a Value,
+    },
+    StopLifecycle {
         body: &'a Value,
     },
 }
@@ -168,8 +173,8 @@ impl ProviderHookNormalizer for CodexHookNormalizer {
         &self,
         raw: ProviderHookInput<'a>,
     ) -> Result<NormalizedHookContext<'a>, HookError> {
-        let hook_name = raw_string(raw.raw, "hook_event_name")?;
-        match hook_name {
+        let hook_name = codex_surface_name(raw.raw)?;
+        match hook_name.as_ref() {
             "SessionStart" => {
                 require_string_field(raw.raw, "session_id")?;
                 require_string_field(raw.raw, "cwd")?;
@@ -234,6 +239,22 @@ impl ProviderHookNormalizer for CodexHookNormalizer {
                         tool_name: ToolName(Cow::Borrowed("Bash")),
                         body: raw.raw,
                     },
+                })
+            }
+            "Notify" => {
+                require_string_field(raw.raw, "thread-id")?;
+                require_string_field(raw.raw, "cwd")?;
+                Ok(NormalizedHookContext {
+                    hook: CanonicalHook::Codex(CodexHook::Notify),
+                    event: None,
+                    session_id: Some(SessionId(Cow::Borrowed(require_string_field(
+                        raw.raw,
+                        "thread-id",
+                    )?))),
+                    project_root: Some(path_field(raw.raw, "cwd")?),
+                    current_dir: Some(path_field(raw.raw, "cwd")?),
+                    tool_name: None,
+                    payload: CanonicalPayload::StopLifecycle { body: raw.raw },
                 })
             }
             other => Err(HookError::normalization(
@@ -407,6 +428,22 @@ impl ProviderHookNormalizer for GeminiHookNormalizer {
                     },
                 })
             }
+            "AfterAgent" => {
+                require_string_field(raw.raw, "session_id")?;
+                require_string_field(raw.raw, "cwd")?;
+                Ok(NormalizedHookContext {
+                    hook: CanonicalHook::Gemini(GeminiHook::AfterAgent),
+                    event: None,
+                    session_id: Some(SessionId(Cow::Borrowed(require_string_field(
+                        raw.raw,
+                        "session_id",
+                    )?))),
+                    project_root: Some(path_field(raw.raw, "cwd")?),
+                    current_dir: Some(path_field(raw.raw, "cwd")?),
+                    tool_name: None,
+                    payload: CanonicalPayload::StopLifecycle { body: raw.raw },
+                })
+            }
             other => Err(HookError::normalization(
                 NormalizationError::UnsupportedApprovedSurface {
                     provider: raw.provider,
@@ -485,6 +522,9 @@ fn ensure_payload_compatible(
             CanonicalHook::Codex(CodexHook::PreToolUse),
             CanonicalPayload::ToolUse { .. }
         ) | (
+            CanonicalHook::Codex(CodexHook::Notify),
+            CanonicalPayload::StopLifecycle { .. }
+        ) | (
             CanonicalHook::Gemini(GeminiHook::SessionStart),
             CanonicalPayload::SessionLifecycle { .. }
         ) | (
@@ -499,6 +539,9 @@ fn ensure_payload_compatible(
         ) | (
             CanonicalHook::Gemini(GeminiHook::AfterTool),
             CanonicalPayload::ToolUse { .. }
+        ) | (
+            CanonicalHook::Gemini(GeminiHook::AfterAgent),
+            CanonicalPayload::StopLifecycle { .. }
         )
     );
     if valid {
@@ -518,6 +561,9 @@ fn runtime_hook(hook: &CanonicalHook) -> HookType {
         CanonicalHook::Codex(CodexHook::SessionStart)
         | CanonicalHook::Gemini(GeminiHook::SessionStart) => HookType::SessionStart,
         CanonicalHook::Gemini(GeminiHook::SessionEnd) => HookType::SessionEnd,
+        CanonicalHook::Codex(CodexHook::Notify) | CanonicalHook::Gemini(GeminiHook::AfterAgent) => {
+            HookType::Stop
+        }
         CanonicalHook::Codex(CodexHook::PreToolUse)
         | CanonicalHook::Gemini(GeminiHook::BeforeAgent)
         | CanonicalHook::Gemini(GeminiHook::BeforeTool) => HookType::PreToolUse,
@@ -532,7 +578,9 @@ fn runtime_event<'a>(
     match hook {
         CanonicalHook::Codex(CodexHook::SessionStart)
         | CanonicalHook::Gemini(GeminiHook::SessionStart)
-        | CanonicalHook::Gemini(GeminiHook::SessionEnd) => Ok(None),
+        | CanonicalHook::Gemini(GeminiHook::SessionEnd)
+        | CanonicalHook::Codex(CodexHook::Notify)
+        | CanonicalHook::Gemini(GeminiHook::AfterAgent) => Ok(None),
         CanonicalHook::Codex(CodexHook::PreToolUse)
         | CanonicalHook::Gemini(GeminiHook::BeforeAgent)
         | CanonicalHook::Gemini(GeminiHook::BeforeTool)
@@ -557,6 +605,17 @@ fn runtime_payload(
             | CanonicalHook::Gemini(GeminiHook::SessionEnd),
             CanonicalPayload::SessionLifecycle { body },
         ) => Ok(body.clone()),
+        (
+            CanonicalHook::Codex(CodexHook::Notify) | CanonicalHook::Gemini(GeminiHook::AfterAgent),
+            CanonicalPayload::StopLifecycle { body },
+        ) => Ok(json!({
+            "session_id": stop_session_id(body)?,
+            "transcript_path": optional_string(body, "transcript_path"),
+            "cwd": require_string_field(body, "cwd")?,
+            "stop_hook_active": optional_bool(body, "stop_hook_active").unwrap_or(false),
+            "permission_mode": optional_string(body, "permission_mode"),
+            "last_assistant_message": canonical_stop_message(body),
+        })),
         (CanonicalHook::Codex(CodexHook::PreToolUse), CanonicalPayload::ToolUse { body, .. }) => {
             Ok(body.clone())
         }
@@ -620,19 +679,36 @@ fn payload_kind(payload: &CanonicalPayload<'_>) -> &'static str {
         CanonicalPayload::ToolUse { .. } => "tool_use",
         CanonicalPayload::SessionLifecycle { .. } => "session_lifecycle",
         CanonicalPayload::AgentLifecycle { .. } => "agent_lifecycle",
+        CanonicalPayload::StopLifecycle { .. } => "stop_lifecycle",
     }
 }
 
 fn hook_label(value: &str) -> &'static str {
     match value {
+        "Notify" | "agent-turn-complete" => "Notify",
         "SessionStart" => "SessionStart",
         "SessionEnd" => "SessionEnd",
         "BeforeAgent" => "BeforeAgent",
         "BeforeTool" => "BeforeTool",
         "AfterTool" => "AfterTool",
+        "AfterAgent" => "AfterAgent",
         "PreToolUse" => "PreToolUse",
         _ => "unknown",
     }
+}
+
+fn codex_surface_name<'a>(payload: &'a Value) -> Result<Cow<'a, str>, HookError> {
+    if let Some(value) = payload.get("hook_event_name").and_then(Value::as_str) {
+        return Ok(Cow::Borrowed(value));
+    }
+    if payload.get("type").and_then(Value::as_str) == Some("agent-turn-complete") {
+        return Ok(Cow::Borrowed("Notify"));
+    }
+    Err(HookError::normalization(
+        NormalizationError::MissingRequiredField {
+            field: "hook_event_name",
+        },
+    ))
 }
 
 impl std::fmt::Display for ProviderHookSource {
@@ -683,15 +759,49 @@ fn optional_string<'a>(payload: &'a Value, field: &'static str) -> Option<&'a st
     payload.get(field).and_then(Value::as_str)
 }
 
+fn optional_bool(payload: &Value, field: &'static str) -> Option<bool> {
+    payload.get(field).and_then(Value::as_bool)
+}
+
+fn stop_session_id(payload: &Value) -> Result<&str, HookError> {
+    optional_string(payload, "session_id")
+        .or_else(|| optional_string(payload, "thread-id"))
+        .ok_or_else(|| {
+            HookError::normalization(NormalizationError::MissingRequiredField {
+                field: "session_id",
+            })
+        })
+}
+
+fn canonical_stop_message(payload: &Value) -> Option<&str> {
+    optional_string(payload, "last_assistant_message")
+        .or_else(|| optional_string(payload, "last-assistant-message"))
+        .or_else(|| {
+            optional_string(payload, "prompt_response").and_then(|value| {
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            })
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const CODEX_PRE_TOOL_USE: &str =
         include_str!("../../../test-harness/hooks/codex/fixtures/approved/pretooluse-bash.json");
+    const CODEX_NOTIFY: &str = include_str!(
+        "../../../test-harness/hooks/codex/fixtures/approved/notify-agent-turn-complete.json"
+    );
     const CODEX_SESSION_START: &str = include_str!(
         "../../../test-harness/hooks/codex/fixtures/approved/session-start-startup.json"
     );
+    const GEMINI_AFTER_AGENT: &str =
+        include_str!("../../../test-harness/hooks/gemini/fixtures/approved/after-agent.json");
     const GEMINI_BEFORE_AGENT: &str =
         include_str!("../../../test-harness/hooks/gemini/fixtures/approved/before-agent.json");
     const GEMINI_BEFORE_TOOL: &str =
@@ -739,6 +849,27 @@ mod tests {
         let payload = context.payload_value().expect("payload");
         assert_eq!(payload["tool_name"], "Bash");
         assert_eq!(payload["tool_input"]["command"], "pwd");
+    }
+
+    #[test]
+    fn codex_notify_normalizes_into_stop_context() {
+        let raw = fixture(CODEX_NOTIFY);
+        let context = normalize_provider_hook(ProviderHookInput {
+            provider: ProviderHookSource::Codex,
+            raw: &raw,
+            metadata_path: None,
+        })
+        .expect("codex notify should normalize");
+
+        assert_eq!(context.hook, HookType::Stop);
+        assert!(context.event.is_none());
+        let payload = context.payload_value().expect("payload");
+        assert_eq!(
+            payload["session_id"],
+            "019e5106-079f-7121-9fef-f605ee1c0527"
+        );
+        assert_eq!(payload["last_assistant_message"], "OK");
+        assert_eq!(payload["stop_hook_active"], false);
     }
 
     #[test]
@@ -830,6 +961,27 @@ mod tests {
     }
 
     #[test]
+    fn gemini_after_agent_normalizes_into_stop_context() {
+        let raw = fixture(GEMINI_AFTER_AGENT);
+        let context = normalize_provider_hook(ProviderHookInput {
+            provider: ProviderHookSource::Gemini,
+            raw: &raw,
+            metadata_path: None,
+        })
+        .expect("gemini after agent should normalize");
+
+        assert_eq!(context.hook, HookType::Stop);
+        assert!(context.event.is_none());
+        let payload = context.payload_value().expect("payload");
+        assert_eq!(
+            payload["session_id"],
+            "dbd5571c-992c-4311-a033-974afe982108"
+        );
+        assert_eq!(payload["last_assistant_message"], "OK");
+        assert_eq!(payload["stop_hook_active"], false);
+    }
+
+    #[test]
     fn compatibility_check_rejects_invalid_hook_payload_pairings() {
         let err = NormalizedHookContext {
             hook: CanonicalHook::Codex(CodexHook::SessionStart),
@@ -886,6 +1038,21 @@ mod tests {
     }
 
     #[test]
+    fn codex_runtime_dispatch_returns_canonical_stop_surface_for_notify() {
+        let raw = fixture(CODEX_NOTIFY);
+        let dispatch = normalize_runtime_dispatch(RuntimeProvider::Codex, &raw).expect("dispatch");
+
+        assert_eq!(dispatch.hook, HookType::Stop);
+        assert!(dispatch.event.is_none());
+        assert_eq!(
+            dispatch.payload["session_id"],
+            "019e5106-079f-7121-9fef-f605ee1c0527"
+        );
+        assert_eq!(dispatch.payload["last_assistant_message"], "OK");
+        assert_eq!(dispatch.payload["stop_hook_active"], false);
+    }
+
+    #[test]
     fn gemini_runtime_dispatch_returns_canonical_post_tool_surface() {
         let raw = fixture(GEMINI_AFTER_TOOL);
         let dispatch = normalize_runtime_dispatch(RuntimeProvider::Gemini, &raw).expect("dispatch");
@@ -899,5 +1066,20 @@ mod tests {
                 .expect("stdout")
                 .contains("/synthetic/test/gemini-harness")
         );
+    }
+
+    #[test]
+    fn gemini_runtime_dispatch_returns_canonical_stop_surface_for_after_agent() {
+        let raw = fixture(GEMINI_AFTER_AGENT);
+        let dispatch = normalize_runtime_dispatch(RuntimeProvider::Gemini, &raw).expect("dispatch");
+
+        assert_eq!(dispatch.hook, HookType::Stop);
+        assert!(dispatch.event.is_none());
+        assert_eq!(
+            dispatch.payload["session_id"],
+            "dbd5571c-992c-4311-a033-974afe982108"
+        );
+        assert_eq!(dispatch.payload["last_assistant_message"], "OK");
+        assert_eq!(dispatch.payload["stop_hook_active"], false);
     }
 }

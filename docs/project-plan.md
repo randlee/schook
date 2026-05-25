@@ -92,6 +92,27 @@ Important planning rule:
 | Phase N Follow-On | Completed | provider-harness verification — Claude baseline refresh, Codex/Gemini harness and provider-doc/model verification, final `just` entrypoints | `HKR-017` | Phase N | `docs/phase-N/plan-remediation.md`, `docs/phase-N/sprint-N5.md` through `docs/phase-N/sprint-N10.md`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile` |
 | Phase O | Completed | runtime hook normalization — pre-runtime hygiene closure, `sc-lint` boundary enforcement, approved Codex/Gemini surfaces to Claude parity, cross-provider plugin parity, and local-machine cutover | `HKR-006`, `HKR-010`, `HKR-017` | Phase N Follow-On | `docs/plan-phase-O.md`, `docs/phase-O/`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, `boundaries/`, `justfile`, local provider install/cutover assets |
 | Phase P | Completed | missing-hook parity expansion — complete the deferred Codex/Gemini hook surfaces in the harness first, adopt the available `sc-lint` suite through the `../atm-core` `just lint` pattern with an explicit cross-platform gate, then extend runtime normalization/parity for those surfaces through the sealed trait boundary with an authoritative cross-agent hook/field mapping table, and finally close the remaining active implementation-gap rulings and release-operator follow-ons | `HKR-006`, `HKR-010`, `HKR-017`, `PRR-009`, `LOGR-QA-004`, `RULING-NEEDED-ECR-001`, `RULING-NEEDED-ECR-002`, `RULING-NEEDED-HRN-005`, `RULING-NEEDED-COW-003` | Phase O | `docs/plan-phase-P.md`, `docs/phase-P/`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile`, `.just/`, `docs/cross-platform-guidelines.md`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, install/alias docs |
+
+Phase P progress note:
+
+- `P.8` completed the CLI alias and retry-coverage closeout on
+  `feature/pP-s8-observability-qa`, closing `PRR-009` and `LOGR-QA-004`
+  through the local install/cutover alias wrapper and explicit exhausted
+  retry-budget coverage
+- all eight `P.1` through `P.8` sprints are complete on `integrate/phase-P`,
+  and the branch is ready for the `integrate/phase-P` -> `develop` merge path
+- `P.4` completed the canonical hook-mapping and lifecycle-family normalization
+  extension on `feature/pP-s4-canonical-hook-mapping`, landing the
+  authoritative `docs/phase-P/canonical-hook-mapping.md` artifact while
+  leaving provider-runtime closure to `P.5` and `P.6`
+- `P.7` completed the ruling-closeout pass on
+  `feature/pP-s7-ruling-closeout`, explicitly deferring `ECR-001` and
+  `ECR-002` past `Phase P` while closing `HRN-005` and `COW-003`
+- `P.9` hardens the published `sc-lint` gating path on
+  `feature/pP-s9-sc-lint-portability`, removing the repo-local `../sc-lint`
+  fallback from the public lint wrappers and adding a dedicated CI `sc-lint`
+  job for `sc-boundary` and `portability`
+
 | Phase Q | Planned | production-readiness smoke and next-provider harness expansion — evaluate `openshell`, add the curated `just smoke` surface and CI ownership path, land executable smoke coverage for Claude/Codex/Gemini, then expand the permanent provider harness/docs/models for Cursor Agent and opencode without yet authorizing their runtime parity work | `HKR-007`, `HKR-018`, `HKR-019` | Phase P | `docs/plan-phase-Q.md`, `docs/phase-Q/`, `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, `justfile`, `.just/`, `.github/workflows/ci.yml`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, smoke operator docs |
 
 Phase N closure note:

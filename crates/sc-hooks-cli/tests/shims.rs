@@ -20,13 +20,12 @@ printf "%s|%s|%s|%s\n" \
         .expect("mock sc-hooks should be writable");
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
         let mut perms = temp
             .as_file()
             .metadata()
             .expect("mock script metadata should be readable")
             .permissions();
-        perms.set_mode(0o755);
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
         temp.as_file()
             .set_permissions(perms)
             .expect("mock script should be executable");

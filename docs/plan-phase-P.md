@@ -1,5 +1,12 @@
 # Phase P Plan
 
+Status tracking note:
+
+- sprint completion status is tracked centrally in `docs/project-plan.md`
+  and in each sprint document frontmatter by design; this phase plan keeps the
+  execution sequence and scope contract rather than duplicating live status
+  rows
+
 ## Goal
 
 Finish the missing provider-hook parity that Phase `O` did not cover, starting
@@ -110,10 +117,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s1-codex-missing-hook-harness`
+- `feature/pP-s1-harness-expansion`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s1-codex-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s1-harness-expansion`
 
 ### P.2 Gemini Missing-Hook Harness Expansion
 
@@ -127,10 +134,10 @@ Purpose:
   `HKR-017`, including matching `docs/traceability.md` updates
 
 Execution branch:
-- `feature/pP-s2-gemini-missing-hook-harness`
+- `feature/pP-s2-gemini-afteragent`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s2-gemini-missing-hook-harness`
+- `../schook-worktrees/feature/pP-s2-gemini-afteragent`
 
 ### P.3 `sc-lint` Suite Adoption And Cross-Platform Gate
 
@@ -139,15 +146,15 @@ Purpose:
 - adopt the full in-repo `sc-lint` lint pattern that is already used in
   `../sc-lint` and follows the curated `just lint` style used in `../atm-core`
 - wire the available `sc-lint` lint surfaces into this repo, including
-  `sc-boundary` and `sc-portability`
+  `sc-boundary` and the user-facing `portability` gate
 - make cross-platform portability a hard gate before new runtime parity work
   lands so Phase P does not drift into Unix-only implementation
 
 Execution branch:
-- `feature/pP-s3-sc-lint-suite-adoption`
+- `feature/pP-s3-lint-portability`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s3-sc-lint-suite-adoption`
+- `../schook-worktrees/feature/pP-s3-lint-portability`
 
 ### P.4 Lifecycle-Family Normalization Extension
 
@@ -171,10 +178,10 @@ Execution precondition:
   accepted portability/boundary gate rather than speculative provider fields
 
 Execution branch:
-- `feature/pP-s4-lifecycle-normalization-extension`
+- `feature/pP-s4-canonical-hook-mapping`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s4-lifecycle-normalization-extension`
+- `../schook-worktrees/feature/pP-s4-canonical-hook-mapping`
 
 ### P.5 Codex Missing-Hook Runtime Parity
 
@@ -188,10 +195,10 @@ Purpose:
   normalization trait seam
 
 Execution branch:
-- `feature/pP-s5-codex-missing-hook-runtime`
+- `feature/pP-s5-codex-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s5-codex-missing-hook-runtime`
+- `../schook-worktrees/feature/pP-s5-codex-runtime-parity`
 
 ### P.6 Gemini Missing-Hook Runtime Parity
 
@@ -204,10 +211,10 @@ Purpose:
   normalization trait seam
 
 Execution branch:
-- `feature/pP-s6-gemini-missing-hook-runtime`
+- `feature/pP-s6-gemini-runtime-parity`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s6-gemini-missing-hook-runtime`
+- `../schook-worktrees/feature/pP-s6-gemini-runtime-parity`
 
 ### P.7 Error, Boundary, And Portability Ruling Closeout
 
@@ -219,10 +226,10 @@ Purpose:
   surfaces are fresh in hand
 
 Execution branch:
-- `feature/pP-s7-error-and-boundary-rulings`
+- `feature/pP-s7-ruling-closeout`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s7-error-and-boundary-rulings`
+- `../schook-worktrees/feature/pP-s7-ruling-closeout`
 
 ### P.8 CLI Alias And Retry-Coverage Closeout
 
@@ -233,10 +240,27 @@ Purpose:
 - finish the active implementation-gap ledger for the current release track
 
 Execution branch:
-- `feature/pP-s8-cli-and-retry-closeout`
+- `feature/pP-s8-observability-qa`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s8-cli-and-retry-closeout`
+- `../schook-worktrees/feature/pP-s8-observability-qa`
+
+### P.9 Published `sc-lint` Portability Gate
+
+Purpose:
+
+- remove the repo-local `../sc-lint` fallback from the public lint wrappers so
+  `schook` uses the published `0.2.0` analyzers directly
+- preserve the stable public lint surface while renaming the user-facing
+  portability command to `just lint portability`
+- add a dedicated CI `sc-lint` job that installs the published analyzers and
+  proves the boundary and portability gates on Linux
+
+Execution branch:
+- `feature/pP-s9-sc-lint-portability`
+
+Execution worktree:
+- `../schook-worktrees/feature/pP-s9-sc-lint-portability`
 
 ## Sprint Artifact Summary
 
@@ -256,7 +280,7 @@ Execution worktree:
   - `docs/cross-platform-guidelines.md`
   - repo-local wrappers for the available `sc-lint` surfaces from `../sc-lint`
   - `fmt`, `clippy`, `modules`, `deny`, `shear`, `version`, `manifests`,
-    `spell`, `pytests`, `sc-boundary`, and `sc-portability` under the
+    `spell`, `pytests`, `sc-boundary`, and `portability` under the
     `../atm-core` `just lint` pattern
 - `P.4`:
   - `crates/sc-hooks-core/`
@@ -279,3 +303,11 @@ Execution worktree:
   - install/packaging alias work for `hooks`
   - retry-path coverage in `sc-hooks-core` / `sc-hooks-test`
   - release/operator docs
+- `P.9`:
+  - `.just/lint_sc_boundary.py`
+  - `.just/lint_sc_portability.py`
+  - `.just/run_lint.py`
+  - `justfile`
+  - `.github/workflows/ci.yml`
+  - `docs/sc-lint-boundary.md`
+  - `docs/phase-P/sprint-P9.md`

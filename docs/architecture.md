@@ -137,6 +137,9 @@ Internal implementation detail:
 - `GeminiHook`
 - `CanonicalPayload`
 - `NormalizationError`
+- `HookError` remains one shared runtime error enum for the current release
+  track, and it does not carry `Backtrace` as part of the current public
+  error-layout posture
 
 ## 3.4 Provider Runtime Normalization Boundary
 
@@ -167,7 +170,7 @@ seam before generic runtime dispatch:
 - provider/runtime consistency is frozen by the seal mechanism,
   normalization-error taxonomy, required internal type set, and
   `(provider × hook × payload)` compatibility rules in this document
-- the internal canonical type inventory for `O.3` is:
+- the internal canonical type inventory extended through `P.6` is:
   - `ProviderHookSource`
   - `ProviderHookInput<'a>`
   - `NormalizedHookContext<'a>`
@@ -182,6 +185,8 @@ seam before generic runtime dispatch:
     `CanonicalPayload::SessionLifecycle`
   - `CanonicalHook::Codex(CodexHook::PreToolUse)` ->
     `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Codex(CodexHook::Notify)` ->
+    `CanonicalPayload::StopLifecycle`
   - `CanonicalHook::Gemini(GeminiHook::SessionStart)` ->
     `CanonicalPayload::SessionLifecycle`
   - `CanonicalHook::Gemini(GeminiHook::SessionEnd)` ->
@@ -192,16 +197,24 @@ seam before generic runtime dispatch:
     `CanonicalPayload::ToolUse`
   - `CanonicalHook::Gemini(GeminiHook::AfterTool)` ->
     `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::AfterAgent)` ->
+    `CanonicalPayload::StopLifecycle`
 - any other hook/payload pairing is invalid and must fail normalization as
   `NormalizationError::InvalidPayloadForHook`
-- the runtime hook/event projection locked by `O.3` is:
+- Codex `Stop`, `resume`, and `fork` remain disposition-only retained-surface
+  rows in `docs/phase-P/canonical-hook-mapping.md`; they are not live
+  canonical variants until accepted harness evidence proves they are
+  exercisable runtime surfaces
+- the runtime hook/event projection extended through `P.6` is:
   - Codex `SessionStart` -> `HookType::SessionStart`
   - Codex `PreToolUse` -> `HookType::PreToolUse("Bash")`
+  - Codex `Notify` -> `HookType::Stop`
   - Gemini `SessionStart` -> `HookType::SessionStart`
   - Gemini `SessionEnd` -> `HookType::SessionEnd`
   - Gemini `BeforeAgent` -> `HookType::PreToolUse("Agent")`
   - Gemini `BeforeTool` -> `HookType::PreToolUse("Bash")`
   - Gemini `AfterTool` -> `HookType::PostToolUse("Bash")`
+  - Gemini `AfterAgent` -> `HookType::Stop`
 - `RetryableGateInput` is reserved for approved gate surfaces that would
   otherwise produce vague blocking text:
   - Codex `PreToolUse`
@@ -224,6 +237,17 @@ Deferred O.7 install/cutover-only internal type ownership:
     selection; kept distinct from session-state provider metadata
 
 The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
+
+Accepted Phase P ruling posture:
+- the current release track deliberately keeps `HookError` as one shared
+  cross-crate runtime error enum and defers any multi-type split or
+  `Backtrace` capture expansion past `Phase P`
+- `crates/sc-hooks-test/src/worktree_hooks.rs` remains a Unix-gated library
+  test module by design because it proves shell fixture behavior rather than a
+  cross-platform runtime contract
+- `sc-hooks-cli::dispatch::execute_chain()` may keep the owned
+  `Vec<String>` handler-chain snapshot because observability and full-audit
+  emission need an owned chain independent of handler lifetimes
 
 Important SDK boundary:
 - `sc-hooks-sdk` may offer authoring conveniences that are broader than the host's guaranteed runtime contract
