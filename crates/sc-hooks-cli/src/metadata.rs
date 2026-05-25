@@ -242,10 +242,8 @@ fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFil
     })?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-
         file.as_file()
-            .set_permissions(fs::Permissions::from_mode(0o600))
+            .set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))
             .map_err(|source| {
                 CliError::internal_with_source(
                     format!("failed to secure metadata file {}", file.path().display()),
@@ -518,8 +516,6 @@ PreToolUse = ["guard-paths"]
     #[cfg(unix)]
     #[test]
     fn metadata_file_is_owner_only_on_unix() {
-        use std::os::unix::fs::PermissionsExt;
-
         let _guard = test_support::cwd_lock()
             .lock()
             .unwrap_or_else(|e| e.into_inner());
@@ -550,9 +546,8 @@ PreToolUse = ["guard-paths"]
                 .expect("metadata should prepare");
         let mode = fs::metadata(&prepared.env.metadata_path)
             .expect("metadata should exist")
-            .permissions()
-            .mode()
-            & 0o777;
+            .permissions();
+        let mode = std::os::unix::fs::PermissionsExt::mode(&mode) & 0o777;
         assert_eq!(mode, 0o600);
     }
 

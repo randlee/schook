@@ -17,6 +17,7 @@ def sc_lint_repo_candidates(root: Path) -> list[Path]:
     return [
         root.parent / "sc-lint",
         root.parent.parent / "sc-lint",
+        root.parent.parent.parent / "sc-lint",
     ]
 
 

@@ -31,8 +31,40 @@ _lint-clippy:
     {{clippy_cmd}}
 
 [private]
+_lint-modules:
+    {{python_cmd}} .just/lint_cargo_modules.py
+
+[private]
+_lint-deny:
+    {{python_cmd}} .just/lint_cargo_deny.py
+
+[private]
+_lint-shear:
+    {{python_cmd}} .just/lint_cargo_shear.py
+
+[private]
+_lint-version:
+    {{python_cmd}} .just/check_version_sync.py
+
+[private]
+_lint-manifests:
+    {{python_cmd}} .just/lint_manifests.py
+
+[private]
+_lint-spell:
+    {{python_cmd}} .just/lint_codespell.py
+
+[private]
+_lint-pytests:
+    {{python_cmd}} .just/run_pytests.py
+
+[private]
 _lint-sc-boundary:
     {{python_cmd}} .just/lint_sc_boundary.py
+
+[private]
+_lint-sc-portability:
+    {{python_cmd}} .just/lint_sc_portability.py
 
 # Build the full workspace.
 build:

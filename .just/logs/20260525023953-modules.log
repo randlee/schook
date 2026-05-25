@@ -1,0 +1,158 @@
+lint: modules
+repo_root: /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability
+started_at_utc: 2026-05-25T02:39:53.161951+00:00
+duration: 11.2s
+summary: module dependency graphs are acyclic
+
+crates analyzed:
+  crate                     package                   crate_path                manifest                                   
+  ------------------------  ------------------------  ------------------------  -------------------------------------------
+  sc-hooks-cli              sc-hooks-cli              sc_hooks_cli              crates/sc-hooks-cli/Cargo.toml             
+  sc-hooks-core             sc-hooks-core             sc_hooks_core             crates/sc-hooks-core/Cargo.toml            
+  sc-hooks-sdk              sc-hooks-sdk              sc_hooks_sdk              crates/sc-hooks-sdk/Cargo.toml             
+  sc-hooks-test             sc-hooks-test             sc_hooks_test             crates/sc-hooks-test/Cargo.toml            
+  agent-session-foundation  agent-session-foundation  agent_session_foundation  plugins/agent-session-foundation/Cargo.toml
+  agent-spawn-gates         agent-spawn-gates         agent_spawn_gates         plugins/agent-spawn-gates/Cargo.toml       
+  atm-extension             atm-extension             atm_extension             plugins/atm-extension/Cargo.toml           
+  audit-logger              audit-logger              audit_logger              plugins/audit-logger/Cargo.toml            
+  conditional-source        conditional-source        conditional_source        plugins/conditional-source/Cargo.toml      
+  event-relay               event-relay               event_relay               plugins/event-relay/Cargo.toml             
+  guard-paths               guard-paths               guard_paths               plugins/guard-paths/Cargo.toml             
+  identity-state            identity-state            identity_state            plugins/identity-state/Cargo.toml          
+  notify                    notify                    notify                    plugins/notify/Cargo.toml                  
+  policy-enforcer           policy-enforcer           policy_enforcer           plugins/policy-enforcer/Cargo.toml         
+  save-context              save-context              save_context              plugins/save-context/Cargo.toml            
+  template-source           template-source           template_source           plugins/template-source/Cargo.toml         
+  tool-output-gates         tool-output-gates         tool_output_gates         plugins/tool-output-gates/Cargo.toml       
+
+crate: sc-hooks-cli
+command: cargo modules dependencies --package sc-hooks-cli --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/crates/sc-hooks-cli/Cargo.toml --bin sc-hooks --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `sc_hooks::async_bucket::AsyncBucketRange` and `sc_hooks::async_bucket::AsyncBucketRange::new`.
+
+┌> sc_hooks::async_bucket::AsyncBucketRange
+│  └─> sc_hooks::async_bucket::AsyncBucketRange::new
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for sc-hooks-cli
+
+crate: sc-hooks-core
+command: cargo modules dependencies --package sc-hooks-core --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/crates/sc-hooks-core/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `sc_hooks_core::events::HookType` and `sc_hooks_core::events::HookType::as_str`.
+
+┌> sc_hooks_core::events::HookType
+│  └─> sc_hooks_core::events::HookType::as_str
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for sc-hooks-core
+
+crate: sc-hooks-sdk
+command: cargo modules dependencies --package sc-hooks-sdk --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/crates/sc-hooks-sdk/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `sc_hooks_sdk::manifest::ManifestBuilder` and `sc_hooks_sdk::manifest::ManifestBuilder::new`.
+
+┌> sc_hooks_sdk::manifest::ManifestBuilder
+│  └─> sc_hooks_sdk::manifest::ManifestBuilder::new
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for sc-hooks-sdk
+
+crate: sc-hooks-test
+command: cargo modules dependencies --package sc-hooks-test --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/crates/sc-hooks-test/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `sc_hooks_test::compliance::FnHostDispatchProbe` and `sc_hooks_test::compliance::FnHostDispatchProbe::new`.
+
+┌> sc_hooks_test::compliance::FnHostDispatchProbe
+│  └─> sc_hooks_test::compliance::FnHostDispatchProbe::new
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for sc-hooks-test
+
+crate: agent-session-foundation
+command: cargo modules dependencies --package agent-session-foundation --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/agent-session-foundation/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `agent_session_foundation::LifecycleEvent` and `agent_session_foundation::LifecycleEvent::as_str`.
+
+┌> agent_session_foundation::LifecycleEvent
+│  └─> agent_session_foundation::LifecycleEvent::as_str
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for agent-session-foundation
+
+crate: agent-spawn-gates
+command: cargo modules dependencies --package agent-spawn-gates --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/agent-spawn-gates/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `agent_spawn_gates::AgentSpawnGatesHandler` and `agent_spawn_gates::AgentSpawnGatesHandler::manifest`.
+
+┌> agent_spawn_gates::AgentSpawnGatesHandler
+│  └─> agent_spawn_gates::AgentSpawnGatesHandler::manifest
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for agent-spawn-gates
+
+crate: atm-extension
+command: cargo modules dependencies --package atm-extension --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/atm-extension/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `atm_extension::SuggestionType` and `atm_extension::SuggestionType::as_str`.
+
+┌> atm_extension::SuggestionType
+│  └─> atm_extension::SuggestionType::as_str
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for atm-extension
+
+crate: audit-logger
+command: cargo modules dependencies --package audit-logger --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/audit-logger/Cargo.toml --bin audit-logger --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: conditional-source
+command: cargo modules dependencies --package conditional-source --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/conditional-source/Cargo.toml --bin conditional-source --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: event-relay
+command: cargo modules dependencies --package event-relay --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/event-relay/Cargo.toml --bin event-relay --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: guard-paths
+command: cargo modules dependencies --package guard-paths --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/guard-paths/Cargo.toml --bin guard-paths --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: identity-state
+command: cargo modules dependencies --package identity-state --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/identity-state/Cargo.toml --bin identity-state --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: notify
+command: cargo modules dependencies --package notify --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/notify/Cargo.toml --bin notify --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: policy-enforcer
+command: cargo modules dependencies --package policy-enforcer --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/policy-enforcer/Cargo.toml --bin policy-enforcer --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: save-context
+command: cargo modules dependencies --package save-context --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/save-context/Cargo.toml --bin save-context --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: template-source
+command: cargo modules dependencies --package template-source --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/template-source/Cargo.toml --bin template-source --no-fns --no-sysroot --acyclic --layout none
+exit_code: 0
+
+crate: tool-output-gates
+command: cargo modules dependencies --package tool-output-gates --manifest-path /Users/randlee/Documents/github/schook-worktrees/feature/pP-s3-lint-portability/plugins/tool-output-gates/Cargo.toml --lib --no-fns --no-sysroot --acyclic --layout none
+exit_code: 1
+stderr:
+Error: circular dependency between `tool_output_gates::ToolOutputGatesHandler` and `tool_output_gates::ToolOutputGatesHandler::manifest`.
+
+┌> tool_output_gates::ToolOutputGatesHandler
+│  └─> tool_output_gates::ToolOutputGatesHandler::manifest
+└──────┘
+
+note: ignored known cargo-modules self-cycle false positive for tool-output-gates

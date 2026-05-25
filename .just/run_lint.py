@@ -9,10 +9,30 @@ from pathlib import Path
 TARGETS = {
     "fmt": ["just", "_lint-fmt"],
     "clippy": ["just", "_lint-clippy"],
-    "sc-boundary": [sys.executable, ".just/lint_sc_boundary.py"],
+    "modules": ["just", "_lint-modules"],
+    "deny": ["just", "_lint-deny"],
+    "shear": ["just", "_lint-shear"],
+    "version": ["just", "_lint-version"],
+    "manifests": ["just", "_lint-manifests"],
+    "spell": ["just", "_lint-spell"],
+    "pytests": ["just", "_lint-pytests"],
+    "sc-boundary": ["just", "_lint-sc-boundary"],
+    "sc-portability": ["just", "_lint-sc-portability"],
 }
 
-ALL_ORDER = ("fmt", "clippy", "sc-boundary")
+ALL_ORDER = (
+    "fmt",
+    "clippy",
+    "modules",
+    "deny",
+    "shear",
+    "version",
+    "manifests",
+    "spell",
+    "pytests",
+    "sc-boundary",
+    "sc-portability",
+)
 
 
 def main(argv: list[str]) -> int:
