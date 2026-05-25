@@ -111,6 +111,10 @@ Purpose:
 - add the curated `just smoke` surface following the `../atm-core` pattern
 - create the repo-owned smoke runner implementation and wire it into CI
 - keep the smoke surface separate from `just test` and `just lint`
+- freeze one explicit smoke execution model:
+  - CI runs offline replay/dry-run smoke without provider CLIs
+  - accepted-baseline provider records in later sprints come from live local
+    provider invocations
 
 Execution branch:
 - `feature/pQ-s2-smoke-infrastructure`
@@ -180,6 +184,8 @@ Purpose:
   harness provider with approved fixtures and harness tests
 - use the existing `test-harness/hooks/cursor-agent/` ownership boundary rather
   than inventing a second competing `cursor/` tree
+- create the matching `test_harness/hooks/cursor_agent/` Python package root
+  that later model work extends
 
 Execution branch:
 - `feature/pQ-s6-cursor-harness`
@@ -216,6 +222,8 @@ Purpose:
 - add the missing control-doc ownership needed for opencode provider scope
 - extend the shared harness README and shared control-doc baseline after `Q.6`
   rather than competing for those files in parallel
+- create the matching `test_harness/hooks/opencode/` Python package root that
+  later model work extends
 
 Execution branch:
 - `feature/pQ-s8-opencode-harness`
@@ -250,7 +258,9 @@ Entry criteria:
 - `Q.2` must land before all later sprints because `Phase Q` standardizes one
   smoke entrypoint and one CI ownership path first.
 - `Q.3`, `Q.4`, and `Q.5` all depend on `Q.2` and may run in parallel because
-  they write disjoint provider smoke assets.
+  `Q.2` owns the shared `.just/run_smoke.py` dispatcher and later smoke
+  sprints add only provider modules, replay fixtures, and provider smoke
+  records.
 - `Q.6` depends on `Q.2` so Cursor enters the repo after the smoke/CI
   contract is frozen.
 - `Q.8` depends on `Q.6` so opencode extends the shared harness README and

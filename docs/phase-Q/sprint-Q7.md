@@ -39,6 +39,8 @@ target: integrate/phase-Q
 
 - update the Cursor Agent API doc to match the retained approved fixtures from
   `Q.6`
+- treat the `Q.6` approved manifest as non-empty required input; `Q.7` does
+  not close if the model suite would pass vacuously with zero retained events
 - add one payload model class and one registry entry for every retained
   surface in the `Q.6` approved fixture manifest
 - add payload-model tests that prove those models parse the approved fixtures
@@ -61,6 +63,8 @@ registry_rule:
 
 - Cursor API doc matches the retained harness-backed provider surfaces
 - provider models and tests cover the retained surfaces explicitly
+- the number of Cursor payload model classes equals the retained event count
+  in `test-harness/hooks/cursor-agent/fixtures/approved/manifest.json`
 
 ## Out Of Scope
 

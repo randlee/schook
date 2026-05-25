@@ -78,3 +78,6 @@ follow_on_for_q2: <one literal next step list>
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the recommendation is ready for `Q.2` to consume?
 - What follow-on work is unblocked by the recommendation?
+- Does `docs/phase-Q/openshell-evaluation.md` contain all four required
+  fields: `recommendation`, `smoke_runner_impact`, `ci_impact`,
+  `follow_on_for_q2`?

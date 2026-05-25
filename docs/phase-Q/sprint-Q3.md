@@ -25,6 +25,7 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `.just/smoke/claude.py`
+- `.just/smoke/fixtures/claude/`
 - `docs/phase-Q/smoke-claude.md`
 
 ## Deliverables
@@ -35,9 +36,18 @@ target: integrate/phase-Q
 ## Required Work
 
 - add the Claude-specific smoke module under `.just/smoke/`
-- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
-  `claude` provider to the new module without claiming full file ownership
+- add the offline replay or dry-run assets required by the Q.2-owned CI smoke
+  model under `.just/smoke/fixtures/claude/`
 - record the accepted-baseline Claude smoke result in
+  `docs/phase-Q/smoke-claude.md`
+
+## CI Execution Model
+
+- `Q.3` does not change the Q.2 smoke surface contract
+- generic CI continues to run `just smoke all ci` without a live Claude CLI
+- `Q.3` adds the Claude replay or dry-run assets consumed by that CI-owned
+  offline gate
+- `Q.3` separately records one live Claude accepted-baseline smoke result in
   `docs/phase-Q/smoke-claude.md`
 
 ## Required Contract Samples
@@ -52,6 +62,8 @@ Required Claude smoke coverage:
 
 - `just smoke` includes the Claude path explicitly
 - Claude smoke can prove install, dispatch, plugin-chain, and logging behavior
+- the CI-owned offline smoke path for Claude is explicit and does not depend
+  on a live Claude CLI being present on generic CI runners
 
 ## Out Of Scope
 
@@ -62,7 +74,7 @@ Required Claude smoke coverage:
 
 ## Required Validation
 
-- `just smoke claude`
+- `just smoke claude live`
 - `cargo test --workspace`
 - `git diff --check`
 

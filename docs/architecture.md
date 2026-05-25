@@ -514,6 +514,9 @@ opencode as harness-only providers:
 
 - `test-harness/hooks/<provider>/` remains the authoritative provider evidence
   tree
+- the harness sprint for each provider also creates the matching
+  `test_harness/hooks/<provider>/` Python package root before the later
+  doc/model sprint closes provider-local payload models
 - `test_harness/hooks/<provider>/models/` remains the provider-local Pydantic
   model entrypoint
 - provider hook API docs remain under `docs/hook-api/`
@@ -528,6 +531,12 @@ opencode as harness-only providers:
   than ad hoc shell snippets
 - the repo-owned implementation path is `.just/run_smoke.py` plus
   `.just/smoke/`
+- generic CI runs the smoke gate in an explicit offline replay or dry-run mode
+  and therefore does not require Claude, Codex, or Gemini CLIs on stock CI
+  runners
+- repo-owned offline smoke assets live under `.just/smoke/fixtures/`
+- accepted-baseline live provider smoke records are tracked separately under
+  `docs/phase-Q/`
 - the smoke surface remains separate from both `just test` and `just lint`
 - CI owns the smoke gate once `Q.2` lands
 - provider-specific smoke records live under `docs/phase-Q/`
@@ -665,6 +674,10 @@ Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`.
 `Phase Q` may add the following harness-only Cursor surfaces:
 
 - approved Cursor fixtures under `test-harness/hooks/cursor-agent/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/cursor-agent/fixtures/approved/manifest.json`
+- the `test_harness/hooks/cursor_agent/` Python package root during the
+  harness sprint, before payload models land
 - provider-local Cursor models under `test_harness/hooks/cursor_agent/models/`
 - Cursor harness tests
 - a current Cursor provider API doc
@@ -684,6 +697,10 @@ after the harness/doc-model baseline closes.
 `Phase Q` may also add `opencode` as a harness-only provider:
 
 - approved opencode fixtures under `test-harness/hooks/opencode/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/opencode/fixtures/approved/manifest.json`
+- the `test_harness/hooks/opencode/` Python package root during the harness
+  sprint, before payload models land
 - provider-local opencode models under `test_harness/hooks/opencode/models/`
 - opencode harness tests
 - a current opencode provider API doc

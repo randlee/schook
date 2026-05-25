@@ -38,6 +38,8 @@ target: integrate/phase-Q
 
 - update the opencode API doc to match the retained approved fixtures from
   `Q.8`
+- treat the `Q.8` approved manifest as non-empty required input; `Q.9` does
+  not close if the model suite would pass vacuously with zero retained events
 - add one payload model class and one registry entry for every retained
   surface in the `Q.8` approved fixture manifest
 - add payload-model tests that prove those models parse the approved fixtures
@@ -60,6 +62,8 @@ registry_rule:
 
 - opencode API doc matches the retained harness-backed provider surfaces
 - provider models and tests cover the retained surfaces explicitly
+- the number of opencode payload model classes equals the retained event count
+  in `test-harness/hooks/opencode/fixtures/approved/manifest.json`
 
 ## Out Of Scope
 

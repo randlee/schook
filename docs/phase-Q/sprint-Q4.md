@@ -25,6 +25,7 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `.just/smoke/codex.py`
+- `.just/smoke/fixtures/codex/`
 - `docs/phase-Q/smoke-codex.md`
 
 ## Deliverables
@@ -35,9 +36,18 @@ target: integrate/phase-Q
 ## Required Work
 
 - add the Codex-specific smoke module under `.just/smoke/`
-- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
-  `codex` provider to the new module without claiming full file ownership
+- add the offline replay or dry-run assets required by the Q.2-owned CI smoke
+  model under `.just/smoke/fixtures/codex/`
 - record the accepted-baseline Codex smoke result in
+  `docs/phase-Q/smoke-codex.md`
+
+## CI Execution Model
+
+- `Q.4` does not change the Q.2 smoke surface contract
+- generic CI continues to run `just smoke all ci` without a live Codex CLI
+- `Q.4` adds the Codex replay or dry-run assets consumed by that CI-owned
+  offline gate
+- `Q.4` separately records one live Codex accepted-baseline smoke result in
   `docs/phase-Q/smoke-codex.md`
 
 ## Required Contract Samples
@@ -53,6 +63,8 @@ Required Codex smoke coverage:
 
 - `just smoke` includes the Codex path explicitly
 - Codex smoke proves install, dispatch, lifecycle, and logging behavior
+- the CI-owned offline smoke path for Codex is explicit and does not depend
+  on a live Codex CLI being present on generic CI runners
 
 ## Out Of Scope
 
@@ -63,7 +75,7 @@ Required Codex smoke coverage:
 
 ## Required Validation
 
-- `just smoke codex`
+- `just smoke codex live`
 - `cargo test --workspace`
 - `git diff --check`
 

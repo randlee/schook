@@ -25,6 +25,7 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `.just/smoke/gemini.py`
+- `.just/smoke/fixtures/gemini/`
 - `docs/phase-Q/smoke-gemini.md`
 
 ## Deliverables
@@ -35,9 +36,18 @@ target: integrate/phase-Q
 ## Required Work
 
 - add the Gemini-specific smoke module under `.just/smoke/`
-- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
-  `gemini` provider to the new module without claiming full file ownership
+- add the offline replay or dry-run assets required by the Q.2-owned CI smoke
+  model under `.just/smoke/fixtures/gemini/`
 - record the accepted-baseline Gemini smoke result in
+  `docs/phase-Q/smoke-gemini.md`
+
+## CI Execution Model
+
+- `Q.5` does not change the Q.2 smoke surface contract
+- generic CI continues to run `just smoke all ci` without a live Gemini CLI
+- `Q.5` adds the Gemini replay or dry-run assets consumed by that CI-owned
+  offline gate
+- `Q.5` separately records one live Gemini accepted-baseline smoke result in
   `docs/phase-Q/smoke-gemini.md`
 
 ## Required Contract Samples
@@ -53,6 +63,8 @@ Required Gemini smoke coverage:
 
 - `just smoke` includes the Gemini path explicitly
 - Gemini smoke proves install, dispatch, lifecycle, and logging behavior
+- the CI-owned offline smoke path for Gemini is explicit and does not depend
+  on a live Gemini CLI being present on generic CI runners
 
 ## Out Of Scope
 
@@ -63,7 +75,7 @@ Required Gemini smoke coverage:
 
 ## Required Validation
 
-- `just smoke gemini`
+- `just smoke gemini live`
 - `cargo test --workspace`
 - `git diff --check`
 

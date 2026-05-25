@@ -26,10 +26,12 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `test-harness/hooks/opencode/fixtures/`
+- `test-harness/hooks/opencode/fixtures/approved/manifest.json`
 - `test-harness/hooks/opencode/hooks/`
 - `test-harness/hooks/opencode/schema/`
 - `test-harness/hooks/opencode/tests/test_harness_structure.py`
 - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
+- `test_harness/hooks/opencode/`
 - `docs/requirements.md`
 - `docs/traceability.md`
 
@@ -44,6 +46,8 @@ target: integrate/phase-Q
 - capture and approve retained opencode fixtures
 - land the opencode harness-side hook scripts, schema files, structure checks,
   and fixture-validation tests
+- create the matching `test_harness/hooks/opencode/` Python package root that
+  `Q.9` extends with payload models and registry files
 - update only the `HKR-018` requirement and matching traceability row
 - extend the Q.6-owned `test-harness/hooks/README.md` with the opencode entry
   without reopening ownership of the full README
@@ -58,12 +62,19 @@ test-harness/hooks/opencode/
   hooks/
   schema/
   tests/
+
+test_harness/hooks/opencode/
+  models/
 ```
 
 ## Acceptance Criteria
 
 - opencode is represented as a maintained harness provider
+- `test-harness/hooks/opencode/fixtures/approved/manifest.json` exists and
+  retains at least one approved opencode event
 - the phase does not rely on undocumented implied opencode scope
+- the paired `test_harness/hooks/opencode/` package root exists before `Q.9`
+  begins model closure work
 - the shared harness README is extended incrementally from the `Q.6` baseline
   rather than being claimed as a competing write-scope owner
 
