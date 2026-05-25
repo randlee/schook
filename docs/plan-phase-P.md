@@ -1,5 +1,12 @@
 # Phase P Plan
 
+Status tracking note:
+
+- sprint completion status is tracked centrally in `docs/project-plan.md`
+  and in each sprint document frontmatter by design; this phase plan keeps the
+  execution sequence and scope contract rather than duplicating live status
+  rows
+
 ## Goal
 
 Finish the missing provider-hook parity that Phase `O` did not cover, starting
