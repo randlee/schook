@@ -226,10 +226,10 @@ Purpose:
   surfaces are fresh in hand
 
 Execution branch:
-- `feature/pP-s7-error-and-boundary-rulings`
+- `feature/pP-s7-ruling-closeout`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s7-error-and-boundary-rulings`
+- `../schook-worktrees/feature/pP-s7-ruling-closeout`
 
 ### P.8 CLI Alias And Retry-Coverage Closeout
 

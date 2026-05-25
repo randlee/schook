@@ -69,3 +69,16 @@ harness, and documentation work.
   marked external references when not
 - examples expected to work cross-platform must call out any shell-specific
   assumptions explicitly
+
+## Phase P Runtime Parity Notes
+
+- `P.5` and `P.6` did not add a new Unix-only runtime branch for Codex
+  `notify` or Gemini `AfterAgent`; both retained lifecycle surfaces close
+  through the shared normalized Rust runtime path
+- the remaining Unix-gated behavior relevant to that parity claim is explicit:
+  - host timeout escalation uses Unix `SIGTERM` first and a platform-native
+    termination fallback elsewhere
+  - `crates/sc-hooks-test/src/worktree_hooks.rs` is a Unix-only test helper,
+    not part of the generic provider runtime parity contract
+- docs must not describe Unix-first behavior as if it were the cross-platform
+  runtime contract

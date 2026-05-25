@@ -1,9 +1,9 @@
 ---
 id: P.7
 title: Error, Boundary, And Portability Ruling Closeout
-status: planned
-branch: feature/pP-s7-error-and-boundary-rulings
-worktree: ../schook-worktrees/feature/pP-s7-error-and-boundary-rulings
+status: complete
+branch: feature/pP-s7-ruling-closeout
+worktree: ../schook-worktrees/feature/pP-s7-ruling-closeout
 target: integrate/phase-P
 ---
 
@@ -69,3 +69,35 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement and gap status changes:
+  - `TMO-003` now records the real platform split: Unix sends `SIGTERM`, then
+    force-kills after the grace window; non-Unix uses platform-native
+    termination and the same bounded timeout contract.
+  - `RULING-NEEDED-ECR-001` and `RULING-NEEDED-ECR-002` are now explicitly
+    deferred past `Phase P` with recorded owner and release-track rationale.
+  - `RULING-NEEDED-HRN-005` and `RULING-NEEDED-COW-003` are now closed with
+    explicit accepted posture.
+- Code removed early:
+  - none; this sprint was a ruling and portability closeout, not a runtime
+    rewrite.
+- Owned write scope:
+  - `docs/requirements.md`
+  - `docs/architecture.md`
+  - `docs/implementation-gaps.md`
+  - `docs/traceability.md`
+  - `docs/cross-platform-guidelines.md`
+  - `docs/plan-phase-P.md`
+  - `docs/phase-P/sprint-P7.md`
+- Validation that passed:
+  - `cargo check --workspace`
+  - `cargo clippy --all-targets --all-features -- -D warnings`
+  - `cargo test --workspace`
+  - `just lint sc-portability`
+  - `git diff --check`
+- Follow-on status:
+  - `P.7` closes the active ruling set named in the Phase P plan and leaves
+    only the explicitly separate release-operator follow-ons such as
+    `PRR-009` and `LOGR-QA-004`.

@@ -34,7 +34,7 @@ This table maps the most important documented requirements to current implementa
 | DSP-008 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/fire.rs`, `sc-hooks-cli/src/observability.rs` | fire tests, dispatch tests, `off_mode_suppresses_durable_observability_output`, and `full_mode_zero_match_writes_audit_record` | |
 | TMO-001 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
 | TMO-002 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/dispatch.rs` | timeout tests | |
-| TMO-003 | implemented | `sc-hooks-cli/src/timeout.rs` | timeout tests | |
+| TMO-003 | implemented | `sc-hooks-cli/src/timeout.rs`, `docs/cross-platform-guidelines.md` | timeout tests plus the Phase P portability notes documenting Unix `SIGTERM`/kill vs non-Unix platform-native termination | |
 | TMO-004 | implemented | `sc-hooks-cli/src/timeout.rs`, `sc-hooks-cli/src/audit.rs`, `sc-hooks-cli/src/handlers.rs`, `sc-hooks-sdk/src/manifest.rs` | timeout tests, audit tests, manifest validation tests, and `sc-hooks-cli/tests/long_running_contract.rs` agree on the sync-only `long_running` contract | |
 | SES-001 | implemented | `sc-hooks-cli/src/session.rs` | session tests | |
 | SES-002 | implemented | `sc-hooks-cli/src/main.rs`, `sc-hooks-cli/src/session.rs` | session tests | |
@@ -118,6 +118,15 @@ This table maps the most important documented requirements to current implementa
 | GAP-005 | resolved | `sc-hooks-cli/src/observability.rs`, `sc-hooks-cli/src/dispatch.rs` | observability tests, dispatch tests, logging/observability contract docs |
 | GAP-007 | resolved | `sc-hooks-cli/Cargo.toml`, `sc-hooks-cli/src/observability.rs` | dependency inspection, observability tests, architecture/requirements alignment |
 | GAP-010 | resolved | `sc-hooks-cli/tests/observability_contract.rs`, `docs/implementation-gaps.md`, `docs/project-plan.md` | real dispatch-path observability tests plus the implementation-gap and project-plan follow-up notes agree on the file-sink baseline and the now-complete console-sink expansion |
+
+## Ruling Closeout Acknowledgments
+
+| Ruling | Status | Primary implementation or doc surface | Primary proof |
+| --- | --- | --- | --- |
+| `RULING-NEEDED-ECR-001` | deferred past `Phase P` | `docs/implementation-gaps.md`, `docs/architecture.md` | retained normalization seam still fits `HookError::Normalization { message, source }`; no code path requires a split in the current release track |
+| `RULING-NEEDED-ECR-002` | deferred past `Phase P` | `docs/implementation-gaps.md`, `docs/architecture.md` | current error layout and tests prove source chaining without any `Backtrace` field contract |
+| `RULING-NEEDED-HRN-005` | closed in `P.7` | `crates/sc-hooks-test/src/worktree_hooks.rs`, `docs/cross-platform-guidelines.md`, `docs/implementation-gaps.md` | Unix-gated test helper remains isolated to shell-fixture proof and is no longer treated as an open portability ruling |
+| `RULING-NEEDED-COW-003` | closed in `P.7` | `crates/sc-hooks-cli/src/dispatch.rs`, `docs/architecture.md`, `docs/implementation-gaps.md` | dispatch owns the allocation-backed handler-chain snapshot explicitly and tests continue to prove the surrounding observability/audit contract |
 
 ## Requirement Amendment Notes
 

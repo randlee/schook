@@ -31,75 +31,6 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     methods must carry default implementations until that stabilization sprint is
     explicitly scheduled
 
-### RULING-NEEDED-ECR-001: `HookError` Surface Split
-
-- Status: `deferred past Phase O`
-- Owner area:
-  - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Recorded owner:
-  - `randlee`
-- Current note:
-  - `HookError` is still a single cross-crate error enum spanning payload,
-    validation, state-I/O, divergence, and internal failures
-  - splitting it now would be a public API break across the core/sdk surface and
-    should not be done implicitly inside the observability closeout
-  - disposition for `Phase O`: explicitly deferred past `Phase O` so `O.3`
-    may attach provider-normalization failures at
-    `HookError::Normalization { message, source }` without reopening the public
-    error-surface split mid-sprint; the named `NormalizationError` inventory
-    remains the private source behind that envelope
-  - `Phase P` consistency note:
-    - `P.4` seam additions (`CodexHook::Notify` -> `CanonicalPayload::StopLifecycle`
-      and `GeminiHook::AfterAgent` -> `CanonicalPayload::StopLifecycle`) remain
-      consistent with the existing `HookError::Normalization { message, source }`
-      envelope
-    - the `P.5` seam additions for Codex `notify` via the retained
-      stop-family normalization path remain inside the existing
-      `HookError::Normalization` envelope and do not reopen the error-surface
-      split
-    - `P.6` plugin-side runtime seam additions that carry Gemini `AfterAgent`
-      through the shared `Stop` path inside `agent-session-foundation` and
-      `atm-extension` remain inside that same
-      `HookError::Normalization { message, source }` envelope and do not
-      reopen the error-surface split
-    - `P.7` may not retroactively remove those landed seam additions without a
-      new breaking-change sprint
-  - recommendation: take an explicit architecture ruling after `Phase O` on
-    whether the next release track wants a stable multi-type error taxonomy or
-    to freeze the current monolithic enum deliberately
-
-### RULING-NEEDED-ECR-002: Backtrace Capture Policy
-
-- Status: `active`
-- Owner area:
-  - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Current note:
-  - adding `Backtrace` capture to public error types changes error layout,
-    serialization assumptions, and support expectations across the core/sdk
-    boundary
-  - the current release keeps source chaining intact without introducing a
-    partially scoped backtrace policy
-  - recommendation: decide the product-wide backtrace policy together with any
-    future error-surface split so the public error contract changes once
-
-### RULING-NEEDED-TS-001: Ended-State Transition Guard
-
-- Status: `closed in SC-LOG-PRR-FIX-R6-TS`
-- Owner area:
-  - `sc-hooks-core`, docs
-- Closure note:
-  - `ActiveSessionRecord::apply_hook_update()` and
-    `ActiveSessionRecord::rebuild_with_root_change()` now return a validation
-    error when asked to transition directly to `AgentState::Ended`
-  - `ActiveSessionRecord::transition_to_ended()` is the dedicated terminal
-    transition path, and `agent-session-foundation` now uses it for the
-    `SessionEnd` flow instead of routing terminal state through
-    `apply_hook_update()`
-  - decision rationale: keep runtime enforcement for this release so persisted
-    canonical records and resume flows remain stable, while explicitly blocking
-    implicit terminal transitions until a larger typestate redesign is
-    intentionally approved
-
 ### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
 
 - Status: `closed in O.6`
@@ -112,36 +43,7 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     discrete ruling or implementation-gap entry rather than silently carrying
     `RULING-NEEDED-NT-CLI-002` forward
 
-### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
-
-- Status: `active`
-- Owner area:
-  - `sc-hooks-test`, docs
-- Current note:
-  - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
-    shell fixture helpers stay reusable from one crate-local test surface
-  - moving it to `tests/` would force extra public helper exposure or duplicate
-    fixture wiring without changing the runtime contract being proved
-  - recommendation: keep the unix-gated library test module in place until a
-    larger `sc-hooks-test` surface split is approved
-
-### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
-
-- Status: `active`
-- Owner area:
-  - `sc-hooks-cli`, docs
-- Current note:
-  - `execute_chain()` still clones handler names into a `Vec<String>` because
-    dispatch-complete and full-audit emission need an owned chain snapshot that
-    survives independent result construction and error returns
-  - removing that allocation cleanly would require a broader change to the
-    observability/audit argument surface rather than a small mechanical patch
-  - recommendation: keep the owned snapshot for now and revisit only if profiling
-    shows it is a real hot-path cost
-
 ### PRR-009: Missing `hooks` CLI Alias
-
-- Status: `active`
 - Owner area:
   - packaging, install docs, release docs
 - Current note:
@@ -170,7 +72,84 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
   - recommendation: add one focused exhausted-retry-path unit test only if a
     later change touches the helper behavior again
 
+## Deferred Items
+
+### RULING-NEEDED-ECR-001: `HookError` Surface Split
+
+- Status: `deferred past Phase P`
+- Owner area:
+  - `sc-hooks-core`, `sc-hooks-sdk`, docs
+- Recorded owner:
+  - `randlee`
+- Deferral note:
+  - `HookError` remains a single cross-crate error enum spanning payload,
+    validation, state-I/O, divergence, and internal failures
+  - `Phase O` and `Phase P` seam additions stay inside
+    `HookError::Normalization { message, source }`; splitting that surface now
+    would be a public API break across the core/sdk boundary
+  - the next release-track decision must explicitly choose between a stable
+    multi-type taxonomy and a deliberate freeze of the current monolithic enum
+
+### RULING-NEEDED-ECR-002: Backtrace Capture Policy
+
+- Status: `deferred past Phase P`
+- Owner area:
+  - `sc-hooks-core`, `sc-hooks-sdk`, docs
+- Recorded owner:
+  - `randlee`
+- Deferral note:
+  - adding `Backtrace` capture to public error types changes error layout,
+    serialization assumptions, and support expectations across the core/sdk
+    boundary
+  - the current release track keeps source chaining intact without introducing
+    a partially scoped backtrace policy
+  - any future backtrace policy should land together with the next explicit
+    error-surface decision rather than as an isolated mid-track expansion
+
 ## Closed Items
+
+### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
+
+- Status: `closed in P.7`
+- Owner area:
+  - `sc-hooks-test`, docs
+- Closure note:
+  - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
+    shell fixture helpers stay reusable from one crate-local test surface
+  - this is accepted as a Unix-gated test-only helper rather than a runtime
+    portability defect; moving it to `tests/` would force extra public helper
+    exposure or duplicate fixture wiring without changing the runtime contract
+    being proved
+
+### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
+
+- Status: `closed in P.7`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Closure note:
+  - `execute_chain()` keeps the owned `Vec<String>` handler snapshot because
+    dispatch-complete and full-audit emission need a chain value independent of
+    handler iterator lifetimes and result construction
+  - this allocation remains the accepted current posture; revisit only if
+    profiling later proves it is a real hot-path cost worth redesigning
+
+### RULING-NEEDED-TS-001: Ended-State Transition Guard
+
+- Status: `closed in SC-LOG-PRR-FIX-R6-TS`
+- Owner area:
+  - `sc-hooks-core`, docs
+- Closure note:
+  - `ActiveSessionRecord::apply_hook_update()` and
+    `ActiveSessionRecord::rebuild_with_root_change()` now return a validation
+    error when asked to transition directly to `AgentState::Ended`
+  - `ActiveSessionRecord::transition_to_ended()` is the dedicated terminal
+    transition path, and `agent-session-foundation` now uses it for the
+    `SessionEnd` flow instead of routing terminal state through
+    `apply_hook_update()`
+  - decision rationale: keep runtime enforcement for this release so persisted
+    canonical records and resume flows remain stable, while explicitly blocking
+    implicit terminal transitions until a larger typestate redesign is
+    intentionally approved
 
 ### DEF-009: Observability Failure Fallback Integration Test
 
