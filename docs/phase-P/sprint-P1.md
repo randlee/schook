@@ -1,9 +1,9 @@
 ---
 id: P.1
 title: Codex Missing-Hook Harness Expansion
-status: planned
-branch: feature/pP-s1-codex-missing-hook-harness
-worktree: ../schook-worktrees/feature/pP-s1-codex-missing-hook-harness
+status: complete
+branch: feature/pP-s1-harness-expansion
+worktree: ../schook-worktrees/feature/pP-s1-harness-expansion
 target: integrate/phase-P
 ---
 
