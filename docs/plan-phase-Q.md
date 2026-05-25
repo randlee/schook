@@ -214,6 +214,8 @@ Purpose:
 - add `opencode` as a maintained harness provider with approved fixtures,
   harness tests, and control-doc ownership
 - add the missing control-doc ownership needed for opencode provider scope
+- extend the shared harness README and shared control-doc baseline after `Q.6`
+  rather than competing for those files in parallel
 
 Execution branch:
 - `feature/pQ-s8-opencode-harness`
@@ -222,7 +224,7 @@ Execution worktree:
 - `../schook-worktrees/feature/pQ-s8-opencode-harness`
 
 Entry criteria:
-- accepted `Q.2` smoke infrastructure
+- accepted `Q.6` Cursor harness output
 
 ### Q.9 opencode API Doc And Pydantic Models
 
@@ -249,8 +251,11 @@ Entry criteria:
   smoke entrypoint and one CI ownership path first.
 - `Q.3`, `Q.4`, and `Q.5` all depend on `Q.2` and may run in parallel because
   they write disjoint provider smoke assets.
-- `Q.6` and `Q.8` both depend on `Q.2` so the new providers enter the repo
-  after the smoke/CI contract is frozen.
+- `Q.6` depends on `Q.2` so Cursor enters the repo after the smoke/CI
+  contract is frozen.
+- `Q.8` depends on `Q.6` so opencode extends the shared harness README and
+  shared control-doc baseline sequentially instead of competing for them in a
+  parallel branch.
 - `Q.7` depends on `Q.6`; `Q.9` depends on `Q.8`.
 - no Cursor or opencode runtime implementation starts in `Phase Q`; harness and
   provider-doc/model work must close first.
@@ -280,6 +285,7 @@ Entry criteria:
   - `test-harness/hooks/cursor-agent/schema/`
   - `test-harness/hooks/cursor-agent/tests/test_harness_structure.py`
   - `test-harness/hooks/cursor-agent/tests/test_fixture_validation.py`
+  - `test-harness/hooks/README.md`
   - `docs/requirements.md`
   - `docs/traceability.md`
 - `Q.7`:

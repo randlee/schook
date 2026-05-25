@@ -40,6 +40,16 @@ target: integrate/phase-Q
 - Cursor harness tests
 - control-doc updates that record the new maintained harness scope
 
+## Required Work
+
+- capture and approve retained Cursor fixtures under the existing
+  `cursor-agent` evidence tree
+- land the Cursor harness-side hook scripts, schema files, structure checks,
+  and fixture-validation tests
+- update only the `HKR-007` requirement and matching traceability row
+- establish the shared harness README baseline that later provider-harness
+  sprints must extend rather than rewrite
+
 ## Required Contract Samples
 
 Required Cursor harness layout:
@@ -59,6 +69,8 @@ test-harness/hooks/cursor-agent/
 - requirement and traceability updates land with the harness expansion
 - the sprint reuses the existing `cursor-agent` naming boundary everywhere; no
   parallel `cursor/` provider tree is introduced
+- `test-harness/hooks/README.md` carries the shared harness-contract update
+  for Cursor and becomes the baseline that `Q.8` extends later
 
 ## Out Of Scope
 

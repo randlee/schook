@@ -38,6 +38,14 @@ target: integrate/phase-Q
 - CI job or CI extension for smoke execution
 - operator docs for the smoke surface
 
+## Required Work
+
+- add the public `just smoke` surface without changing `just test` or
+  `just lint`
+- land the shared smoke runner under `.just/`
+- wire one CI-owned smoke gate
+- document the smoke surface for operators
+
 ## Required Contract Samples
 
 Expected curated smoke entrypoint shape:

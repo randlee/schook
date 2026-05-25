@@ -24,7 +24,6 @@ target: integrate/phase-Q
 
 ## Exact Targets
 
-- `.just/run_smoke.py`
 - `.just/smoke/gemini.py`
 - `docs/phase-Q/smoke-gemini.md`
 
@@ -32,6 +31,14 @@ target: integrate/phase-Q
 
 - end-to-end Gemini smoke scenarios covering retained live Gemini behavior
 - smoke result record for Gemini on the accepted baseline
+
+## Required Work
+
+- add the Gemini-specific smoke module under `.just/smoke/`
+- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
+  `gemini` provider to the new module without claiming full file ownership
+- record the accepted-baseline Gemini smoke result in
+  `docs/phase-Q/smoke-gemini.md`
 
 ## Required Contract Samples
 

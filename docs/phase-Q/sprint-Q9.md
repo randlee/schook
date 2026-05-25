@@ -34,12 +34,26 @@ target: integrate/phase-Q
 - opencode API doc
 - Pydantic payload models for retained opencode surfaces
 
+## Required Work
+
+- update the opencode API doc to match the retained approved fixtures from
+  `Q.8`
+- add one payload model class and one registry entry for every retained
+  surface in the `Q.8` approved fixture manifest
+- add payload-model tests that prove those models parse the approved fixtures
+
 ## Required Contract Samples
 
-Required opencode model entrypoint shape:
+Required opencode model closure shape:
 
-```python
-from test_harness.hooks.opencode.models.payloads import ...
+```text
+surface_source:
+  test-harness/hooks/opencode/fixtures/approved/manifest.json
+model_rule:
+  one payload model class per retained event in the approved manifest
+registry_rule:
+  test_harness/hooks/opencode/models/registry.py maps each retained event to
+  its payload model
 ```
 
 ## Acceptance Criteria

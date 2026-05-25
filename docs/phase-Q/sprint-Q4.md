@@ -24,7 +24,6 @@ target: integrate/phase-Q
 
 ## Exact Targets
 
-- `.just/run_smoke.py`
 - `.just/smoke/codex.py`
 - `docs/phase-Q/smoke-codex.md`
 
@@ -32,6 +31,14 @@ target: integrate/phase-Q
 
 - end-to-end Codex smoke scenarios covering retained live Codex behavior
 - smoke result record for Codex on the accepted baseline
+
+## Required Work
+
+- add the Codex-specific smoke module under `.just/smoke/`
+- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
+  `codex` provider to the new module without claiming full file ownership
+- record the accepted-baseline Codex smoke result in
+  `docs/phase-Q/smoke-codex.md`
 
 ## Required Contract Samples
 

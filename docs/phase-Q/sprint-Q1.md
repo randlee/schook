@@ -37,6 +37,13 @@ target: integrate/phase-Q
   - reject for now
 - explicit rationale, tradeoffs, and follow-on implications for `Q.2`
 
+## Required Work
+
+- evaluate `openshell` specifically against the planned smoke runner and
+  `sc-hooks-test` execution needs
+- record one explicit recommendation and the concrete implication for `Q.2`
+- update the phase plan only as needed to carry that recommendation forward
+
 ## Required Contract Samples
 
 Required recommendation shape:

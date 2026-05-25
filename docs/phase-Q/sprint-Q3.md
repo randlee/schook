@@ -24,7 +24,6 @@ target: integrate/phase-Q
 
 ## Exact Targets
 
-- `.just/run_smoke.py`
 - `.just/smoke/claude.py`
 - `docs/phase-Q/smoke-claude.md`
 
@@ -32,6 +31,14 @@ target: integrate/phase-Q
 
 - end-to-end Claude smoke scenarios covering the live hook dispatch path
 - smoke result record for Claude on the accepted baseline
+
+## Required Work
+
+- add the Claude-specific smoke module under `.just/smoke/`
+- extend the Q.2-owned `.just/run_smoke.py` dispatch table to route the
+  `claude` provider to the new module without claiming full file ownership
+- record the accepted-baseline Claude smoke result in
+  `docs/phase-Q/smoke-claude.md`
 
 ## Required Contract Samples
 

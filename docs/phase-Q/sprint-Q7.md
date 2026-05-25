@@ -35,12 +35,26 @@ target: integrate/phase-Q
 - updated Cursor Agent API doc
 - Pydantic payload models for retained Cursor surfaces
 
+## Required Work
+
+- update the Cursor Agent API doc to match the retained approved fixtures from
+  `Q.6`
+- add one payload model class and one registry entry for every retained
+  surface in the `Q.6` approved fixture manifest
+- add payload-model tests that prove those models parse the approved fixtures
+
 ## Required Contract Samples
 
-Required Cursor model entrypoint shape:
+Required Cursor model closure shape:
 
-```python
-from test_harness.hooks.cursor_agent.models.payloads import ...
+```text
+surface_source:
+  test-harness/hooks/cursor-agent/fixtures/approved/manifest.json
+model_rule:
+  one payload model class per retained event in the approved manifest
+registry_rule:
+  test_harness/hooks/cursor_agent/models/registry.py maps each retained event
+  to its payload model
 ```
 
 ## Acceptance Criteria

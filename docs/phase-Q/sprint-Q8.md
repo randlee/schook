@@ -17,11 +17,11 @@ target: integrate/phase-Q
 
 ## Hard Dependencies
 
-- accepted `Q.2` smoke infrastructure
+- accepted `Q.6` Cursor harness output
 
 ## Entry Criteria
 
-- accepted `Q.2` smoke infrastructure
+- accepted `Q.6` Cursor harness output
 
 ## Exact Targets
 
@@ -30,7 +30,6 @@ target: integrate/phase-Q
 - `test-harness/hooks/opencode/schema/`
 - `test-harness/hooks/opencode/tests/test_harness_structure.py`
 - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
-- `test-harness/hooks/README.md`
 - `docs/requirements.md`
 - `docs/traceability.md`
 
@@ -39,6 +38,15 @@ target: integrate/phase-Q
 - approved opencode fixtures
 - opencode harness tests
 - control-doc updates that introduce and record the opencode provider scope
+
+## Required Work
+
+- capture and approve retained opencode fixtures
+- land the opencode harness-side hook scripts, schema files, structure checks,
+  and fixture-validation tests
+- update only the `HKR-018` requirement and matching traceability row
+- extend the Q.6-owned `test-harness/hooks/README.md` with the opencode entry
+  without reopening ownership of the full README
 
 ## Required Contract Samples
 
@@ -56,6 +64,8 @@ test-harness/hooks/opencode/
 
 - opencode is represented as a maintained harness provider
 - the phase does not rely on undocumented implied opencode scope
+- the shared harness README is extended incrementally from the `Q.6` baseline
+  rather than being claimed as a competing write-scope owner
 
 ## Out Of Scope
 
