@@ -48,6 +48,13 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     `HookError::Normalization { message, source }` without reopening the public
     error-surface split mid-sprint; the named `NormalizationError` inventory
     remains the private source behind that envelope
+  - `Phase P` consistency note:
+    - `P.4` seam additions (`CodexHook::Notify` -> `CanonicalPayload::StopLifecycle`
+      and `GeminiHook::AfterAgent` -> `CanonicalPayload::StopLifecycle`) remain
+      consistent with the existing `HookError::Normalization { message, source }`
+      envelope
+    - `P.7` may not retroactively remove those landed seam additions without a
+      new breaking-change sprint
   - recommendation: take an explicit architecture ruling after `Phase O` on
     whether the next release track wants a stable multi-type error taxonomy or
     to freeze the current monolithic enum deliberately

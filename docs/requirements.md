@@ -296,6 +296,11 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - O.5/O.6 amendment: Gemini parity and the final Claude/Codex/Gemini
     plugin-path consolidation are now complete on the approved provider
     surfaces
+  - P.4 amendment: `Phase P` may extend the retained lifecycle inventory
+    through the same sealed normalization seam for Codex `notify` and Gemini
+    `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
+    disposition-only until accepted harness evidence proves they are
+    exercisable retained runtime surfaces
 - `HKR-010`
   - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
   - current text: `Phase O` closed the Codex and Gemini normalized-runtime
@@ -306,6 +311,10 @@ If a behavior is required for release but not yet fully proved, it must appear i
     made the cross-provider closure partial
   - O.5/O.6 amendment: Gemini completed the remaining approved parity and O.6
     proved the final cross-provider plugin-path and observability shape
+  - P.4 amendment: the retained lifecycle seam extension does not, by itself,
+    close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
+    `P.5` and `P.6` still own the provider-runtime closure for those newly
+    retained lifecycle surfaces
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`

@@ -1,5 +1,12 @@
 # Phase P Plan
 
+Status tracking note:
+
+- sprint completion status is tracked centrally in `docs/project-plan.md`
+  and in each sprint document frontmatter by design; this phase plan keeps the
+  execution sequence and scope contract rather than duplicating live status
+  rows
+
 ## Goal
 
 Finish the missing provider-hook parity that Phase `O` did not cover, starting
@@ -171,10 +178,10 @@ Execution precondition:
   accepted portability/boundary gate rather than speculative provider fields
 
 Execution branch:
-- `feature/pP-s4-lifecycle-normalization-extension`
+- `feature/pP-s4-canonical-hook-mapping`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s4-lifecycle-normalization-extension`
+- `../schook-worktrees/feature/pP-s4-canonical-hook-mapping`
 
 ### P.5 Codex Missing-Hook Runtime Parity
 
