@@ -121,6 +121,53 @@ Live testing confirmed `Stop` did not fire in live Codex exec. Do not use
 `Stop` as the primary idle-detection or turn-complete signal. Use `notify`
 (`agent-turn-complete`) instead.
 
+Current retained disposition:
+
+- keep the direct `stop.py` probe wrapper in the harness so future Codex builds
+  can be rechecked without redesigning the capture path
+- treat `Stop` as `confirmed-not-exercisable` for the current retained
+  provider-harness contract until live evidence changes
+
+### `resume` — Not Exercisable In The Noninteractive Harness
+
+Live probing on 2026-05-22 confirmed:
+
+```text
+codex resume <session-id> <prompt>
+```
+
+exits with `Error: stdin is not a terminal` under the repo-owned noninteractive
+harness flow. No approved payload fixture exists because the hook surface did
+not fire.
+
+Current retained disposition:
+
+- `resume` remains `confirmed-not-exercisable` in the approved fixture manifest
+- the provider harness keeps the evidence note so a future interactive or PTY
+  capture sprint can revisit it directly
+- no runtime parity or canonical mapping work may treat `resume` as approved
+  until fixture-backed evidence exists
+
+### `fork` — Not Exercisable In The Noninteractive Harness
+
+Live probing on 2026-05-22 confirmed:
+
+```text
+codex fork <session-id> <prompt>
+```
+
+exits with `Error: stdin is not a terminal` under the repo-owned noninteractive
+harness flow. No approved payload fixture exists because the hook surface did
+not fire.
+
+Current retained disposition:
+
+- `fork` remains `confirmed-not-exercisable` in the approved fixture manifest
+- the provider harness keeps the evidence note so a future interactive or PTY
+  capture sprint can revisit it directly
+- no runtime parity or canonical mapping work may treat `fork` as approved
+  until fixture-backed evidence exists
+
 ## Debounce Pattern — Verified Design
 
 Live testing on 2026-05-22 verified the following debounce contract for
@@ -256,7 +303,7 @@ Design rule:
 ## Test Harness
 
 `test-harness/hooks/codex/` now contains the `N.1` provider line: approved
-fixtures, provider-specific models, and an 11-test pytest suite covering both
+fixtures, provider-specific models, and a 13-test pytest suite covering both
 the debounce behavior and the approved fixture/manifest contract.
 
 | Test | What it verifies |
@@ -267,11 +314,13 @@ the debounce behavior and the approved fixture/manifest contract.
 | `test_fire_pending_runs_command_once_after_due_time` | due timer fires CLI exactly once, flips to idle |
 | `test_notify_prefers_session_record_and_sends_atm_idle_notice` | notify uses the canonical session record and writes the idle ATM notice state |
 | `test_manifest_has_required_top_level_keys` | approved manifest validates and records audited surfaces |
+| `test_manifest_records_non_exercisable_codex_surfaces_with_reasons` | `Stop`, `resume`, and `fork` stay dispositioned with explicit evidence notes |
 | `test_approved_payload_fixtures_validate_against_models` | approved payload fixtures validate against provider models |
 | `test_approved_env_fixtures_validate_and_redact_sensitive_values` | approved env fixtures validate and redact sensitive values |
 | `test_session_start_and_stop_capture_scripts_write_raw_files` | direct SessionStart and direct Stop wrappers write raw capture files |
 | `test_manifest_records_cd_scenario_through_approved_fixtures` | `--cd` scenario is preserved in approved fixtures |
 | `test_project_scope_blocks_outside_directories` | scope gate ignores hooks from outside project root |
+| `test_codex_hook_api_records_non_exercisable_surface_dispositions` | published Codex API doc matches the retained `Stop` / `resume` / `fork` disposition |
 
 Run:
 
@@ -299,6 +348,8 @@ Environment variables:
   current fixture evidence shows it can remain stale across new `codex exec`
   runs
 - `Stop` hook unreliable in live exec; do not plan against it
+- `resume` remains noninteractive-harness-only and is not yet fixture-backed
+- `fork` remains noninteractive-harness-only and is not yet fixture-backed
 - no verified upstream schema for Codex hook payload variants beyond the
   directly captured `SessionStart`, `PreToolUse`, and `notify`
 - any future Codex planning should cite the runner or bundle source used to
