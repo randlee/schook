@@ -167,9 +167,8 @@ fn is_plugin_executable(path: &Path) -> bool {
 
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
         if let Ok(metadata) = fs::metadata(path) {
-            return metadata.permissions().mode() & 0o111 != 0;
+            return std::os::unix::fs::PermissionsExt::mode(&metadata.permissions()) & 0o111 != 0;
         }
         false
     }
@@ -201,13 +200,12 @@ mod tests {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let mut perms = temp
                 .as_file()
                 .metadata()
                 .expect("plugin metadata should be available")
                 .permissions();
-            perms.set_mode(0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
             temp.as_file()
                 .set_permissions(perms)
                 .expect("plugin should be executable");

@@ -109,7 +109,7 @@ impl From<&str> for ProbeError {
 
 /// Sealed probe interface for exercising the real host dispatch path against
 /// the shared compliance scenarios without exposing arbitrary external probe
-/// implementations. Implementors must provide
+/// implementations. Implementers must provide
 /// `run_scenario(&self, scenario: ContractScenario) -> Result<ContractScenarioResult, ProbeError>`.
 pub trait HostDispatchProbe: private::Sealed {
     /// Executes one shared contract scenario through the real host path.

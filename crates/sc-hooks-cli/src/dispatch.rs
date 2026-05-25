@@ -195,9 +195,7 @@ fn plugin_termination_error(
 
     #[cfg(unix)]
     {
-        use std::os::unix::process::ExitStatusExt;
-
-        if let Some(signal) = status.signal() {
+        if let Some(signal) = std::os::unix::process::ExitStatusExt::signal(&status) {
             return PluginTerminationError::Signaled {
                 signal,
                 stderr_suffix: stderr_suffix(stderr),
@@ -1107,11 +1105,10 @@ mod tests {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(path)
                 .expect("plugin metadata should be readable")
                 .permissions();
-            perms.set_mode(0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
             fs::set_permissions(path, perms).expect("plugin should be executable");
         }
     }

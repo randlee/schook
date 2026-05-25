@@ -960,9 +960,8 @@ fn write_executable_atomic(path: &Path, bytes: &[u8]) -> Result<(), std::io::Err
     write_file_atomic(path, bytes)?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
         let mut perms = fs::metadata(path)?.permissions();
-        perms.set_mode(0o755);
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
         fs::set_permissions(path, perms)?;
     }
     Ok(())
@@ -990,6 +989,12 @@ mod tests {
     use crate::test_support;
     use serial_test::serial;
     use std::path::Path;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     fn make_plugin(path: &Path, manifest: &str) {
         if let Some(parent) = path.parent() {
@@ -1003,11 +1008,10 @@ mod tests {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(path)
                 .expect("plugin metadata should be available")
                 .permissions();
-            perms.set_mode(0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
             fs::set_permissions(path, perms).expect("plugin should be executable");
         }
     }
@@ -1019,35 +1023,17 @@ mod tests {
         fs::write(path, body).expect("executable should be writable");
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
             let mut perms = fs::metadata(path)
                 .expect("executable metadata should be available")
                 .permissions();
-            perms.set_mode(0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
             fs::set_permissions(path, perms).expect("executable should be executable");
         }
     }
 
-    struct EnvVarGuard {
-        key: &'static str,
-        original: Option<std::ffi::OsString>,
-    }
-
-    impl EnvVarGuard {
-        fn set(key: &'static str, value: &Path) -> Self {
-            let original = std::env::var_os(key);
-            unsafe { std::env::set_var(key, value) };
-            Self { key, original }
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.original {
-                Some(value) => unsafe { std::env::set_var(self.key, value) },
-                None => unsafe { std::env::remove_var(self.key) },
-            }
-        }
+    fn with_atm_home<T>(value: &Path, body: impl FnOnce() -> T) -> T {
+        let _lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
+        temp_env::with_var("ATM_HOME", Some(value), body)
     }
 
     #[test]
@@ -1247,137 +1233,138 @@ PreToolUse = ["a", "b"]
     fn local_provider_cutover_writes_provider_configs_and_runtime_root() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let home = temp.path().join("home");
-        let _home = EnvVarGuard::set("ATM_HOME", &home);
+        with_atm_home(&home, || {
+            fs::create_dir_all(home.join(".claude")).expect(".claude should create");
+            fs::create_dir_all(home.join(".codex")).expect(".codex should create");
+            fs::create_dir_all(home.join(".gemini")).expect(".gemini should create");
 
-        fs::create_dir_all(home.join(".claude")).expect(".claude should create");
-        fs::create_dir_all(home.join(".codex")).expect(".codex should create");
-        fs::create_dir_all(home.join(".gemini")).expect(".gemini should create");
+            fs::write(
+                home.join(".claude/settings.json"),
+                serde_json::json!({
+                    "model": "sonnet",
+                    "hooks": {}
+                })
+                .to_string(),
+            )
+            .expect("claude settings should write");
+            fs::write(
+                home.join(".codex/hooks.json"),
+                serde_json::json!({
+                    "hooks": {}
+                })
+                .to_string(),
+            )
+            .expect("codex settings should write");
+            fs::write(
+                home.join(".gemini/settings.json"),
+                serde_json::json!({
+                    "general": {
+                        "sessionRetention": {
+                            "enabled": true
+                        }
+                    },
+                    "hooks": {}
+                })
+                .to_string(),
+            )
+            .expect("gemini settings should write");
 
-        fs::write(
-            home.join(".claude/settings.json"),
-            serde_json::json!({
-                "model": "sonnet",
-                "hooks": {}
-            })
-            .to_string(),
-        )
-        .expect("claude settings should write");
-        fs::write(
-            home.join(".codex/hooks.json"),
-            serde_json::json!({
-                "hooks": {}
-            })
-            .to_string(),
-        )
-        .expect("codex settings should write");
-        fs::write(
-            home.join(".gemini/settings.json"),
-            serde_json::json!({
-                "general": {
-                    "sessionRetention": {
-                        "enabled": true
-                    }
-                },
-                "hooks": {}
-            })
-            .to_string(),
-        )
-        .expect("gemini settings should write");
+            let bin_root = home.join(".local/bin");
+            for binary in [
+                "sc-hooks",
+                "agent-session-foundation",
+                "agent-spawn-gates",
+                "atm-extension",
+                "tool-output-gates",
+            ] {
+                make_executable(
+                    &bin_root.join(binary),
+                    &format!(
+                        "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\ncat <<'JSON'\n{}\nJSON\nexit 0\nfi\nexit 0\n",
+                        match binary {
+                            "agent-session-foundation" =>
+                                r#"{"contract_version":1,"name":"agent-session-foundation","mode":"sync","hooks":["SessionStart","SessionEnd"],"matchers":["*"],"requires":{}}"#,
+                            "agent-spawn-gates" =>
+                                r#"{"contract_version":1,"name":"agent-spawn-gates","mode":"sync","hooks":["PreToolUse"],"matchers":["Agent"],"requires":{}}"#,
+                            "atm-extension" =>
+                                r#"{"contract_version":1,"name":"atm-extension","mode":"sync","hooks":["PreToolUse"],"matchers":["Bash"],"requires":{}}"#,
+                            "tool-output-gates" =>
+                                r#"{"contract_version":1,"name":"tool-output-gates","mode":"sync","hooks":["PostToolUse"],"matchers":["Bash"],"requires":{}}"#,
+                            _ => "{}",
+                        }
+                    ),
+                );
+            }
 
-        let bin_root = home.join(".local/bin");
-        for binary in [
-            "sc-hooks",
-            "agent-session-foundation",
-            "agent-spawn-gates",
-            "atm-extension",
-            "tool-output-gates",
-        ] {
-            make_executable(
-                &bin_root.join(binary),
-                &format!(
-                    "#!/bin/sh\nif [ \"$1\" = \"--manifest\" ]; then\ncat <<'JSON'\n{}\nJSON\nexit 0\nfi\nexit 0\n",
-                    match binary {
-                        "agent-session-foundation" =>
-                            r#"{"contract_version":1,"name":"agent-session-foundation","mode":"sync","hooks":["SessionStart","SessionEnd"],"matchers":["*"],"requires":{}}"#,
-                        "agent-spawn-gates" =>
-                            r#"{"contract_version":1,"name":"agent-spawn-gates","mode":"sync","hooks":["PreToolUse"],"matchers":["Agent"],"requires":{}}"#,
-                        "atm-extension" =>
-                            r#"{"contract_version":1,"name":"atm-extension","mode":"sync","hooks":["PreToolUse"],"matchers":["Bash"],"requires":{}}"#,
-                        "tool-output-gates" =>
-                            r#"{"contract_version":1,"name":"tool-output-gates","mode":"sync","hooks":["PostToolUse"],"matchers":["Bash"],"requires":{}}"#,
-                        _ => "{}",
-                    }
-                ),
+            let claude_plan = write_local_provider_cutover(TargetProvider::Claude)
+                .expect("claude cutover should succeed");
+            write_local_provider_cutover(TargetProvider::Codex)
+                .expect("codex cutover should succeed");
+            write_local_provider_cutover(TargetProvider::Gemini)
+                .expect("gemini cutover should succeed");
+
+            assert!(
+                claude_plan
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.contains("rollback backup"))
             );
-        }
 
-        let claude_plan = write_local_provider_cutover(TargetProvider::Claude)
-            .expect("claude cutover should succeed");
-        write_local_provider_cutover(TargetProvider::Codex).expect("codex cutover should succeed");
-        write_local_provider_cutover(TargetProvider::Gemini)
-            .expect("gemini cutover should succeed");
+            let runtime_root = home.join(LOCAL_RUNTIME_RELATIVE_ROOT);
+            assert!(runtime_root.join(LOCAL_RUNTIME_CONFIG_PATH).exists());
+            assert!(
+                runtime_root
+                    .join(LOCAL_RUNTIME_PLUGIN_DIR)
+                    .join("atm-extension")
+                    .exists()
+            );
 
-        assert!(
-            claude_plan
-                .warnings
-                .iter()
-                .any(|warning| warning.contains("rollback backup"))
-        );
+            let claude: Value = serde_json::from_str(
+                &fs::read_to_string(home.join(LOCAL_CLAUDE_SETTINGS_PATH))
+                    .expect("claude settings should read"),
+            )
+            .expect("claude settings should parse");
+            assert_eq!(claude["model"], "sonnet");
+            let claude_pre_tool = &claude["hooks"]["PreToolUse"][0]["hooks"][0]["command"];
+            assert!(
+                claude_pre_tool
+                    .as_str()
+                    .unwrap_or_default()
+                    .contains("sc-hooks")
+            );
+            assert!(
+                claude_pre_tool
+                    .as_str()
+                    .unwrap_or_default()
+                    .contains(".local/share/sc-hooks/runtime-layout")
+            );
 
-        let runtime_root = home.join(LOCAL_RUNTIME_RELATIVE_ROOT);
-        assert!(runtime_root.join(LOCAL_RUNTIME_CONFIG_PATH).exists());
-        assert!(
-            runtime_root
-                .join(LOCAL_RUNTIME_PLUGIN_DIR)
-                .join("atm-extension")
-                .exists()
-        );
-
-        let claude: Value = serde_json::from_str(
-            &fs::read_to_string(home.join(LOCAL_CLAUDE_SETTINGS_PATH))
-                .expect("claude settings should read"),
-        )
-        .expect("claude settings should parse");
-        assert_eq!(claude["model"], "sonnet");
-        let claude_pre_tool = &claude["hooks"]["PreToolUse"][0]["hooks"][0]["command"];
-        assert!(
-            claude_pre_tool
+            let codex: Value = serde_json::from_str(
+                &fs::read_to_string(home.join(LOCAL_CODEX_SETTINGS_PATH))
+                    .expect("codex settings should read"),
+            )
+            .expect("codex settings should parse");
+            let codex_command = codex["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
                 .as_str()
-                .unwrap_or_default()
-                .contains("sc-hooks")
-        );
-        assert!(
-            claude_pre_tool
+                .unwrap_or_default();
+            assert!(codex_command.contains("SC_HOOK_AGENT_TYPE"));
+            assert!(codex_command.contains("codex"));
+
+            let gemini: Value = serde_json::from_str(
+                &fs::read_to_string(home.join(LOCAL_GEMINI_SETTINGS_PATH))
+                    .expect("gemini settings should read"),
+            )
+            .expect("gemini settings should parse");
+            assert_eq!(gemini["general"]["sessionRetention"]["enabled"], true);
+            let gemini_command = gemini["hooks"]["BeforeTool"][0]["hooks"][0]["command"]
                 .as_str()
-                .unwrap_or_default()
-                .contains(".local/share/sc-hooks/runtime-layout")
-        );
-
-        let codex: Value = serde_json::from_str(
-            &fs::read_to_string(home.join(LOCAL_CODEX_SETTINGS_PATH))
-                .expect("codex settings should read"),
-        )
-        .expect("codex settings should parse");
-        let codex_command = codex["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-            .as_str()
-            .unwrap_or_default();
-        assert!(codex_command.contains("SC_HOOK_AGENT_TYPE"));
-        assert!(codex_command.contains("codex"));
-
-        let gemini: Value = serde_json::from_str(
-            &fs::read_to_string(home.join(LOCAL_GEMINI_SETTINGS_PATH))
-                .expect("gemini settings should read"),
-        )
-        .expect("gemini settings should parse");
-        assert_eq!(gemini["general"]["sessionRetention"]["enabled"], true);
-        let gemini_command = gemini["hooks"]["BeforeTool"][0]["hooks"][0]["command"]
-            .as_str()
-            .unwrap_or_default();
-        assert!(gemini_command.contains("SC_HOOK_AGENT_TYPE"));
-        assert!(gemini_command.contains("gemini"));
-        assert!(home.join(".claude/settings.json.sc-hooks.bak").exists());
-        assert!(home.join(".codex/hooks.json.sc-hooks.bak").exists());
-        assert!(home.join(".gemini/settings.json.sc-hooks.bak").exists());
+                .unwrap_or_default();
+            assert!(gemini_command.contains("SC_HOOK_AGENT_TYPE"));
+            assert!(gemini_command.contains("gemini"));
+            assert!(home.join(".claude/settings.json.sc-hooks.bak").exists());
+            assert!(home.join(".codex/hooks.json.sc-hooks.bak").exists());
+            assert!(home.join(".gemini/settings.json.sc-hooks.bak").exists());
+        });
     }
 
     #[test]
@@ -1385,26 +1372,27 @@ PreToolUse = ["a", "b"]
     fn local_provider_cutover_errors_when_provider_config_is_missing() {
         let temp = tempfile::tempdir().expect("tempdir should create");
         let home = temp.path().join("home");
-        let _home = EnvVarGuard::set("ATM_HOME", &home);
-        fs::create_dir_all(home.join(".local/bin")).expect("bin root should create");
-        for binary in [
-            "sc-hooks",
-            "agent-session-foundation",
-            "agent-spawn-gates",
-            "atm-extension",
-            "tool-output-gates",
-        ] {
-            make_executable(&home.join(".local/bin").join(binary), "#!/bin/sh\nexit 0\n");
-        }
-
-        let err = write_local_provider_cutover(TargetProvider::Codex)
-            .expect_err("missing codex config should fail");
-        assert!(matches!(
-            err,
-            InstallError::MissingProviderConfig {
-                provider: TargetProvider::Codex,
-                ..
+        with_atm_home(&home, || {
+            fs::create_dir_all(home.join(".local/bin")).expect("bin root should create");
+            for binary in [
+                "sc-hooks",
+                "agent-session-foundation",
+                "agent-spawn-gates",
+                "atm-extension",
+                "tool-output-gates",
+            ] {
+                make_executable(&home.join(".local/bin").join(binary), "#!/bin/sh\nexit 0\n");
             }
-        ));
+
+            let err = write_local_provider_cutover(TargetProvider::Codex)
+                .expect_err("missing codex config should fail");
+            assert!(matches!(
+                err,
+                InstallError::MissingProviderConfig {
+                    provider: TargetProvider::Codex,
+                    ..
+                }
+            ));
+        });
     }
 }

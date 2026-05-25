@@ -350,30 +350,14 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    struct EnvGuard {
-        key: &'static str,
-        original: Option<std::ffi::OsString>,
+    fn with_schema_path<T>(value: &Path, body: impl FnOnce() -> T) -> T {
+        let _guard = test_lock().lock().expect("lock");
+        temp_env::with_var("SC_HOOK_JSON_SCHEMA_PATH", Some(value), body)
     }
 
-    impl EnvGuard {
-        fn set_path(key: &'static str, value: &Path) -> Self {
-            let original = std::env::var_os(key);
-            // SAFETY: tests serialize env mutation with a process-wide mutex.
-            unsafe { std::env::set_var(key, value) };
-            Self { key, original }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            if let Some(value) = &self.original {
-                // SAFETY: tests serialize env mutation with a process-wide mutex.
-                unsafe { std::env::set_var(self.key, value) };
-            } else {
-                // SAFETY: tests serialize env mutation with a process-wide mutex.
-                unsafe { std::env::remove_var(self.key) };
-            }
-        }
+    fn without_schema_path<T>(body: impl FnOnce() -> T) -> T {
+        let _guard = test_lock().lock().expect("lock");
+        temp_env::with_var_unset("SC_HOOK_JSON_SCHEMA_PATH", body)
     }
 
     fn bash_context(stdout: &str, tool_name: &str) -> HookContext<'static> {
@@ -429,86 +413,82 @@ mod tests {
 
     #[test]
     fn post_tool_use_bash_routes_through_gate_and_validates_success() {
-        let _guard = test_lock().lock().expect("lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let schema_path = write_schema(&temp);
-        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &schema_path);
+        with_schema_path(&schema_path, || {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context(
+                    "```json\n{\"status\":\"ok\",\"ok\":true}\n```",
+                    "Bash",
+                ))
+                .expect("handler result");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context(
-                "```json\n{\"status\":\"ok\",\"ok\":true}\n```",
-                "Bash",
-            ))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+        });
     }
 
     #[test]
     fn invalid_output_returns_exact_retryable_reason() {
-        let _guard = test_lock().lock().expect("lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let schema_path = write_schema(&temp);
-        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &schema_path);
+        with_schema_path(&schema_path, || {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context("plain text only", "Bash"))
+                .expect("handler result");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context("plain text only", "Bash"))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some(
-                "Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout."
-            )
-        );
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+            assert_eq!(
+                result.reason.as_deref(),
+                Some(
+                    "Tool output blocked: expected exactly one fenced `json` block, found none. Retry by printing one ```json ... ``` block to stdout."
+                )
+            );
+        });
     }
 
     #[test]
     fn multiple_json_blocks_are_rejected() {
-        let _guard = test_lock().lock().expect("lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let schema_path = write_schema(&temp);
-        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &schema_path);
+        with_schema_path(&schema_path, || {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context(
+                    "```json\n{\"status\":\"ok\"}\n```\n```json\n{\"status\":\"dup\"}\n```",
+                    "Bash",
+                ))
+                .expect("handler result");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context(
-                "```json\n{\"status\":\"ok\"}\n```\n```json\n{\"status\":\"dup\"}\n```",
-                "Bash",
-            ))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some(
-                "Tool output blocked: expected exactly one fenced `json` block, found 2. Retry by emitting a single ```json ... ``` block to stdout."
-            )
-        );
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+            assert_eq!(
+                result.reason.as_deref(),
+                Some(
+                    "Tool output blocked: expected exactly one fenced `json` block, found 2. Retry by emitting a single ```json ... ``` block to stdout."
+                )
+            );
+        });
     }
 
     #[test]
     fn schema_validation_failures_are_retryable() {
-        let _guard = test_lock().lock().expect("lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let schema_path = write_schema(&temp);
-        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &schema_path);
+        with_schema_path(&schema_path, || {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context("```json\n{\"ok\":true}\n```", "Bash"))
+                .expect("handler result");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context("```json\n{\"ok\":true}\n```", "Bash"))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some(
-                "Tool output blocked: $.status is required. Retry by emitting exactly one fenced `json` block that matches the declared schema."
-            )
-        );
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Block);
+            assert_eq!(
+                result.reason.as_deref(),
+                Some(
+                    "Tool output blocked: $.status is required. Retry by emitting exactly one fenced `json` block that matches the declared schema."
+                )
+            );
+        });
     }
 
     #[test]
@@ -523,95 +503,91 @@ mod tests {
 
     #[test]
     fn missing_schema_path_is_a_noop() {
-        let _guard = test_lock().lock().expect("lock");
-        // SAFETY: tests serialize env mutation with a process-wide mutex.
-        unsafe { std::env::remove_var("SC_HOOK_JSON_SCHEMA_PATH") };
+        without_schema_path(|| {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context("```json\n{\"status\":\"ok\"}\n```", "Bash"))
+                .expect("handler result");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context("```json\n{\"status\":\"ok\"}\n```", "Bash"))
-            .expect("handler result");
-
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+        });
     }
 
     #[test]
     fn inline_schema_definition_takes_priority() {
-        let _guard = test_lock().lock().expect("lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let fallback_schema_path = write_schema(&temp);
-        let _env = EnvGuard::set_path("SC_HOOK_JSON_SCHEMA_PATH", &fallback_schema_path);
-
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context_with_payload(serde_json::json!({
-                "tool_name": "Bash",
-                "tool_input": {
-                    "command": "echo",
-                    "description": "Emit structured output",
-                    "schema": {
-                        "type": "object",
-                        "required": ["state"],
-                        "properties": {
-                            "state": { "type": "string" }
+        with_schema_path(&fallback_schema_path, || {
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context_with_payload(serde_json::json!({
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": "echo",
+                        "description": "Emit structured output",
+                        "schema": {
+                            "type": "object",
+                            "required": ["state"],
+                            "properties": {
+                                "state": { "type": "string" }
+                            }
                         }
-                    }
-                },
-                "tool_response": {
+                    },
+                    "tool_response": {
                     "stdout": "```json\n{\"state\":\"ok\"}\n```",
                     "stderr": "",
                     "interrupted": false,
                     "isImage": false,
                     "noOutputExpected": false
-                }
-            })))
-            .expect("handler result");
+                    }
+                })))
+                .expect("handler result");
 
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+        });
     }
 
     #[test]
     fn sibling_schema_file_is_discovered_from_referenced_output_path() {
-        let _guard = test_lock().lock().expect("lock");
-        // SAFETY: tests serialize env mutation with a process-wide mutex.
-        unsafe { std::env::remove_var("SC_HOOK_JSON_SCHEMA_PATH") };
-        let temp = tempfile::tempdir().expect("tempdir");
-        let output_path = temp.path().join("report.json");
-        fs::write(&output_path, "{}").expect("write output");
-        let sibling_schema = temp.path().join("report.schema.json");
-        fs::write(
-            &sibling_schema,
-            serde_json::json!({
-                "type": "object",
-                "required": ["status"],
-                "properties": {
-                    "status": { "type": "string" }
-                }
-            })
-            .to_string(),
-        )
-        .expect("write schema");
+        without_schema_path(|| {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let output_path = temp.path().join("report.json");
+            fs::write(&output_path, "{}").expect("write output");
+            let sibling_schema = temp.path().join("report.schema.json");
+            fs::write(
+                &sibling_schema,
+                serde_json::json!({
+                    "type": "object",
+                    "required": ["status"],
+                    "properties": {
+                        "status": { "type": "string" }
+                    }
+                })
+                .to_string(),
+            )
+            .expect("write schema");
 
-        let handler = ToolOutputGatesHandler;
-        let result = handler
-            .handle(bash_context_with_payload(serde_json::json!({
-                "tool_name": "Bash",
-                "tool_input": {
-                    "command": "cat",
-                    "description": "Render report"
-                },
-                "tool_response": {
-                    "stdout": format!("{}\n```json\n{{\"status\":\"ok\"}}\n```", output_path.display()),
-                    "stderr": "",
-                    "interrupted": false,
-                    "isImage": false,
-                    "noOutputExpected": false,
-                    "file_path": output_path
-                }
-            })))
-            .expect("handler result");
+            let handler = ToolOutputGatesHandler;
+            let result = handler
+                .handle(bash_context_with_payload(serde_json::json!({
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": "cat",
+                        "description": "Render report"
+                    },
+                    "tool_response": {
+                        "stdout": format!("{}\n```json\n{{\"status\":\"ok\"}}\n```", output_path.display()),
+                        "stderr": "",
+                        "interrupted": false,
+                        "isImage": false,
+                        "noOutputExpected": false,
+                        "file_path": output_path
+                    }
+                })))
+                .expect("handler result");
 
-        assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+            assert_eq!(result.action, sc_hooks_core::results::HookAction::Proceed);
+        });
     }
 
     #[test]

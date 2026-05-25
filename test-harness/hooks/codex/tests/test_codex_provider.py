@@ -124,7 +124,7 @@ def test_notify_hook_schedules_pending_record(tmp_path: Path, codex_root: Path) 
 
 @pytest.mark.provider_codex
 def test_pretooluse_cancels_pending_debounce(tmp_path: Path, codex_root: Path) -> None:
-    """PreToolUse cancelation is intentionally tolerant of partial payloads by design."""
+    """PreToolUse cancellation is intentionally tolerant of partial payloads by design."""
     capture_root = tmp_path / "captures"
     state_root = tmp_path / "state"
     repo_root = tmp_path / "repo"
