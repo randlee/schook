@@ -32,13 +32,14 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
 | `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
 | `ADR-SHK-008` | Provider runtime normalization passes through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. Introduced by `Phase O` planning and now in force for the approved Codex and Gemini runtime surfaces. |
+| `ADR-SHK-009` | `Phase P` may extend the existing `CanonicalHook` / provider-hook typed inventory only through the same PR that updates `docs/architecture.md`, the boundary records, and the authoritative mapping table; no sprint may add retained lifecycle surfaces through ad hoc provider-specific runtime paths or uncited enum growth. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-008` decisions in this document
+  through `ADR-SHK-009` decisions in this document
 
 ## 2. Current System Boundary
 

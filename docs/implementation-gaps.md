@@ -86,23 +86,15 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
 
 ### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
 
-- Status: `active`
+- Status: `closed in O.6`
 - Owner area:
   - `sc-hooks-cli`, docs
-- Current note:
-  - hook types are now typed at the main resolution and dispatch boundaries, but
-    some CLI-facing plugin and matcher identifiers still remain `String`-backed
-    because they are assembled from config and manifest data used directly by
-    observability/audit output
-  - forcing a full newtype conversion in the phase-end fix pass would widen the
-    API churn beyond the targeted blocker set
-  - Phase O assignment: close this item in `O.6` so the remaining CLI-facing
-    plugin-name and matcher-ID typing work lands together with the
-    cross-provider plugin-parity validation that exercises those dispatch and
-    observability boundaries
-  - recommendation: keep the targeted cleanup scoped to the remaining
-    plugin-name and matcher-ID wrappers rather than broadening it into an
-    unbounded CLI surface rewrite
+- Closure note:
+  - the planned closeout remained assigned to `O.6`, and `Phase P` does not
+    reopen it as an active ruling item
+  - any future CLI typing expansion beyond the `O.6` closure requires a new
+    discrete ruling or implementation-gap entry rather than silently carrying
+    `RULING-NEEDED-NT-CLI-002` forward
 
 ### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
 
