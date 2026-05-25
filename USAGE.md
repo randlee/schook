@@ -17,7 +17,7 @@ Install the CLI from this repo:
 Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
 
 ```bash
-cargo install --path sc-hooks-cli --root ~/.local
+cargo install --path crates/sc-hooks-cli --root ~/.local
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -40,7 +40,12 @@ export PATH="$HOME/.local/bin:$PATH"
 
 Naming note:
 - [docs/requirements.md](docs/requirements.md) uses `sc-hooks` as the product command label in acceptance scenarios.
-- The current Cargo package and binary artifact in this repo is `sc-hooks-cli`, so the executable examples below use `sc-hooks-cli`.
+- The canonical installed command is `sc-hooks`.
+- The local provider cutover path also writes a `hooks` wrapper beside it under
+  `~/.local/bin/`.
+- A plain `cargo install --path crates/sc-hooks-cli --root ~/.local` guarantees
+  `sc-hooks`; the `hooks` alias appears after the cutover helper installs the
+  wrapper.
 
 ## Runtime Layout
 
@@ -104,32 +109,32 @@ Current config rules come from [docs/requirements.md](docs/requirements.md):
 Normal execution:
 
 ```bash
-printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks-cli run PreToolUse Bash --sync
+printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks run PreToolUse Bash --sync
 ```
 
 Fire a diagnostic invocation:
 
 ```bash
-sc-hooks-cli fire PreToolUse Write
+sc-hooks fire PreToolUse Write
 ```
 
 Inspect the resolved configuration:
 
 ```bash
-sc-hooks-cli config
+sc-hooks config
 ```
 
 List discovered plugins:
 
 ```bash
-sc-hooks-cli handlers
-sc-hooks-cli handlers --events
+sc-hooks handlers
+sc-hooks handlers --events
 ```
 
 Show exit-code reference:
 
 ```bash
-sc-hooks-cli exit-codes
+sc-hooks exit-codes
 ```
 
 ## Audit
@@ -140,13 +145,13 @@ requirements, and install-plan generation without executing live hook logic.
 Run it from the repository root:
 
 ```bash
-sc-hooks-cli audit
+sc-hooks audit
 ```
 
 If you want to clear persisted session-disable state:
 
 ```bash
-sc-hooks-cli audit --reset
+sc-hooks audit --reset
 ```
 
 ## Generate Claude Hook Settings
@@ -161,6 +166,8 @@ Current local cutover behavior:
 - updates `~/.claude/settings.json`
 - updates `~/.codex/hooks.json`
 - updates `~/.gemini/settings.json`
+- writes `~/.local/bin/hooks` as a convenience alias wrapper beside
+  `sc-hooks`
 - writes the shared machine-local runtime root at
   `~/.local/share/sc-hooks/runtime-layout`
 - writes rollback backups beside each provider config using the
@@ -197,7 +204,7 @@ Example 1: validate a checked runtime layout
 
 ```bash
 cd examples/runtime-layout
-sc-hooks-cli audit
+sc-hooks audit
 ```
 
 Expected result:
@@ -207,7 +214,7 @@ Expected result:
 Example 2: run a sync hook with synthetic payload
 
 ```bash
-printf '%s\n' '{"tool_input":{"command":"echo hi"}}' | sc-hooks-cli run PreToolUse Write --sync
+printf '%s\n' '{"tool_input":{"command":"echo hi"}}' | sc-hooks run PreToolUse Write --sync
 ```
 
 Expected result:
@@ -217,7 +224,7 @@ Expected result:
 Example 3: compliance-test a plugin executable
 
 ```bash
-sc-hooks-cli test .sc-hooks/plugins/guard-paths
+sc-hooks test .sc-hooks/plugins/guard-paths
 ```
 
 Expected result:

@@ -1,9 +1,9 @@
 ---
 id: P.6
 title: Gemini Missing-Hook Runtime Parity
-status: planned
-branch: feature/pP-s6-gemini-missing-hook-runtime
-worktree: ../schook-worktrees/feature/pP-s6-gemini-missing-hook-runtime
+status: complete
+branch: feature/pP-s6-gemini-runtime-parity
+worktree: ../schook-worktrees/feature/pP-s6-gemini-runtime-parity
 target: integrate/phase-P
 ---
 
@@ -76,7 +76,7 @@ target: integrate/phase-P
 ## Required Validation
 
 - `cargo test --workspace`
-- `just lint sc-portability`
+- `just lint portability`
 - `just test hooks gemini`
 - `git diff --check`
 
@@ -87,3 +87,29 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement IDs changed:
+  - `HKR-006`
+  - `HKR-010`
+- Code removed early:
+  - none; Gemini-specific bypass paths stayed out of scope and no parallel
+    runtime path was added
+- Owned write scope:
+  - `crates/sc-hooks-core/`
+  - `crates/sc-hooks-cli/`
+  - `plugins/agent-session-foundation/`
+  - `plugins/atm-extension/`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+  - `docs/phase-P/sprint-P6.md`
+- Validation that passed:
+  - `cargo test --workspace`
+  - `just lint portability`
+  - `just test hooks gemini`
+  - `git diff --check`
+- Follow-on work:
+  - `P.7` closes the remaining active ruling items without reopening Gemini
+    runtime parity
+  - `P.8` remains packaging/CLI closeout only

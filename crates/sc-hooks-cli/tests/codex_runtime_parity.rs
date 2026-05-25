@@ -50,6 +50,7 @@ version = 1
 [hooks]
 SessionStart = ["agent-session-foundation"]
 PreToolUse = ["atm-extension"]
+Stop = ["agent-session-foundation", "atm-extension"]
 "#,
     )
     .expect("config should write");
@@ -65,6 +66,7 @@ version = 1
 [hooks]
 SessionStart = ["agent-session-foundation"]
 PreToolUse = ["atm-extension"]
+Stop = ["agent-session-foundation", "atm-extension"]
 
 [observability]
 mode = "full"
@@ -193,6 +195,45 @@ fn codex_runtime_path_updates_session_state_and_atm_extension() {
     assert_eq!(record["provider"], "codex");
     assert_eq!(record["extensions"]["atm"]["atm_team"], "schook");
     assert_eq!(record["extensions"]["atm"]["atm_identity"], "chook");
+}
+
+#[test]
+fn codex_notify_uses_generic_stop_path() {
+    let temp = tempfile::tempdir().expect("tempdir should create");
+    let root = temp.path();
+    write_runtime_config(root);
+    write_atm_config(root);
+    install_plugin_wrapper(root, "agent-session-foundation", "agent-session-foundation");
+    install_plugin_wrapper(root, "atm-extension", "atm-extension");
+
+    let session_start_payload = codex_fixture("session-start-startup.json");
+    let session_id = session_start_payload["session_id"]
+        .as_str()
+        .expect("session id should be present")
+        .to_string();
+    let session_start = run_codex_hook(root, "SessionStart", None, session_start_payload);
+    assert_eq!(
+        session_start.status.code(),
+        Some(sc_hooks_core::exit_codes::SUCCESS)
+    );
+
+    let stop = run_codex_hook(
+        root,
+        "Stop",
+        None,
+        codex_fixture("notify-agent-turn-complete.json"),
+    );
+    assert_eq!(stop.status.code(), Some(sc_hooks_core::exit_codes::SUCCESS));
+
+    let rendered = fs::read_to_string(
+        root.join(".sc-hooks/state")
+            .join(format!("{session_id}.json")),
+    )
+    .expect("state file should read");
+    let record: Value = serde_json::from_str(&rendered).expect("state should parse");
+    assert_eq!(record["provider"], "codex");
+    assert_eq!(record["agent_state"], "idle");
+    assert_eq!(record["last_hook_event"], "Stop");
 }
 
 #[test]

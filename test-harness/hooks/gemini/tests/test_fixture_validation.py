@@ -32,6 +32,18 @@ def test_fixture_manifest_matches_expected_hook_surfaces(gemini_root: Path, expe
 
 
 @pytest.mark.provider_gemini
+def test_manifest_records_after_agent_as_retained_surface(gemini_root: Path) -> None:
+    manifest = json.loads((gemini_root / "fixtures" / "approved" / "manifest.json").read_text(encoding="utf-8"))
+
+    after_agent = next(surface for surface in manifest["hook_surfaces"] if surface["surface"] == "after-agent")
+    assert after_agent["status"] == "captured"
+    assert after_agent["payload_fixture"] == "after-agent.json"
+    assert after_agent["env_fixture"] == "after-agent.env.json"
+    assert after_agent["control_semantics"]["blocking"] is False
+    assert "caveat" in after_agent
+
+
+@pytest.mark.provider_gemini
 def test_capture_scripts_write_raw_payload_and_env_files(tmp_path: Path, gemini_root: Path) -> None:
     hooks_dir = gemini_root / "hooks"
     capture_root = tmp_path / "captures"
@@ -112,3 +124,12 @@ def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expecte
         payload = json.loads(payload_text)
         if "transcript_path" in payload:
             assert payload["transcript_path"].startswith(synthetic_transcript_prefixes)
+
+
+@pytest.mark.provider_gemini
+def test_gemini_hook_api_records_after_agent_as_retained_surface(gemini_root: Path) -> None:
+    doc = (gemini_root.parents[2] / "docs" / "hook-api" / "gemini-hook-api.md").read_text(encoding="utf-8")
+
+    assert "### `AfterAgent`" in doc
+    assert "Retained Phase P harness disposition" in doc
+    assert "`AfterAgent` is a maintained Gemini harness surface" in doc

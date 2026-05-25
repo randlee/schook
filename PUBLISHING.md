@@ -29,6 +29,14 @@ workflows. Update the manifest instead.
 4. GitHub release archives may still ship the `sc-hooks` binary from this repo
    even while the CLI crate is outside the current crates.io wave
 
+Current alias posture:
+
+- `sc-hooks` is still the canonical shipped binary name
+- the repo-local provider cutover path writes a `hooks` wrapper beside
+  `sc-hooks` under `~/.local/bin/`
+- release archives and package-manager artifacts must not claim that `hooks`
+  is installed unless that channel explicitly adds the alias artifact too
+
 Until the release manifest is widened:
 
 - you may run local release validation and publish-shape checks
