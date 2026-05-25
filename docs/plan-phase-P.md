@@ -238,6 +238,36 @@ Execution branch:
 Execution worktree:
 - `../schook-worktrees/feature/pP-s8-cli-and-retry-closeout`
 
+### P.9 sc-lint 0.2.0 Portability Integration
+
+Purpose:
+
+- replace the `../sc-lint` local path fallback in `.just/lint_sc_boundary.py`
+  with the published `sc-lint-boundary 0.2.0` binary (Homebrew or
+  `cargo install sc-lint-boundary@0.2.0`); remove all `cargo run --manifest-path`
+  references to the sibling repo
+- add `.just/lint_sc_portability.py`: `sc-lint-portability` binary dispatch on
+  the same Homebrew → PATH → install pattern; no sibling repo fallback
+- wire `sc-portability` into `run_lint.py` `TARGETS`/`ALL_ORDER` and add
+  `_lint-sc-portability` to the `justfile`
+- add a CI `sc-lint` job to `.github/workflows/ci.yml` that installs
+  `sc-lint-portability` and `sc-lint-boundary` at 0.2.0 and runs
+  `just lint sc-boundary` and `just lint sc-portability`
+- run `just lint sc-portability` against the full schook workspace and fix all
+  findings; record any deferred items in `docs/implementation-gaps.md` with
+  `RULING-NEEDED-` IDs
+
+Execution precondition:
+
+- `P.9` starts after `integrate/phase-P` contains `P.1`–`P.8`; no dependency on
+  `P.9` completing before `integrate/phase-P` merges to `develop`
+
+Execution branch:
+- `feature/pP-s9-sc-lint-portability`
+
+Execution worktree:
+- `../schook-worktrees/feature/pP-s9-sc-lint-portability`
+
 ## Sprint Artifact Summary
 
 - `P.1`:
@@ -279,3 +309,10 @@ Execution worktree:
   - install/packaging alias work for `hooks`
   - retry-path coverage in `sc-hooks-core` / `sc-hooks-test`
   - release/operator docs
+- `P.9`:
+  - `.just/lint_sc_boundary.py` (remove `../sc-lint` fallback)
+  - `.just/lint_sc_portability.py` (new)
+  - `.just/run_lint.py` (sc-portability target)
+  - `justfile` (`_lint-sc-portability` target)
+  - `.github/workflows/ci.yml` (sc-lint job)
+  - portability finding fixes across `crates/` and `plugins/`
