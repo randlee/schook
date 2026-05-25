@@ -896,8 +896,7 @@ const fn default_retain_days() -> RetainDays {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::OsString;
-    use std::sync::{Mutex, MutexGuard, OnceLock};
+    use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
 
     fn valid_base_config() -> &'static str {
@@ -929,49 +928,12 @@ PreToolUse = ["guard-paths"]
         ENV_LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    struct EnvGuard {
-        _lock: MutexGuard<'static, ()>,
-        saved: Vec<(&'static str, Option<OsString>)>,
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            for (key, value) in self.saved.drain(..) {
-                match value {
-                    Some(value) => {
-                        // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
-                        unsafe { std::env::set_var(key, value) }
-                    }
-                    None => {
-                        // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
-                        unsafe { std::env::remove_var(key) }
-                    }
-                }
-            }
-        }
-    }
-
-    fn scoped_env(overrides: &[(&'static str, Option<&str>)]) -> EnvGuard {
-        let lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
-        let saved = overrides
-            .iter()
-            .map(|(key, _)| (*key, std::env::var_os(key)))
-            .collect::<Vec<_>>();
-
-        for (key, value) in overrides {
-            match value {
-                Some(value) => {
-                    // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
-                    unsafe { std::env::set_var(key, value) }
-                }
-                None => {
-                    // SAFETY: env mutation is serialized through env_lock() held by _lock for the lifetime of this guard.
-                    unsafe { std::env::remove_var(key) }
-                }
-            }
-        }
-
-        EnvGuard { _lock: lock, saved }
+    fn with_scoped_env<T>(
+        overrides: &[(&'static str, Option<&str>)],
+        body: impl FnOnce() -> T,
+    ) -> T {
+        let _lock = env_lock().lock().unwrap_or_else(|err| err.into_inner());
+        temp_env::with_vars(overrides, body)
     }
 
     fn write_config(path: &Path, contents: &str) {
@@ -1250,12 +1212,10 @@ mode = "full"
             .to_str()
             .expect("temp ATM_HOME path should be valid utf-8")
             .to_string();
-        let _env = scoped_env(&[("ATM_HOME", Some(atm_home.as_str()))]);
-
-        assert_eq!(
-            default_global_config_path(),
-            Some(PathBuf::from(atm_home).join(".sc-hooks/config.toml"))
-        );
+        let expected = PathBuf::from(&atm_home).join(".sc-hooks/config.toml");
+        with_scoped_env(&[("ATM_HOME", Some(atm_home.as_str()))], || {
+            assert_eq!(default_global_config_path(), Some(expected.clone()));
+        });
     }
 
     #[test]
@@ -1265,22 +1225,24 @@ mode = "full"
             .to_str()
             .expect("temp audit path should be valid utf-8")
             .to_string();
-        let _env = scoped_env(&[
-            (ENV_OBSERVABILITY_MODE, Some("full")),
-            (ENV_AUDIT_PROFILE, Some("lean")),
-            (ENV_AUDIT_PATH, Some(audit_env_path.as_str())),
-            (ENV_AUDIT_MAX_RUNS, Some("4")),
-            (ENV_AUDIT_MAX_AGE_DAYS, Some("45")),
-            (ENV_AUDIT_REDACTION, Some("strict")),
-            (ENV_AUDIT_CAPTURE_PAYLOADS, Some("true")),
-            (ENV_AUDIT_CAPTURE_STDIO, Some("summary")),
-        ]);
-        let temp = tempfile::tempdir().expect("tempdir should be creatable");
-        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
-        let global_path = temp.path().join("home/.sc-hooks/config.toml");
-        write_config(
-            &local_path,
-            r#"
+        with_scoped_env(
+            &[
+                (ENV_OBSERVABILITY_MODE, Some("full")),
+                (ENV_AUDIT_PROFILE, Some("lean")),
+                (ENV_AUDIT_PATH, Some(audit_env_path.as_str())),
+                (ENV_AUDIT_MAX_RUNS, Some("4")),
+                (ENV_AUDIT_MAX_AGE_DAYS, Some("45")),
+                (ENV_AUDIT_REDACTION, Some("strict")),
+                (ENV_AUDIT_CAPTURE_PAYLOADS, Some("true")),
+                (ENV_AUDIT_CAPTURE_STDIO, Some("summary")),
+            ],
+            || {
+                let temp = tempfile::tempdir().expect("tempdir should be creatable");
+                let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+                let global_path = temp.path().join("home/.sc-hooks/config.toml");
+                write_config(
+                    &local_path,
+                    r#"
 [meta]
 version = 1
 
@@ -1295,10 +1257,10 @@ console_mirror = true
 retain_runs = 9
 capture_stdio = "bounded"
 "#,
-        );
-        write_config(
-            &global_path,
-            r#"
+                );
+                write_config(
+                    &global_path,
+                    r#"
 [observability]
 mode = "off"
 console_mirror = false
@@ -1306,20 +1268,22 @@ retain_runs = 5
 retain_days = 30
 redaction = "permissive"
 "#,
+                );
+
+                let config = load_layered_config(&local_path, Some(&global_path))
+                    .expect("layered config should resolve");
+
+                assert_eq!(config.observability.mode, ObservabilityMode::Full);
+                assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
+                assert_eq!(config.observability.path, PathBuf::from(&audit_env_path));
+                assert!(config.observability.console_mirror);
+                assert_eq!(config.observability.retain_runs.get(), 4);
+                assert_eq!(u32::from(config.observability.retain_days), 45);
+                assert_eq!(config.observability.redaction, RedactionMode::Strict);
+                assert!(config.observability.capture_payloads.is_enabled());
+                assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
+            },
         );
-
-        let config = load_layered_config(&local_path, Some(&global_path))
-            .expect("layered config should resolve");
-
-        assert_eq!(config.observability.mode, ObservabilityMode::Full);
-        assert_eq!(config.observability.full_profile, FullAuditProfile::Lean);
-        assert_eq!(config.observability.path, PathBuf::from(&audit_env_path));
-        assert!(config.observability.console_mirror);
-        assert_eq!(config.observability.retain_runs.get(), 4);
-        assert_eq!(u32::from(config.observability.retain_days), 45);
-        assert_eq!(config.observability.redaction, RedactionMode::Strict);
-        assert!(config.observability.capture_payloads.is_enabled());
-        assert_eq!(config.observability.capture_stdio, CaptureStdio::Summary);
     }
 
     #[test]
@@ -1330,59 +1294,62 @@ redaction = "permissive"
 
     #[test]
     fn invalid_environment_override_is_rejected() {
-        let _env = scoped_env(&[(ENV_OBSERVABILITY_MODE, Some("invalid"))]);
-        let temp = tempfile::tempdir().expect("tempdir should be creatable");
-        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
-        write_config(&local_path, minimal_required_config());
+        with_scoped_env(&[(ENV_OBSERVABILITY_MODE, Some("invalid"))], || {
+            let temp = tempfile::tempdir().expect("tempdir should be creatable");
+            let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+            write_config(&local_path, minimal_required_config());
 
-        let err = load_layered_config(&local_path, None)
-            .expect_err("invalid env override must be rejected");
-        assert!(
-            matches!(
-                err,
-                ConfigError::InvalidEnvOverride {
-                    key: ENV_OBSERVABILITY_MODE,
-                    ..
-                }
-            ),
-            "expected invalid-env-override error, got {err:?}"
-        );
+            let err = load_layered_config(&local_path, None)
+                .expect_err("invalid env override must be rejected");
+            assert!(
+                matches!(
+                    err,
+                    ConfigError::InvalidEnvOverride {
+                        key: ENV_OBSERVABILITY_MODE,
+                        ..
+                    }
+                ),
+                "expected invalid-env-override error, got {err:?}"
+            );
+        });
     }
 
     #[test]
     fn zero_retention_environment_override_is_rejected() {
-        let _env = scoped_env(&[(ENV_AUDIT_MAX_RUNS, Some("0"))]);
-        let temp = tempfile::tempdir().expect("tempdir should be creatable");
-        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
-        write_config(&local_path, minimal_required_config());
+        with_scoped_env(&[(ENV_AUDIT_MAX_RUNS, Some("0"))], || {
+            let temp = tempfile::tempdir().expect("tempdir should be creatable");
+            let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+            write_config(&local_path, minimal_required_config());
 
-        let err = load_layered_config(&local_path, None)
-            .expect_err("zero retain-runs env override must be rejected");
-        assert!(matches!(
-            err,
-            ConfigError::InvalidEnvOverride {
-                key: ENV_AUDIT_MAX_RUNS,
-                ..
-            }
-        ));
+            let err = load_layered_config(&local_path, None)
+                .expect_err("zero retain-runs env override must be rejected");
+            assert!(matches!(
+                err,
+                ConfigError::InvalidEnvOverride {
+                    key: ENV_AUDIT_MAX_RUNS,
+                    ..
+                }
+            ));
+        });
     }
 
     #[test]
     fn zero_retain_days_env_override_is_rejected() {
-        let _env = scoped_env(&[(ENV_AUDIT_MAX_AGE_DAYS, Some("0"))]);
-        let temp = tempfile::tempdir().expect("tempdir should be creatable");
-        let local_path = temp.path().join("repo/.sc-hooks/config.toml");
-        write_config(&local_path, minimal_required_config());
+        with_scoped_env(&[(ENV_AUDIT_MAX_AGE_DAYS, Some("0"))], || {
+            let temp = tempfile::tempdir().expect("tempdir should be creatable");
+            let local_path = temp.path().join("repo/.sc-hooks/config.toml");
+            write_config(&local_path, minimal_required_config());
 
-        let err = load_layered_config(&local_path, None)
-            .expect_err("zero retain-days env override must be rejected");
-        assert!(matches!(
-            err,
-            ConfigError::InvalidEnvOverride {
-                key: ENV_AUDIT_MAX_AGE_DAYS,
-                ..
-            }
-        ));
+            let err = load_layered_config(&local_path, None)
+                .expect_err("zero retain-days env override must be rejected");
+            assert!(matches!(
+                err,
+                ConfigError::InvalidEnvOverride {
+                    key: ENV_AUDIT_MAX_AGE_DAYS,
+                    ..
+                }
+            ));
+        });
     }
 
     #[test]

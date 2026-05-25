@@ -3,6 +3,16 @@
 This document records the minimum portability rules for `sc-hooks` runtime,
 harness, and documentation work.
 
+## Phase P Gate
+
+- `just lint sc-portability` is a required pre-merge gate for `Phase P`
+  runtime-facing work
+- new Codex/Gemini runtime parity changes are not allowed to rely on
+  Mac-only/Unix-only implementation paths without an explicit cross-platform
+  fallback in the same change
+- `cfg(unix)` is allowed only when the non-Unix compile path is also defined
+  and the public behavior remains explicit
+
 ## Path Rules
 
 - build filesystem paths with `Path` / `PathBuf` joins, never string
