@@ -93,6 +93,13 @@ Important planning rule:
 | Phase O | Planned | runtime hook normalization — pre-runtime hygiene closure, `sc-lint` boundary enforcement, approved Codex/Gemini surfaces to Claude parity, cross-provider plugin parity, and local-machine cutover | `HKR-006`, `HKR-010`, `HKR-017` | Phase N Follow-On | `docs/plan-phase-O.md`, `docs/phase-O/`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, `boundaries/`, `justfile`, local provider install/cutover assets |
 | Phase P | Planned | missing-hook parity expansion — complete the deferred Codex/Gemini hook surfaces in the harness first, adopt the available `sc-lint` suite through the `../atm-core` `just lint` pattern with an explicit cross-platform gate, then extend runtime normalization/parity for those surfaces through the sealed trait boundary with an authoritative cross-agent hook/field mapping table, and finally close the remaining active implementation-gap rulings and release-operator follow-ons | `HKR-006`, `HKR-010`, `HKR-017`, `PRR-009`, `LOGR-QA-004`, `RULING-NEEDED-ECR-001`, `RULING-NEEDED-ECR-002`, `RULING-NEEDED-HRN-005`, `RULING-NEEDED-COW-003` | Phase O | `docs/plan-phase-P.md`, `docs/phase-P/`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, `justfile`, `.just/`, `docs/cross-platform-guidelines.md`, `crates/sc-hooks-core/`, `crates/sc-hooks-cli/`, `plugins/`, install/alias docs |
 
+Phase P progress note:
+
+- `P.4` completed the canonical hook-mapping and lifecycle-family normalization
+  extension on `feature/pP-s4-canonical-hook-mapping`, landing the
+  authoritative `docs/phase-P/canonical-hook-mapping.md` artifact while
+  leaving provider-runtime closure to `P.5` and `P.6`
+
 Phase N closure note:
 
 - `Phase N` and `Phase N Follow-On` merged to `develop` via PR #127 at `8891c3d` (2026-05-24)
