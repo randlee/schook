@@ -335,6 +335,35 @@ If a behavior is required for release but not yet fully proved, it must appear i
     close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
     `P.5` and `P.6` still own the provider-runtime closure for those newly
     retained lifecycle surfaces
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`
+  - current text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` may then extend the retained
+    lifecycle inventory through the same sealed normalization seam for Codex
+    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only until accepted harness evidence proves they
+    are exercisable retained runtime surfaces. `P.5` closes Codex retained
+    lifecycle runtime parity for the only retained live stop-family surface,
+    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
+    and `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - authorizing sprint: `P.5`
+- `HKR-010`
+  - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
+    parity work needed to return this requirement to `Implemented` on those
+    approved provider surfaces
+  - current text: `Phase O` closed the Codex and Gemini normalized-runtime
+    parity work needed to return this requirement to `Implemented` on those
+    approved provider surfaces. The retained lifecycle seam extension does
+    not, by itself, close provider runtime parity for Codex `notify` or
+    Gemini `AfterAgent`; `P.5` and `P.6` still own the provider-runtime
+    closure for those newly retained lifecycle surfaces. `P.5` adds no new
+    Codex gate surface beyond the existing normalized host path and closes
+    Codex runtime parity for the retained `notify` stop-family surface while
+    leaving the already-closed gate behavior from `Phase O` unchanged.
+  - authorizing sprint: `P.5`
 - `OBS-002`
   - prior text: earlier observability output used the pre-service-layout file path
     `.sc-hooks/logs/sc-hooks.log.jsonl`
