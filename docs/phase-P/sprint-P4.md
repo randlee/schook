@@ -1,9 +1,9 @@
 ---
 id: P.4
 title: Lifecycle-Family Normalization Extension
-status: planned
-branch: feature/pP-s4-lifecycle-normalization-extension
-worktree: ../schook-worktrees/feature/pP-s4-lifecycle-normalization-extension
+status: complete
+branch: feature/pP-s4-canonical-hook-mapping
+worktree: ../schook-worktrees/feature/pP-s4-canonical-hook-mapping
 target: integrate/phase-P
 ---
 
@@ -76,12 +76,6 @@ pub(crate) enum CodexHook {
     SessionStart,
     PreToolUse,
     Notify,
-    Stop,
-    Resume,
-    // Fork appears only if `P.1` retains it as supported; otherwise this
-    // variant stays absent and the unsupported/deferred disposition is carried
-    // only in the mapping table plus the lifecycle-compatibility notes.
-    Fork,
 }
 
 pub(crate) enum GeminiHook {
@@ -108,11 +102,10 @@ produce an equivalent typed contract plus the published table artifact above.
 `P.4` extends the existing `CanonicalHook` / `CodexHook` / `GeminiHook`
 hierarchy established by `Phase O`; it does not introduce a peer top-level
 canonical hook enum unless a new ADR explicitly approves that architecture
-change first. If `P.1` lands Codex `fork` as unsupported or explicitly
-deferred, `P.4` must still record that disposition in the mapping table and
-lifecycle-compatibility rules instead of silently dropping the surface from the
-canonical inventory, and the Rust canonical hook type inventory must not carry
-live variants for `P.1`-ruled-unsupported surfaces.
+change first. `P.4` records Codex `Stop`, `resume`, and `fork` as
+disposition-only rows in the mapping table because `P.1` confirmed they are
+not exercisable retained runtime surfaces. The Rust canonical hook inventory
+therefore adds live variants only for Codex `notify` and Gemini `AfterAgent`.
 The mapping-row sample carries a doc/reporting label for the payload family
 only. It does not replace the typed `CanonicalPayload<'a>` runtime enum used
 inside the normalization seam or authorize stringly typed payload handling in
@@ -120,8 +113,8 @@ the implementation.
 
 ## Acceptance Criteria
 
-- the newly retained Codex/Gemini lifecycle surfaces have one documented and
-  tested canonical runtime path
+- the newly retained live Codex/Gemini lifecycle surfaces have one documented
+  and tested canonical runtime path
 - no provider bypass path is introduced around the existing normalization seam
 - the compatibility table and boundary docs match the landed code
 - the cross-agent mapping table exists and is sufficient to compare Claude,

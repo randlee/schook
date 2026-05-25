@@ -171,10 +171,10 @@ Execution precondition:
   accepted portability/boundary gate rather than speculative provider fields
 
 Execution branch:
-- `feature/pP-s4-lifecycle-normalization-extension`
+- `feature/pP-s4-canonical-hook-mapping`
 
 Execution worktree:
-- `../schook-worktrees/feature/pP-s4-lifecycle-normalization-extension`
+- `../schook-worktrees/feature/pP-s4-canonical-hook-mapping`
 
 ### P.5 Codex Missing-Hook Runtime Parity
 

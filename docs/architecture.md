@@ -181,6 +181,8 @@ seam before generic runtime dispatch:
     `CanonicalPayload::SessionLifecycle`
   - `CanonicalHook::Codex(CodexHook::PreToolUse)` ->
     `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Codex(CodexHook::Notify)` ->
+    `CanonicalPayload::StopLifecycle`
   - `CanonicalHook::Gemini(GeminiHook::SessionStart)` ->
     `CanonicalPayload::SessionLifecycle`
   - `CanonicalHook::Gemini(GeminiHook::SessionEnd)` ->
@@ -191,16 +193,24 @@ seam before generic runtime dispatch:
     `CanonicalPayload::ToolUse`
   - `CanonicalHook::Gemini(GeminiHook::AfterTool)` ->
     `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::AfterAgent)` ->
+    `CanonicalPayload::StopLifecycle`
 - any other hook/payload pairing is invalid and must fail normalization as
   `NormalizationError::InvalidPayloadForHook`
+- Codex `Stop`, `resume`, and `fork` remain disposition-only retained-surface
+  rows in `docs/phase-P/canonical-hook-mapping.md`; they are not live
+  canonical variants until accepted harness evidence proves they are
+  exercisable runtime surfaces
 - the runtime hook/event projection locked by `O.3` is:
   - Codex `SessionStart` -> `HookType::SessionStart`
   - Codex `PreToolUse` -> `HookType::PreToolUse("Bash")`
+  - Codex `Notify` -> `HookType::Stop`
   - Gemini `SessionStart` -> `HookType::SessionStart`
   - Gemini `SessionEnd` -> `HookType::SessionEnd`
   - Gemini `BeforeAgent` -> `HookType::PreToolUse("Agent")`
   - Gemini `BeforeTool` -> `HookType::PreToolUse("Bash")`
   - Gemini `AfterTool` -> `HookType::PostToolUse("Bash")`
+  - Gemini `AfterAgent` -> `HookType::Stop`
 - `RetryableGateInput` is reserved for approved gate surfaces that would
   otherwise produce vague blocking text:
   - Codex `PreToolUse`
