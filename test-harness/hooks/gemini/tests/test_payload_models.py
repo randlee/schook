@@ -39,3 +39,14 @@ def test_tool_fixtures_preserve_run_shell_command_shape(gemini_root: Path) -> No
     assert after["tool_name"] == "run_shell_command"
     assert after["tool_input"]["command"] == "pwd"
     assert "tool_response" in after
+
+
+@pytest.mark.provider_gemini
+def test_after_agent_fixture_preserves_retained_surface_fields(gemini_root: Path) -> None:
+    fixture_root = gemini_root / "fixtures" / "approved"
+    after_agent = json.loads((fixture_root / "after-agent.json").read_text(encoding="utf-8"))
+
+    assert after_agent["hook_event_name"] == "AfterAgent"
+    assert after_agent["prompt"] == "Reply with exactly OK."
+    assert isinstance(after_agent["prompt_response"], str)
+    assert after_agent["stop_hook_active"] is False
