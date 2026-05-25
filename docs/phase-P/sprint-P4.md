@@ -151,3 +151,28 @@ the implementation.
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement IDs changed:
+  - `HKR-006`
+  - `HKR-010`
+- Code removed early:
+  - none; provider-runtime parity wiring stayed out of scope for `P.4`
+- Owned write scope:
+  - `crates/sc-hooks-core/`
+  - `crates/sc-hooks-cli/`
+  - `docs/architecture.md`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+  - `docs/phase-P/canonical-hook-mapping.md`
+  - `boundaries/`
+- Validation that passed:
+  - `cargo check --workspace`
+  - `cargo clippy --all-targets --all-features -- -D warnings`
+  - `cargo test --workspace`
+  - `just lint sc-boundary`
+  - `git diff --check`
+- Follow-on work:
+  - `P.5` closes Codex retained provider-runtime parity
+  - `P.6` closes Gemini retained provider-runtime parity

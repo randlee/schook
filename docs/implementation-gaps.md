@@ -49,6 +49,10 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     error-surface split mid-sprint; the named `NormalizationError` inventory
     remains the private source behind that envelope
   - `Phase P` consistency note:
+    - `P.4` seam additions (`CodexHook::Notify` -> `CanonicalPayload::StopLifecycle`
+      and `GeminiHook::AfterAgent` -> `CanonicalPayload::StopLifecycle`) remain
+      consistent with the existing `HookError::Normalization { message, source }`
+      envelope
     - the `P.5` seam additions for Codex `notify` via the retained
       stop-family normalization path remain inside the existing
       `HookError::Normalization` envelope and do not reopen the error-surface
