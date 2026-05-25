@@ -31,103 +31,51 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     methods must carry default implementations until that stabilization sprint is
     explicitly scheduled
 
-### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
-
-- Status: `closed in O.6`
-- Owner area:
-  - `sc-hooks-cli`, docs
-- Closure note:
-  - the planned closeout remained assigned to `O.6`, and `Phase P` does not
-    reopen it as an active ruling item
-  - any future CLI typing expansion beyond the `O.6` closure requires a new
-    discrete ruling or implementation-gap entry rather than silently carrying
-    `RULING-NEEDED-NT-CLI-002` forward
-
-## Deferred Items
-
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
 
-- Status: `deferred past Phase P`
+- Status: `deferred past Phase O`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
 - Recorded owner:
   - `randlee`
-- Deferral note:
-  - `HookError` remains a single cross-crate error enum spanning payload,
+- Current note:
+  - `HookError` is still a single cross-crate error enum spanning payload,
     validation, state-I/O, divergence, and internal failures
-  - `Phase O` and `Phase P` seam additions stay inside
-    `HookError::Normalization { message, source }`; splitting that surface now
-    would be a public API break across the core/sdk boundary
-  - the next release-track decision must explicitly choose between a stable
-    multi-type taxonomy and a deliberate freeze of the current monolithic enum
+  - splitting it now would be a public API break across the core/sdk surface and
+    should not be done implicitly inside the observability closeout
+  - disposition for `Phase O`: explicitly deferred past `Phase O` so `O.3`
+    may attach provider-normalization failures at
+    `HookError::Normalization { message, source }` without reopening the public
+    error-surface split mid-sprint; the named `NormalizationError` inventory
+    remains the private source behind that envelope
+  - `Phase P` consistency note:
+    - `P.4` seam additions (`CodexHook::Notify` -> `CanonicalPayload::StopLifecycle`
+      and `GeminiHook::AfterAgent` -> `CanonicalPayload::StopLifecycle`) remain
+      consistent with the existing `HookError::Normalization { message, source }`
+      envelope
+    - the `P.5` seam additions for Codex `notify` via the retained
+      stop-family normalization path remain inside the existing
+      `HookError::Normalization` envelope and do not reopen the error-surface
+      split
+    - `P.7` may not retroactively remove those landed seam additions without a
+      new breaking-change sprint
+  - recommendation: take an explicit architecture ruling after `Phase O` on
+    whether the next release track wants a stable multi-type error taxonomy or
+    to freeze the current monolithic enum deliberately
 
 ### RULING-NEEDED-ECR-002: Backtrace Capture Policy
 
-- Status: `deferred past Phase P`
+- Status: `active`
 - Owner area:
   - `sc-hooks-core`, `sc-hooks-sdk`, docs
-- Recorded owner:
-  - `randlee`
-- Deferral note:
+- Current note:
   - adding `Backtrace` capture to public error types changes error layout,
     serialization assumptions, and support expectations across the core/sdk
     boundary
-  - the current release track keeps source chaining intact without introducing
-    a partially scoped backtrace policy
-  - any future backtrace policy should land together with the next explicit
-    error-surface decision rather than as an isolated mid-track expansion
-
-## Closed Items
-
-### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
-
-- Status: `closed in P.7`
-- Owner area:
-  - `sc-hooks-test`, docs
-- Closure note:
-  - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
-    shell fixture helpers stay reusable from one crate-local test surface
-  - this is accepted as a Unix-gated test-only helper rather than a runtime
-    portability defect; moving it to `tests/` would force extra public helper
-    exposure or duplicate fixture wiring without changing the runtime contract
-    being proved
-
-### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
-
-- Status: `closed in P.7`
-- Owner area:
-  - `sc-hooks-cli`, docs
-- Closure note:
-  - `execute_chain()` keeps the owned `Vec<String>` handler snapshot because
-    dispatch-complete and full-audit emission need a chain value independent of
-    handler iterator lifetimes and result construction
-  - this allocation remains the accepted current posture; revisit only if
-    profiling later proves it is a real hot-path cost worth redesigning
-
-### PRR-009: Missing `hooks` CLI Alias
-
-- Status: `closed in P.8`
-- Owner area:
-  - packaging, install docs, release docs
-- Closure note:
-  - the local install/cutover path now writes a real `hooks` wrapper beside the
-    canonical `sc-hooks` binary under `~/.local/bin/`
-  - operator docs now distinguish between the canonical binary and the alias
-    install path instead of implying the alias appears everywhere automatically
-
-### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
-
-- Status: `closed in P.8`
-- Owner area:
-  - `sc-hooks-core`, `sc-hooks-test`, docs
-- Closure note:
-  - `retry_executable_file_busy()` retains the shared bounded retry behavior
-    used by the host and test harness
-  - the helper now has direct proof for:
-    - retry-before-success
-    - immediate non-retryable failure
-    - fully exhausted `ExecutableFileBusy` retry budget returning the final
-      retryable error
+  - the current release keeps source chaining intact without introducing a
+    partially scoped backtrace policy
+  - recommendation: decide the product-wide backtrace policy together with any
+    future error-surface split so the public error contract changes once
 
 ### RULING-NEEDED-TS-001: Ended-State Transition Guard
 
@@ -146,6 +94,78 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     canonical records and resume flows remain stable, while explicitly blocking
     implicit terminal transitions until a larger typestate redesign is
     intentionally approved
+
+### RULING-NEEDED-NT-CLI-002: Raw Hook And Plugin Identifiers At Dispatch Boundaries
+
+- Status: `closed in O.6`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Closure note:
+  - the planned closeout remained assigned to `O.6`, and `Phase P` does not
+    reopen it as an active ruling item
+  - any future CLI typing expansion beyond the `O.6` closure requires a new
+    discrete ruling or implementation-gap entry rather than silently carrying
+    `RULING-NEEDED-NT-CLI-002` forward
+
+### RULING-NEEDED-HRN-005: Library-Owned `worktree_hooks` Test Module
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-test`, docs
+- Current note:
+  - `worktree_hooks.rs` remains in `src/` under `#[cfg(unix)]` so the shared
+    shell fixture helpers stay reusable from one crate-local test surface
+  - moving it to `tests/` would force extra public helper exposure or duplicate
+    fixture wiring without changing the runtime contract being proved
+  - recommendation: keep the unix-gated library test module in place until a
+    larger `sc-hooks-test` surface split is approved
+
+### RULING-NEEDED-COW-003: Allocation-Backed Handler Chain Snapshot
+
+- Status: `active`
+- Owner area:
+  - `sc-hooks-cli`, docs
+- Current note:
+  - `execute_chain()` still clones handler names into a `Vec<String>` because
+    dispatch-complete and full-audit emission need an owned chain snapshot that
+    survives independent result construction and error returns
+  - removing that allocation cleanly would require a broader change to the
+    observability/audit argument surface rather than a small mechanical patch
+  - recommendation: keep the owned snapshot for now and revisit only if profiling
+    shows it is a real hot-path cost
+
+### PRR-009: Missing `hooks` CLI Alias
+
+- Status: `active`
+- Owner area:
+  - packaging, install docs, release docs
+- Current note:
+  - the naming direction is frozen on `sc-hooks` as canonical with `hooks` as a
+    convenience alias, but this repo does not yet ship an alias wrapper,
+    symlink, or install-time alias mechanism
+  - release/docs work should not imply that invoking `hooks` is already a
+    guaranteed supported path until packaging or install output creates that
+    alias explicitly
+  - recommendation: implement the alias in release packaging/install flow or
+    downgrade any remaining “supported alias” language to planned follow-on text
+
+### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
+
+- Status: `active with quality-mgr sign-off`
+- Owner area:
+  - `sc-hooks-core`, `sc-hooks-test`, docs
+- Current note:
+  - `retry_executable_file_busy()` now centralizes the bounded retry behavior
+    used by the host and test harness, but there is still no direct test that
+    proves the fully exhausted `ExecutableFileBusy` path returns the final
+    retryable error
+  - this is explicitly signed off for the current merge because the helper is
+    now single-owned, behaviorally simple, and already covered for successful
+    retry and immediate non-retryable failure
+  - recommendation: add one focused exhausted-retry-path unit test only if a
+    later change touches the helper behavior again
+
+## Closed Items
 
 ### DEF-009: Observability Failure Fallback Integration Test
 
