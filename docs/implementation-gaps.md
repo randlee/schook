@@ -53,6 +53,10 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
       and `GeminiHook::AfterAgent` -> `CanonicalPayload::StopLifecycle`) remain
       consistent with the existing `HookError::Normalization { message, source }`
       envelope
+    - the `P.5` seam additions for Codex `notify` via the retained
+      stop-family normalization path remain inside the existing
+      `HookError::Normalization` envelope and do not reopen the error-surface
+      split
     - `P.6` plugin-side runtime seam additions that carry Gemini `AfterAgent`
       through the shared `Stop` path inside `agent-session-foundation` and
       `atm-extension` remain inside that same

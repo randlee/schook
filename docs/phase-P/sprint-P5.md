@@ -1,9 +1,9 @@
 ---
 id: P.5
 title: Codex Missing-Hook Runtime Parity
-status: planned
-branch: feature/pP-s5-codex-missing-hook-runtime
-worktree: ../schook-worktrees/feature/pP-s5-codex-missing-hook-runtime
+status: complete
+branch: feature/pP-s5-codex-runtime-parity
+worktree: ../schook-worktrees/feature/pP-s5-codex-runtime-parity
 target: integrate/phase-P
 ---
 
@@ -30,7 +30,9 @@ target: integrate/phase-P
 
 ## Deliverables
 
-- Codex runtime support for the retained missing lifecycle surfaces
+- Codex runtime support for the retained missing lifecycle surfaces, with
+  `notify` implemented on the shared runtime path and Codex `Stop` / `resume`
+  kept as `P.1` disposition-only non-exercisable surfaces
 - end-to-end Codex runtime tests for those surfaces
 - requirements/traceability updates closing the Codex parity delta
 - explicit `docs/requirements.md` amendment note stating that `P.5` advances
@@ -54,11 +56,14 @@ target: integrate/phase-P
 
 ## Acceptance Criteria
 
-- the retained Codex lifecycle surfaces run through the shared runtime path
+- the retained live Codex lifecycle surface runs through the shared runtime
+  path
 - the resulting behavior matches the retained Codex harness/API evidence landed
   in `P.1`, including the fixture-backed hook/payload expectations documented
   in `docs/hook-api/codex-hook-api.md`
-- Codex parity is no longer blocked on `notify`, `Stop`, or `resume`
+- Codex parity is no longer blocked on the retained live stop-family surface:
+  `notify`; Codex `Stop` and `resume` remain explicitly resolved as
+  non-exercisable disposition rows from `P.1`
 - `plugins/agent-session-foundation/` is updated as needed for the retained
   Codex lifecycle surfaces and its changed behavior is covered by runtime tests
 - `plugins/atm-extension/` is updated as needed for the retained Codex
@@ -90,3 +95,34 @@ target: integrate/phase-P
 - Which files/crates were the owned write scope for the sprint?
 - What validation commands and direct tests proved the new contract?
 - What follow-on work is blocked or unblocked by this sprint?
+
+## Sprint QA Checklist Answers
+
+- Requirement and gap status changes:
+  - `HKR-006` gained the `P.5` amendment closing Codex retained lifecycle
+    runtime parity for the retained live `notify` surface.
+  - `HKR-010` gained the `P.5` amendment recording that no new Codex gate
+    surface was added beyond the existing normalized host path.
+  - `RULING-NEEDED-ECR-001` gained a `Phase P` consistency note confirming the
+    `P.5` seam additions stay inside the existing `HookError::Normalization`
+    envelope and cannot be removed later without a breaking-change sprint.
+- Code removed early:
+  - no parallel Codex-specific side-channel path was left in place; the sprint
+    closed parity through the shared normalization/runtime path only.
+- Owned write scope:
+  - `crates/sc-hooks-core/src/normalization.rs`
+  - `plugins/agent-session-foundation/`
+  - `plugins/atm-extension/`
+  - `crates/sc-hooks-cli/tests/codex_runtime_parity.rs`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+- Validation that passed:
+  - `cargo fmt --check --all`
+  - `cargo clippy --all-targets --all-features -- -D warnings`
+  - `cargo test --workspace`
+  - `just lint sc-portability`
+  - `just test hooks codex`
+  - `git diff --check`
+- Follow-on status:
+  - `P.6` is unblocked and owns the remaining Gemini retained lifecycle runtime
+    parity work.
