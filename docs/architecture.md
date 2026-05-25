@@ -166,7 +166,7 @@ seam before generic runtime dispatch:
 - provider/runtime consistency is frozen by the seal mechanism,
   normalization-error taxonomy, required internal type set, and
   `(provider × hook × payload)` compatibility rules in this document
-- the internal canonical type inventory extended through `P.4` is:
+- the internal canonical type inventory extended through `P.6` is:
   - `ProviderHookSource`
   - `ProviderHookInput<'a>`
   - `NormalizedHookContext<'a>`
