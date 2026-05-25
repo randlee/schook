@@ -64,6 +64,7 @@ That command writes:
 - `~/.claude/settings.json`
 - `~/.codex/hooks.json`
 - `~/.gemini/settings.json`
+- `~/.local/bin/hooks`
 
 It also stages the shared local runtime root at:
 - `~/.local/share/sc-hooks/runtime-layout`
@@ -115,7 +116,9 @@ For a step-by-step operator guide, see [USAGE.md](USAGE.md).
 
 Naming note:
 - `sc-hooks` is the canonical product and binary name.
-- `hooks` is a convenience alias only when an operator or shell setup chooses to provide it.
+- `hooks` is a convenience alias. The local cutover path installs it beside
+  `sc-hooks` under `~/.local/bin/`; a plain `cargo install` of
+  `crates/sc-hooks-cli` still guarantees only the canonical `sc-hooks` binary.
 
 ## CLI Surface
 

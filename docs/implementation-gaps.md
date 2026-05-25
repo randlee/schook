@@ -43,35 +43,6 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     discrete ruling or implementation-gap entry rather than silently carrying
     `RULING-NEEDED-NT-CLI-002` forward
 
-### PRR-009: Missing `hooks` CLI Alias
-- Owner area:
-  - packaging, install docs, release docs
-- Current note:
-  - the naming direction is frozen on `sc-hooks` as canonical with `hooks` as a
-    convenience alias, but this repo does not yet ship an alias wrapper,
-    symlink, or install-time alias mechanism
-  - release/docs work should not imply that invoking `hooks` is already a
-    guaranteed supported path until packaging or install output creates that
-    alias explicitly
-  - recommendation: implement the alias in release packaging/install flow or
-    downgrade any remaining “supported alias” language to planned follow-on text
-
-### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
-
-- Status: `active with quality-mgr sign-off`
-- Owner area:
-  - `sc-hooks-core`, `sc-hooks-test`, docs
-- Current note:
-  - `retry_executable_file_busy()` now centralizes the bounded retry behavior
-    used by the host and test harness, but there is still no direct test that
-    proves the fully exhausted `ExecutableFileBusy` path returns the final
-    retryable error
-  - this is explicitly signed off for the current merge because the helper is
-    now single-owned, behaviorally simple, and already covered for successful
-    retry and immediate non-retryable failure
-  - recommendation: add one focused exhausted-retry-path unit test only if a
-    later change touches the helper behavior again
-
 ## Deferred Items
 
 ### RULING-NEEDED-ECR-001: `HookError` Surface Split
@@ -132,6 +103,31 @@ honesty, removals, and deferred work. Current control-doc ownership lives in:
     handler iterator lifetimes and result construction
   - this allocation remains the accepted current posture; revisit only if
     profiling later proves it is a real hot-path cost worth redesigning
+
+### PRR-009: Missing `hooks` CLI Alias
+
+- Status: `closed in P.8`
+- Owner area:
+  - packaging, install docs, release docs
+- Closure note:
+  - the local install/cutover path now writes a real `hooks` wrapper beside the
+    canonical `sc-hooks` binary under `~/.local/bin/`
+  - operator docs now distinguish between the canonical binary and the alias
+    install path instead of implying the alias appears everywhere automatically
+
+### LOGR-QA-004: Exhausted Retry Path Coverage For Shared Spawn Helper
+
+- Status: `closed in P.8`
+- Owner area:
+  - `sc-hooks-core`, `sc-hooks-test`, docs
+- Closure note:
+  - `retry_executable_file_busy()` retains the shared bounded retry behavior
+    used by the host and test harness
+  - the helper now has direct proof for:
+    - retry-before-success
+    - immediate non-retryable failure
+    - fully exhausted `ExecutableFileBusy` retry budget returning the final
+      retryable error
 
 ### RULING-NEEDED-TS-001: Ended-State Transition Guard
 

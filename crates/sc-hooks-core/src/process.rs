@@ -90,4 +90,17 @@ mod tests {
         assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
         assert_eq!(attempts.load(Ordering::SeqCst), 1);
     }
+
+    #[test]
+    fn returns_final_executable_file_busy_after_retry_budget_exhausted() {
+        let attempts = AtomicUsize::new(0);
+        let err = retry_executable_file_busy(|| {
+            attempts.fetch_add(1, Ordering::SeqCst);
+            Err::<(), _>(io::Error::from(io::ErrorKind::ExecutableFileBusy))
+        })
+        .expect_err("exhausted retry budget should return the final busy error");
+
+        assert_eq!(err.kind(), io::ErrorKind::ExecutableFileBusy);
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+    }
 }

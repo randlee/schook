@@ -23,6 +23,7 @@ const LOCAL_CODEX_SETTINGS_PATH: &str = ".codex/hooks.json";
 const LOCAL_GEMINI_SETTINGS_PATH: &str = ".gemini/settings.json";
 const LOCAL_BIN_RELATIVE_ROOT: &str = ".local/bin";
 const BACKUP_SUFFIX: &str = ".sc-hooks.bak";
+const HOOKS_ALIAS_NAME: &str = "hooks";
 const DEFAULT_ATM_TEAM: &str = "schook";
 const DEFAULT_ATM_IDENTITY: &str = "chook";
 const LOCAL_RUNTIME_CONFIG: &str = r#"[meta]
@@ -173,6 +174,7 @@ pub(crate) fn write_local_provider_cutover(
         &runtime_config_path,
         &bin_root,
     )?;
+    ensure_cli_alias(&bin_root, &cli_binary)?;
 
     match provider {
         TargetProvider::Claude => write_local_claude_cutover(
@@ -471,6 +473,45 @@ fn ensure_runtime_layout(
             reason: err.to_string(),
         }
     })?;
+
+    Ok(())
+}
+
+fn ensure_cli_alias(bin_root: &Path, cli_binary: &Path) -> Result<(), InstallError> {
+    #[cfg(unix)]
+    {
+        let alias_path = bin_root.join(HOOKS_ALIAS_NAME);
+        let wrapper = format!(
+            "#!/bin/sh\nexec {} \"$@\"\n",
+            shell_quote(&cli_binary.display().to_string())
+        );
+        write_executable_atomic(&alias_path, wrapper.as_bytes()).map_err(|err| {
+            InstallError::WriteFailed {
+                path: alias_path,
+                reason: err.to_string(),
+            }
+        })?;
+    }
+
+    #[cfg(windows)]
+    {
+        let alias_path = bin_root.join(format!("{HOOKS_ALIAS_NAME}.cmd"));
+        let wrapper = format!(
+            "@echo off\r\n\"{}\" %*\r\n",
+            cli_binary.display()
+        );
+        write_file_atomic(&alias_path, wrapper.as_bytes()).map_err(|err| {
+            InstallError::WriteFailed {
+                path: alias_path,
+                reason: err.to_string(),
+            }
+        })?;
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (bin_root, cli_binary);
+    }
 
     Ok(())
 }
@@ -1318,6 +1359,20 @@ PreToolUse = ["a", "b"]
                     .join("atm-extension")
                     .exists()
             );
+            #[cfg(unix)]
+            {
+                let alias_path = home.join(".local/bin").join(HOOKS_ALIAS_NAME);
+                let alias_body =
+                    fs::read_to_string(&alias_path).expect("hooks alias wrapper should exist");
+                assert!(alias_body.contains("sc-hooks"));
+            }
+            #[cfg(windows)]
+            {
+                let alias_path = home.join(".local/bin").join(format!("{HOOKS_ALIAS_NAME}.cmd"));
+                let alias_body =
+                    fs::read_to_string(&alias_path).expect("hooks alias wrapper should exist");
+                assert!(alias_body.contains("sc-hooks"));
+            }
 
             let claude: Value = serde_json::from_str(
                 &fs::read_to_string(home.join(LOCAL_CLAUDE_SETTINGS_PATH))
