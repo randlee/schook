@@ -1,7 +1,7 @@
 ---
 id: Q.3
 title: Claude Smoke Tests
-status: planned
+status: completed
 branch: feature/pQ-s3-claude-smoke
 worktree: ../schook-worktrees/feature/pQ-s3-claude-smoke
 target: integrate/phase-Q
@@ -85,3 +85,27 @@ Required Claude smoke coverage:
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the Claude live runtime path end to end?
 - What follow-on work is still separate for Codex and Gemini?
+
+## Sprint QA Checklist Answers
+
+- `HKR-019` gained the Claude-owned smoke record and fixture contract closure
+  expected for `Q.3`; `docs/traceability.md` remains `planned` until `Q.5`
+  closes the full Phase Q smoke row, and no Cursor or opencode requirement IDs
+  changed here.
+- Added Claude live smoke coverage for install, dispatch, plugin-chain, and
+  observability, plus the offline fixture-backed CI contract checks. No
+  existing code was removed; `Q.3` is purely additive and only introduces
+  `.just/smoke/claude.py` plus its supporting fixtures. Codex and Gemini smoke
+  remain separate in `Q.4` and `Q.5`.
+- Owned write scope:
+  - `.just/smoke/claude.py`
+  - `.just/smoke/fixtures/claude/`
+  - `docs/phase-Q/smoke-claude.md`
+  - `docs/phase-Q/sprint-Q3.md`
+- End-to-end proof comes from `just smoke claude live` plus
+  `cargo test --workspace` and `git diff --check`, with the live run
+  verifying session state, `dispatch.complete` observability hooks, and the
+  shared plugin path.
+- Remaining provider-specific follow-on work is limited to `Q.4` Codex smoke
+  and `Q.5` Gemini smoke; no new Claude runtime-surface expansion is owned by
+  this sprint.

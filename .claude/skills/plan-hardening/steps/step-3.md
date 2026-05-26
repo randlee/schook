@@ -4,6 +4,10 @@
 
 **1. Render the message**
 
+Use OS-appropriate temp file paths for the vars file, rendered XML, and saved
+response artifacts. The examples below use placeholders such as
+`<tmp-vars-file>`, `<tmp-message-file>`, and `<tmp-output-file>`.
+
 ```bash
 sc-compose render \
   --root .claude/skills/plan-hardening \
