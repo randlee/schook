@@ -67,7 +67,7 @@ Use the Task tool with `name` parameter to spawn as a tmux teammate:
 **Tmux teammate launch troubleshooting**: If the pane opens but the Claude process doesn't start, manually launch in the pane with all three required flags:
 
 ```bash
-CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 /Users/randlee/.local/share/claude/versions/<VERSION> \
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 $HOME/.local/share/claude/versions/<VERSION> \
   --agent-id qa-hook \
   --agent-name qa-hook \
   --team-name <team-name>
