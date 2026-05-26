@@ -1,0 +1,26 @@
+{
+  "provider": "cursor-agent",
+  "capture_date": "2026-05-26T01:24:00Z",
+  "capture_root": "test-harness/hooks/cursor-agent/fixtures/approved/",
+  "evidence_mode": "approved-reference",
+  "hook_registration": {
+    "local_cli": "cursor-agent --help confirms an installed CLI on this machine",
+    "local_config": "~/.cursor/cli-config.json exists",
+    "hooks_config": "~/.cursor/hooks.json is not present on this machine",
+    "source_of_truth": "docs/hook-api/cursor-agent-hook-api.md plus local cursor-agent help"
+  },
+  "hook_surfaces": [
+    {
+      "surface": "stop",
+      "status": "approved-reference",
+      "payload_fixture": "stop.json",
+      "env_fixture": "stop.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "documented public informational hook; runtime block semantics remain unproved until later live capture",
+        "stdio_contract": "doc-backed provider-reference payload only; live stdin shape remains deferred until Q.7 and a later capture-authorized phase"
+      },
+      "source": "public Cursor hooks documentation plus local cursor-agent baseline"
+    }
+  ]
+}
