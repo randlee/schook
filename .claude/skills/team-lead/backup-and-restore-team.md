@@ -79,7 +79,7 @@ If unexpected ghost members exist, trim the config manually:
 ```bash
 python3 -c "
 import json
-path = os.path.expanduser('~/.claude/teams/schook/config.json')
+path = '$HOME/.claude/teams/schook/config.json'
 with open(path) as f:
     cfg = json.load(f)
 keep = ['team-lead', 'chook', 'quality-mgr']
