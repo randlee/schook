@@ -3,9 +3,12 @@
   "offline_assertion": "fixture_contract_only",
   "recommendation": "accepted_baseline_live_record",
   "required_log_hooks": [
+    "SessionStart",
     "PreToolUse"
   ],
+  "required_post_tool_event": "Bash",
   "required_marker": "idle-codex-smoke.json",
+  "required_state_record": "idle-codex-smoke.json",
   "required_surfaces": [
     "SessionStart",
     "PreToolUse",

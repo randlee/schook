@@ -42,8 +42,9 @@ Observed live path:
 Observed observability proof:
 
 - log file: `~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
-- fresh `dispatch.complete` entries were observed for:
-  - `PreToolUse`
+- accepted-baseline observability proof included:
+  - a recent `dispatch.complete` entry for `SessionStart`
+  - fresh `dispatch.complete` entries for `PreToolUse`
 
 Smoke verdict:
 
