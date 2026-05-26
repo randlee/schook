@@ -89,9 +89,10 @@ registry_rule:
 ## Sprint QA Checklist Answers
 
 - Which requirement IDs or gap IDs changed status?
-  No requirement or gap row changes state in `Q.7`; `HKR-007` remains
-  `Partially Implemented` because `Q.7` closes the model/doc layer on top of
-  the `Q.6` harness baseline rather than authorizing runtime work.
+  `HKR-007` advances to `Implemented` in `Q.7` because the combined `Q.6` and
+  `Q.7` Cursor Agent harness-only scope is now fully closed. Cursor runtime
+  normalization, plugin parity, and machine cutover remain deferred beyond the
+  harness-only contract.
 - What retained Cursor surfaces are now explicit rather than implied?
   The retained `stop` surface is now explicit across the approved manifest, API
   doc, payload model, registry entry, and payload-model tests.
@@ -103,7 +104,8 @@ registry_rule:
 - What validation proves the API doc and models match the retained fixtures?
   `pytest test-harness/hooks/cursor-agent/tests/ -q` proves the retained
   manifest fixture parses through the Cursor payload model/registry path, and
-  `cargo test --workspace` confirms the repo baseline remains green.
+  `cargo test --workspace` and `git diff --check` confirm the repo baseline
+  remains green.
 - What runtime work remains explicitly out of scope?
   Cursor runtime normalization, plugin parity, and machine cutover all remain
   deferred beyond `Q.7`.

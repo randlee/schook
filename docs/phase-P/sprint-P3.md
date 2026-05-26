@@ -142,7 +142,7 @@ portable once `portability` becomes a hard gate.
   and `git diff --check`.
 - `just lint portability` backend label and PASS result:
   `backend=repo-local:../sc-lint status=pass findings=0`.
-  <!-- note: this result is a historical record from before P.9 removed the repo-local sc-lint fallback -->
+  <!-- machine-recorded; predates P.9 removal of the repo-local ../sc-lint fallback from public lint wrappers -->
 - Follow-on work blocked or unblocked:
   unblocks `P.4`, `P.5`, `P.6`, and `P.7` to treat
   `just lint portability` as a required hard gate for new runtime changes.

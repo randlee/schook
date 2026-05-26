@@ -1,0 +1,19 @@
+{
+  "install_binary_env": "SC_HOOKS_BIN",
+  "offline_assertion": "fixture_contract_only",
+  "observability_log_env": "SC_HOOKS_AUDIT_PATH",
+  "recommendation": "accepted_baseline_live_record",
+  "required_log_hooks": [
+    "SessionStart",
+    "BeforeAgent",
+    "SessionEnd"
+  ],
+  "required_post_tool_event": "Agent",
+  "required_state_record": "provider=gemini ended via SessionEnd",
+  "required_surfaces": [
+    "SessionStart",
+    "BeforeAgent",
+    "SessionEnd"
+  ],
+  "state_root_env": "SC_HOOKS_STATE_DIR"
+}

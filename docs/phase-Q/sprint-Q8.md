@@ -124,7 +124,10 @@ test_harness/hooks/opencode/
 - Which files or docs are the owned write scope for the sprint?
   `pyproject.toml`, `docs/traceability.md`, `docs/phase-Q/sprint-Q8.md`,
   `test-harness/hooks/README.md`, and the `test-harness/hooks/opencode/` plus
-  `test_harness/hooks/opencode/` harness/package roots.
+  `test_harness/hooks/opencode/` harness/package roots. The `Q.6` entry
+  criterion was already satisfied before `Q.8` began: `Q.6` landed on
+  `feature/pQ-s6-cursor-harness` and PR `#162`, which is the accepted Cursor
+  harness baseline this sprint extends.
 - What validation proves opencode is a maintained harness provider now?
   `pytest test-harness/hooks/opencode/tests/ -q` proves the approved manifest,
   required harness layout, and paired package root exist, while

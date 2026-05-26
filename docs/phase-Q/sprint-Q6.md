@@ -125,7 +125,7 @@ test_harness/hooks/cursor_agent/
   existing `cursor-agent` evidence path paired with the `cursor_agent` Python
   package path only.
 - Which files or docs are the owned write scope for the sprint?
-  `pyproject.toml`, `docs/requirements.md`, `docs/traceability.md`,
+  `docs/requirements.md`, `docs/traceability.md`,
   `docs/phase-Q/sprint-Q6.md`, `test-harness/hooks/README.md`, and the
   `test-harness/hooks/cursor-agent/` plus `test_harness/hooks/cursor_agent/`
   harness/package roots.

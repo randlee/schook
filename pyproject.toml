@@ -34,6 +34,7 @@ packages = [
 
 [tool.pytest.ini_options]
 testpaths = [
+  ".just/tests",
   "test-harness/hooks/claude/tests",
   "test-harness/hooks/codex/tests",
   "test-harness/hooks/gemini/tests",

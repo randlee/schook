@@ -9,7 +9,7 @@ sc-compose render \
   --root .claude/skills/codex-orchestration \
   --file qa-template.xml.j2 \
   --var-file <tmp-plan-hardening-qa-vars-file> \
-  --output <tmp-step-6-message>
+  --output <tmp-message-file>
 ```
 
 The vars file or rendered task must include the QA assignment fields required
@@ -50,7 +50,7 @@ memory.
 **2. Send to `quality-mgr`**
 
 Use the SendMessage tool to send the rendered XML content from
-`<tmp-step-6-message>` to the named teammate `quality-mgr`.
+`<tmp-message-file>` to the named teammate `quality-mgr`.
 Do not use `atm send` for this step.
 
 **3. Handoff**

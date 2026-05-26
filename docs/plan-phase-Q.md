@@ -120,6 +120,9 @@ Purpose:
 - add the curated `just smoke` surface following the `../atm-core` pattern
 - create the repo-owned smoke runner implementation and wire it into CI
 - keep the smoke surface separate from `just test` and `just lint`
+- keep the smoke runner on the existing repo-owned `just` plus Python path;
+  `Q.1` rejects `openshell` as a new required execution dependency for this
+  phase
 - freeze one explicit smoke execution model:
   - CI runs offline replay/dry-run smoke without provider CLIs
   - accepted-baseline provider records in later sprints come from live local
@@ -259,6 +262,8 @@ Execution worktree:
 
 Entry criteria:
 - accepted `Q.8` opencode harness output
+- `Q.9` depends on the `Q.8`-owned `test_harness/hooks/opencode/` package
+  root before it adds provider-local model files on top
 
 ## Dependency Rules
 
@@ -282,6 +287,7 @@ Entry criteria:
 ## Sprint Artifact Summary
 
 - `Q.1`:
+  - `docs/plan-phase-Q.md`
   - `docs/phase-Q/openshell-evaluation.md`
 - `Q.2`:
   - `justfile`
@@ -291,6 +297,7 @@ Entry criteria:
   - `docs/phase-Q/smoke-surface.md`
 - `Q.3`:
   - `.just/smoke/claude.py`
+  - `.just/smoke/fixtures/claude/`
   - `docs/phase-Q/smoke-claude.md`
 - `Q.4`:
   - `.just/smoke/codex.py`
@@ -314,10 +321,16 @@ Entry criteria:
   - `test-harness/hooks/cursor-agent/tests/test_payload_models.py`
 - `Q.8`:
   - `test-harness/hooks/opencode/fixtures/`
+  - `test-harness/hooks/opencode/captures/raw/`
   - `test-harness/hooks/opencode/hooks/`
+  - `test-harness/hooks/opencode/models/`
+  - `test-harness/hooks/opencode/prompts/`
+  - `test-harness/hooks/opencode/reports/`
   - `test-harness/hooks/opencode/schema/`
+  - `test-harness/hooks/opencode/scripts/`
   - `test-harness/hooks/opencode/tests/test_harness_structure.py`
   - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
+  - `test_harness/hooks/opencode/`
   - `docs/requirements.md`
   - `docs/traceability.md`
 - `Q.9`:

@@ -555,7 +555,7 @@ opencode as harness-only providers:
   than ad hoc shell snippets
 - the repo-owned implementation path is `.just/run_smoke.py` plus
   `.just/smoke/`
-- generic CI runs the smoke gate in an explicit offline replay or dry-run mode
+- generic CI runs the smoke gate in an explicit offline replay or `ci` mode
   and therefore does not require Claude, Codex, or Gemini CLIs on stock CI
   runners
 - repo-owned offline smoke assets live under `.just/smoke/fixtures/`
