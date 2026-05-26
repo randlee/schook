@@ -21,6 +21,22 @@ Execution model:
   - `Q.4` Codex
   - `Q.5` Gemini
 
+Provider Module Contract:
+
+- every provider module under `.just/smoke/` must export:
+
+```python
+def run(*, mode: str, repo_root: Path) -> int:
+    ...
+```
+
+- `mode='ci'` must stay offline and use only repo-owned fixtures or dry-run
+  assets
+- `mode='live'` may execute the accepted-baseline provider smoke flow once that
+  provider sprint lands
+- provider modules must return an integer process-style exit code and raise
+  `SystemExit` only for explicit user-facing smoke failures
+
 `atm-core` alignment record:
 
 - adopted:
