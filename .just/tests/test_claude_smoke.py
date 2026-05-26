@@ -21,14 +21,14 @@ def load_module(name: str, relative_path: str):
 class ClaudeSmokeTests(unittest.TestCase):
     def test_env_path_uses_default_when_env_var_missing(self) -> None:
         mod = load_module("claude_smoke", ".just/smoke/claude.py")
-        default = Path("/tmp/default-state")
+        default = Path(tempfile.gettempdir()) / "default-state"
         with mock.patch.dict("os.environ", {}, clear=False):
             self.assertEqual(mod._env_path("SC_HOOKS_STATE_DIR", default), default)
 
     def test_env_path_uses_override_when_env_var_present(self) -> None:
         mod = load_module("claude_smoke", ".just/smoke/claude.py")
-        default = Path("/tmp/default-state")
-        override = "/tmp/override-state"
+        default = Path(tempfile.gettempdir()) / "default-state"
+        override = str(Path(tempfile.gettempdir()) / "override-state")
         with mock.patch.dict("os.environ", {"SC_HOOKS_STATE_DIR": override}, clear=False):
             self.assertEqual(mod._env_path("SC_HOOKS_STATE_DIR", default), Path(override))
 

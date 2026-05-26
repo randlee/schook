@@ -22,7 +22,7 @@ Default: `--table`
 Use `gh pr list` to get current sprint PR state:
 
 ```bash
-cd /Users/randlee/Documents/github/schook
+cd "$(git rev-parse --show-toplevel)"
 gh pr list --state all --limit 20
 ```
 
@@ -37,11 +37,13 @@ Only drill into individual `gh run view` calls if you need failure details for a
 ## Render Command
 
 The template path is relative — must run from the **schook repo root** (not a worktree).
+Use an OS-appropriate temp file path for the rendered JSON; the example below
+uses `<tmp-report-file>` as a placeholder.
 
 ```bash
-cd /Users/randlee/Documents/github/schook
-echo '<json>' > /tmp/sprint-report.json
-sc-compose render skills/sprint-report/report.md.j2 --var-file /tmp/sprint-report.json
+cd "$(git rev-parse --show-toplevel)"
+echo '<json>' > <tmp-report-file>
+sc-compose render skills/sprint-report/report.md.j2 --var-file <tmp-report-file>
 ```
 
 ## --table (default)

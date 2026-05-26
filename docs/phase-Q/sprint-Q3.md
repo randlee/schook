@@ -102,8 +102,9 @@ Required Claude smoke coverage:
   - `docs/phase-Q/sprint-Q3.md`
   - `docs/plan-phase-Q.md`
 - End-to-end proof comes from `just smoke claude live` plus
-  `cargo test --workspace`, with the live run verifying session state,
-  `dispatch.complete` observability hooks, and the shared plugin path.
+  `cargo test --workspace` and `git diff --check`, with the live run
+  verifying session state, `dispatch.complete` observability hooks, and the
+  shared plugin path.
 - Remaining provider-specific follow-on work is limited to `Q.4` Codex smoke
   and `Q.5` Gemini smoke; no new Claude runtime-surface expansion is owned by
   this sprint.
