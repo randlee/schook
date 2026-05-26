@@ -1,0 +1,14 @@
+{
+  "observability_log": "~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
+  "offline_assertion": "fixture_contract_only",
+  "recommendation": "accepted_baseline_live_record",
+  "required_log_hooks": [
+    "PreToolUse"
+  ],
+  "required_marker": "idle-codex-smoke.json",
+  "required_surfaces": [
+    "SessionStart",
+    "PreToolUse",
+    "notify"
+  ]
+}
