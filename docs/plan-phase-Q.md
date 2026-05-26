@@ -291,6 +291,7 @@ Entry criteria:
   - `docs/phase-Q/smoke-surface.md`
 - `Q.3`:
   - `.just/smoke/claude.py`
+  - `.just/smoke/fixtures/claude/`
   - `docs/phase-Q/smoke-claude.md`
 - `Q.4`:
   - `.just/smoke/codex.py`

@@ -8,11 +8,24 @@ from pathlib import Path
 
 
 FIXTURE_PATH = Path(".just/smoke/fixtures/claude/expected.json")
-OBSERVABILITY_LOG = Path.home() / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl"
-STATE_ROOT = Path.home() / ".sc-hooks/state"
 SETTINGS_PATH = Path.home() / ".claude/settings.json"
 PROMPT = "Run pwd using Bash exactly once, then reply with OK only."
 REQUIRED_HOOKS = ("SessionStart", "PreToolUse", "PostToolUse", "SessionEnd")
+
+
+def _env_path(name: str, default: Path) -> Path:
+    return Path(os.environ.get(name, str(default))).expanduser()
+
+
+def _observability_log() -> Path:
+    return _env_path(
+        "SC_HOOKS_AUDIT_PATH",
+        Path.home() / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
+    )
+
+
+def _state_root() -> Path:
+    return _env_path("SC_HOOKS_STATE_DIR", Path.home() / ".sc-hooks/state")
 
 
 def _load_fixture(repo_root: Path) -> dict:
@@ -31,7 +44,7 @@ def _assert_claude_install(settings: dict) -> None:
 
 def _recent_session_before(snapshot_cutoff: float) -> set[str]:
     seen: set[str] = set()
-    for path in STATE_ROOT.glob("*.json"):
+    for path in _state_root().glob("*.json"):
         if path.name == "session.json" or path.stat().st_mtime <= snapshot_cutoff:
             continue
         seen.add(path.name)
@@ -41,7 +54,7 @@ def _recent_session_before(snapshot_cutoff: float) -> set[str]:
 def _new_session_record(previous_cutoff: float) -> dict:
     candidates = [
         path
-        for path in STATE_ROOT.glob("*.json")
+        for path in _state_root().glob("*.json")
         if path.name != "session.json" and path.stat().st_mtime > previous_cutoff
     ]
     if not candidates:
@@ -51,9 +64,10 @@ def _new_session_record(previous_cutoff: float) -> dict:
 
 
 def _log_lines_since(previous_count: int) -> list[dict]:
-    if not OBSERVABILITY_LOG.exists():
-        raise SystemExit(f"observability log missing at {OBSERVABILITY_LOG}")
-    lines = OBSERVABILITY_LOG.read_text(encoding="utf-8").splitlines()[previous_count:]
+    observability_log = _observability_log()
+    if not observability_log.exists():
+        raise SystemExit(f"observability log missing at {observability_log}")
+    lines = observability_log.read_text(encoding="utf-8").splitlines()[previous_count:]
     return [json.loads(line) for line in lines if line.strip()]
 
 
@@ -67,6 +81,10 @@ def run(mode: str, repo_root: Path) -> int:
             raise SystemExit("Claude smoke fixture required_hooks drifted")
         if fixture.get("offline_assertion") != "fixture_contract_only":
             raise SystemExit("Claude smoke fixture offline_assertion drifted")
+        if fixture.get("required_post_tool_event") != "Bash":
+            raise SystemExit("Claude smoke fixture required_post_tool_event drifted")
+        if fixture.get("required_live_output") != "OK":
+            raise SystemExit("Claude smoke fixture required_live_output drifted")
         print("claude smoke ci: fixture contract verified")
         return 0
 
@@ -79,9 +97,11 @@ def run(mode: str, repo_root: Path) -> int:
     _assert_claude_install(settings)
 
     previous_log_count = 0
-    if OBSERVABILITY_LOG.exists():
-        previous_log_count = len(OBSERVABILITY_LOG.read_text(encoding="utf-8").splitlines())
-    previous_cutoff = STATE_ROOT.stat().st_mtime if STATE_ROOT.exists() else 0.0
+    observability_log = _observability_log()
+    state_root = _state_root()
+    if observability_log.exists():
+        previous_log_count = len(observability_log.read_text(encoding="utf-8").splitlines())
+    previous_cutoff = state_root.stat().st_mtime if state_root.exists() else 0.0
 
     env = os.environ.copy()
     env["SC_HOOKS_OBSERVABILITY_MODE"] = "standard"
