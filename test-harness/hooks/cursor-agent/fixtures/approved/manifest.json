@@ -1,6 +1,6 @@
 {
   "provider": "cursor-agent",
-  "capture_date": "2026-05-26T01:24:00Z",
+  "capture_date": "2026-05-25T18:30:25-07:00",
   "capture_root": "test-harness/hooks/cursor-agent/fixtures/approved/",
   "evidence_mode": "approved-reference",
   "hook_registration": {
