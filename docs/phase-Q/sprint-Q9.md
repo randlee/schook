@@ -1,7 +1,7 @@
 ---
 id: Q.9
 title: opencode API Doc And Pydantic Models
-status: planned
+status: completed
 branch: feature/pQ-s9-opencode-doc-models
 worktree: ../schook-worktrees/feature/pQ-s9-opencode-doc-models
 target: integrate/phase-Q
@@ -25,6 +25,8 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `docs/hook-api/opencode-agent-hook-api.md`
+- `docs/requirements.md`
+- `docs/traceability.md`
 - `test_harness/hooks/opencode/models/payloads.py`
 - `test_harness/hooks/opencode/models/registry.py`
 - `test-harness/hooks/opencode/tests/test_payload_models.py`
@@ -84,3 +86,24 @@ registry_rule:
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the API doc and models match the retained fixtures?
 - What runtime work remains explicitly out of scope?
+
+## Sprint QA Checklist Answers
+
+- Which requirement IDs or gap IDs changed status?
+  `HKR-018` moves to `Implemented` in `docs/requirements.md` and
+  `docs/traceability.md`; no gap row changes state in `Q.9`.
+- What retained opencode surfaces are now explicit rather than implied?
+  The retained `session.idle` surface is now explicit across the approved
+  manifest, API doc, payload model, registry entry, and payload-model tests.
+- Which files or docs are the owned write scope for the sprint?
+  `docs/hook-api/opencode-agent-hook-api.md`, `docs/requirements.md`,
+  `docs/traceability.md`, `test_harness/hooks/opencode/models/payloads.py`,
+  `test_harness/hooks/opencode/models/registry.py`, and
+  `test-harness/hooks/opencode/tests/test_payload_models.py`.
+- What validation proves the API doc and models match the retained fixtures?
+  `pytest test-harness/hooks/opencode/tests/ -q` proves the retained manifest
+  fixture parses through the opencode payload model/registry path, and
+  `cargo test --workspace` confirms the repo baseline remains green.
+- What runtime work remains explicitly out of scope?
+  opencode runtime normalization, plugin parity, and machine cutover all
+  remain deferred beyond `Q.9`.

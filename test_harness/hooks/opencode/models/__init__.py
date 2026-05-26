@@ -1,1 +1,7 @@
-"""Placeholder model package for opencode; Q.9 closes the provider-local models."""
+from .payloads import OpencodeHookPayload, SessionIdlePayload, validate_opencode_hook_payload
+
+__all__ = [
+    "OpencodeHookPayload",
+    "SessionIdlePayload",
+    "validate_opencode_hook_payload",
+]
