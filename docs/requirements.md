@@ -10,6 +10,7 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 | --- | --- |
 | `Implemented` | Backed by current code and direct tests, or by code plus obvious mechanical proof |
 | `Required Before Release` | Intended release behavior that is not yet proved cleanly enough by code, tests, or contracts |
+| `Partially Implemented` | Requirement is partially satisfied; one or more implementation layers are complete but the full requirement set is not yet closed |
 | `Planned` | Committed phase work that is not implemented yet but is required for the approved next phase to close |
 | `Deferred` | Explicitly out of the current release and approved next-phase baseline |
 | `Superseded` | Older requirement text retired in favor of a newer requirement or contract amendment |
