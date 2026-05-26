@@ -40,8 +40,9 @@ The template path is relative — must run from the **schook repo root** (not a 
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-echo '<json>' > <tmp-report-file>
-sc-compose render skills/sprint-report/report.md.j2 --var-file <tmp-report-file>
+SPRINT_REPORT_JSON="$(mktemp)"
+echo '<json>' > "$SPRINT_REPORT_JSON"
+sc-compose render skills/sprint-report/report.md.j2 --var-file "$SPRINT_REPORT_JSON"
 ```
 
 ## --table (default)
