@@ -103,7 +103,8 @@ registry_rule:
 - What validation proves the API doc and models match the retained fixtures?
   `pytest test-harness/hooks/cursor-agent/tests/ -q` proves the retained
   manifest fixture parses through the Cursor payload model/registry path, and
-  `cargo test --workspace` confirms the repo baseline remains green.
+  `cargo test --workspace` and `git diff --check` confirm the repo baseline
+  remains green.
 - What runtime work remains explicitly out of scope?
   Cursor runtime normalization, plugin parity, and machine cutover all remain
   deferred beyond `Q.7`.
