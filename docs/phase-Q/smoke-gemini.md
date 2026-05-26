@@ -6,34 +6,34 @@ Accepted baseline:
 - smoke contract owner: `Q.5`
 - command: `just smoke gemini live`
 - timestamp (UTC): `2026-05-26T01:21:53Z`
-- repo root: `/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s5-gemini-smoke`
-- runtime root: `/Users/randlee/.local/share/sc-hooks/runtime-layout`
+- repo root: `<repo-root>`
+- runtime root: `<runtime-root>`
 
 Observed install proof:
 
 - `~/.gemini/settings.json` wires:
   - `SessionStart` to the installed `sc-hooks` runtime under
-    `~/.local/bin/sc-hooks`
+    `$HOME/.local/bin/sc-hooks`
   - `BeforeAgent` to the installed `sc-hooks` runtime under
-    `~/.local/bin/sc-hooks`
+    `$HOME/.local/bin/sc-hooks`
   - `SessionEnd` to the installed `sc-hooks` runtime under
-    `~/.local/bin/sc-hooks`
+    `$HOME/.local/bin/sc-hooks`
 
 Observed live path:
 
 - probe prompt: `Reply with OK only.`
 - Gemini returned stdout: `OK`
 - one new canonical runtime state record was written under
-  `~/.sc-hooks/state/`
+  `$HOME/.sc-hooks/state/`
 - the terminal Gemini state record ended with:
   - `provider = "gemini"`
-  - `ai_root_dir = "/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s5-gemini-smoke"`
+  - `ai_root_dir = "<repo-root>"`
   - `agent_state = "ended"`
   - `last_hook_event = "SessionEnd"`
 
 Observed observability proof:
 
-- log file: `~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+- log file: `$HOME/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 - fresh `dispatch.complete` entries were observed for:
   - `SessionStart`
   - `PreToolUse(Agent)`

@@ -10,13 +10,27 @@ from pathlib import Path
 
 FIXTURE_PATH = Path(".just/smoke/fixtures/gemini/expected.json")
 SETTINGS_PATH = Path.home() / ".gemini" / "settings.json"
-OBSERVABILITY_LOG = (
-    Path.home()
-    / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl"
-)
-STATE_ROOT = Path.home() / ".sc-hooks" / "state"
 PROMPT = "Reply with OK only."
-REQUIRED_HOOKS = ("SessionStart", "SessionEnd")
+REQUIRED_LOG_HOOKS = ("SessionStart", "BeforeAgent", "SessionEnd")
+REPLAY_SAMPLES = {
+    "pre-tool-use": ("PreToolUse", "Agent"),
+    "before-agent": ("BeforeAgent", None),
+}
+
+
+def _env_path(name: str, default: Path) -> Path:
+    return Path(os.environ.get(name, str(default))).expanduser()
+
+
+def _observability_log() -> Path:
+    return _env_path(
+        "SC_HOOKS_AUDIT_PATH",
+        Path.home() / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
+    )
+
+
+def _state_root() -> Path:
+    return _env_path("SC_HOOKS_STATE_DIR", Path.home() / ".sc-hooks" / "state")
 
 
 def _load_fixture(repo_root: Path) -> dict:
@@ -30,31 +44,46 @@ def _load_settings() -> dict:
     return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
 
 
+def _load_jsonl_replay(repo_root: Path, stem: str) -> list[dict]:
+    sample_path = repo_root / ".just" / "smoke" / "fixtures" / "gemini" / f"{stem}.jsonl"
+    if not sample_path.exists():
+        raise SystemExit(f"missing Gemini replay sample at {sample_path}")
+    records = [json.loads(line) for line in sample_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not records:
+        raise SystemExit(f"Gemini replay sample is empty: {sample_path}")
+    return records
+
+
 def _assert_install_paths(settings: dict) -> None:
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):
         raise SystemExit("~/.gemini/settings.json is missing hook configuration")
+
+    resolved_binary = shutil.which(os.environ.get("SC_HOOKS_BIN", "sc-hooks"))
+    if resolved_binary is None:
+        raise SystemExit("sc-hooks is not installed or not on PATH")
 
     for hook_name in ("SessionStart", "BeforeAgent", "SessionEnd"):
         entries = hooks.get(hook_name)
         if not isinstance(entries, list) or not entries:
             raise SystemExit(f"~/.gemini/settings.json is missing {hook_name} hook wiring")
         entry_text = json.dumps(entries)
-        if "/Users/randlee/.local/bin/sc-hooks" not in entry_text:
+        if resolved_binary not in entry_text:
             raise SystemExit(f"Gemini {hook_name} hook is not wired to the installed sc-hooks binary")
 
 
 def _log_lines_since(previous_count: int) -> list[dict]:
-    if not OBSERVABILITY_LOG.exists():
-        raise SystemExit(f"observability log missing at {OBSERVABILITY_LOG}")
-    lines = OBSERVABILITY_LOG.read_text(encoding="utf-8").splitlines()[previous_count:]
+    observability_log = _observability_log()
+    if not observability_log.exists():
+        raise SystemExit(f"observability log missing at {observability_log}")
+    lines = observability_log.read_text(encoding="utf-8").splitlines()[previous_count:]
     return [json.loads(line) for line in lines if line.strip()]
 
 
 def _new_state_record(previous_files: set[str]) -> dict:
     candidates = [
         path
-        for path in STATE_ROOT.glob("*.json")
+        for path in _state_root().glob("*.json")
         if path.name != "session.json" and path.name not in previous_files
     ]
     if not candidates:
@@ -70,8 +99,30 @@ def run(mode: str, repo_root: Path) -> int:
             raise SystemExit("Gemini smoke fixture recommendation drifted")
         if fixture.get("required_surfaces") != ["SessionStart", "BeforeAgent", "SessionEnd"]:
             raise SystemExit("Gemini smoke fixture required_surfaces drifted")
+        if fixture.get("required_log_hooks") != list(REQUIRED_LOG_HOOKS):
+            raise SystemExit("Gemini smoke fixture required_log_hooks drifted")
+        if fixture.get("required_state_record") != "provider=gemini ended via SessionEnd":
+            raise SystemExit("Gemini smoke fixture required_state_record drifted")
+        if fixture.get("required_post_tool_event") != "Agent":
+            raise SystemExit("Gemini smoke fixture required_post_tool_event drifted")
         if fixture.get("offline_assertion") != "fixture_contract_only":
             raise SystemExit("Gemini smoke fixture offline_assertion drifted")
+        if fixture.get("observability_log_env") != "SC_HOOKS_AUDIT_PATH":
+            raise SystemExit("Gemini smoke fixture observability_log_env drifted")
+        if fixture.get("state_root_env") != "SC_HOOKS_STATE_DIR":
+            raise SystemExit("Gemini smoke fixture state_root_env drifted")
+        if fixture.get("install_binary_env") != "SC_HOOKS_BIN":
+            raise SystemExit("Gemini smoke fixture install_binary_env drifted")
+        for stem, (hook, event) in REPLAY_SAMPLES.items():
+            records = _load_jsonl_replay(repo_root, stem)
+            first = records[0]
+            if first.get("hook") != hook:
+                raise SystemExit(f"Gemini replay sample {stem} hook drifted")
+            if event is None:
+                if first.get("surface") != "BeforeAgent":
+                    raise SystemExit(f"Gemini replay sample {stem} surface drifted")
+            elif first.get("event") != event:
+                raise SystemExit(f"Gemini replay sample {stem} event drifted")
         print("gemini smoke ci: fixture contract verified")
         return 0
 
@@ -82,11 +133,13 @@ def run(mode: str, repo_root: Path) -> int:
     _assert_install_paths(settings)
 
     previous_log_count = 0
-    if OBSERVABILITY_LOG.exists():
-        previous_log_count = len(OBSERVABILITY_LOG.read_text(encoding="utf-8").splitlines())
+    observability_log = _observability_log()
+    state_root = _state_root()
+    if observability_log.exists():
+        previous_log_count = len(observability_log.read_text(encoding="utf-8").splitlines())
     previous_files = {
         path.name
-        for path in STATE_ROOT.glob("*.json")
+        for path in state_root.glob("*.json")
         if path.name != "session.json"
     }
 
@@ -119,12 +172,18 @@ def run(mode: str, repo_root: Path) -> int:
         raise SystemExit("Gemini live smoke did not record SessionEnd as the terminal event")
 
     new_log_lines = _log_lines_since(previous_log_count)
-    seen_hooks = {
-        line.get("fields", {}).get("hook")
-        for line in new_log_lines
-        if line.get("action") == "dispatch.complete"
-    }
-    missing = [hook for hook in REQUIRED_HOOKS if hook not in seen_hooks]
+    seen_hooks = set()
+    for line in new_log_lines:
+        if line.get("action") != "dispatch.complete":
+            continue
+        fields = line.get("fields", {})
+        hook = fields.get("hook")
+        event = fields.get("event")
+        if hook == "PreToolUse" and event == "Agent":
+            seen_hooks.add("BeforeAgent")
+        elif isinstance(hook, str):
+            seen_hooks.add(hook)
+    missing = [hook for hook in REQUIRED_LOG_HOOKS if hook not in seen_hooks]
     if missing:
         raise SystemExit(f"Gemini live smoke missing log hooks: {', '.join(missing)}")
     if not any(
