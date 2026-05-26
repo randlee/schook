@@ -141,7 +141,8 @@ portable once `portability` becomes a hard gate.
   `just test hooks codex`, `just test hooks gemini`, `cargo test --workspace`,
   and `git diff --check`.
 - `just lint portability` backend label and PASS result:
-  `backend=repo-local:/Users/randlee/Documents/github/sc-lint status=pass findings=0`.
+  `backend=repo-local:../sc-lint status=pass findings=0`.
+  <!-- note: this result predates the P.9 removal of the repo-local sc-lint fallback -->
 - Follow-on work blocked or unblocked:
   unblocks `P.4`, `P.5`, `P.6`, and `P.7` to treat
   `just lint portability` as a required hard gate for new runtime changes.
