@@ -1,3 +1,5 @@
+# Sprint Q.1 — openshell Evaluation
+
 recommendation: reject_for_now
 
 smoke_runner_impact: `Q.2` should keep the repo-owned smoke runner on the already planned `just` plus Python path (`.just/run_smoke.py` and `.just/smoke/`) instead of inserting `openshell` as a new execution dependency. The current smoke design is centered on offline replay or dry-run execution, accepted-baseline live records, and an explicit operator surface under `just smoke`; none of that requires a shell replacement layer. Keeping the smoke runner on the existing path avoids reworking the `Phase Q` ownership boundary in `ADR-SHK-010` and keeps the runner aligned with the rest of the repo-local `just` helper surface.

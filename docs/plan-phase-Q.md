@@ -285,6 +285,7 @@ Entry criteria:
 ## Sprint Artifact Summary
 
 - `Q.1`:
+  - `docs/plan-phase-Q.md`
   - `docs/phase-Q/openshell-evaluation.md`
 - `Q.2`:
   - `justfile`
