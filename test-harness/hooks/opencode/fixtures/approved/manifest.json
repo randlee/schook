@@ -1,6 +1,6 @@
 {
   "provider": "opencode",
-  "capture_date": "2026-05-26T03:10:00Z",
+  "capture_date": "2026-05-25T18:40:21-07:00",
   "capture_root": "test-harness/hooks/opencode/fixtures/approved/",
   "evidence_mode": "approved-reference",
   "hook_registration": {
