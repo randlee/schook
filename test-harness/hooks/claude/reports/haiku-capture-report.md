@@ -7,7 +7,7 @@ This report records the first live Claude Haiku harness pass in
 
 Worktree:
 
-- `/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing`
+- `../schook-worktrees/feature-s9-haiku-harness-testing`
 
 Provider:
 
