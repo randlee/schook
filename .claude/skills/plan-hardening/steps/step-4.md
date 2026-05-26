@@ -50,12 +50,12 @@ The expected output shape is specified inside
 Do not proceed to Step 5 until that fenced JSON is present and well formed.
 If the response is incomplete or malformed, send a correction request to
 `critical-plan-reviewer` immediately.
-Save the extracted fenced JSON to `/tmp/step-4.json`.
+Save the extracted fenced JSON to `<tmp-output-file>`.
 
 **3. Route by status**
 
 - `PASS` -> proceed to Step 5
-- `FAIL` -> update `/tmp/plan-hardening-vars.json` so
+- `FAIL` -> update `<tmp-vars-file>` so
   `reviewer_findings_json` contains the Step 4 fenced JSON, then re-run Step 3
 - after Step 3 returns updated fenced JSON, update:
   - `previous_reviewed_commit`
@@ -78,9 +78,9 @@ Example reinjection command:
 python3 - <<'PY'
 import json
 from pathlib import Path
-vars_path = Path('/tmp/plan-hardening-vars.json')
+vars_path = Path('<tmp-vars-file>')
 data = json.loads(vars_path.read_text())
-data['reviewer_findings_json'] = Path('/tmp/step-4.json').read_text()
+data['reviewer_findings_json'] = Path('<tmp-output-file>').read_text()
 vars_path.write_text(json.dumps(data, indent=2) + '\\n')
 PY
 ```

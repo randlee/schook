@@ -78,6 +78,10 @@ install target='local-cutover':
 test target='workspace' provider='':
     {{python_cmd}} .just/run_test.py {{target}} {{provider}}
 
+# Run the curated smoke surface.
+smoke provider='all' mode='live':
+    @{{python_cmd}} .just/run_smoke.py {{provider}} --mode {{mode}}
+
 # Remove workspace build artifacts.
 clean:
     cargo clean

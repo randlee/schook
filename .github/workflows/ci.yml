@@ -99,9 +99,21 @@ jobs:
       - name: Run sc-lint portability gate
         run: just lint portability
 
+  smoke:
+    needs: [sc-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Run offline smoke gate
+        run: just smoke all ci
+
   docs:
     name: rustdoc
-    needs: [clippy, sc-lint]
+    needs: [clippy, sc-lint, smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

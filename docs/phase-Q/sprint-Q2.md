@@ -1,7 +1,7 @@
 ---
 id: Q.2
 title: Smoke Infrastructure
-status: planned
+status: completed
 branch: feature/pQ-s2-smoke-infrastructure
 worktree: ../schook-worktrees/feature/pQ-s2-smoke-infrastructure
 target: integrate/phase-Q
@@ -114,3 +114,40 @@ one public `just smoke` surface that remains separate from `just test` and
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the public `just smoke` surface and CI gate?
 - What follow-on work is unblocked for `Q.3` through `Q.9`?
+
+## Sprint QA Checklist Answers
+
+- Which requirement IDs or gap IDs changed status?
+  - `HKR-019` moved from planning-only intent to partial implementation because
+    `Q.2` landed the shared public smoke surface, dispatcher, CI-owned offline
+    gate, and operator docs, while later provider sprints still own the live
+    accepted-baseline records.
+- What competing smoke path was removed or rejected early?
+  - `Q.2` kept the smoke runner on the repo-owned `just` plus Python path and
+    rejected `openshell` as a new required execution dependency for this phase.
+- Which files or docs are the owned write scope for the sprint?
+  - `justfile`
+  - `.just/run_smoke.py`
+  - `.just/smoke/`
+  - `.just/smoke/fixtures/`
+  - `.just/tests/test_smoke_surface.py`
+  - `.just/tests/test_help_surface.py`
+  - `.github/workflows/ci.yml`
+  - `docs/phase-Q/smoke-surface.md`
+  - `docs/phase-Q/sprint-Q2.md`
+- What validation proves the public `just smoke` surface and CI gate?
+  - `just help`
+  - `just smoke all ci`
+  - `cargo test --workspace`
+  - `git diff --check`
+- What follow-on work is unblocked for `Q.3` through `Q.9`?
+  - `Q.3`–`Q.5` can add provider-live smoke modules without reopening the
+    shared dispatcher contract, and `Q.6`–`Q.9` can rely on the smoke surface
+    and CI ownership path already being frozen.
+
+## Validation Signoff
+
+- `just help` PASS
+- `just smoke all ci` PASS
+- `cargo test --workspace` PASS
+- `git diff --check` PASS
