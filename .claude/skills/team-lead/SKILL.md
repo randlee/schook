@@ -27,7 +27,7 @@ Get the current session id from the `SessionStart` hook output in context
 (`SESSION_ID=<uuid>`). Compare it with `leadSessionId` in the team config:
 
 ```bash
-python3 -c "import json; print(json.load(open('/Users/randlee/.claude/teams/schook/config.json'))['leadSessionId'])"
+python3 -c "import json, os; print(json.load(open(os.path.expanduser('~/.claude/teams/schook/config.json')))['leadSessionId'])"
 ```
 
 - Match: the current session already matches the persisted team state. Proceed to
