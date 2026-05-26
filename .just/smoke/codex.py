@@ -23,10 +23,10 @@ def _env_path(name: str, default: Path) -> Path:
 
 
 def _observability_log() -> Path:
-    return _env_path(
-        "SC_HOOKS_AUDIT_PATH",
-        Path.home() / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
-    )
+    path = os.environ.get("SC_HOOKS_AUDIT_PATH")
+    if not path:
+        raise SystemExit("SC_HOOKS_AUDIT_PATH must be set for Codex smoke validation")
+    return Path(path).expanduser()
 
 
 def _marker_dir(repo_root: Path) -> Path:
