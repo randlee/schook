@@ -85,6 +85,12 @@ What each target runs:
 - `just test hooks gemini`
   runs `pytest test-harness/hooks/gemini/tests/ -q`
 
+Maintained harness-only providers without a public `just test hooks ...`
+entrypoint yet:
+
+- Cursor Agent
+- opencode
+
 Run one non-interactive Claude surface:
 
 ```bash
@@ -130,6 +136,8 @@ test-harness/hooks/
   gemini/
     README.md
   cursor-agent/
+    README.md
+  opencode/
     README.md
 ```
 
