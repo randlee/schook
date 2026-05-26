@@ -15,7 +15,7 @@ Observed install proof:
   `~/.codex/scripts/schook-delay-notify.py`
 - `~/.codex/hooks.json` wires:
   - `SessionStart` to the installed `sc-hooks` runtime under
-    `~/.local/bin/sc-hooks`
+    `<runtime-root>/bin/sc-hooks`
   - `PreToolUse` to `~/.codex/scripts/schook-delay-pretooluse.sh`
 
 Observed live path:
@@ -41,7 +41,7 @@ Observed live path:
 
 Observed observability proof:
 
-- log file: `~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+- log file: `<runtime-root>/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 - accepted-baseline observability proof included:
   - a recent `dispatch.complete` entry for `SessionStart`
   - fresh `dispatch.complete` entries for `PreToolUse`
