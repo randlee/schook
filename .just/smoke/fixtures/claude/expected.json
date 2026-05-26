@@ -1,0 +1,15 @@
+{
+  "provider": "claude",
+  "recommendation": "accepted_baseline_live_record",
+  "offline_assertion": "fixture_contract_only",
+  "required_hooks": [
+    "SessionStart",
+    "PreToolUse",
+    "PostToolUse",
+    "SessionEnd"
+  ],
+  "required_post_tool_event": "Bash",
+  "required_live_output": "OK",
+  "observability_log_path": "~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
+  "state_root": "~/.sc-hooks/state"
+}
