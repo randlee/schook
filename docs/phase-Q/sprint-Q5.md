@@ -27,6 +27,8 @@ target: integrate/phase-Q
 - `.just/smoke/gemini.py`
 - `.just/smoke/fixtures/gemini/`
 - `docs/phase-Q/smoke-gemini.md`
+- `docs/phase-Q/sprint-Q5.md`
+- `docs/requirements.md`
 - `docs/traceability.md`
 
 ## Deliverables
