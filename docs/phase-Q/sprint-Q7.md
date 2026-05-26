@@ -1,7 +1,7 @@
 ---
 id: Q.7
 title: Cursor Agent API Doc And Pydantic Models
-status: planned
+status: completed
 branch: feature/pQ-s7-cursor-doc-models
 worktree: ../schook-worktrees/feature/pQ-s7-cursor-doc-models
 target: integrate/phase-Q
@@ -85,3 +85,25 @@ registry_rule:
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the API doc and models match the retained fixtures?
 - What runtime work remains explicitly out of scope?
+
+## Sprint QA Checklist Answers
+
+- Which requirement IDs or gap IDs changed status?
+  No requirement or gap row changes state in `Q.7`; `HKR-007` remains
+  `Partially Implemented` because `Q.7` closes the model/doc layer on top of
+  the `Q.6` harness baseline rather than authorizing runtime work.
+- What retained Cursor surfaces are now explicit rather than implied?
+  The retained `stop` surface is now explicit across the approved manifest, API
+  doc, payload model, registry entry, and payload-model tests.
+- Which files or docs are the owned write scope for the sprint?
+  `docs/hook-api/cursor-agent-hook-api.md`,
+  `test_harness/hooks/cursor_agent/models/payloads.py`,
+  `test_harness/hooks/cursor_agent/models/registry.py`, and
+  `test-harness/hooks/cursor-agent/tests/test_payload_models.py`.
+- What validation proves the API doc and models match the retained fixtures?
+  `pytest test-harness/hooks/cursor-agent/tests/ -q` proves the retained
+  manifest fixture parses through the Cursor payload model/registry path, and
+  `cargo test --workspace` confirms the repo baseline remains green.
+- What runtime work remains explicitly out of scope?
+  Cursor runtime normalization, plugin parity, and machine cutover all remain
+  deferred beyond `Q.7`.

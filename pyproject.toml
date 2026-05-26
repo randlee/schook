@@ -26,6 +26,10 @@ packages = [
   "test_harness.hooks.gemini",
   "test_harness.hooks.gemini.models",
   "test_harness.hooks.gemini.tests",
+  "test_harness.hooks.cursor_agent",
+  "test_harness.hooks.cursor_agent.models",
+  "test_harness.hooks.opencode",
+  "test_harness.hooks.opencode.models",
 ]
 
 [tool.pytest.ini_options]
@@ -33,6 +37,8 @@ testpaths = [
   "test-harness/hooks/claude/tests",
   "test-harness/hooks/codex/tests",
   "test-harness/hooks/gemini/tests",
+  "test-harness/hooks/cursor-agent/tests",
+  "test-harness/hooks/opencode/tests",
   "test-harness/hooks/tests",
 ]
 addopts = "-ra --import-mode=importlib"
