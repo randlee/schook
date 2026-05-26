@@ -120,6 +120,9 @@ Purpose:
 - add the curated `just smoke` surface following the `../atm-core` pattern
 - create the repo-owned smoke runner implementation and wire it into CI
 - keep the smoke surface separate from `just test` and `just lint`
+- keep the smoke runner on the existing repo-owned `just` plus Python path;
+  `Q.1` rejects `openshell` as a new required execution dependency for this
+  phase
 - freeze one explicit smoke execution model:
   - CI runs offline replay/dry-run smoke without provider CLIs
   - accepted-baseline provider records in later sprints come from live local
@@ -284,6 +287,7 @@ Entry criteria:
 ## Sprint Artifact Summary
 
 - `Q.1`:
+  - `docs/plan-phase-Q.md`
   - `docs/phase-Q/openshell-evaluation.md`
 - `Q.2`:
   - `justfile`
@@ -293,6 +297,7 @@ Entry criteria:
   - `docs/phase-Q/smoke-surface.md`
 - `Q.3`:
   - `.just/smoke/claude.py`
+  - `.just/smoke/fixtures/claude/`
   - `docs/phase-Q/smoke-claude.md`
 - `Q.4`:
   - `.just/smoke/codex.py`

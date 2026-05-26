@@ -113,7 +113,7 @@ Phase P progress note:
   fallback from the public lint wrappers and adding a dedicated CI `sc-lint`
   job for `sc-boundary` and `portability`
 
-| Phase Q | Planned | production-readiness smoke and next-provider harness expansion — evaluate `openshell`, add the curated `just smoke` surface and CI ownership path, land executable smoke coverage for Claude/Codex/Gemini, then expand the permanent provider harness/docs/models for Cursor Agent and opencode without yet authorizing their runtime parity work | `HKR-007`, `HKR-018`, `HKR-019` | Phase P | `docs/plan-phase-Q.md`, `docs/phase-Q/`, `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, `justfile`, `.just/`, `.github/workflows/ci.yml`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, smoke operator docs |
+| Phase Q | In Progress | production-readiness smoke and next-provider harness expansion — evaluate `openshell`, add the curated `just smoke` surface and CI ownership path, land executable smoke coverage for Claude/Codex/Gemini, then expand the permanent provider harness/docs/models for Cursor Agent and opencode without yet authorizing their runtime parity work | `HKR-007`, `HKR-018`, `HKR-019` | Phase P | `docs/plan-phase-Q.md`, `docs/phase-Q/`, `docs/requirements.md`, `docs/architecture.md`, `docs/traceability.md`, `justfile`, `.just/`, `.github/workflows/ci.yml`, `test-harness/hooks/`, `test_harness/hooks/`, `docs/hook-api/`, smoke operator docs |
 
 Phase N closure note:
 

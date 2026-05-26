@@ -1,4 +1,6 @@
-Raw capture evidence in this directory may include machine-local paths such as
-home directories, temp locations, and worktree roots from the session where the
-capture was recorded. Those path literals are expected evidence artifacts, not
-portable contract requirements.
+Raw capture files in this directory are retained provider evidence.
+
+They may contain machine-local paths, home-directory paths, temporary
+directories, or worktree paths from the capture session where the evidence was
+recorded. Those values are expected for raw evidence and are not treated as
+portable contract literals.

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 
 class StopPayload(BaseModel):
@@ -18,7 +18,7 @@ class StopPayload(BaseModel):
     modified_files: list[str]
 
 
-CursorAgentHookPayload = Annotated[StopPayload, Field(discriminator="hook_event_name")]
+CursorAgentHookPayload = StopPayload
 
 CURSOR_AGENT_HOOK_PAYLOAD_ADAPTER = TypeAdapter(CursorAgentHookPayload)
 

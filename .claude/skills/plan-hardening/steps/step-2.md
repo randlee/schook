@@ -50,7 +50,7 @@ The expected output shape is specified inside
 Do not proceed to Step 3 until that fenced JSON is present and well formed.
 If the response is incomplete or malformed, send a correction request to
 `plan-scope-reviewer` immediately.
-Save the extracted fenced JSON to `<tmp-step-2-json>`.
+Save the extracted fenced JSON to `<tmp-output-file>`.
 
 **3. Route by status**
 
@@ -77,7 +77,7 @@ import json
 from pathlib import Path
 vars_path = Path('<tmp-vars-file>')
 data = json.loads(vars_path.read_text())
-data['reviewer_findings_json'] = Path('<tmp-step-2-json>').read_text()
+data['reviewer_findings_json'] = Path('<tmp-output-file>').read_text()
 vars_path.write_text(json.dumps(data, indent=2) + '\\n')
 PY
 ```
