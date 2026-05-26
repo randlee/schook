@@ -12,7 +12,7 @@ FIXTURE_PATH = Path(".just/smoke/fixtures/gemini/expected.json")
 SETTINGS_PATH = (
     Path(os.environ["GEMINI_SETTINGS_PATH"]).expanduser()
     if "GEMINI_SETTINGS_PATH" in os.environ
-    else Path.home() / ".gemini" / "settings.json"
+    else Path.home() / ".gemini" / "settings.json"  # intentional: standard Gemini install default; override via GEMINI_SETTINGS_PATH in CI
 )
 PROMPT = "Reply with OK only."
 REQUIRED_LOG_HOOKS = ("SessionStart", "BeforeAgent", "SessionEnd")
