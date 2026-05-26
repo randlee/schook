@@ -183,12 +183,13 @@ Current retained `stop` payload fields approved in the harness model:
 - no current local `hooks.json` is configured on this machine
 - only one approved-reference Cursor validation model currently exists:
   - `stop`
+- `stop` now has approved-reference harness coverage via the retained `Q.6`
+  manifest and fixtures, but it is still not live-captured
 - no verified live provider-specific stdin schema has been captured yet for:
   - `beforeShellExecution`
   - `beforeMCPExecution`
   - `beforeReadFile`
   - `afterFileEdit`
-  - `stop`
 
 ## Design Implications For `sc-hooks`
 
