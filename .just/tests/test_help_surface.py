@@ -36,6 +36,12 @@ class HelpSurfaceTests(unittest.TestCase):
         self.assertIn("test hooks codex", rendered)
         self.assertIn("test hooks gemini", rendered)
 
+    def test_print_help_lists_smoke_entrypoints(self) -> None:
+        mod = load_module("print_help", ".just/print_help.py")
+        rendered = mod.render_help("schook")
+        self.assertIn("smoke", rendered)
+        self.assertIn("smoke all ci", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()
