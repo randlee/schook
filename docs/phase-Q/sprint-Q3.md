@@ -93,14 +93,15 @@ Required Claude smoke coverage:
   closes the full Phase Q smoke row, and no Cursor or opencode requirement IDs
   changed here.
 - Added Claude live smoke coverage for install, dispatch, plugin-chain, and
-  observability, plus the offline fixture-backed CI contract checks. Codex and
-  Gemini smoke remain separate in `Q.4` and `Q.5`.
+  observability, plus the offline fixture-backed CI contract checks. No
+  existing code was removed; `Q.3` is purely additive and only introduces
+  `.just/smoke/claude.py` plus its supporting fixtures. Codex and Gemini smoke
+  remain separate in `Q.4` and `Q.5`.
 - Owned write scope:
   - `.just/smoke/claude.py`
   - `.just/smoke/fixtures/claude/`
   - `docs/phase-Q/smoke-claude.md`
   - `docs/phase-Q/sprint-Q3.md`
-  - `docs/plan-phase-Q.md`
 - End-to-end proof comes from `just smoke claude live` plus
   `cargo test --workspace` and `git diff --check`, with the live run
   verifying session state, `dispatch.complete` observability hooks, and the
