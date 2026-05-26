@@ -6,8 +6,8 @@ Accepted baseline:
 - smoke contract owner: `Q.4`
 - command: `just smoke codex live`
 - timestamp (UTC): `2026-05-26T01:16:12Z`
-- repo root: `/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s4-codex-smoke`
-- runtime root: `/Users/randlee/.local/share/sc-hooks/runtime-layout`
+- repo root: `<repo-root>`
+- runtime root: `<runtime-root>`
 
 Observed install proof:
 
@@ -24,8 +24,8 @@ Observed live path:
 - Codex wrote the final response `OK`
 - Codex stderr included the explicit tool transcript:
   - `exec`
-  - `/bin/bash -c pwd in /Users/randlee/Documents/github/schook-worktrees/feature/pQ-s4-codex-smoke`
-  - `/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s4-codex-smoke`
+  - `/bin/bash -c pwd in <repo-root>`
+  - `<repo-root>`
 - the smoke runner uses:
   - `ATM_IDENTITY=codex-smoke`
   - `ATM_TEAM=schook`
@@ -35,8 +35,8 @@ Observed live path:
   - `.sc/sessions/codex/idle-codex-smoke.json`
 - the terminal Codex idle marker ended with:
   - `state = "idle"`
-  - `project_dir = "/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s4-codex-smoke"`
-  - `cwd = "/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s4-codex-smoke"`
+  - `project_dir = "<repo-root>"`
+  - `cwd = "<repo-root>"`
   - non-empty `session_id`
 
 Observed observability proof:

@@ -1,7 +1,7 @@
 {
   "state": "idle",
-  "project_dir": "/tmp/codex-smoke",
-  "cwd": "/tmp/codex-smoke",
+  "project_dir": "<project_dir>",
+  "cwd": "<project_dir>",
   "atm_identity": "codex-smoke",
   "session_id": "codex-session-placeholder"
 }
