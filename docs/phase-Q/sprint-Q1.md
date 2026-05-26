@@ -27,6 +27,7 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `docs/phase-Q/openshell-evaluation.md`
+- `docs/phase-Q/sprint-Q1.md`
 - `docs/plan-phase-Q.md`
 
 ## Deliverables
