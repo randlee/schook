@@ -1,7 +1,7 @@
 ---
 id: Q.8
 title: opencode Hook Harness
-status: planned
+status: completed
 branch: feature/pQ-s8-opencode-harness
 worktree: ../schook-worktrees/feature/pQ-s8-opencode-harness
 target: integrate/phase-Q
@@ -27,11 +27,17 @@ target: integrate/phase-Q
 
 - `test-harness/hooks/opencode/fixtures/`
 - `test-harness/hooks/opencode/fixtures/approved/manifest.json`
+- `test-harness/hooks/opencode/captures/raw/`
 - `test-harness/hooks/opencode/hooks/`
+- `test-harness/hooks/opencode/models/`
+- `test-harness/hooks/opencode/prompts/`
+- `test-harness/hooks/opencode/reports/`
 - `test-harness/hooks/opencode/schema/`
+- `test-harness/hooks/opencode/scripts/`
 - `test-harness/hooks/opencode/tests/test_harness_structure.py`
 - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
 - `test_harness/hooks/opencode/`
+- `test_harness/hooks/opencode/models/`
 - `test-harness/hooks/README.md` (`Q.6` owns the file; `Q.8` appends the
   opencode entry only)
 - `docs/requirements.md`
@@ -60,9 +66,14 @@ Required opencode harness layout:
 
 ```text
 test-harness/hooks/opencode/
+  captures/raw/
   fixtures/
   hooks/
+  models/
+  prompts/
+  reports/
   schema/
+  scripts/
   tests/
 
 test_harness/hooks/opencode/
@@ -99,3 +110,28 @@ test_harness/hooks/opencode/
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves opencode is a maintained harness provider now?
 - What runtime work remains explicitly out of scope?
+
+## Sprint QA Checklist Answers
+
+- Which requirement IDs or gap IDs changed status?
+  No requirement or gap row changes state in `Q.8`; `HKR-018` remains
+  `Planned` because `Q.8` closes the harness/package layer while `Q.9` still
+  owns the provider-local model/doc closure.
+- What previously undocumented scope is now explicit?
+  `opencode` is now explicit as a maintained harness-only provider with the
+  retained `session.idle` approved-reference surface, a non-empty approved
+  manifest, provider tests, and a paired Python-package root.
+- Which files or docs are the owned write scope for the sprint?
+  `pyproject.toml`, `docs/traceability.md`, `docs/phase-Q/sprint-Q8.md`,
+  `test-harness/hooks/README.md`, and the `test-harness/hooks/opencode/` plus
+  `test_harness/hooks/opencode/` harness/package roots. The `Q.6` entry
+  criterion was already satisfied before `Q.8` began: `Q.6` landed on
+  `feature/pQ-s6-cursor-harness` and PR `#162`, which is the accepted Cursor
+  harness baseline this sprint extends.
+- What validation proves opencode is a maintained harness provider now?
+  `pytest test-harness/hooks/opencode/tests/ -q` proves the approved manifest,
+  required harness layout, and paired package root exist, while
+  `cargo test --workspace` confirms the repo-wide baseline still passes.
+- What runtime work remains explicitly out of scope?
+  opencode runtime normalization, plugin parity, and machine cutover all
+  remain deferred beyond `Q.8`.

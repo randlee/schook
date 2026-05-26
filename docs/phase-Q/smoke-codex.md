@@ -1,0 +1,63 @@
+# Codex Smoke Record
+
+Accepted baseline:
+
+- branch: `feature/pQ-s4-codex-smoke`
+- smoke contract owner: `Q.4`
+- command: `just smoke codex live`
+- timestamp (UTC): `2026-05-26T01:16:12Z`
+- repo root: `<repo-root>` (intentional portability placeholder, not a
+  literal substitution token)
+- runtime root: `<runtime-root>` (intentional portability placeholder, not a
+  literal substitution token)
+
+Observed install proof:
+
+- `~/.codex/config.toml` wires `notify` to
+  `~/.codex/scripts/schook-delay-notify.py`
+- `~/.codex/hooks.json` wires:
+  - `SessionStart` to the installed `sc-hooks` runtime under
+    `<runtime-root>/bin/sc-hooks`
+  - `PreToolUse` to `~/.codex/scripts/schook-delay-pretooluse.sh`
+
+Observed live path:
+
+- probe prompt: `Run pwd using Bash exactly once, then reply with OK only.`
+- Codex wrote the final response `OK`
+- Codex stderr included the explicit tool transcript:
+  - `exec`
+  - `/bin/bash -c pwd in <repo-root>`
+  - `<repo-root>`
+- the smoke runner uses:
+  - `ATM_IDENTITY=codex-smoke`
+  - `ATM_TEAM=schook`
+  - `SCHOOK_CODEX_IDLE_SECONDS=1`
+  - an isolated temporary `SCHOOK_CODEX_IDLE_STATE_ROOT`
+- one repo-local lifecycle marker was produced at:
+  - `.sc/sessions/codex/idle-codex-smoke.json`
+- the terminal Codex idle marker ended with:
+  - `state = "idle"`
+  - `project_dir = "<repo-root>"`
+  - `cwd = "<repo-root>"`
+  - non-empty `session_id`
+
+Observed observability proof:
+
+- log file: `<runtime-root>/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+- accepted-baseline observability proof included:
+  - a recent `dispatch.complete` entry for `SessionStart`
+  - fresh `dispatch.complete` entries for `PreToolUse`
+
+Smoke verdict:
+
+- install path: PASS
+- retained Bash runtime dispatch path: PASS
+- retained notify/idle lifecycle path: PASS
+- observability path: PASS
+
+Deferred beyond `Q.4`:
+
+- Claude smoke (`Q.3`) remains separate
+- Gemini smoke (`Q.5`)
+- new Codex runtime-surface expansion
+- Codex harness/doc-model expansion

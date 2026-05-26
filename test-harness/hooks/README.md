@@ -85,6 +85,13 @@ What each target runs:
 - `just test hooks gemini`
   runs `pytest test-harness/hooks/gemini/tests/ -q`
 
+Maintained harness-only providers without a public `just test hooks ...`
+entrypoint yet:
+
+- Cursor Agent
+- opencode
+  - retained approved-reference surface: `session.idle`
+
 Run one non-interactive Claude surface:
 
 ```bash
@@ -130,6 +137,8 @@ test-harness/hooks/
   gemini/
     README.md
   cursor-agent/
+    README.md
+  opencode/
     README.md
 ```
 
@@ -242,6 +251,7 @@ Recommended markers:
 - `provider_codex`
 - `provider_gemini`
 - `provider_cursor_agent`
+- `provider_opencode`
 
 The harness should remain runnable long term without requiring manual edits to
 test code or captured output locations.

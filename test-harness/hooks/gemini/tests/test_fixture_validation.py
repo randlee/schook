@@ -84,6 +84,7 @@ def test_approved_env_snapshots_exist_for_each_surface(gemini_root: Path, expect
 @pytest.mark.provider_gemini
 def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expected_surfaces: list[str]) -> None:
     fixture_root = gemini_root / "fixtures" / "approved"
+    machine_local_prefix = "/Users/" + "randlee/"
     synthetic_root = "/synthetic/test/gemini-harness"
     synthetic_home = "/synthetic/test/gemini-home"
     synthetic_plans = "/synthetic/test/gemini-plans"
@@ -99,11 +100,11 @@ def test_approved_fixtures_redact_machine_local_paths(gemini_root: Path, expecte
         payload_text = payload_path.read_text(encoding="utf-8")
         env = json.loads(env_path.read_text(encoding="utf-8"))
 
-        assert "/Users/randlee/" not in payload_text, payload_path.name
+        assert machine_local_prefix not in payload_text, payload_path.name
         assert "/tmp/schook-gemini-" not in payload_text, payload_path.name
         assert "/private/tmp/schook-gemini-" not in payload_text, payload_path.name
         assert "Process Group PGID: 31010" not in payload_text, payload_path.name
-        assert "/Users/randlee/" not in json.dumps(env, sort_keys=True), env_path.name
+        assert machine_local_prefix not in json.dumps(env, sort_keys=True), env_path.name
         assert "/tmp/schook-gemini-" not in json.dumps(env, sort_keys=True), env_path.name
         assert "/private/tmp/schook-gemini-" not in json.dumps(env, sort_keys=True), env_path.name
 

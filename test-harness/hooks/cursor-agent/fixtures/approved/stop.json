@@ -1,0 +1,12 @@
+{
+  "duration_ms": 42,
+  "git_branch": "develop",
+  "hook_event_name": "stop",
+  "loop_count": 1,
+  "message_count": 2,
+  "modified_files": [
+    "src/example.ts"
+  ],
+  "tool_call_count": 1,
+  "transcript_path": "/synthetic/test/cursor-agent/transcript.jsonl"
+}

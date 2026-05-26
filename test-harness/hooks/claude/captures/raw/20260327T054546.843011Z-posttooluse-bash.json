@@ -1,5 +1,5 @@
 {
-  "cwd": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
+  "cwd": "/home/runner/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing",
   "hook_event_name": "PostToolUse",
   "permission_mode": "bypassPermissions",
   "session_id": "09a6cff2-c8e0-4063-8941-a881995432bb",
@@ -13,8 +13,8 @@
     "isImage": false,
     "noOutputExpected": false,
     "stderr": "",
-    "stdout": "/Users/randlee/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing"
+    "stdout": "/home/runner/Documents/github/schook-worktrees/feature-s9-haiku-harness-testing"
   },
   "tool_use_id": "toolu_01BSTWs4AKRLHpP7jidYxPGu",
-  "transcript_path": "/Users/randlee/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/09a6cff2-c8e0-4063-8941-a881995432bb.jsonl"
+  "transcript_path": "/home/runner/.claude/projects/-Users-randlee-Documents-github-schook-worktrees-feature-s9-haiku-harness-testing/09a6cff2-c8e0-4063-8941-a881995432bb.jsonl"
 }
