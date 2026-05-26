@@ -29,7 +29,8 @@ Observed live path:
 Observed observability proof:
 
 - log file: `~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl`
-  (machine-local `SC_HOOKS_AUDIT_PATH` value; not committed to CI)
+  (machine-local `SC_HOOKS_AUDIT_PATH` value from the live run at
+  `2026-05-26T01:08:22Z`; not a portable path and not committed to CI)
 - observed `dispatch.complete` entries for:
   - `SessionStart`
   - `PreToolUse`
