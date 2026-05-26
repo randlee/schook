@@ -111,6 +111,7 @@ Required Gemini smoke coverage:
   - `docs/phase-Q/smoke-gemini.md`
   - `docs/phase-Q/sprint-Q5.md`
   - `docs/requirements.md`
+  - `docs/traceability.md`
 - End-to-end proof comes from `just smoke gemini live` plus
   `cargo test --workspace`, with the live run verifying installed hook wiring,
   the retained runtime dispatch path, the terminal Gemini state record, and
