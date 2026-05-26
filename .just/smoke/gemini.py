@@ -9,7 +9,11 @@ from pathlib import Path
 
 
 FIXTURE_PATH = Path(".just/smoke/fixtures/gemini/expected.json")
-SETTINGS_PATH = Path.home() / ".gemini" / "settings.json"
+SETTINGS_PATH = (
+    Path(os.environ["GEMINI_SETTINGS_PATH"]).expanduser()
+    if "GEMINI_SETTINGS_PATH" in os.environ
+    else Path.home() / ".gemini" / "settings.json"
+)
 PROMPT = "Reply with OK only."
 REQUIRED_LOG_HOOKS = ("SessionStart", "BeforeAgent", "SessionEnd")
 REPLAY_SAMPLES = {
@@ -18,19 +22,18 @@ REPLAY_SAMPLES = {
 }
 
 
-def _env_path(name: str, default: Path) -> Path:
-    return Path(os.environ.get(name, str(default))).expanduser()
-
-
 def _observability_log() -> Path:
-    return _env_path(
-        "SC_HOOKS_AUDIT_PATH",
-        Path.home() / ".local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
-    )
+    value = os.environ.get("SC_HOOKS_AUDIT_PATH")
+    if not value:
+        raise SystemExit("SC_HOOKS_AUDIT_PATH must be set for Gemini smoke validation")
+    return Path(value).expanduser()
 
 
 def _state_root() -> Path:
-    return _env_path("SC_HOOKS_STATE_DIR", Path.home() / ".sc-hooks" / "state")
+    value = os.environ.get("SC_HOOKS_STATE_DIR")
+    if not value:
+        raise SystemExit("SC_HOOKS_STATE_DIR must be set for Gemini smoke validation")
+    return Path(value).expanduser()
 
 
 def _load_fixture(repo_root: Path) -> dict:
