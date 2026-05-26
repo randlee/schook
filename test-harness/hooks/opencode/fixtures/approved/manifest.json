@@ -1,0 +1,24 @@
+{
+  "provider": "opencode",
+  "capture_date": "2026-05-25T18:40:21-07:00",
+  "capture_root": "test-harness/hooks/opencode/fixtures/approved/",
+  "evidence_mode": "approved-reference",
+  "hook_registration": {
+    "local_cli": "`opencode` is not installed on this machine",
+    "source_of_truth": "https://opencode.ai/docs/plugins event catalog plus the session.idle notification example"
+  },
+  "hook_surfaces": [
+    {
+      "surface": "session.idle",
+      "status": "approved-reference",
+      "payload_fixture": "session-idle.json",
+      "env_fixture": "session-idle.env.json",
+      "control_semantics": {
+        "blocking": false,
+        "exit_code_contract": "documented public informational event hook; runtime block semantics remain unproved until a later live-capture-authorized phase",
+        "stdio_contract": "doc-backed provider-reference payload only; retained harness evidence proves event.type=session.idle and leaves any broader live stdin shape deferred"
+      },
+      "source": "public opencode plugin documentation and event examples"
+    }
+  ]
+}

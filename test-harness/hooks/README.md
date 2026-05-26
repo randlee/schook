@@ -90,6 +90,7 @@ entrypoint yet:
 
 - Cursor Agent
 - opencode
+  - retained approved-reference surface: `session.idle`
 
 Run one non-interactive Claude surface:
 
@@ -250,6 +251,7 @@ Recommended markers:
 - `provider_codex`
 - `provider_gemini`
 - `provider_cursor_agent`
+- `provider_opencode`
 
 The harness should remain runnable long term without requiring manual edits to
 test code or captured output locations.

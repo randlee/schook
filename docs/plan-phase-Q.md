@@ -262,6 +262,8 @@ Execution worktree:
 
 Entry criteria:
 - accepted `Q.8` opencode harness output
+- `Q.9` depends on the `Q.8`-owned `test_harness/hooks/opencode/` package
+  root before it adds provider-local model files on top
 
 ## Dependency Rules
 
@@ -319,10 +321,16 @@ Entry criteria:
   - `test-harness/hooks/cursor-agent/tests/test_payload_models.py`
 - `Q.8`:
   - `test-harness/hooks/opencode/fixtures/`
+  - `test-harness/hooks/opencode/captures/raw/`
   - `test-harness/hooks/opencode/hooks/`
+  - `test-harness/hooks/opencode/models/`
+  - `test-harness/hooks/opencode/prompts/`
+  - `test-harness/hooks/opencode/reports/`
   - `test-harness/hooks/opencode/schema/`
+  - `test-harness/hooks/opencode/scripts/`
   - `test-harness/hooks/opencode/tests/test_harness_structure.py`
   - `test-harness/hooks/opencode/tests/test_fixture_validation.py`
+  - `test_harness/hooks/opencode/`
   - `docs/requirements.md`
   - `docs/traceability.md`
 - `Q.9`:
