@@ -16,6 +16,8 @@ SECTIONS = (
             ("test hooks claude", "Run the Claude hook harness pytest suite."),
             ("test hooks codex", "Run the Codex hook harness pytest suite."),
             ("test hooks gemini", "Run the Gemini hook harness pytest suite."),
+            ("smoke", "Run the curated smoke surface."),
+            ("smoke all ci", "Run the offline CI-owned smoke gate."),
             ("clean", "Remove workspace build artifacts."),
             ("ci", "Run the local CI-equivalent command set."),
         ),
