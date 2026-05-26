@@ -1,0 +1,16 @@
+{
+  "offline_assertion": "fixture_contract_only",
+  "observability_log": "~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
+  "recommendation": "accepted_baseline_live_record",
+  "required_log_hooks": [
+    "SessionStart",
+    "PreToolUse(Agent)",
+    "SessionEnd"
+  ],
+  "required_state_record": "provider=gemini ended via SessionEnd",
+  "required_surfaces": [
+    "SessionStart",
+    "BeforeAgent",
+    "SessionEnd"
+  ]
+}
