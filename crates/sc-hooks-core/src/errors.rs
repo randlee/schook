@@ -65,6 +65,16 @@ impl RootDivergenceNotice {
 #[derive(Debug, Error)]
 /// Shared error type for hook parsing, validation, persistence, and runtime failures.
 pub enum HookError {
+    /// Provider-specific input failed runtime normalization into the canonical seam.
+    #[error("{message}")]
+    Normalization {
+        /// Human-readable normalization failure detail.
+        message: String,
+        #[source]
+        /// Internal normalization-error inventory preserved for in-crate recovery-hint inspection.
+        source: BoxedError,
+    },
+
     /// Hook payload JSON could not be parsed or validated.
     #[error("invalid payload near {input_excerpt}")]
     InvalidPayload {
@@ -132,6 +142,26 @@ pub enum HookError {
 }
 
 impl HookError {
+    /// Returns the retryable recovery hint for provider normalization, when present.
+    pub fn normalization_recovery_hint(&self) -> Option<&'static str> {
+        match self.normalization_source() {
+            Some(crate::normalization::NormalizationError::RetryableGateInput {
+                recovery_hint,
+                ..
+            }) => Some(*recovery_hint),
+            _ => None,
+        }
+    }
+
+    /// Creates a `Normalization` error from the provider normalization seam.
+    pub(crate) fn normalization(source: crate::normalization::NormalizationError) -> Self {
+        let message = source.to_string();
+        Self::Normalization {
+            message,
+            source: Box::new(source),
+        }
+    }
+
     /// Creates an `InvalidContext` error without a source.
     pub fn invalid_context(message: impl Into<String>) -> Self {
         Self::InvalidContext {
@@ -205,11 +235,115 @@ impl HookError {
         }
     }
 
+    fn normalization_source(&self) -> Option<&crate::normalization::NormalizationError> {
+        match self {
+            Self::Normalization { source, .. } => {
+                source.downcast_ref::<crate::normalization::NormalizationError>()
+            }
+            _ => None,
+        }
+    }
+
     /// Creates a `StateIo` error for a concrete filesystem path.
     pub fn state_io(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         Self::StateIo {
             path: path.into(),
             source,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::HookType;
+
+    #[test]
+    fn root_divergence_notice_round_trips_through_encode_and_decode() {
+        let notice = RootDivergenceNotice::new(
+            AiRootDir::new("/repo").expect("root"),
+            "/repo/subdir",
+            SessionId::new("session-1").expect("session"),
+            HookType::SessionStart,
+        )
+        .expect("notice should construct");
+
+        let encoded = notice.encode().expect("notice should encode");
+        let decoded = RootDivergenceNotice::decode(&encoded).expect("notice should decode");
+        assert_eq!(decoded, notice);
+    }
+
+    #[test]
+    fn root_divergence_notice_decode_rejects_unprefixed_payloads() {
+        assert!(RootDivergenceNotice::decode("{\"hook_event\":\"SessionStart\"}").is_none());
+    }
+
+    #[test]
+    fn root_divergence_notice_warning_message_mentions_all_key_fields() {
+        let notice = RootDivergenceNotice::new(
+            AiRootDir::new("/repo").expect("root"),
+            "/other",
+            SessionId::new("session-2").expect("session"),
+            HookType::PostToolUse,
+        )
+        .expect("notice should construct");
+
+        let warning = notice.warning_message();
+        assert!(warning.contains("/repo"));
+        assert!(warning.contains("/other"));
+        assert!(warning.contains("PostToolUse"));
+    }
+
+    #[test]
+    fn hook_error_constructors_cover_all_variants() {
+        let invalid_context = HookError::invalid_context("bad");
+        assert!(matches!(invalid_context, HookError::InvalidContext { .. }));
+
+        let invalid_context_with_source =
+            HookError::invalid_context_with_source("bad", std::io::Error::other("source"));
+        assert!(matches!(
+            invalid_context_with_source,
+            HookError::InvalidContext {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let validation = HookError::validation("field", "invalid");
+        assert!(matches!(validation, HookError::Validation { .. }));
+
+        let validation_with_source =
+            HookError::validation_with_source("field", "invalid", std::io::Error::other("source"));
+        assert!(matches!(
+            validation_with_source,
+            HookError::Validation {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let internal = HookError::internal("boom");
+        assert!(matches!(internal, HookError::Internal { .. }));
+
+        let internal_with_source =
+            HookError::internal_with_source("boom", std::io::Error::other("source"));
+        assert!(matches!(
+            internal_with_source,
+            HookError::Internal {
+                source: Some(_),
+                ..
+            }
+        ));
+
+        let state_path = std::env::temp_dir().join("state.json");
+        let state_io = HookError::state_io(state_path, std::io::Error::other("disk"));
+        assert!(matches!(state_io, HookError::StateIo { .. }));
+
+        let divergence = HookError::root_divergence(
+            AiRootDir::new("/repo").expect("root"),
+            "/repo/subdir",
+            HookType::SessionStart,
+        );
+        assert!(matches!(divergence, HookError::RootDivergence { .. }));
     }
 }

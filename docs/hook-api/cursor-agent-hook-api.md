@@ -2,10 +2,12 @@
 
 ## Purpose
 
-This document records the currently verified Cursor-facing hook surfaces that
-matter to `schook` planning. It is intentionally separate from the Claude and
-Codex documents because the current evidence comes from a different
-combination of local CLI behavior and public Cursor hook documentation.
+This document records the current Cursor Agent provider evidence that matters
+to the maintained `sc-hooks` harness. It is intentionally separate from the
+Claude and Codex documents because Cursor Agent is now a harness-backed,
+harness-only provider target whose retained evidence still comes from a
+different combination of local CLI behavior and public Cursor hook
+documentation rather than from repo-owned live hook capture.
 
 ## Current Source Of Truth
 
@@ -13,13 +15,23 @@ combination of local CLI behavior and public Cursor hook documentation.
 - local Cursor CLI state under `$HOME/.cursor/`
 - public Cursor docs page `https://cursor.com/docs/hooks`
 
-This document only promotes facts that are directly visible from those sources.
+This document only promotes facts that are directly visible from those sources
+or from the retained approved-reference Cursor harness fixtures landed in
+`Q.6` / `Q.7`.
+
+## Model Entry Point
+
+Current Cursor Agent payload validation entrypoint:
+
+```python
+def validate_cursor_agent_hook_payload(payload: Any) -> CursorAgentHookPayload
+```
 
 ## Platform Rules
 
 - `cursor-agent` is a real installed CLI on this machine
-- current planning treats Cursor Agent as a provider-specific compatibility
-  target, not as part of the initial Claude ATM implementation baseline
+- current planning treats Cursor Agent as a harness-only provider target, not
+  as part of the initial Claude ATM implementation baseline
 - public Cursor hook names may be documented here before implementation, but
   they do not become implementation inputs until the harness captures them
 - Cursor-targeting runtime work remains deferred until a later explicitly
@@ -55,9 +67,28 @@ Current locally verified config state:
 - `$HOME/.cursor/cli-config.json` exists
 - `$HOME/.cursor/hooks.json` does not currently exist on this machine
 
-That means `schook` can treat Cursor Agent as an installed provider with a
+That means `sc-hooks` can treat Cursor Agent as an installed provider with a
 current CLI/runtime surface, but not as a provider whose local hook config and
-stdin payloads have already been captured in this repo.
+stdin payloads have already been captured live in this repo.
+
+## Retained Harness-Backed Surface
+
+Current retained harness-backed Cursor surface:
+
+- `stop`
+
+That retained surface is represented by:
+
+- `test-harness/hooks/cursor-agent/fixtures/approved/manifest.json`
+- `test-harness/hooks/cursor-agent/fixtures/approved/stop.json`
+- `test-harness/hooks/cursor-agent/fixtures/approved/stop.env.json`
+- `test_harness/hooks/cursor_agent/models/payloads.py`
+
+Retained harness disposition:
+
+- the current Cursor harness is maintained
+- the retained `stop` surface is `approved-reference`, not live-captured
+- runtime normalization remains deferred
 
 ## Current Public Hook Baseline
 
@@ -78,7 +109,8 @@ include:
 - `afterAgentResponse`
 - `afterAgentThought`
 
-For the current S9 follow-on planning scope, the relevant Cursor hook set is:
+For the current harness-only follow-on scope, the broader public Cursor hook
+set still includes:
 
 - controllable hooks:
   - `beforeShellExecution`
@@ -87,6 +119,10 @@ For the current S9 follow-on planning scope, the relevant Cursor hook set is:
 - informational hooks:
   - `afterFileEdit`
   - `stop`
+
+Only `stop` is currently retained in the approved manifest. The other public
+hook names remain documented provider references until later approved harness
+evidence promotes them.
 
 ## Verified Public Schema Fragments
 
@@ -113,36 +149,54 @@ config names:
   - `is_first_compaction`
 
 These are verified as names currently present in Cursor's public hook docs.
-They are not yet promoted here as guaranteed `cursor-agent` CLI stdin fields
-for the specific S9 hook set until the live harness captures them.
+Only the `stop` fixture fields currently promoted into the Cursor harness model
+are treated as approved-reference contract inputs; the rest are still doc-only
+until later approved harness evidence promotes them.
 
-## Planning Rules For `schook`
+## Approved Reference Payload Shape
+
+Current retained `stop` payload fields approved in the harness model:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `hook_event_name` | string | `"stop"` |
+| `transcript_path` | string | public-doc-backed transcript path field |
+| `git_branch` | string | public-doc-backed |
+| `duration_ms` | integer | public-doc-backed |
+| `message_count` | integer | public-doc-backed |
+| `tool_call_count` | integer | public-doc-backed |
+| `loop_count` | integer | public-doc-backed |
+| `modified_files` | array of string | public-doc-backed |
+
+## Planning Rules For `sc-hooks`
 
 - do not assume the full Cursor IDE hook schema is identical to the
   `cursor-agent` CLI runtime without live capture evidence
-- do not write `schook` code against Cursor field names that have only been
+- do not write `sc-hooks` code against Cursor field names that have only been
   seen in public docs and not yet captured by the harness
 - use the current public hook names as planning inputs only
-- require live fixture capture before any Cursor-targeting hook crate is
+- require live fixture capture before any Cursor-targeting runtime crate is
   implemented
 
 ## Current Platform Gaps
 
-- no captured `cursor-agent` hook payload fixtures exist in this repo yet
+- no live-captured `cursor-agent` hook payload fixtures exist in this repo yet
 - no current local `hooks.json` is configured on this machine
-- no `schook`-owned Cursor validation models exist yet
-- no verified provider-specific stdin schema has been captured yet for:
+- only one approved-reference Cursor validation model currently exists:
+  - `stop`
+- `stop` now has approved-reference harness coverage via the retained `Q.6`
+  manifest and fixtures, but it is still not live-captured
+- no verified live provider-specific stdin schema has been captured yet for:
   - `beforeShellExecution`
   - `beforeMCPExecution`
   - `beforeReadFile`
   - `afterFileEdit`
-  - `stop`
 
-## Design Implications For `schook`
+## Design Implications For `sc-hooks`
 
-- treat Cursor hook support as a documented follow-on provider target, not as
-  part of the Claude implementation baseline
+- treat Cursor hook support as a maintained harness-only provider target, not
+  as part of the Claude implementation baseline
 - use the schema-capture harness to prove the actual `cursor-agent` hook
-  payloads before any hook crate depends on them
-- separate controllable hooks from informational hooks during planning because
-  they have different risk profiles and likely different response contracts
+  payloads before any runtime crate depends on them
+- keep the retained `stop` model narrow and explicitly doc-backed until live
+  capture authorizes broader Cursor promotion

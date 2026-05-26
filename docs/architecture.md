@@ -29,13 +29,18 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-003` | `sc-hooks-cli` is the only workspace crate that owns observability sink setup and emission. |
 | `ADR-SHK-004` | `sc-hooks-sdk` is an authoring convenience layer and does not define the release contract on its own. |
 | `ADR-SHK-005` | Top-level docs remain product-level and cross-cutting; crate-local ownership detail belongs in crate doc subdirectories. |
+| `ADR-SHK-006` | Cross-provider canonical hook fields require approved fixture evidence from at least two providers with compatible semantics; provider-specific fields stay provider-local until a later phase proves broader compatibility. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
+| `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
+| `ADR-SHK-008` | Provider runtime normalization passes through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. Introduced by `Phase O` planning and now in force for the approved Codex and Gemini runtime surfaces. |
+| `ADR-SHK-009` | `Phase P` may extend the existing `CanonicalHook` / provider-hook typed inventory only through the same PR that updates `docs/architecture.md`, the boundary records, and the authoritative mapping table; no sprint may add retained lifecycle surfaces through ad hoc provider-specific runtime paths or uncited enum growth. |
+| `ADR-SHK-010` | `Phase Q` may add one curated smoke-execution surface plus Cursor Agent/opencode harness-doc-model expansion without authorizing new runtime parity work; smoke and provider-harness follow-on artifacts must remain explicit, repo-owned, and separate from generic runtime-path claims. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-005` decisions in this document
+  through `ADR-SHK-010` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -43,6 +48,14 @@ Crate-local ADR delegation:
 
 The host:
 - loads `.sc-hooks/config.toml`
+- merges observability defaults from `~/.sc-hooks/config.toml`, repo-local
+  `.sc-hooks/config.toml`, and supported environment overrides
+- applies the supported `[observability]` config surface documented in
+  `docs/observability-contract.md` while keeping sink registration and logger
+  lifecycle internal to `sc-hooks-cli`
+- normalizes the approved Codex and Gemini provider payloads through the sealed
+  `ProviderHookNormalizer` boundary before they enter the generic runtime
+  dispatch path
 - resolves a hook chain
 - assembles metadata
 - validates plugin manifests and metadata requirements
@@ -55,7 +68,7 @@ The host does not:
 - expose a C ABI
 - store handler-specific config inside the dispatcher config
 - resolve builtin handlers inside the dispatcher; any future builtin path is deferred
-- expose config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml`
+- expose a public sink-extension API or exporter/OTel transport config
 - promise production-ready behavior for the reference plugin crates in `plugins/`
 
 ## 3. Crate Ownership
@@ -73,17 +86,17 @@ Important boundary:
 - runtime plugin discovery uses `.sc-hooks/plugins/`
 - the checked contributor example for that runtime shape lives at `examples/runtime-layout/.sc-hooks/`
 - source crates under `plugins/` are source-owned implementation or scaffold/reference crates in this repository, not the runtime discovery directory
-- the initial publish scope covers only the complete working crates under `crates/`: `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-cli`; `sc-hooks-test` remains tracked but unpublished, and no `plugins/` source crate is part of the first crates.io release
+- the current crates.io publish scope covers the complete working library crates under `crates/`: `sc-hooks-core` and `sc-hooks-sdk`; `sc-hooks-test` remains tracked but unpublished, `sc-hooks-cli` remains outside the current publish wave recorded in the release manifest, and no `plugins/` source crate is part of the current crates.io release
 - crate-owned boundary detail for the host, core types, and SDK helpers lives in the crate architecture docs under `docs/sc-hooks-cli/`, `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 
 ### 3.2 Plugin Source Crates
 
 | Path | Classification | Notes |
 | --- | --- | --- |
-| `plugins/agent-session-foundation` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/agent-spawn-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/atm-extension` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
-| `plugins/tool-output-gates` | Scaffold/reference | Planned hook-extension target; not part of the current release scope |
+| `plugins/agent-session-foundation` | Runtime implementation source crate | In-repo runtime implementation crate with direct tests; not currently shipped/preinstalled |
+| `plugins/agent-spawn-gates` | Runtime implementation source crate | In-repo runtime implementation crate with direct tests; not currently shipped/preinstalled |
+| `plugins/atm-extension` | Runtime implementation source crate | In-repo runtime implementation crate with direct tests; not currently shipped/preinstalled |
+| `plugins/tool-output-gates` | Runtime implementation source crate | In-repo runtime implementation crate with direct tests; not currently shipped/preinstalled |
 | `plugins/audit-logger` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/conditional-source` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
 | `plugins/event-relay` | Scaffold/reference | Source-owned scaffold/reference crate; not part of the initial crates.io release |
@@ -112,8 +125,129 @@ Internal implementation detail:
 - `ResolutionError`
 - `ValidationError`
 - `CliError`
+- `Provider`
+- `ProviderHookSource`
+- `TargetProvider`
+- `SessionId`
+- `ToolName`
+- `HookEventName`
+- `NormalizedHookContext`
+- `CanonicalHook`
+- `CodexHook`
+- `GeminiHook`
+- `CanonicalPayload`
+- `NormalizationError`
+- `HookError` remains one shared runtime error enum for the current release
+  track, and it does not carry `Backtrace` as part of the current public
+  error-layout posture
+
+## 3.4 Provider Runtime Normalization Boundary
+
+The approved Codex and Gemini runtime surfaces now enter one provider-normalization
+seam before generic runtime dispatch:
+
+- provider raw payloads are normalized through one sealed
+  `pub(crate)` `ProviderHookNormalizer` boundary rooted in
+  `sc_hooks_core::normalization`
+- the seam starts from `ProviderHookInput { provider, raw, event, metadata_path
+  }` and returns `NormalizedHookContext`
+- the resulting `NormalizedHookContext` then feeds the existing `HookContext`
+  construction path through `normalize_provider_hook()` rather than creating a
+  second parallel runtime dispatch flow
+- `sc-lint-boundary` enforces the seam through `boundary.internal_only` on the
+  private normalization module and `boundary.forbid_external_impls` on the
+  `ProviderHookNormalizer` trait; canonical type visibility remains an
+  implementation rule enforced by crate-private signatures rather than
+  additional lint attributes in `O.2`
+- provider-local fields remain outside the canonical runtime contract until
+  new approved fixture evidence promotes them
+- `NormalizedHookContext` and `CanonicalPayload` are internal typed-model
+  surfaces governed by `ADR-SHK-002` and section `3.3`; they do not redefine
+  the public contract
+- `NormalizationError` is the named error inventory used by
+  `HookError::Normalization { message, source }` for provider normalization
+  failures, with `NormalizationError` retained as the private source taxonomy
+- provider/runtime consistency is frozen by the seal mechanism,
+  normalization-error taxonomy, required internal type set, and
+  `(provider × hook × payload)` compatibility rules in this document
+- the internal canonical type inventory extended through `P.6` is:
+  - `ProviderHookSource`
+  - `ProviderHookInput<'a>`
+  - `NormalizedHookContext<'a>`
+  - `CanonicalHook`
+  - `CanonicalPayload<'a>`
+  - `SessionId<'a>`
+  - `ToolName<'a>`
+  - `HookEventName<'a>`
+  - `NormalizationError`
+- the approved compatibility set for that rule is:
+  - `CanonicalHook::Codex(CodexHook::SessionStart)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Codex(CodexHook::PreToolUse)` ->
+    `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Codex(CodexHook::Notify)` ->
+    `CanonicalPayload::StopLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::SessionStart)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::SessionEnd)` ->
+    `CanonicalPayload::SessionLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::BeforeAgent)` ->
+    `CanonicalPayload::AgentLifecycle`
+  - `CanonicalHook::Gemini(GeminiHook::BeforeTool)` ->
+    `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::AfterTool)` ->
+    `CanonicalPayload::ToolUse`
+  - `CanonicalHook::Gemini(GeminiHook::AfterAgent)` ->
+    `CanonicalPayload::StopLifecycle`
+- any other hook/payload pairing is invalid and must fail normalization as
+  `NormalizationError::InvalidPayloadForHook`
+- Codex `Stop`, `resume`, and `fork` remain disposition-only retained-surface
+  rows in `docs/phase-P/canonical-hook-mapping.md`; they are not live
+  canonical variants until accepted harness evidence proves they are
+  exercisable runtime surfaces
+- the runtime hook/event projection extended through `P.6` is:
+  - Codex `SessionStart` -> `HookType::SessionStart`
+  - Codex `PreToolUse` -> `HookType::PreToolUse("Bash")`
+  - Codex `Notify` -> `HookType::Stop`
+  - Gemini `SessionStart` -> `HookType::SessionStart`
+  - Gemini `SessionEnd` -> `HookType::SessionEnd`
+  - Gemini `BeforeAgent` -> `HookType::PreToolUse("Agent")`
+  - Gemini `BeforeTool` -> `HookType::PreToolUse("Bash")`
+  - Gemini `AfterTool` -> `HookType::PostToolUse("Bash")`
+  - Gemini `AfterAgent` -> `HookType::Stop`
+- `RetryableGateInput` is reserved for approved gate surfaces that would
+  otherwise produce vague blocking text:
+  - Codex `PreToolUse`
+  - Gemini `BeforeAgent`
+  - Gemini `BeforeTool`
+  - Gemini `AfterTool`
+- `RetryableGateInput.recovery_hint` is a required non-optional
+  `&'static str` in the landed seam
+- Claude does not route through a provider-normalization adapter; Claude
+  remains the baseline runtime path that Codex and Gemini normalize into for
+  plugin-parity work
+
+Deferred O.7 install/cutover-only internal type ownership:
+
+- `Provider`
+  - current session-state provider enum in `sc-hooks-core::session`
+  - remains runtime state metadata, not the install/cutover target selector
+- `TargetProvider`
+  - planned install/cutover target newtype for O.7 CLI-facing provider
+    selection; kept distinct from session-state provider metadata
 
 The host uses those internal Rust types to implement the contract, but plugin authors do not depend on Rust typestate or enum names unless they choose to use `sc-hooks-sdk`.
+
+Accepted Phase P ruling posture:
+- the current release track deliberately keeps `HookError` as one shared
+  cross-crate runtime error enum and defers any multi-type split or
+  `Backtrace` capture expansion past `Phase P`
+- `crates/sc-hooks-test/src/worktree_hooks.rs` remains a Unix-gated library
+  test module by design because it proves shell fixture behavior rather than a
+  cross-platform runtime contract
+- `sc-hooks-cli::dispatch::execute_chain()` may keep the owned
+  `Vec<String>` handler-chain snapshot because observability and full-audit
+  emission need an owned chain independent of handler lifetimes
 
 Important SDK boundary:
 - `sc-hooks-sdk` may offer authoring conveniences that are broader than the host's guaranteed runtime contract
@@ -124,7 +258,9 @@ Important SDK boundary:
 
 ### 4.1 Config And Resolution
 
-1. `sc-hooks-cli` loads `.sc-hooks/config.toml`.
+1. `sc-hooks-cli` loads repo-local `.sc-hooks/config.toml`, merges supported
+   observability defaults from `~/.sc-hooks/config.toml`, and then applies the
+   supported environment overrides.
 2. The requested hook and optional event are matched against the configured handler chain.
 3. Handlers are resolved to `.sc-hooks/plugins/<name>`.
 4. Plugin manifests are loaded and cached within the current invocation.
@@ -221,22 +357,37 @@ Current behavior:
 Current observability ownership follows the intended boundary directly:
 
 - `sc-hooks-cli` owns logger creation, emission, flush, and shutdown
-- the implementation uses the external `sc-observability` workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../sc-observability/...`
+- `sc-hooks-cli` also owns layered `[observability]` config loading,
+  `off | standard | full` mode resolution, and sink-selection policy
+- the implementation uses version-pinned external `sc-observability` crates
+  from crates.io
 - `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` remain observability-implementation-agnostic
-- the current file sink path is `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- the current file sink path is `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 - dispatch outcomes are emitted as `LogEvent` JSONL records, not as ad hoc dispatcher-specific record envelopes
-- there is no `[logging]` config section; observability sink routing is fixed by the current CLI boundary
+- the current config surface is `[observability]`, not `[logging]`
+- `off` suppresses durable structured sink emission while leaving direct
+  stderr warnings and degraded notices visible to the operator
+- when `standard` mode is active and a pre-dispatch failure prevents
+  `dispatch.complete`, `sc-hooks-cli` emits a deterministic degraded stderr
+  signal instead of silently losing observability for that runtime attempt
+- when `full` mode is active, `sc-hooks-cli` also writes run-scoped audit files
+  under `.sc-hooks/audit/runs/<run-id>/`
+- when `full` debug profile is active, `sc-hooks-cli` adds bounded
+  machine-readable config provenance, decision-trace, stdio-excerpt, redaction,
+  and payload-capture fields without changing hook outcomes
 
-Next planned observability expansion:
+Current observability-phase result:
 
-- keep the current file-sink JSONL contract as the release baseline
-- add console-sink verification next, through the same real `sc-hooks-cli`
-  dispatch path used by the file-sink contract tests
-- treat console-sink coverage as the first operator-facing debugging expansion
-  because it is the most useful immediate surface for live multi-agent and
-  background-agent monitoring
-- defer custom sink registration coverage and multi-hook monitoring correlation
-  until console-sink behavior is frozen and documented
+- keep the current file-sink JSONL contract as the release baseline and the
+  baseline operational mode
+- keep the new lean full-audit sink as the durable machine-readable source for
+  audit-grade runs
+- retention, pruning, degraded-path hardening, and 50-agent validation are now
+  part of the committed observability baseline
+- keep durable audit JSONL as the canonical machine-readable source for the
+  committed phase; the human console sink is operator-facing only
+- treat structured live streaming plus exporter, spans, metrics, and OTLP work
+  as explicit follow-on scope rather than observability-phase acceptance gates
 
 This boundary is current architecture, not deferred intent.
 
@@ -266,7 +417,7 @@ The current architecture does not aim to provide:
 - plugin hot reloading
 - plugin marketplace/distribution
 - merged editing of existing `.claude/settings.json` content
-- spans, metrics, or OTLP export in the current `schook` host
+- spans, metrics, or OTLP export in the current `sc-hooks` host
 
 ## 8. Enforcement Notes
 
@@ -301,17 +452,123 @@ The planned hook harness owns:
 - schema-drift CI checks
 - review artifacts for newly observed or changed payload fields
 
-Initial execution scope:
+Initial executed harness scope:
 
 - Claude only
 
-Documented but deferred from the first harness pass:
+First approved expansion after the Claude baseline:
 
-- Codex
-- Gemini
-- Cursor Agent
+- `Phase N` Codex and Gemini harness-planning work:
+  - provider harness scaffolding
+  - raw fixture capture
+  - provider-specific models
+  - schema-proof tests
+  - provider evidence docs
 
-### 9.2a Planned Version-Bump Detection Boundary
+Still deferred beyond that harness-planning expansion:
+
+- Codex runtime adapters
+- Gemini runtime adapters
+- Cursor-targeting runtime work
+- opencode runtime work
+
+Later approved harness-only expansion:
+
+- `Phase Q` may add Cursor Agent and opencode to the permanent provider
+  harness contract with approved fixtures, provider-local models, harness
+  tests, and current provider hook API docs
+- that follow-on reuses the same provider-harness layout pattern documented in
+  section `9.2d`
+- that follow-on does not by itself authorize provider runtime normalization,
+  plugin parity, or machine cutover for Cursor Agent or opencode
+
+### 9.2b Planned Provider-Normalization Boundary
+
+`ADR-SHK-006` governs the `Phase N` normalization boundary:
+
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
+
+- a field is canonical only if approved fixtures from at least two providers
+  show compatible semantics for that field
+- provider-specific fields stay in provider-local models and docs; they are not
+  promoted into the canonical `schooks` contract
+- unresolved or disputed fields must remain in the normalization findings
+  ledger until a later phase resolves them
+- `docs/phase-N/normalization-findings-ledger.md` is the authoritative ledger
+  for those unresolved and provider-local classifications during `Phase N`
+- runtime adapter work for Codex or Gemini remains deferred until `N.4`
+  records a promotion verdict from the final readiness record
+
+### 9.2c Planned Readiness Ownership Boundary
+
+`ADR-SHK-007` governs the shared-readiness write pattern for `Phase N`:
+
+This ADR was introduced by the `Phase N` planning branch and came into force
+at merge `8891c3d` on `integrate/phase-N`.
+
+- sprint execution branches treat shared readiness ledgers as read-only
+- the integration author is the sole writer for accepted sprint rows and final
+  verdict updates
+- this avoids parallel branch drift on one shared go/no-go record
+- future phases may reuse this pattern only when the owning phase plan and
+  readiness ledger cite `ADR-SHK-007` explicitly
+
+### 9.2d Planned Shared Provider-Harness Contract
+
+The post-`Phase N` verification track keeps Claude, Codex, and Gemini on one
+shared external harness contract:
+
+- each provider keeps the same top-level harness layout under
+  `test-harness/hooks/<provider>/`
+- each provider keeps approved fixtures as the long-lived contract evidence
+- each provider keeps provider-local Pydantic payload models under
+  `test_harness/hooks/<provider>/models/`
+- each provider validates the approved fixtures through the same pytest-driven
+  harness flow
+- the repo exposes stable `just test hooks claude`, `just test hooks codex`,
+  and `just test hooks gemini` entrypoints once the verification track closes
+
+This contract keeps the permanent harness reusable across providers while
+allowing provider-local schema differences inside the provider models and
+provider evidence docs.
+
+`Phase Q` reuses this same external harness contract shape for Cursor Agent and
+opencode as harness-only providers:
+
+- `test-harness/hooks/<provider>/` remains the authoritative provider evidence
+  tree
+- the harness sprint for each provider also creates the matching
+  `test_harness/hooks/<provider>/` Python package root before the later
+  doc/model sprint closes provider-local payload models
+- `test_harness/hooks/<provider>/models/` remains the provider-local Pydantic
+  model entrypoint
+- provider hook API docs remain under `docs/hook-api/`
+- no new provider runtime claim is implied until a later phase explicitly
+  authorizes runtime work
+
+### 9.2e Planned Smoke Execution Surface
+
+`ADR-SHK-010` governs the `Phase Q` smoke boundary:
+
+- the public operator surface is one curated `just smoke` entrypoint rather
+  than ad hoc shell snippets
+- the repo-owned implementation path is `.just/run_smoke.py` plus
+  `.just/smoke/`
+- generic CI runs the smoke gate in an explicit offline replay or `ci` mode
+  and therefore does not require Claude, Codex, or Gemini CLIs on stock CI
+  runners
+- repo-owned offline smoke assets live under `.just/smoke/fixtures/`
+- accepted-baseline live provider smoke records are tracked separately under
+  `docs/phase-Q/`
+- the smoke surface remains separate from both `just test` and `just lint`
+- CI owns the smoke gate once `Q.2` lands
+- provider-specific smoke records live under `docs/phase-Q/`
+- smoke coverage proves the already supported live runtime path for Claude,
+  Codex, and Gemini; it does not authorize new provider runtime scope on its
+  own
+
+### 9.2f Planned Version-Bump Detection Boundary
 
 The hook harness must also track which AI CLI version produced the latest
 approved schema-drift artifacts.
@@ -435,19 +692,84 @@ Planned fail posture by crate:
 | `plugins/tool-output-gates` | fail-closed | fenced-JSON and blocking-output violations must stop the tool result before it reaches the caller |
 | `plugins/atm-extension` | fail-open | ATM routing enrichment should not make the generic hook host unusable when ATM context is absent or degraded |
 
-### 9.4 Cursor Follow-On Boundary
+### 9.4 Cursor Harness-Only Follow-On Boundary
 
-Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`, but the
-current architecture does not yet include:
+Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`.
+`Phase Q` may add the following harness-only Cursor surfaces:
 
-- Cursor harness capture
+- approved Cursor fixtures under `test-harness/hooks/cursor-agent/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/cursor-agent/fixtures/approved/manifest.json`
+- the `test_harness/hooks/cursor_agent/` Python package root during the
+  harness sprint, before payload models land
+- provider-local Cursor models under `test_harness/hooks/cursor_agent/models/`
+- Cursor harness tests
+- a current Cursor provider API doc
+
+`Phase Q` does not include:
+
 - Cursor-targeting runtime crates
-- Cursor hook payloads as an implementation dependency
+- Cursor runtime normalization
+- Cursor plugin parity
+- Cursor machine cutover
 
-Planning targets only for a later approved Cursor pass:
+Any future Cursor runtime work remains a later explicitly approved follow-on
+after the harness/doc-model baseline closes.
 
-- `plugins/cursor-agent-gates`
-- `plugins/cursor-agent-relay`
+### 9.5 opencode Harness-Only Follow-On Boundary
 
-Those remain later follow-on work after the Claude ATM baseline is captured,
-reviewed, revised, and implemented.
+`Phase Q` may also add `opencode` as a harness-only provider:
+
+- approved opencode fixtures under `test-harness/hooks/opencode/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/opencode/fixtures/approved/manifest.json`
+- the `test_harness/hooks/opencode/` Python package root during the harness
+  sprint, before payload models land
+- provider-local opencode models under `test_harness/hooks/opencode/models/`
+- opencode harness tests
+- a current opencode provider API doc
+
+`Phase Q` does not include:
+
+- opencode-targeting runtime crates
+- opencode runtime normalization
+- opencode plugin parity
+- opencode machine cutover
+
+Any future opencode runtime work remains a later explicitly approved follow-on
+after the harness/doc-model baseline closes.
+
+## 10. Observability Phase Design Boundary
+
+The observability phase is now part of current architecture. The design
+direction below is the frozen shape that the code and contract docs implement.
+
+Implemented phase shape:
+
+- naming converges on `sc-hooks` as the canonical product/runtime/binary name
+  with `hooks` as a convenience CLI alias
+- filesystem/config namespace remains `.sc-hooks/`
+- observability config becomes layered:
+  - built-in defaults
+  - global user config at `~/.sc-hooks/config.toml`
+  - repo-local config at `.sc-hooks/config.toml`
+  - environment overrides for temporary operator control
+- observability modes are planned as:
+  - `off`
+  - `standard`
+  - `full`
+- global config may set defaults and future exporter wiring, but does not
+  enable `full` audit by itself
+- repo-local config owns plugin-specific settings, repo-specific observability
+  policy, and `full` audit activation
+- `full` audit uses durable file output under `.sc-hooks/audit/` by default,
+  with run-scoped files rather than one shared hot file
+- any future machine-readable live stream is a separate structured sink, not
+  the current human console renderer
+- audit and observability failures remain non-blocking for hook execution
+- the scale target for the phase is production readiness with at least 50
+  simultaneous agents on the same repo root without log corruption or
+  unbounded contention
+
+Detailed sequencing for that phase lives in
+`docs/phase-observability-plan.md` and `docs/project-plan.md`.

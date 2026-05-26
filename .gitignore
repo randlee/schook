@@ -26,9 +26,13 @@ examples/runtime-layout/.sc-hooks/
 # Python harness artifacts
 __pycache__/
 *.pyc
+.just/logs/
 
 # Local review / scratch work
 .temp/
+
+# Live Codex session state (written by debounce hooks at runtime)
+.sc/sessions/
 
 # macOS metadata
 .DS_Store

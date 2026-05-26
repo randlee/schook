@@ -3,7 +3,7 @@
 ## Purpose
 
 This document records the currently verified Claude Code hook surfaces that
-`schook` can target. It is a platform reference, not a generic hook contract.
+`sc-hooks` can target. It is a platform reference, not a generic hook contract.
 
 The source-of-truth inputs for this document are:
 
@@ -50,7 +50,7 @@ The source-of-truth inputs for this document are:
   path resolution when Claude executes an installed plugin
 - do not set `CLAUDE_PLUGIN_ROOT` globally and do not treat it as a generic
   project-root signal
-- if `schook` extensions are later distributed as Claude plugins,
+- if `sc-hooks` extensions are later distributed as Claude plugins,
   `CLAUDE_PLUGIN_ROOT` may become useful for locating plugin-local scripts and
   assets, but that usage should be documented from a dedicated plugin-context
   capture rather than assumption
@@ -73,7 +73,7 @@ The live harness now verifies actual Claude Haiku payloads for these surfaces:
 `Notification(idle_prompt)` remains DEFERRED: wired in the harness, but no
 verified payload was captured locally.
 
-Additional documented Claude provider surface outside the current `schook`
+Additional documented Claude provider surface outside the current `sc-hooks`
 implementation baseline:
 
 - `WorktreeCreate`
@@ -182,7 +182,7 @@ Important local harness note:
   delete the directory; this proves hook firing and payload shape, not local
   cleanup policy
 
-Current `schook` status:
+Current `sc-hooks` status:
 - documented provider surface only
 - not part of the current implemented eight-hook Claude ATM baseline
 
@@ -227,7 +227,7 @@ Current verified anchor:
 Observed facts from the current harness:
 
 - `SessionStart(source="startup")` captured `cwd ==
-  CLAUDE_PROJECT_DIR == /Users/randlee/Documents/github/schook-worktrees/feature-s9-hook-env-capture`
+  CLAUDE_PROJECT_DIR == /synthetic/test/claude-harness-root`
 - `PreCompact`, `SessionStart(source="compact")`, `SessionEnd(reason="clear")`,
   and `SessionStart(source="clear")` also captured the same
   `CLAUDE_PROJECT_DIR` value in hook env
@@ -237,7 +237,7 @@ Observed facts from the current harness:
   `PostToolUse(Bash)`, `Stop`, and `SessionEnd` hooks reported the drifted raw
   hook `cwd`, while `CLAUDE_PROJECT_DIR` stayed pinned to the startup root
 
-Runtime rule for `schook`:
+Runtime rule for `sc-hooks`:
 
 - `ai_root_dir` is the immutable working directory for the runtime instance
 - `ai_root_dir` must match `CLAUDE_PROJECT_DIR` whenever that env var is present
@@ -265,9 +265,9 @@ Current verified ATM-backed persistent record fields:
 - refresh `updated_at` when the session file is touched again
 
 This is a statement of the current ATM implementation, not a claim that the
-future `schook` base record must stay identical.
+future `sc-hooks` base record must stay identical.
 
-Implementation-facing reading for `schook`:
+Implementation-facing reading for `sc-hooks`:
 
 - `session_id` is the verified Claude lifecycle anchor
 - `ai_root_dir` is the immutable runtime root established from the
@@ -284,7 +284,7 @@ Implementation-facing reading for `schook`:
 
 ## Verified Claude Hook Behaviors
 
-| Behavior | Claude surface | Current script | Fields consumed | Current side effects | Planned `schook` mapping |
+| Behavior | Claude surface | Current script | Fields consumed | Current side effects | Planned `sc-hooks` mapping |
 | --- | --- | --- | --- | --- | --- |
 | Session start | `SessionStart` | `session-start.py` | `session_id`, `source`, ATM repo/env context | prints `SESSION_ID=...`, emits ATM `session_start`, writes session record | `SessionStart` sync plugin |
 | Session end | `SessionEnd` | `session-end.py` | `session_id`, `.atm.toml` core routing | emits ATM `session_end`, removes session record | `SessionEnd` sync plugin |
@@ -301,7 +301,7 @@ Adjacent but not part of the current eight-hook baseline:
 - `teammate-idle-relay.py` is separate team-state plumbing and should be planned
   only if the runtime elevates `TeammateIdle`
 
-## Design Implications For `schook`
+## Design Implications For `sc-hooks`
 
 - `SessionStart` is the authoritative place to capture `session_id` for later
   hook calls
@@ -325,9 +325,9 @@ Adjacent but not part of the current eight-hook baseline:
   fields stay deferred
 - `Notification(idle_prompt)` stays part of the documented Claude surface, but
   remains DEFERRED until a local payload capture actually lands
-- lifecycle and relay hooks are fail-open today; if `schook` changes that
+- lifecycle and relay hooks are fail-open today; if `sc-hooks` changes that
   posture, the change must be explicit in requirements and protocol docs
-- no `schook` code should be written against inferred Claude payload fields that
+- no `sc-hooks` code should be written against inferred Claude payload fields that
   are not backed by source-of-truth docs, scripts, tests, or captured harness
   fixtures
 
@@ -350,3 +350,25 @@ Adjacent but not part of the current eight-hook baseline:
   after a bounded idle probe with `matcher = ""`; the current local fact is
   "wired but not firing in this harness pass," not a verified vendor timing
   guarantee
+
+## N.3 Normalization Carry-Forward
+
+This section is planning carry-forward only. `N.3` is not merged yet on the
+current branch, so these mappings remain anticipated rather than authoritative
+runtime-normalization outcomes.
+
+Claude baseline fields that contributed to `N.3` canonical mapping candidates:
+
+- `session_id`
+- `cwd`
+- `transcript_path`
+- `tool_input.command` on Bash tool surfaces
+
+Claude fields that remain provider-local after `N.3`:
+
+- raw lifecycle `source`
+- `permission_mode`
+- `tool_use_id`
+- `permission_suggestions`
+- `PreCompact`-only fields
+- `WorktreeCreate` / `WorktreeRemove`

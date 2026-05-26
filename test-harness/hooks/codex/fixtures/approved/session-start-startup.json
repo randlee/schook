@@ -1,0 +1,9 @@
+{
+  "cwd": "/synthetic/test/codex-harness",
+  "hook_event_name": "SessionStart",
+  "model": "gpt-5.4",
+  "permission_mode": "bypassPermissions",
+  "session_id": "019e5106-079f-7121-9fef-f605ee1c0527",
+  "source": "startup",
+  "transcript_path": "~/.codex/sessions/2026/05/22/rollout-2026-05-22T11-50-10-019e5106-079f-7121-9fef-f605ee1c0527.jsonl"
+}

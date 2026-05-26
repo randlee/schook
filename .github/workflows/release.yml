@@ -112,6 +112,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: "1.94.1"
           targets: ${{ matrix.target }}
 
       - name: Ensure cross-compilation target
@@ -210,6 +211,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4
@@ -258,9 +261,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -Eq 'sc-observability(-types)?\s*=\s*\{[^}]*path\s*=' crates/sc-hooks-cli/Cargo.toml; then
-            echo "sc-hooks-cli still depends on local sc-observability path crates." >&2
-            echo "Resolve https://github.com/randlee/sc-observability/issues/30 and replace path deps with exact versions before release." >&2
+          if rg -n '(^|\s)(sc-observability(-types|-otlp)?|sc-observe)\s*=\s*\{[^}]*\b(path|git)\s*=' --glob 'Cargo.toml' .; then
+            echo "Found path/git sourced sc-observability crates; crates.io sourcing is required." >&2
             exit 1
           fi
 
@@ -273,12 +275,18 @@ jobs:
               --manifest "${RELEASE_ARTIFACT_MANIFEST}" \
               --mode full
           )
-          for crate in "${full_checks[@]}"; do
-            [[ -n "$crate" ]] || continue
-            echo "::group::cargo package -p ${crate} --locked"
-            cargo package -p "${crate}" --locked
-            echo "::endgroup::"
-          done
+          if [[ "${#full_checks[@]}" -gt 0 ]]; then
+            package_args=()
+            for crate in "${full_checks[@]}"; do
+              [[ -n "$crate" ]] || continue
+              package_args+=(-p "$crate")
+            done
+            if [[ "${#package_args[@]}" -gt 0 ]]; then
+              echo "::group::cargo package full-check batch --locked"
+              cargo package "${package_args[@]}" --locked
+              echo "::endgroup::"
+            fi
+          fi
 
           mapfile -t locked_checks < <(
             python3 scripts/release_artifacts.py list-preflight \
@@ -303,6 +311,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4
@@ -400,6 +410,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Download release inventory artifact
         uses: actions/download-artifact@v4

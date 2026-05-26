@@ -62,6 +62,10 @@ impl ActivePid {
 pub enum Provider {
     /// Anthropic Claude Code.
     Claude,
+    /// OpenAI Codex CLI.
+    Codex,
+    /// Google Gemini CLI.
+    Gemini,
 }
 
 impl Provider {
@@ -69,6 +73,8 @@ impl Provider {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
+            Self::Codex => "codex",
+            Self::Gemini => "gemini",
         }
     }
 }
@@ -350,7 +356,6 @@ pub struct CanonicalSessionRecord {
     schema_version: SchemaVersion,
     provider: Provider,
     session_id: SessionId,
-    #[serde(default)]
     active_pid: ActivePid,
     #[serde(default)]
     parent_session_id: Option<SessionId>,
@@ -393,6 +398,12 @@ pub enum SessionTransitionResult {
 impl From<ActiveSessionRecord> for CanonicalSessionRecord {
     fn from(record: ActiveSessionRecord) -> Self {
         record.into_inner()
+    }
+}
+
+impl From<EndedSessionRecord> for CanonicalSessionRecord {
+    fn from(record: EndedSessionRecord) -> Self {
+        record.0
     }
 }
 
@@ -602,6 +613,7 @@ impl CanonicalSessionRecord {
     pub fn validate(&self) -> Result<(), HookError> {
         validate_timestamp("created_at", &self.created_at)?;
         validate_timestamp("updated_at", &self.updated_at)?;
+        ActivePid::new(self.active_pid.get())?;
         StateRevision::new(self.state_revision.get())?;
         HookEventName::new(self.last_hook_event.as_str())?;
         validate_timestamp("last_hook_event_at", &self.last_hook_event_at)?;
@@ -676,6 +688,12 @@ impl ActiveSessionRecord {
         ended_at: Option<UtcTimestamp>,
         updated_at: UtcTimestamp,
     ) -> Result<SessionTransitionResult, HookError> {
+        if agent_state == AgentState::Ended {
+            return Err(HookError::validation(
+                "agent_state",
+                "AgentState::Ended must use transition_to_ended",
+            ));
+        }
         let last_hook_event = HookEventName::new(last_hook_event.into())?;
         let state_reason = StateReason::new(state_reason.into())?;
         let record = CanonicalSessionRecord {
@@ -736,6 +754,12 @@ impl ActiveSessionRecord {
         state_reason: impl Into<String>,
         ended_at: Option<UtcTimestamp>,
     ) -> Result<SessionTransitionResult, HookError> {
+        if agent_state == AgentState::Ended {
+            return Err(HookError::validation(
+                "agent_state",
+                "AgentState::Ended must use transition_to_ended",
+            ));
+        }
         let mut next = self.0.clone();
         next.state_revision = StateRevision::new(next.state_revision.get() + 1)?;
         next.active_pid = active_pid;
@@ -757,6 +781,48 @@ impl ActiveSessionRecord {
                 ActiveSessionRecord::from_validated(next)?,
             ))
         }
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "terminal transition preserves canonical identity and timestamps under one validated constructor path"
+    )]
+    /// Transitions an active record into a terminal ended record.
+    pub fn transition_to_ended(
+        self,
+        active_pid: ActivePid,
+        ai_root_dir: AiRootDir,
+        ai_current_dir: AiCurrentDir,
+        session_start_source: SessionStartSource,
+        updated_at: UtcTimestamp,
+        last_hook_event: impl Into<String>,
+        state_reason: impl Into<String>,
+        ended_at: UtcTimestamp,
+    ) -> Result<EndedSessionRecord, HookError> {
+        let last_hook_event = HookEventName::new(last_hook_event.into())?;
+        let state_reason = StateReason::new(state_reason.into())?;
+        let record = CanonicalSessionRecord {
+            schema_version: self.0.schema_version,
+            provider: self.0.provider,
+            session_id: self.0.session_id.clone(),
+            active_pid,
+            parent_session_id: self.0.parent_session_id.clone(),
+            parent_active_pid: self.0.parent_active_pid,
+            ai_root_dir,
+            ai_current_dir,
+            session_start_source,
+            agent_state: AgentState::Ended,
+            state_revision: StateRevision::new(self.0.state_revision.get() + 1)?,
+            created_at: self.0.created_at.clone(),
+            updated_at: updated_at.clone(),
+            ended_at: Some(ended_at),
+            last_hook_event,
+            last_hook_event_at: updated_at,
+            state_reason,
+            extensions: self.0.extensions.clone(),
+        };
+        record.validate()?;
+        EndedSessionRecord::from_validated(record)
     }
 }
 
@@ -805,14 +871,14 @@ fn validate_rfc3339_timestamp(field: &str, value: &str) -> Result<(), HookError>
 
 /// Returns the current UTC timestamp in RFC 3339 format.
 pub fn utc_timestamp_now() -> UtcTimestamp {
+    const FALLBACK_UTC_TIMESTAMP: &str = "1970-01-01T00:00:00Z";
+
     let now = OffsetDateTime::now_utc();
     let rendered = now
         .format(&Rfc3339)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
-    UtcTimestamp::from_field("utc_timestamp", rendered).unwrap_or_else(|_| {
-        UtcTimestamp::from_field("utc_timestamp", "1970-01-01T00:00:00Z")
-            .expect("fallback timestamp must be valid")
-    })
+        .unwrap_or_else(|_| FALLBACK_UTC_TIMESTAMP.to_string());
+    UtcTimestamp::from_field("utc_timestamp", rendered)
+        .unwrap_or_else(|_| UtcTimestamp(FALLBACK_UTC_TIMESTAMP.to_string()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1068,6 +1134,118 @@ mod tests {
             err.to_string()
                 .contains("must be absent unless agent_state is ended"),
             "unexpected validation error: {err}"
+        );
+    }
+
+    #[test]
+    fn deserialize_requires_active_pid() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let err = serde_json::from_value::<CanonicalSessionRecord>(serde_json::json!({
+            "schema_version": "v1",
+            "provider": "claude",
+            "session_id": "session-missing-active-pid",
+            "ai_root_dir": temp.path().join("repo"),
+            "ai_current_dir": temp.path().join("repo"),
+            "session_start_source": "startup",
+            "agent_state": "starting",
+            "state_revision": 1,
+            "created_at": "2026-03-30T00:00:00Z",
+            "updated_at": "2026-03-30T00:00:00Z",
+            "last_hook_event": "SessionStart",
+            "last_hook_event_at": "2026-03-30T00:00:00Z",
+            "state_reason": "session_started",
+            "extensions": {}
+        }))
+        .expect_err("missing active_pid should fail deserialization");
+
+        assert!(
+            err.to_string().contains("active_pid"),
+            "unexpected validation error: {err}"
+        );
+    }
+
+    fn active_record_fixture() -> ActiveSessionRecord {
+        let temp = tempfile::tempdir().expect("tempdir");
+        CanonicalSessionRecord::new(
+            Provider::Claude,
+            SessionId::new("session-active").expect("session id"),
+            ActivePid::new(12).expect("pid"),
+            AiRootDir::new(temp.path().join("repo")).expect("root"),
+            AiCurrentDir::new(temp.path().join("repo")).expect("current"),
+            SessionStartSource::Startup,
+            AgentState::Idle,
+            "Stop",
+            "turn_completed",
+        )
+        .expect("record should construct")
+        .try_into_active()
+        .expect("record should be active")
+    }
+
+    #[test]
+    fn apply_hook_update_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
+        let err = active_record_fixture()
+            .apply_hook_update(
+                ActivePid::new(13).expect("pid"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Startup,
+                AgentState::Ended,
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+                "SessionEnd",
+                "session_ended",
+                Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts")),
+            )
+            .expect_err("ended state should require the terminal transition helper");
+        assert!(
+            err.to_string()
+                .contains("AgentState::Ended must use transition_to_ended")
+        );
+    }
+
+    #[test]
+    fn rebuild_with_root_change_rejects_ended_target_state() {
+        let repo = std::env::temp_dir().join("repo");
+        let err = active_record_fixture()
+            .rebuild_with_root_change(
+                ActivePid::new(13).expect("pid"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Resume,
+                AgentState::Ended,
+                "SessionEnd",
+                "session_ended",
+                Some(UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts")),
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+            )
+            .expect_err("ended state should require the terminal transition helper");
+        assert!(
+            err.to_string()
+                .contains("AgentState::Ended must use transition_to_ended")
+        );
+    }
+
+    #[test]
+    fn transition_to_ended_returns_terminal_record() {
+        let repo = std::env::temp_dir().join("repo");
+        let ended = active_record_fixture()
+            .transition_to_ended(
+                ActivePid::new(13).expect("pid"),
+                AiRootDir::new(&repo).expect("root"),
+                AiCurrentDir::new(&repo).expect("current"),
+                SessionStartSource::Startup,
+                UtcTimestamp::from_field("updated_at", "2026-03-30T00:00:01Z").expect("ts"),
+                "SessionEnd",
+                "session_ended",
+                UtcTimestamp::from_field("ended_at", "2026-03-30T00:00:01Z").expect("ts"),
+            )
+            .expect("terminal transition should succeed");
+        assert_eq!(ended.agent_state(), AgentState::Ended);
+        assert_eq!(ended.last_hook_event(), "SessionEnd");
+        assert_eq!(ended.state_reason(), "session_ended");
+        assert_eq!(
+            ended.ended_at().map(UtcTimestamp::as_str),
+            Some("2026-03-30T00:00:01Z")
         );
     }
 }

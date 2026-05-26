@@ -13,12 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone sc-observability (path dependency)
-        run: git clone --depth 1 --branch main https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: "1.94.1"
           components: rustfmt
 
       - name: Check formatting
@@ -30,11 +28,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone sc-observability (path dependency)
-        run: git clone --depth 1 --branch main https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -57,18 +54,74 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  docs:
-    name: rustdoc
+  sc-lint:
     needs: [clippy]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone sc-observability (path dependency)
-        run: git clone --depth 1 --branch main https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-sc-lint-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ubuntu-sc-lint-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache sc-lint binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: ubuntu-sc-lint-binaries-0.2.0
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Install sc-lint analyzers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install sc-lint-boundary@0.2.0 --locked --force
+          cargo install sc-lint-portability@0.2.0 --locked --force
+
+      - name: Run sc-lint boundary gate
+        run: just lint boundary
+
+      - name: Run sc-lint portability gate
+        run: just lint portability
+
+  smoke:
+    needs: [sc-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Run offline smoke gate
+        run: just smoke all ci
+
+  docs:
+    name: rustdoc
+    needs: [clippy, sc-lint, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Check rustdoc warnings
         run: RUSTDOCFLAGS="-Dwarnings -Wmissing-docs" cargo doc --no-deps --workspace
@@ -84,11 +137,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone sc-observability (path dependency)
-        run: git clone --depth 1 --branch main https://github.com/randlee/sc-observability.git "${{ github.workspace }}/../../sc-observability"
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
 
       - name: Cache cargo registry
         uses: actions/cache@v4

@@ -1,0 +1,99 @@
+set windows-shell := ["pwsh", "-NoLogo", "-Command"]
+
+python_cmd := if os_family() == "windows" { "python" } else { "python3" }
+clippy_cmd := if os_family() == "windows" { "cargo clippy --workspace --all-targets --all-features --target x86_64-pc-windows-msvc -- -D warnings" } else { "cargo clippy --workspace --all-targets --all-features -- -D warnings" }
+
+# Show the curated repo task help.
+default: help
+
+# Show the curated repo task help.
+help:
+    {{python_cmd}} .just/print_help.py
+
+[private]
+_fmt-write:
+    cargo fmt --all
+
+[private]
+_fmt-check:
+    cargo fmt --all --check
+
+# Format the Rust workspace or run the formatting gate.
+fmt mode='check':
+    {{python_cmd}} .just/run_fmt.py {{mode}}
+
+[private]
+_lint-fmt:
+    @just fmt check
+
+[private]
+_lint-clippy:
+    {{clippy_cmd}}
+
+[private]
+_lint-modules:
+    {{python_cmd}} .just/lint_cargo_modules.py
+
+[private]
+_lint-deny:
+    {{python_cmd}} .just/lint_cargo_deny.py
+
+[private]
+_lint-shear:
+    {{python_cmd}} .just/lint_cargo_shear.py
+
+[private]
+_lint-version:
+    {{python_cmd}} .just/check_version_sync.py
+
+[private]
+_lint-manifests:
+    {{python_cmd}} .just/lint_manifests.py
+
+[private]
+_lint-spell:
+    {{python_cmd}} .just/lint_codespell.py
+
+[private]
+_lint-pytests:
+    {{python_cmd}} .just/run_pytests.py
+
+[private]
+_lint-boundary:
+    {{python_cmd}} .just/lint_sc_boundary.py
+
+[private]
+_lint-portability:
+    {{python_cmd}} .just/lint_sc_portability.py
+
+# Build the full workspace.
+build:
+    cargo build --workspace
+
+# Run the repo install/cutover helper surface.
+install target='local-cutover':
+    {{python_cmd}} .just/run_install.py {{target}}
+
+# Run the full workspace test suite or the exact hook harness entrypoints.
+test target='workspace' provider='':
+    {{python_cmd}} .just/run_test.py {{target}} {{provider}}
+
+# Run the curated smoke surface.
+smoke provider='all' mode='live':
+    @{{python_cmd}} .just/run_smoke.py {{provider}} --mode {{mode}}
+
+# Remove workspace build artifacts.
+clean:
+    cargo clean
+
+# Run the repo lint surface.
+lint target='all':
+    {{python_cmd}} .just/run_lint.py {{target}}
+
+# Run the local CI-equivalent command set for the current repo surface.
+ci:
+    @just lint
+    @just test
+    @just test hooks claude
+    @just test hooks codex
+    @just test hooks gemini

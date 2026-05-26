@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use agent_session_foundation::SessionFoundationHandler;
@@ -12,7 +12,16 @@ fn hook_context_with_payload(
     hook: HookType,
     event: Option<&str>,
     payload: serde_json::Value,
-) -> HookContext {
+) -> HookContext<'static> {
+    hook_context_with_payload_and_metadata(hook, event, payload, None)
+}
+
+fn hook_context_with_payload_and_metadata(
+    hook: HookType,
+    event: Option<&str>,
+    payload: serde_json::Value,
+    metadata_path: Option<PathBuf>,
+) -> HookContext<'static> {
     HookContext::new(
         hook,
         event.map(|value| std::borrow::Cow::Owned(value.to_string())),
@@ -20,7 +29,7 @@ fn hook_context_with_payload(
             "hook": { "type": hook.as_str(), "event": event },
             "payload": payload
         }),
-        None,
+        metadata_path,
     )
 }
 
@@ -38,6 +47,28 @@ fn stop_payload(session_id: &str, cwd: &Path) -> serde_json::Value {
         "cwd": cwd.to_str().expect("cwd utf8"),
         "stop_hook_active": false,
     })
+}
+
+fn session_end_payload(session_id: &str, cwd: &Path, reason: Option<&str>) -> serde_json::Value {
+    serde_json::json!({
+        "session_id": session_id,
+        "cwd": cwd.to_str().expect("cwd utf8"),
+        "reason": reason,
+    })
+}
+
+fn write_metadata(path: &Path, agent_type: &str) {
+    fs::write(
+        path,
+        serde_json::json!({
+            "agent": {
+                "type": agent_type,
+                "pid": 999
+            }
+        })
+        .to_string(),
+    )
+    .expect("metadata should write");
 }
 
 fn test_lock() -> &'static Mutex<()> {
@@ -635,4 +666,253 @@ fn missing_project_dir_preserves_root_without_divergence_context() {
     assert_eq!(parsed["ai_root_dir"], project_root.to_str().expect("utf8"));
     assert_eq!(parsed["ai_current_dir"], drift_dir.to_str().expect("utf8"));
     assert_eq!(parsed["agent_state"], "idle");
+}
+
+#[test]
+fn session_end_uses_terminal_transition_path() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-a");
+    let session_id = "session-ended";
+    fs::create_dir_all(&project_root).expect("project root");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "42"),
+        ]);
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+            ))
+            .expect("session start should persist");
+        handler
+            .handle(hook_context_with_payload(
+                HookType::SessionEnd,
+                None,
+                session_end_payload(session_id, &project_root, Some("session_ended")),
+            ))
+            .expect("session end should persist terminal state");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["agent_state"], "ended");
+    assert_eq!(parsed["last_hook_event"], "SessionEnd");
+    assert_eq!(parsed["state_reason"], "session_ended");
+    assert!(parsed["ended_at"].as_str().is_some());
+}
+
+#[test]
+fn session_start_uses_codex_provider_when_runtime_metadata_requests_it() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-codex");
+    let session_id = "codex-session";
+    let metadata_path = temp.path().join("metadata.json");
+    fs::create_dir_all(&project_root).expect("project root");
+    write_metadata(&metadata_path, "codex");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "42"),
+        ]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+                Some(metadata_path),
+            ))
+            .expect("session start should persist");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["provider"], "codex");
+}
+
+#[test]
+fn codex_stop_transition_preserves_codex_provider_and_sets_idle() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-codex-stop");
+    let session_id = "codex-stop-session";
+    let metadata_path = temp.path().join("metadata.json");
+    fs::create_dir_all(&project_root).expect("project root");
+    write_metadata(&metadata_path, "codex");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "42"),
+        ]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+                Some(metadata_path.clone()),
+            ))
+            .expect("session start should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[(
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        )]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::Stop,
+                None,
+                serde_json::json!({
+                    "session_id": session_id,
+                    "cwd": project_root,
+                    "stop_hook_active": false,
+                    "last_assistant_message": "OK",
+                }),
+                Some(metadata_path),
+            ))
+            .expect("codex stop transition should persist");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["provider"], "codex");
+    assert_eq!(parsed["agent_state"], "idle");
+    assert_eq!(parsed["last_hook_event"], "Stop");
+    assert_eq!(parsed["state_reason"], "turn_completed");
+}
+
+#[test]
+fn session_start_uses_gemini_provider_when_runtime_metadata_requests_it() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-gemini");
+    let session_id = "gemini-session";
+    let metadata_path = temp.path().join("metadata.json");
+    fs::create_dir_all(&project_root).expect("project root");
+    write_metadata(&metadata_path, "gemini");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "42"),
+        ]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+                Some(metadata_path),
+            ))
+            .expect("session start should persist");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["provider"], "gemini");
+}
+
+#[test]
+fn gemini_stop_transition_preserves_gemini_provider_and_sets_idle() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_root = temp.path().join("repo-gemini-stop");
+    let session_id = "gemini-stop-session";
+    let metadata_path = temp.path().join("metadata.json");
+    fs::create_dir_all(&project_root).expect("project root");
+    write_metadata(&metadata_path, "gemini");
+    let handler = SessionFoundationHandler;
+
+    {
+        let _env = EnvGuard::set(&[
+            (
+                "SC_HOOKS_STATE_DIR",
+                temp.path().join("state").to_str().expect("state root utf8"),
+            ),
+            (
+                "CLAUDE_PROJECT_DIR",
+                project_root.to_str().expect("project root utf8"),
+            ),
+            ("SC_HOOK_AGENT_PID", "43"),
+        ]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::SessionStart,
+                None,
+                session_start_payload(session_id, "startup", &project_root),
+                Some(metadata_path.clone()),
+            ))
+            .expect("session start should persist");
+    }
+
+    {
+        let _env = EnvGuard::set(&[(
+            "SC_HOOKS_STATE_DIR",
+            temp.path().join("state").to_str().expect("state root utf8"),
+        )]);
+        handler
+            .handle(hook_context_with_payload_and_metadata(
+                HookType::Stop,
+                None,
+                serde_json::json!({
+                    "session_id": session_id,
+                    "cwd": project_root,
+                    "stop_hook_active": false,
+                    "prompt": "hello",
+                    "prompt_response": "world",
+                }),
+                Some(metadata_path),
+            ))
+            .expect("gemini stop transition should persist");
+    }
+
+    let state_file = temp.path().join("state").join(format!("{session_id}.json"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(state_file).expect("state file should exist"))
+            .expect("session state should parse");
+    assert_eq!(parsed["provider"], "gemini");
+    assert_eq!(parsed["agent_state"], "idle");
+    assert_eq!(parsed["last_hook_event"], "Stop");
+    assert_eq!(parsed["state_reason"], "turn_completed");
 }

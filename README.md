@@ -27,12 +27,24 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --workspace
 ```
 
+Install the local runtime and source-owned plugin binaries used by the machine
+cutover path:
+
+```bash
+cargo install --path crates/sc-hooks-cli --root ~/.local --force
+cargo install --path plugins/agent-session-foundation --root ~/.local --force
+cargo install --path plugins/agent-spawn-gates --root ~/.local --force
+cargo install --path plugins/atm-extension --root ~/.local --force
+cargo install --path plugins/tool-output-gates --root ~/.local --force
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 Install the CLI from this repo:
 
 Unix-like shells (`bash`, `zsh`, etc. on macOS/Linux):
 
 ```bash
-cargo install --path sc-hooks-cli --root ~/.local
+cargo install --path crates/sc-hooks-cli --root ~/.local
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -42,12 +54,52 @@ If you do not want to install yet, run the CLI directly from the workspace:
 cargo run -p sc-hooks-cli -- --help
 ```
 
+Run the local provider cutover helper:
+
+```bash
+just install local-cutover
+```
+
+That command writes:
+- `~/.claude/settings.json`
+- `~/.codex/hooks.json`
+- `~/.gemini/settings.json`
+- `~/.local/bin/hooks`
+
+It also stages the shared local runtime root at:
+- `~/.local/share/sc-hooks/runtime-layout`
+
+Rollback backups are written next to each provider config as:
+- `settings.json.sc-hooks.bak`
+- `hooks.json.sc-hooks.bak`
+
+## Rollback
+
+Restore the provider configs from the cutover backups:
+
+```bash
+cp ~/.claude/settings.json.sc-hooks.bak ~/.claude/settings.json
+cp ~/.codex/hooks.json.sc-hooks.bak ~/.codex/hooks.json
+cp ~/.gemini/settings.json.sc-hooks.bak ~/.gemini/settings.json
+```
+
+If a backup is absent, the cutover likely created that provider config from
+scratch. In that case, remove the generated config to return to the no-local-hook
+baseline, or replace it from a separate operator-managed backup before using
+the provider again:
+
+```bash
+rm -f ~/.claude/settings.json
+rm -f ~/.codex/hooks.json
+rm -f ~/.gemini/settings.json
+```
+
 ## Quick Start
 
 The runtime shape is:
 - config: `.sc-hooks/config.toml`
 - runtime plugins: `.sc-hooks/plugins/<name>`
-- observability log: `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl`
+- observability log: `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
 
 The checked example layout lives at:
 - [examples/runtime-layout/README.md](examples/runtime-layout/README.md)
@@ -56,51 +108,54 @@ Minimal verification from the example runtime layout:
 
 ```bash
 cd examples/runtime-layout
-sc-hooks-cli audit
-printf '%s\n' '{"tool_input":{"command":"echo hi"}}' | sc-hooks-cli run PreToolUse Write --sync
+sc-hooks audit
+printf '%s\n' '{"tool_input":{"command":"echo hi"}}' | sc-hooks run PreToolUse Write --sync
 ```
 
 For a step-by-step operator guide, see [USAGE.md](USAGE.md).
 
 Naming note:
-- [docs/requirements.md](docs/requirements.md) uses `sc-hooks` as the product command label in acceptance scenarios.
-- The current Cargo package and binary artifact in this repo is `sc-hooks-cli`, so the executable examples below use `sc-hooks-cli`.
+- `sc-hooks` is the canonical product and binary name.
+- `hooks` is a convenience alias. The local cutover path installs it beside
+  `sc-hooks` under `~/.local/bin/`; a plain `cargo install` of
+  `crates/sc-hooks-cli` still guarantees only the canonical `sc-hooks` binary.
 
 ## CLI Surface
 
 Current top-level commands:
 
 ```text
-sc-hooks-cli run
-sc-hooks-cli audit
-sc-hooks-cli fire
-sc-hooks-cli install
-sc-hooks-cli config
-sc-hooks-cli handlers
-sc-hooks-cli test
-sc-hooks-cli exit-codes
+sc-hooks run
+sc-hooks audit
+sc-hooks fire
+sc-hooks install
+sc-hooks config
+sc-hooks handlers
+sc-hooks test
+sc-hooks exit-codes
 ```
 
 Common invocations:
 
 ```bash
-sc-hooks-cli audit
-sc-hooks-cli config
-sc-hooks-cli handlers
-sc-hooks-cli handlers --events
-printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks-cli run PreToolUse Bash --sync
-sc-hooks-cli fire PreToolUse Write
-sc-hooks-cli test .sc-hooks/plugins/guard-paths
+sc-hooks audit
+sc-hooks config
+sc-hooks handlers
+sc-hooks handlers --events
+printf '%s\n' '{"tool_input":{"command":"git status"}}' | sc-hooks run PreToolUse Bash --sync
+sc-hooks fire PreToolUse Write
+sc-hooks test guard-paths
+sc-hooks install
 ```
 
 ## Workspace Map
 
 | Path | Role |
 | --- | --- |
-| `sc-hooks-cli/` | Host binary: config loading, resolution, dispatch, audit, install-plan generation, observability, exit behavior |
-| `sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
-| `sc-hooks-sdk/` | Rust authoring conveniences for manifests, runner helpers, conditions, and results; not the release-defining contract |
-| `sc-hooks-test/` | Reusable compliance harness and shell-based test fixtures |
+| `crates/sc-hooks-cli/` | Host binary: config loading, resolution, dispatch, audit, install-plan generation, observability, exit behavior |
+| `crates/sc-hooks-core/` | Shared protocol/data types such as manifests, hook results, events, validation rules, and exit codes |
+| `crates/sc-hooks-sdk/` | Rust authoring conveniences for manifests, runner helpers, conditions, and results; not the release-defining contract |
+| `crates/sc-hooks-test/` | Reusable compliance harness and shell-based test fixtures |
 | `plugins/` | Source crates only; all current crates remain scaffold/reference only in the release docs and are not described as shipped runtime plugins |
 | `docs/` | Product requirements, architecture, protocol contracts, planning, and traceability |
 | `examples/` | Checked runtime layout example |
@@ -111,6 +166,9 @@ Current source plugin inventory in `plugins/`:
 | Crate | Release posture |
 | --- | --- |
 | `audit-logger` | scaffold/reference only; not a shipped runtime plugin |
+| `agent-session-foundation` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
+| `agent-spawn-gates` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
+| `atm-extension` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
 | `conditional-source` | scaffold/reference only; not a shipped runtime plugin |
 | `event-relay` | scaffold/reference only; not a shipped runtime plugin |
 | `guard-paths` | scaffold/reference only; not a shipped runtime plugin |
@@ -118,6 +176,7 @@ Current source plugin inventory in `plugins/`:
 | `notify` | scaffold/reference only; not a shipped runtime plugin |
 | `policy-enforcer` | scaffold/reference only; not a shipped runtime plugin |
 | `save-context` | scaffold/reference only; not a shipped runtime plugin |
+| `tool-output-gates` | runtime implementation source crate with direct tests; not currently shipped/preinstalled |
 | `template-source` | scaffold/reference only; not a shipped runtime plugin |
 
 ## Documentation

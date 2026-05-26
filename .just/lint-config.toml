@@ -1,0 +1,10 @@
+[cargo_shear.allowed_empty_files]
+
+[cargo_shear.allowed_unlinked_files]
+"tests/ui/provider_hook_normalizer_external_impl.rs" = "compile-fail boundary proof intentionally lives outside the linked test-harness graph"
+
+[version_sync.winget]
+enabled = false
+
+[version_sync.release_wiring]
+enabled = false

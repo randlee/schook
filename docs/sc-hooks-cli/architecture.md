@@ -33,3 +33,44 @@ decisions that stay local to the host binary.
 | `ADR-SHK-CLI-001` | The host remains a process-based dispatcher, not an in-process plugin runtime. | Child-process execution, stdin/stdout JSON, and timeout enforcement stay in `sc-hooks-cli`. |
 | `ADR-SHK-CLI-002` | The CLI crate is the only logging boundary. | Lower crates expose typed data and errors; logger setup and sink ownership stay here. |
 | `ADR-SHK-CLI-003` | Audit remains static analysis, not simulated hook execution. | Audit checks config, manifest, metadata satisfiability, and install surfaces without executing live hook logic. |
+
+## 4. Observability Boundary
+
+Current observability ownership inside `sc-hooks-cli` now includes:
+
+- layered merge of built-in defaults, `~/.sc-hooks/config.toml`,
+  `.sc-hooks/config.toml`, and environment overrides
+- authoritative resolution of the `[observability]` section and the supported
+  environment overrides
+- observability-mode resolution for `off`, `standard`, and `full`
+- standard sink selection and degraded-path handling for the current
+  `sc-observability` integration
+- lean full-audit sink orchestration with run-scoped durable files under the
+  configured audit root
+- debug-profile audit extensions with machine-readable config provenance,
+  decision-trace summaries, redaction markers, and explicit payload-capture
+  gating
+- full-mode attempt accounting for invocation-received, zero-match,
+  pre-dispatch failure, and completed-dispatch records
+- deterministic stderr degraded signals when a standard-mode pre-dispatch
+  failure prevents `dispatch.complete`
+
+Remaining observability follow-on responsibilities also stay inside
+`sc-hooks-cli`:
+
+- any later machine-readable stream or exporter wiring at the CLI boundary once
+  the committed audit phase closes
+
+The phase does not move sink ownership into lower crates.
+It also does not redefine the existing `sc-hooks audit` command, which remains
+the static-analysis command surface unless a later CLI plan says otherwise.
+
+Planned implementation notes for this boundary:
+
+- use explicit internal types such as `ObservabilityMode`, `FullAuditProfile`,
+  `AuditPath`, `RunId`, and `RetentionPolicy` rather than stringly typed
+  plumbing at call sites
+- keep sink registration behind a sealed internal extension boundary so later
+  sink additions do not leak a new public plugin-style sink API by accident
+- keep degraded-path handling in an internal `ObservabilityError` family that
+  reports fallback behavior without changing hook execution outcomes

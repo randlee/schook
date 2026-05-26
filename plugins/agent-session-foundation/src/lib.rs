@@ -11,7 +11,7 @@ use sc_hooks_core::context::HookContext;
 use sc_hooks_core::dispatch::DispatchMode;
 use sc_hooks_core::errors::{HookError, RootDivergenceNotice};
 use sc_hooks_core::events::HookType;
-use sc_hooks_core::manifest::Manifest;
+use sc_hooks_core::manifest::{Manifest, ManifestMatcher};
 use sc_hooks_core::results::HookResult;
 use sc_hooks_core::session::{
     ActivePid, AgentState, AiCurrentDir, AiRootDir, CanonicalSessionRecord, Provider, SessionId,
@@ -20,6 +20,7 @@ use sc_hooks_core::session::{
 use sc_hooks_core::storage::{SessionStore, resolve_state_root};
 use sc_hooks_sdk::result::proceed;
 use sc_hooks_sdk::traits::{ManifestProvider, SyncHandler};
+use serde_json::Value;
 
 /// Sync lifecycle handler that owns canonical session-state persistence for the
 /// verified Claude hook lifecycle surfaces.
@@ -46,6 +47,7 @@ struct SessionTransition {
 #[derive(Debug)]
 struct ResolvedRuntime {
     session_id: SessionId,
+    provider: Provider,
     active_pid: ActivePid,
     ai_root_dir: RootBinding,
     ai_current_dir: AiCurrentDir,
@@ -119,12 +121,12 @@ impl ManifestProvider for SessionFoundationHandler {
             name: "agent-session-foundation".to_string(),
             mode: DispatchMode::Sync,
             hooks: vec![
-                "SessionStart".to_string(),
-                "SessionEnd".to_string(),
-                "PreCompact".to_string(),
-                "Stop".to_string(),
+                HookType::SessionStart,
+                HookType::SessionEnd,
+                HookType::PreCompact,
+                HookType::Stop,
             ],
-            matchers: vec!["*".to_string()],
+            matchers: vec![ManifestMatcher::new("*").expect("wildcard matcher should be valid")],
             payload_conditions: Vec::new(),
             timeout_ms: Some(2_000),
             long_running: false,
@@ -207,6 +209,7 @@ fn resolve_runtime(
 ) -> Result<ResolvedRuntime, HookError> {
     let transition = resolve_transition(context, lifecycle_event)?;
     let session_id = transition.session_id.clone();
+    let provider = resolve_provider(context)?;
     let active_pid = resolve_active_pid(lifecycle_event, existing)?;
     let (ai_root_dir, root_divergence) =
         resolve_ai_root_dir(context, lifecycle_event, &transition, existing)?;
@@ -214,6 +217,7 @@ fn resolve_runtime(
 
     Ok(ResolvedRuntime {
         session_id,
+        provider,
         active_pid,
         ai_root_dir,
         ai_current_dir,
@@ -261,7 +265,31 @@ fn build_next_record(
                 return Ok(active.into_inner());
             }
 
-            if root_changed {
+            if resolved.transition.agent_state == AgentState::Ended {
+                let ended_at = resolved.transition.ended_at.clone().ok_or_else(|| {
+                    HookError::validation(
+                        "ended_at",
+                        "terminal session transition requires ended_at",
+                    )
+                })?;
+                let next_root = if root_changed {
+                    next_root.clone()
+                } else {
+                    active.ai_root_dir().clone()
+                };
+                active
+                    .transition_to_ended(
+                        resolved.active_pid,
+                        next_root,
+                        resolved.ai_current_dir.clone(),
+                        next_source,
+                        now,
+                        event_name,
+                        resolved.transition.state_reason.clone(),
+                        ended_at,
+                    )
+                    .map(Into::into)
+            } else if root_changed {
                 active
                     .rebuild_with_root_change(
                         resolved.active_pid,
@@ -291,7 +319,7 @@ fn build_next_record(
             }
         }
         None => CanonicalSessionRecord::new(
-            Provider::Claude,
+            resolved.provider,
             resolved.session_id.clone(),
             resolved.active_pid,
             resolved.ai_root_dir.clone().into_new_record_root()?,
@@ -301,6 +329,33 @@ fn build_next_record(
             event_name.clone(),
             resolved.transition.state_reason.clone(),
         ),
+    }
+}
+
+fn resolve_provider(context: &HookContext) -> Result<Provider, HookError> {
+    let Some(path) = context.metadata_path.as_ref() else {
+        return Ok(Provider::Claude);
+    };
+    let rendered = std::fs::read_to_string(path)
+        .map_err(|source| HookError::state_io(path.clone(), source))?;
+    let metadata: Value =
+        serde_json::from_str(&rendered).map_err(|source| HookError::InvalidPayload {
+            input_excerpt: rendered.chars().take(120).collect(),
+            source: Some(source),
+        })?;
+    match metadata
+        .get("agent")
+        .and_then(Value::as_object)
+        .and_then(|agent| agent.get("type"))
+        .and_then(Value::as_str)
+    {
+        Some("codex") => Ok(Provider::Codex),
+        Some("gemini") => Ok(Provider::Gemini),
+        Some("claude") | None => Ok(Provider::Claude),
+        Some(other) => Err(HookError::validation(
+            "agent.type",
+            format!("unsupported provider `{other}` for session foundation"),
+        )),
     }
 }
 
@@ -395,9 +450,9 @@ fn resolve_ai_current_dir(context: &HookContext) -> Result<AiCurrentDir, HookErr
 
 fn verify_project_root_env_matches(hook: HookType, expected_root: &Path) -> Option<HookError> {
     let Some(observed) = std::env::var_os("CLAUDE_PROJECT_DIR") else {
+        let hook = hook.as_str();
         warn!(
-            "agent-session-foundation: CLAUDE_PROJECT_DIR missing during {}; preserving immutable ai_root_dir",
-            hook.as_str()
+            "agent-session-foundation: missing_env=CLAUDE_PROJECT_DIR hook={hook} preserving immutable ai_root_dir",
         );
         return None;
     };

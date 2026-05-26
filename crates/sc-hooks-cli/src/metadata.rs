@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
-use log::warn;
 use sc_hooks_core::session::{AiRootDir, SessionId};
 use serde_json::{Map, Value};
 use tempfile::NamedTempFile;
@@ -139,6 +138,26 @@ pub fn current_session_id() -> Option<SessionId> {
         .and_then(|value| SessionId::new(value).ok())
 }
 
+pub fn current_agent_type() -> Option<String> {
+    std::env::var(ENV_AGENT_TYPE)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+}
+
+pub fn current_project_root() -> Result<AiRootDir, CliError> {
+    let runtime = RuntimeMetadata::discover()?;
+    AiRootDir::new(
+        runtime
+            .repo_path
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(runtime.working_dir)),
+    )
+    .map_err(|source| {
+        CliError::internal_with_source("failed to resolve absolute project root", source)
+    })
+}
+
 pub fn assemble_metadata(
     runtime: &RuntimeMetadata,
     context: &BTreeMap<String, TomlValue>,
@@ -223,10 +242,8 @@ fn write_metadata_file(metadata: &Value, temp_root: &Path) -> Result<MetadataFil
     })?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-
         file.as_file()
-            .set_permissions(fs::Permissions::from_mode(0o600))
+            .set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))
             .map_err(|source| {
                 CliError::internal_with_source(
                     format!("failed to secure metadata file {}", file.path().display()),
@@ -274,14 +291,19 @@ fn sweep_stale_metadata_files(temp_root: &Path, max_age: Duration) {
             continue;
         };
         let Ok(age) = now.duration_since(modified) else {
-            warn!(
-                "metadata temp file clock skew detected for {} while sweeping stale files",
+            crate::observability::emit_stderr_warning(format!(
+                "warning: metadata temp file clock skew detected for {} while sweeping stale files",
                 path.display()
-            );
+            ));
             continue;
         };
-        if age >= max_age {
-            let _ = fs::remove_file(path);
+        if age >= max_age
+            && let Err(err) = fs::remove_file(&path)
+        {
+            crate::observability::emit_stderr_warning(format!(
+                "warning: failed removing stale metadata temp file {}: {err}",
+                path.display()
+            ));
         }
     }
 }
@@ -494,8 +516,6 @@ PreToolUse = ["guard-paths"]
     #[cfg(unix)]
     #[test]
     fn metadata_file_is_owner_only_on_unix() {
-        use std::os::unix::fs::PermissionsExt;
-
         let _guard = test_support::cwd_lock()
             .lock()
             .unwrap_or_else(|e| e.into_inner());
@@ -526,9 +546,8 @@ PreToolUse = ["guard-paths"]
                 .expect("metadata should prepare");
         let mode = fs::metadata(&prepared.env.metadata_path)
             .expect("metadata should exist")
-            .permissions()
-            .mode()
-            & 0o777;
+            .permissions();
+        let mode = std::os::unix::fs::PermissionsExt::mode(&mode) & 0o777;
         assert_eq!(mode, 0o600);
     }
 

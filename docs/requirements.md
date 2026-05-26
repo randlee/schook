@@ -10,12 +10,16 @@ This document defines the release-facing behavior for `sc-hooks` as it exists to
 | --- | --- |
 | `Implemented` | Backed by current code and direct tests, or by code plus obvious mechanical proof |
 | `Required Before Release` | Intended release behavior that is not yet proved cleanly enough by code, tests, or contracts |
-| `Deferred` | Not part of the current release baseline |
+| `Planned` | Committed phase work that is not implemented yet but is required for the approved next phase to close |
+| `Deferred` | Explicitly out of the current release and approved next-phase baseline |
+| `Superseded` | Older requirement text retired in favor of a newer requirement or contract amendment |
 
 ## 3. Release Baseline
 
 Current release scope is the host dispatcher foundation:
 - config parsing from `.sc-hooks/config.toml`
+- layered `[observability]` config from built-in defaults, `~/.sc-hooks/config.toml`,
+  repo-local `.sc-hooks/config.toml`, and environment overrides
 - hook routing to external plugins
 - manifest loading and metadata filtering
 - sync/async dispatch with timeouts and per-session disable state
@@ -27,7 +31,10 @@ Current release scope does not include:
 - shipped runtime plugin behavior from the scaffold/reference crates under `plugins/`; all source crates under `plugins/` remain outside the current release scope
 - a stable end-to-end `LongRunning` SDK surface beyond the manifest fields the host already enforces
 - builtin handler resolution inside the dispatcher
-- config-driven observability sink routing or a `[logging]` config section
+- a public sink-extension API, exporter/OTel transport configuration, or any `[logging]` section outside the supported `[observability]` surface
+- crates.io publication of `sc-hooks-cli` outside the current release manifest
+  wave; `sc-observability` sourcing now uses published crates.io releases, but
+  CLI publication remains a separate release-inventory decision
 
 ## 4. Functional Requirements
 
@@ -36,7 +43,7 @@ Current release scope does not include:
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
 | CFG-001 | Implemented | Must | The host shall load its default config from `.sc-hooks/config.toml` relative to the current repository. | `sc-hooks config` reads the default path through `load_default_config()`. |
-| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, and `[sandbox]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing. |
+| CFG-002 | Implemented | Must | The config shall recognize exactly `[meta]`, `[context]`, `[hooks]`, `[sandbox]`, and `[observability]`; only `[meta]` and `[hooks]` are required. | Unknown top-level sections fail parsing, `[observability]` keys are validated against the frozen surface, and `sc-hooks config` renders the resolved observability settings. |
 | CFG-003 | Implemented | Must | `[hooks]` shall map hook names to ordered handler arrays. | Resolution and dispatch preserve config order. |
 | CFG-004 | Implemented | Must | `[context] team = "<name>"` shall map to `metadata.team.name`; other context keys remain top-level metadata fields. | `map_context_to_metadata()` applies the special-case mapping only for `team`. |
 | CFG-008 | Implemented | Should | `[sandbox]` shall allow per-plugin network and path overrides for audit validation. | `SandboxConfig` exposes `allow_network` and `allow_paths`. |
@@ -77,10 +84,10 @@ Current release scope does not include:
 | DSP-004 | Implemented | Must | If all sync handlers proceed, the host shall exit successfully. | `DispatchOutcome::Proceed` maps to success. |
 | DSP-006 | Implemented | Must | `--sync` shall run only sync handlers and `--async` shall run only async handlers. | `RunArgs::mode()` drives resolution and dispatch mode filtering. |
 | DSP-007 | Implemented | Must | Async `additionalContext` values shall be concatenated with `\\n---\\n`, and async `systemMessage` values shall be concatenated with `\\n`. | Async dispatch writes the aggregated JSON object to stdout. |
-| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting an observability event. | Runtime returns early on empty handler chains; the zero-match fast path is tested. |
+| DSP-008 | Implemented | Must | If no handlers match, the host shall exit successfully without emitting a standard `dispatch.complete` observability event. When `full` audit mode is active, the host may still append the documented zero-match audit record. | Runtime returns early on empty handler chains, standard mode keeps the zero-match fast path silent, and full mode records the zero-match attempt in the audit file contract. |
 | TMO-001 | Implemented | Must | Default timeouts shall be `5000ms` for sync handlers and `30000ms` for async handlers unless sync `long_running=true` suppresses the default sync timeout. | `resolve_timeout_ms()` returns those defaults and only suppresses the sync default for valid sync `long_running` handlers. |
 | TMO-002 | Implemented | Must | A plugin-declared `timeout_ms` shall override the default timeout, including for sync `long_running` handlers. | `resolve_timeout_ms()` prefers the manifest override. |
-| TMO-003 | Implemented | Must | On timeout, the host shall send `SIGTERM`, wait one second, then force-kill if needed. | `terminate_then_kill()` implements TERM then kill. |
+| TMO-003 | Implemented | Must | On timeout, the host shall use bounded platform-native termination: on Unix it shall send `SIGTERM`, wait one second, then force-kill if needed; on non-Unix targets it shall use the platform-native kill path and the same one-second grace window. | `terminate_then_kill()` implements the Unix TERM/kill sequence, while non-Unix targets follow the same one-second bounded platform-native termination contract. |
 | SES-001 | Implemented | Must | Disabled plugin state shall persist in `.sc-hooks/state/session.json`, keyed by session ID. | Session storage tracks disabled plugins per session. |
 | SES-002 | Implemented | Must | `SessionEnd` and `sc-hooks audit --reset` shall clear persisted disable state. | Main command handling calls `clear_session()` or `clear_all_sessions()`. |
 | TMO-004 | Implemented | Must | The release contract for `long_running` behavior is sync-only: sync handlers with `long_running=true` and no `timeout_ms` run without the default sync timeout; async manifests using `long_running=true` are invalid; SDK runner conveniences remain non-normative authoring helpers. | Manifest validation, audit behavior, timeout resolution, handler discovery, and `long_running_contract` tests all agree on the same contract. |
@@ -117,16 +124,18 @@ Retired observability IDs:
 | --- | --- | --- | --- | --- |
 | AUD-001 | Implemented | Must | Audit shall check handler resolvability, manifest validity, hook declarations, matcher validity, required metadata satisfiability, filesystem validation for `dir_exists` and `file_exists`, sandbox declarations, and install-plan generation. | `audit::run()` emits errors and warnings for those classes. |
 | AUD-002 | Implemented | Must | Sandbox warnings shall become errors under `--strict`. | Audit promotes sandbox overruns when strict mode is enabled. |
+| AUD-008 | Implemented | Must | Audit matcher diagnostics shall use the `AUD-008` code family, and the emitted codes shall remain present and unique per audit run (`AUD-008W warning …` for matcher warnings, `AUD-008 …` for matcher errors). | `AuditDiagnostic::MatcherWarning` and `AuditDiagnostic::MatcherError` render distinct `AUD-008W` and `AUD-008` messages, and audit output preserves those unique code-bearing lines without runtime dedup state. |
 | AUD-005 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` on async handlers. | `audit::run()` surfaces `AUD-005` when manifest loading hits `ManifestError::AsyncLongRunningUnsupported`. |
 | AUD-009 | Implemented | Must | Audit shall reject manifests that declare `long_running=true` without a non-empty description. | `audit::run()` surfaces `AUD-009` when manifest loading hits `ManifestError::MissingLongRunningDescription`. |
-| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records with `matcher = event` or `\"*\"` when no event exists. |
-| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/sc-hooks/logs/sc-hooks.log.jsonl` unless `SC_HOOKS_ENABLE_FILE_SINK=0` intentionally disables the file sink for an operator/debugging session. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`, and observability contract tests cover the default file sink path plus the explicit file-sink disable override. |
+| AUD-011 | Implemented | Must | The static `sc-hooks audit` command shall remain distinct from the runtime full-audit sink; enabling `[observability].mode = "full"` does not redefine static audit diagnostics or `AUD-*` output. | The CLI docs, observability contract, and crate boundaries continue to separate `sc-hooks audit` static analysis from runtime full-audit file emission. |
+| OBS-001 | Implemented | Must | Any invocation that executes at least one handler shall append a structured `LogEvent` JSONL record via `sc-observability`, including `hook`, `matcher`, `mode`, `handlers`, `results`, `total_ms`, and `exit`. When `standard` mode is active and a pre-dispatch failure prevents that record, the host shall emit a deterministic degraded stderr signal instead of failing silently. When `[observability].mode = "off"`, durable structured sink emission is suppressed but direct stderr warnings and degraded notices remain visible. | `observability::emit_dispatch_event()` emits service-scoped `LogEvent` records for handler-executing invocations, while runtime integration tests prove degraded stderr signaling on resolution, metadata-preparation, dispatch-preflight, and plugin-input failures that occur before `dispatch.complete` can be written. |
+| OBS-002 | Implemented | Must | Current observability output shall use the service-scoped `sc-observability` file-sink layout at `.sc-hooks/observability/logs/sc-hooks.log.jsonl` unless resolved `[observability].mode = "off"` suppresses durable structured sinks or `SC_HOOKS_ENABLE_FILE_SINK=0` intentionally disables the file sink for an operator/debugging session. `SC_HOOKS_ENABLE_CONSOLE_SINK` remains effectively off by default unless config or operator override enables it. | The logger uses `LoggerConfig::default_for(ServiceName::new("sc-hooks"), ".sc-hooks/observability")`, and observability contract tests cover the default file sink path, the console-sink default-off posture, `mode = "off"` suppression, and the explicit file-sink disable override. |
 | OBS-005 | Implemented | Must | Error records shall include the handler name, `error_type`, elapsed time, and `disabled=true` when the plugin is disabled. | `HandlerResultRecord` is serialized into observability event fields for all error outcomes. |
-| OBS-006 | Implemented | Must | Structured observability integration shall use the logging-only `sc-observability` crate from the external workspace referenced by `sc-hooks-cli/Cargo.toml` at `../../../../sc-observability/...`. | `sc-hooks-cli` depends on `sc-observability` directly and does not use ad hoc in-workspace logger code. |
+| OBS-006 | Implemented | Must | Structured observability integration shall use the external `sc-observability` crates through version-pinned crates.io dependencies owned by `sc-hooks-cli`. | `sc-hooks-cli` depends on the published external observability crates directly and does not use ad hoc in-workspace logger code. |
 | OBS-007 | Implemented | Must | `sc-observability` integration shall be owned by `sc-hooks-cli` only. `sc-hooks-core`, `sc-hooks-sdk`, and `sc-hooks-test` shall remain observability-implementation-agnostic. | Logger setup and sink lifecycle live at the CLI/application boundary; lower crates expose typed data and errors instead of owning observability configuration. |
-| OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the sibling `sc-observability` workspace beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
-| OBS-009 | Implemented | Should | The CLI may expose environment-flag sink toggles for operator/debugging sessions through `SC_HOOKS_ENABLE_CONSOLE_SINK` and `SC_HOOKS_ENABLE_FILE_SINK`; unrecognized values shall emit a warning to `stderr`, the file sink remains canonical by default, and the console sink emits the contract-tested default summary line only. | Real-dispatch observability tests prove success, block, invalid-json error, and timeout emission with the console sink enabled; docs and logging contract enumerate the accepted env values and the default file-sink posture. |
-| DEF-008 | Deferred | Should | The first observability expansion after file-sink contract coverage shall add console-sink dispatch tests through the real `sc-hooks-cli` path, proving success, block, error, and timeout emission without weakening the current file-sink contract. | A follow-up sprint adds real-dispatch console-sink tests plus docs updates that explicitly describe file-sink and console-sink coverage boundaries. |
+| OBS-008 | Implemented | Must | The initial observability adoption shall not pull in other crates from the `sc-observability` crate family beyond the logging-focused crate and shared types. | `sc-hooks-cli` uses `sc-observability` and `sc-observability-types` only; broader telemetry layers remain out of scope. |
+| OBS-009 | Implemented | Should | The CLI may expose environment-flag sink toggles for operator/debugging sessions through `SC_HOOKS_ENABLE_CONSOLE_SINK` and `SC_HOOKS_ENABLE_FILE_SINK`; unrecognized values shall emit a warning to `stderr`, the file sink remains canonical by default, and the console sink emits the contract-tested default summary line only. The env toggles do not override resolved `[observability].mode = "off"`. | Real-dispatch observability tests prove success, block, invalid-json error, and timeout emission with the console sink enabled, plus `mode = "off"` suppression; docs and logging contract enumerate the accepted env values and the default file-sink posture. |
+| DEF-008 | Implemented | Should | Real-dispatch console-sink coverage shall remain proved alongside the file-sink baseline, covering success, block, error, and timeout emission through the actual `sc-hooks-cli` path without weakening the JSONL contract. | `sc-hooks-cli/tests/observability_contract.rs` proves console-sink and file-sink coverage together, while the remaining observability expansion work is carried by `DEF-010` through `DEF-019`. |
 | BND-001 | Implemented | Must | The source crates under `plugins/` shall be documented with an explicit maturity level: scaffold/reference or runtime implementation with direct tests, and those classifications shall agree across the control docs. | The source crates under `plugins/` are currently documented as scaffold/reference code in the release posture, and the control docs align on that first-release scope. |
 | BND-001a | Implemented | Must | The documented plugin inventory and maturity map shall match the actual source crates in `plugins/`: `agent-session-foundation`, `agent-spawn-gates`, `atm-extension`, `tool-output-gates`, `audit-logger`, `conditional-source`, `event-relay`, `guard-paths`, `identity-state`, `notify`, `policy-enforcer`, `save-context`, and `template-source`. | Architecture and plan docs enumerate the same source-crate set and classify all of them as scaffold/reference for the current release scope. |
 | BND-002 | Implemented | Must | Any bundled plugin described as shipped functionality shall have direct behavior tests and runtime installation guidance. Source-only implementation crates may land before install guidance, but they must not be described as preinstalled runtime plugins. | The docs still describe runtime discovery as `.sc-hooks/plugins/` and do not claim any source-owned plugin crate as bundled or preinstalled without matching install guidance. |
@@ -152,10 +161,32 @@ Retired observability IDs:
 | --- | --- | --- | --- | --- |
 | TST-001 | Implemented | Must | Config parsing, resolution, dispatch, metadata, timeout handling, and audit shall be unit or integration testable from Rust. | The workspace includes tests for those components. |
 | TST-007 | Implemented | Must | The reusable compliance harness shall cover the same protocol and behavioral guarantees that the release docs promise. | `sc-hooks-test/src/compliance.rs::run_contract_behavior_suite` is exercised directly and through `sc-hooks-cli/tests/compliance_host.rs`, so each release-facing compliance claim points to a real shared harness assertion. |
-| TST-008 | Required Before Release | Should | The Claude hook harness shall detect Claude CLI version bumps by comparing `claude --version` with the `claude_version` recorded in `test-harness/hooks/claude/fixtures/approved/manifest.json`; mismatches shall exit non-zero so maintainers rerun live schema validation before accepting provider-contract changes. | `python3 scripts/verify-claude-hook-api.py` exits `0` when `claude --version` matches the approved manifest's `claude_version`, and exits `1` with a warning when the installed Claude version differs. |
+| TST-008 | Implemented | Should | The Claude hook harness shall detect Claude CLI version bumps by comparing `claude --version` with the `claude_version` recorded in `test-harness/hooks/claude/fixtures/approved/manifest.json`; mismatches shall exit non-zero so maintainers rerun live schema validation before accepting provider-contract changes. | `python3 scripts/verify-claude-hook-api.py` exits `0` when `claude --version` matches the approved manifest's `claude_version`, and exits `1` with a warning when the installed Claude version differs. |
 | PRT-001 | Implemented | Must | The workspace shall build and test on Linux and macOS in CI. | `.github/workflows/ci.yml` runs build/test on Ubuntu and macOS. |
 
-## 6. Deferred Items
+## 6. Observability Phase Requirements
+
+Observability Phase 1 completed these contract amendments:
+
+- `CFG-002` now includes `[observability]` as a supported top-level section.
+- `OBS-001` and `OBS-002` now treat `off` as suppressing durable structured sinks while direct stderr warnings and failure notices remain visible.
+- `DEF-006` is superseded. The project will not restore a `[logging]` section; the committed config surface is `[observability]`.
+
+| ID | Status | Priority | Requirement | Acceptance Scenario |
+| --- | --- | --- | --- | --- |
+| DEF-009 | Implemented | Must | The workspace shall include long-term integration proof that forced observability emit and full-audit append failures fall back to the documented degraded stderr path without changing hook execution outcomes. | Integration coverage forces append and emit failures, hook exits remain unchanged, and the documented degraded fallback text is asserted. |
+| DEF-010 | Implemented | Must | Observability configuration shall support deterministic layering across built-in defaults, global user config at `~/.sc-hooks/config.toml`, repo-local `.sc-hooks/config.toml`, and environment overrides. | The CLI loads both config layers with fixed precedence, the supported keys are documented, and tests prove repo-local overrides without breaking repo-relative plugin policy. |
+| DEF-011 | Implemented | Must | Observability mode selection shall support `off`, `standard`, and `full`; global config may set defaults for `off` or `standard` only, while enabling `full` remains a repo-local or operator action. | The config contract documents mode semantics, tests prove mode resolution across global/local/env layers, and `full` is rejected when requested only from global scope. |
+| DEF-012 | Implemented | Must | Full audit output shall default to `.sc-hooks/audit/`, use run-scoped durable files, and allow repo-local relative or absolute path overrides; relative paths resolve from the immutable project root. | The audit writer produces run-scoped files beneath the default root, local overrides resolve deterministically, and path-resolution tests prove project-root-relative behavior. |
+| DEF-013 | Implemented | Must | Full audit shall support a lean profile for evals and harness runs plus a debug profile for deeper troubleshooting; raw payload capture remains a separate explicit opt-in. The debug-profile mandatory fields shall be frozen as a closed enumeration before debug implementation begins. | Docs freeze the mandatory fields for both profiles, debug-profile integration tests prove machine-readable field emission, and payload capture cannot turn on implicitly with `full` alone. |
+| DEF-014 | Implemented | Must | Full audit shall use strict redaction by default, never rely on the human console sink as a machine contract, and keep the durable audit JSONL files as the canonical machine-readable source for the phase. | Sensitive-field integration tests prove strict-mode summarization, permissive mode still requires explicit payload-capture flags, audit JSONL remains the canonical machine-readable source, and the human console format is documented as non-contractual. |
+| DEF-015 | Implemented | Must | Observability, audit, retention, and pruning failures shall never affect hook execution outcomes. | Forced logger-init, emit, append, and prune failures leave hook exit behavior unchanged while producing the documented degraded signals. |
+| DEF-016 | Implemented | Must | Production-grade audit mode shall support at least 50 simultaneous agents by sharding durable audit output into run-scoped files, bounding retention, and avoiding a single hot shared file. The target basis is planned ATM multi-agent repo-root operation plus eval and harness fan-out on the same checkout. | Integration and soak tests prove 50+ concurrent agents can emit audit records without corruption, unbounded contention, or unbounded disk growth. |
+| DEF-017 | Implemented | Must | Full audit mode shall record hook invocation attempts even when no handlers match or dispatch fails before handler execution, while `standard` mode keeps the current lower-volume dispatch-log posture. | Integration tests prove zero-match, resolution-failure, and pre-dispatch failure audit records in `full` mode, while the negative-branch and dispatch-preflight tests preserve the current `standard` degraded stderr contract. |
+| DEF-017a | Implemented | Must | The serialized `FullAuditRecord` and `FullAuditMeta` JSON key set shall remain documented and frozen in the observability contract so downstream harnesses and eval tooling can process full-audit files without reverse-engineering Rust struct names. | `docs/observability-contract.md` section 4.2 enumerates the serialized JSON key names for both record types, and integration tests keep the documented audit files machine-readable. |
+| DEF-019 | Implemented | Must | The canonical product, runtime, binary, service, and docs name shall converge on `sc-hooks`, while `hooks` remains a supported convenience CLI alias only through the documented install-time alias path. | Control docs, binary naming, and public references converge on `sc-hooks`, and `hooks` is documented as a non-canonical alias delivered through the install/cutover alias wrapper. |
+
+## 7. Deferred Items
 
 | ID | Priority | Deferred Behavior | Exit Condition |
 | --- | --- | --- | --- |
@@ -164,11 +195,10 @@ Retired observability IDs:
 | DEF-003 | Should | Any SDK-level `LongRunning` abstraction beyond the host's current manifest-driven behavior | The SDK, docs, and tests agree on a stable public contract |
 | DEF-004 | Should | More granular exit codes for manifest incompatibility vs other resolution failures | The code introduces additional exit-code variants and the CLI/docs are updated together |
 | DEF-005 | Should | Builtin handler resolution inside the dispatcher | The product intentionally restores a builtin path and documents how it coexists with plugin resolution |
-| DEF-006 | Should | Config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current `OBS-009` env-flag sink toggles | The CLI reintroduces sink configuration and the contract docs are updated with the supported keys and semantics |
 | DEF-007 | Should | Release-facing support for payload-condition operators beyond the `PLC-002` set (`not_contains`, `gt`, `lt`, `gte`, `lte`) | Requirements, contract docs, and tests are updated together for the expanded operator set |
-| DEF-008 | Should | Console-sink dispatch coverage after the file-sink baseline; remaining observability expansion work after that is limited to custom sinks and multi-hook monitoring correlation. | Real-dispatch console-sink tests and docs updates land; further exit condition remains explicit only for custom sinks and multi-hook monitoring correlation. |
+| DEF-018 | Should | Future global config may define exporter and OTel defaults, but those defaults shall not implicitly enable repo-local `full` audit mode. | Exporter keys are documented separately from the committed observability phase, and tests prove transport defaults do not escalate audit mode by themselves when that later work lands. |
 
-## 7. Post-Release Hook Extension Track
+## 8. Post-Release Hook Extension Track
 
 These items are not part of the current release baseline above. They define the
 required guardrails for the next hook-extension development track after release
@@ -179,23 +209,29 @@ Detailed post-capture runtime design for this track lives in
 
 | ID | Status | Priority | Requirement | Acceptance Scenario |
 | --- | --- | --- | --- | --- |
-| HKR-001 | Deferred | Must | The first hook-extension implementation target shall be the current Claude ATM hook set documented in `docs/hook-api/claude-hook-api.md`; ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md` and is not itself the generic hook contract. | Hook-extension work cites the Claude API doc as the implementation baseline and keeps ATM-only routing/persistence details in the separate ATM extension doc. |
+| HKR-001 | Deferred | Must | The first hook-extension implementation target shall be the current Claude ATM hook set documented in `docs/hook-api/claude-hook-api.md`; ATM-specific behavior remains isolated in `docs/hook-api/atm-hook-extension.md` and is not itself the generic hook contract. | Hook-extension work cites the Claude API doc as the implementation baseline and keeps ATM-only routing/persistence details in the separate ATM extension doc. Hook phase planning closed this gate; later runtime work now proceeds through the approved `Phase O` normalization track. |
 | HKR-002 | Implemented | Must | No hook implementation code shall be written until the Claude hook schema harness captures and validates the required Claude payloads for the planned hook set. | The Phase 1 harness and follow-up capture passes produced verified Claude fixtures before any new hook runtime crate is authorized. |
 | HKR-003 | Implemented | Must | After the Claude schema harness captures real payloads, the plan and hook API docs shall be revised from captured evidence before implementation begins. | `docs/archive/plugin-plan-s9.md` and the hook API docs were revised from captured fixtures, including `resume` and `clear` follow-up evidence. |
-| HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall cover only the documented eight-hook ATM baseline: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, `PreToolUse(Agent)`, `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`. | Hook crates and tests map only to that documented eight-hook set unless requirements are explicitly expanded later; the seven non-`Notification` surfaces are locally captured, `Notification(idle_prompt)` remains documented as wired-but-unresolved in local capture, and the clean runtime design is frozen in `docs/phase-bc-hook-runtime-design.md`. |
-| HKR-005 | Deferred | Must | The Claude schema harness shall preserve raw captured fixtures as evidence and shall provide a manual schema-drift detection path that reports required-field removal, type drift, and newly added fields without auto-fixing models. | `test-harness/hooks/run-schema-drift.py` compares current captures to approved fixtures, emits drift output, and retains captured artifacts for review; schema drift remains a manual investigation path rather than a CI gate. |
-| HKR-006 | Deferred | Must | Provider-specific docs for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block the first Claude implementation path. | The first hook-development sequence proceeds on Claude-only capture and implementation even while other provider docs remain present. |
-| HKR-007 | Deferred | Must | Cursor Agent shall remain documented as a provider reference during the first development pass, but Cursor harness capture and Cursor-targeting runtime implementation are deferred until a later explicitly approved follow-on sprint. | `docs/hook-api/cursor-agent-hook-api.md` exists, while the first harness and implementation work stays Claude-only. |
+| HKR-004 | Deferred | Must | The initial Claude hook implementation scope shall cover only the documented eight-hook ATM baseline: `SessionStart`, `SessionEnd`, `PreToolUse(Bash)`, `PostToolUse(Bash)`, `PreToolUse(Agent)`, `Notification(idle_prompt)`, `PermissionRequest`, and `Stop`. | Hook crates and tests map only to that documented eight-hook set unless requirements are explicitly expanded later; the seven non-`Notification` surfaces are locally captured, `Notification(idle_prompt)` remains documented as wired-but-unresolved in local capture, and the clean runtime design is frozen in `docs/phase-bc-hook-runtime-design.md`. Hook phase planning closed this gate; later runtime work now proceeds through the approved `Phase O` normalization track. |
+| HKR-005 | Deferred | Must | The Claude schema harness shall preserve raw captured fixtures as evidence and shall provide a manual schema-drift detection path that reports required-field removal, type drift, and newly added fields without auto-fixing models. | `test-harness/hooks/run-schema-drift.py` compares current captures to approved fixtures, emits drift output, and retains captured artifacts for review; schema drift remains a manual investigation path rather than a CI gate. Hook phase planning closed this gate; later runtime work now proceeds through the approved `Phase O` normalization track. |
+| HKR-006 | Implemented | Must | Provider-specific docs and harness-planning artifacts for Codex, Gemini, and Cursor may be kept in the docs set before implementation, but those providers shall not block or precede the first Claude implementation path. After the Claude baseline is stable, Codex and Gemini may proceed through an explicitly approved harness-planning phase. `Phase O` is the approved runtime-normalization phase for Codex and Gemini only; Cursor runtime work remains deferred, while Cursor harness/doc-model follow-on work is governed separately by `HKR-007`. | Acceptance conditions satisfied: (1) `Phase N` closed the harness-planning gate by proving Codex and Gemini provider evidence, approved fixtures, provider models, and provider API docs without authorizing runtime work. (2) `O.4` partially implemented the cross-provider runtime gate by routing the approved Codex `SessionStart` and `PreToolUse(Bash)` surfaces through the normalized runtime path. (3) `O.5` completed the remaining approved Gemini runtime-normalization surfaces. (4) `O.6` completed the cross-provider consolidation by freezing the shared Claude/Codex/Gemini plugin-path parity proof and the stable observability shape on the approved overlapping surfaces. (5) `Phase P` extended the retained lifecycle inventory through the same sealed normalization seam for Codex `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and `fork` remain disposition-only until accepted harness evidence proves they are exercisable retained runtime surfaces. (6) Cursor runtime work remains deferred under `HKR-007`. |
+| HKR-007 | Implemented | Must | `Phase Q` may promote Cursor Agent from a docs-only provider reference to a maintained harness-only provider using the existing `cursor-agent` evidence ownership path plus a matching `cursor_agent` Python package path: approved fixtures, a non-empty approved manifest, provider-local Pydantic payload models, harness tests, and a current provider hook API document. Cursor runtime normalization, plugin parity, and machine cutover remain deferred until a later explicitly approved phase. | `docs/plan-phase-Q.md` plus `Q.6` and `Q.7` define one Cursor Agent harness-only follow-on where `Q.6` closes the `test-harness/hooks/cursor-agent/` evidence tree, the non-empty approved manifest, and the `test_harness/hooks/cursor_agent/` package root, and `Q.7` closes one payload model class per retained manifest event plus the current API doc without authorizing any Cursor runtime path. |
 | HKR-008 | Implemented | Must | The generic session foundation shall persist one canonical session-state record keyed by `session_id`, `active_pid`, and `ai_root_dir`, where `ai_root_dir` is the immutable working directory established from the root-establishing `SessionStart` for the runtime instance, `ai_current_dir` is chained from each hook payload `cwd`, and downstream consumers receive normalized project-root context regardless of later provider drift. Inbound `CLAUDE_PROJECT_DIR`, when present, is a required equality check against the persisted canonical root rather than a silent fallback. | Hook lifecycle code writes one canonical session record, uses the root-establishing `SessionStart` launch as immutable root for that runtime instance, preserves later `cwd` snapshots separately as current-directory context, never rewrites root identity from later `cwd` drift, emits prominent error-level observability when inbound `CLAUDE_PROJECT_DIR` diverges from the persisted canonical root, and exposes the canonical root back to consumers as normalized project-root context. |
 | HKR-009 | Implemented | Must | Canonical hook session-state updates shall use atomic write semantics, shall not rewrite `session.json` when the canonical record is unchanged, and shall emit hook logs on every invocation whether or not state changes. The earlier trait-freeze planning gate is treated as satisfied through the executable-plugin JSON schema contract recorded under `SEAL-001` in `docs/implementation-gaps.md`. | Session-state persistence uses same-directory temp-plus-rename, increments revision only on material change, skips unchanged rewrites, still emits observability/log output for every hook invocation, and the trait-freeze closure is documented through `SEAL-001` in `docs/implementation-gaps.md`. |
-| HKR-010 | Deferred | Must | Spawn/tool-gate behavior shall enforce fenced `json` input where required, validate that JSON against the declared schema source, and return exact retryable failure reasons on block. | Invalid fenced JSON is blocked with deterministic retry guidance, schema lookup is explicit, and named-agent/background-agent policy outcomes are tested directly. |
+| HKR-010 | Implemented | Must | Spawn/tool-gate behavior shall enforce fenced `json` input where required, validate that JSON against the declared schema source, and return exact retryable failure reasons on block. `Phase O` closes this only when that behavior works through the normalized Codex and Gemini runtime path on the approved provider surfaces. | Invalid fenced JSON is blocked with deterministic retry guidance, schema lookup is explicit, and named-agent/background-agent policy outcomes are tested directly. `O.4` partially implemented the cross-provider gate closure by proving the same behavior survives Codex normalization for the approved `PreToolUse(Bash)` surface, including retryable normalization failures with structured `recovery_hint`. `O.5` completed the remaining approved Gemini parity, and `O.6` completed the final cross-provider plugin-path and observability proof without expanding beyond the approved provider surfaces. |
 | HKR-011 | Implemented | Must | ATM extension behavior shall enrich the canonical session-state record through extension fields and environment inheritance (`ATM_TEAM`, `ATM_IDENTITY`) without redefining the generic state model. | ATM relay/identity code writes extension fields onto the canonical record, preserves team linkage, documents child identity override behavior, and leaves the generic lifecycle model owned by the foundation crate. |
-| HKR-012 | Deferred | Must | The global HTML reporting stack shall be built and QA-approved before any schema-drift or other report-generating sprint depends on it. | `$HOME/.claude/skills/html-report/SKILL.md` and `~/.claude/agents/html-report-generator.md` exist, pass review against `/Users/randlee/Documents/github/synaptic-canvas/docs/claude-code-skills-agents-guidelines-0.4.md`, and produce one valid self-contained HTML report in a tested invocation before Sprint `S9-P3` is considered runnable. |
+| HKR-012 | Deferred | Must | The global HTML reporting stack shall be built and QA-approved before any schema-drift or other report-generating sprint depends on it. | `$HOME/.claude/skills/html-report/SKILL.md` and `~/.claude/agents/html-report-generator.md` exist, pass review against `https://github.com/randlee/synaptic-canvas/blob/develop/docs/claude-code-skills-agents-guidelines-0.4.md`, and produce one valid self-contained HTML report in a tested invocation before Sprint `S9-P3` is considered runnable. Hook phase planning closed this gate; later runtime work now proceeds through the approved `Phase O` normalization track. |
 | HKR-013 | Implemented | Must | ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable. | `plugins/atm-extension` keeps the four-stage relay pipeline explicit, uses one authoritative `ToolName` type, and covers the typed relay boundary with direct tests. |
+| HKR-014 | Implemented | Must | `Phase N` shall capture Codex and Gemini hook contracts only from repo-owned raw stdin fixtures, hook-process environment snapshots, provider-specific validation models, and approved findings ledgers; relay-side observations and provider memory may inform planning but must not be promoted into canonical fixture inventory without direct harness capture. | `N.1` and `N.2` now provide approved fixture manifests, provider tests, findings ledgers, and provider API docs for every audited captured or `confirmed-not-exercisable` surface in the current phase scope. |
+| HKR-015 | Implemented | Must | `Phase N` normalization shall promote a field into canonical `schooks` mapping candidates only when approved fixtures from at least two providers show compatible semantics; provider-specific fields remain provider-local and unresolved fields remain in the normalization findings ledger until a later phase resolves them. | `docs/phase-N/normalization-checklist.md` and `docs/phase-N/normalization-findings-ledger.md` now classify canonical candidates, provider-local fields, and unresolved differences under `ADR-SHK-006`, while runtime adapter work remains deferred pending the `N.4` verdict. |
+| HKR-016 | Implemented | Must | Parallel `Phase N` sprint branches shall treat `docs/phase-N/readiness.md` as read-only, while the integration author remains the sole writer for accepted sprint rows and final verdict updates. This execution-ownership rule must be documented as an architectural decision and cited by the phase plan and readiness ledger. | `docs/architecture.md` cites `ADR-SHK-007`, `docs/plan-phase-N.md` and `docs/phase-N/readiness.md` reference that ADR directly, and `N.3` keeps readiness writes on the integration-author path only. |
+| HKR-017 | Implemented | Must | The post-`Phase N` provider-harness verification track shall keep Claude, Codex, and Gemini on one shared external harness contract: matching directory conventions, approved-fixture ownership, provider Pydantic model validation, provider hook API docs, and stable `just test hooks <provider>` entrypoints. Verification work may refresh or tighten existing provider artifacts, but it shall not introduce new runtime provider scope. | `docs/phase-N/plan-remediation.md` plus `N.5` through `N.10` define the shared provider-harness verification baseline. `Phase P` completed that same harness contract for the missing retained provider surfaces: `P.1` closed the Codex side by carrying `notify`, `Stop`, `resume`, and `fork` to approved fixture-backed or evidence-backed disposition, and `P.2` closed the Gemini `AfterAgent` side on the same shared harness shape. |
+| HKR-018 | Implemented | Must | `Phase Q` may add `opencode` as a maintained harness-only provider with approved fixtures, a non-empty approved manifest, provider-local Pydantic payload models, harness tests, and a current provider hook API document. `opencode` runtime normalization, plugin parity, and machine cutover remain deferred until a later explicitly approved phase. | `Q.8` and `Q.9` completed the harness-only opencode follow-on: `Q.8` landed the evidence tree, the retained approved-reference `session.idle` manifest entry, the harness tests, and the `test_harness/hooks/opencode/` package root, and `Q.9` closed the matching payload model, registry entry, payload-model tests, and `docs/hook-api/opencode-agent-hook-api.md` without authorizing any opencode runtime path. |
+| HKR-019 | Implemented | Must | `Phase Q` shall add one repo-owned smoke surface for the currently supported runtime providers: a curated `just smoke` entrypoint, one CI-owned smoke gate, and provider-specific smoke records for Claude, Codex, and Gemini. The CI-owned gate runs in an explicit offline replay or dry-run mode that does not require provider CLIs on generic runners, while provider-specific live smoke proof is recorded separately on the accepted baseline. This smoke surface remains separate from `just test` and `just lint`, and it does not authorize new provider runtime scope on its own. | `docs/plan-phase-Q.md` plus `Q.1` through `Q.5` define one smoke surface where `Q.2` closes the public `just smoke` entrypoint, the offline CI-owned smoke gate, and the shared smoke-runner ownership path, while `Q.3` / `Q.4` / `Q.5` each close one explicit accepted-baseline live smoke record for Claude, Codex, and Gemini respectively. |
 
 Additional verified Claude provider surface outside the current baseline:
 - `WorktreeCreate` and `WorktreeRemove` are documented Claude Code hook events,
-  but they are not part of the current `schook` implementation baseline
+  but they are not part of the current `sc-hooks` implementation baseline
 - if later promoted into scope, they must be treated as top-level provider
   hooks rather than `PreToolUse`-style matcher cases
 - `WorktreeCreate` uses a provider-specific success/failure contract:
@@ -207,13 +243,50 @@ Additional verified Claude provider surface outside the current baseline:
   cleanup side effects; it is not part of the generic `HookResult` decision
   model
 
-## 8. Release Rule
+## 9. Release Rule
 
 If a behavior is not implemented and not required for release, it must be deferred.
+
+If a behavior is committed to an approved next phase, it must be marked
+`Planned` rather than `Deferred`, and the owning phase plus acceptance gate
+must be named in `docs/project-plan.md`.
 
 If a behavior is required for release but not yet fully proved, it must appear in `docs/traceability.md` and, when needed for historical planning context, in `docs/archive/`.
 
 ## Requirement Amendment Notes
+
+- `HKR-006`
+  - prior text: Provider-specific docs for Codex, Gemini, and Cursor may be
+    kept in the docs set before implementation, but those providers shall not
+    block the first Claude implementation path.
+  - current text: Provider-specific docs and harness-planning artifacts for
+    Codex, Gemini, and Cursor may be kept in the docs set before
+    implementation, but those providers shall not block or precede the first
+    Claude implementation path. After the Claude baseline is stable, Codex and
+    Gemini may proceed through an explicitly approved harness-planning phase,
+    but non-Claude runtime implementation remains deferred until
+    provider-specific schema proof and promotion review close.
+  - authorizing sprint: `Phase N`
+- `DEF-006`
+  - prior text: config-driven observability sink routing or a `[logging]` section in `.sc-hooks/config.toml` beyond the current env-flag sink toggles
+  - current text: superseded by the implemented `[observability]` surface in `CFG-002`, `DEF-010`, and `DEF-011`, plus the deferred exporter follow-on in `DEF-018`; the project will not restore `[logging]` as the committed contract
+  - authorizing phase: `SC-LOG-S2`
+- `DEF-008`
+  - prior text: console-sink dispatch coverage remained an operator-facing follow-up inside the broader observability phase
+  - current text: console-sink dispatch coverage is implemented through the real `sc-hooks-cli` path; the remaining observability expansion work is carried by `DEF-010` through `DEF-019`
+  - authorizing sprint: `S9-BONUS`
+- `TST-008`
+  - prior text: required-before-release Claude version-bump detection
+  - current text: implemented Claude version-bump detection with direct script and test proof
+  - authorizing sprint: `S10-VERSION-BUMP-1`
+- `TMO-003`
+  - prior text: On timeout, the host shall send `SIGTERM`, wait one second,
+    then force-kill if needed.
+  - current text: On timeout, the host shall use bounded platform-native
+    termination: on Unix it shall send `SIGTERM`, wait one second, then
+    force-kill if needed; on non-Unix targets it shall use the
+    platform-native kill path and the same one-second grace window.
+  - authorizing sprint: `P.7`
 
 - `HKR-011`
   - prior text: ATM extension behavior could remain an ATM-owned state model as long as relay behavior was documented consistently
@@ -223,3 +296,147 @@ If a behavior is required for release but not yet fully proved, it must appear i
   - prior text: ATM relay handling could validate and route requests through one combined request type if tests still covered the visible outcomes
   - current text: ATM relay handling shall preserve distinct raw-request, validated-request, relay-decision, and relay-result stages so validation, routing, and side effects remain separately testable
   - authorizing sprint: `S9-HP5`
+- `HKR-006`
+  - prior text: Codex, Gemini, and Cursor runtime implementation all remained deferred after the Claude-first planning and harness phases
+  - current text: `Phase O` is the approved runtime-normalization phase for Codex and Gemini on the approved `Phase N` surfaces only; Cursor runtime remains deferred under `HKR-007`, while later harness/doc-model expansion may proceed only through an explicitly approved harness-only phase
+  - authorizing phase: `Phase O`
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`
+  - current text: `O.4` partially implemented `HKR-006` by proving the
+    approved Codex runtime surfaces on the cross-provider path before Gemini
+    parity and cross-provider consolidation landed
+  - authorizing sprint: `O.4`
+- `HKR-006`
+  - prior text: `O.4` partially implemented `HKR-006` by proving the approved
+    Codex runtime surfaces on the cross-provider path before Gemini parity and
+    cross-provider consolidation landed
+  - current text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
+    surfaces
+- `HKR-007`
+  - prior text: Cursor Agent remained a docs-only provider reference, with
+    both harness capture and runtime implementation deferred indefinitely
+  - current text: `Phase Q` authorizes Cursor Agent harness/doc-model
+    expansion through the existing `cursor-agent` provider paths only; Cursor
+    runtime normalization, plugin parity, and cutover remain deferred
+  - authorizing phase: `Phase Q`
+- `HKR-017`
+  - prior text: the Phase N follow-on verification track was still planned and
+    not yet executed
+  - current text: the Phase N follow-on verification track is complete and the
+    shared `just test hooks <provider>` harness contract is implemented for
+    Claude, Codex, and Gemini
+  - authorizing phase: `Phase N Follow-On`
+  - authorizing sprint: `O.5` / `O.6`
+- `HKR-006`
+  - prior text: `O.5` and `O.6` completed Gemini parity and the final
+    Claude/Codex/Gemini plugin-path consolidation on the approved provider
+    surfaces
+  - current text: `Phase P` may extend the retained lifecycle inventory
+    through the same sealed normalization seam for Codex `notify` and Gemini
+    `AfterAgent`, but Codex `Stop`, `resume`, and `fork` remain
+    disposition-only until accepted harness evidence proves they are
+    exercisable retained runtime surfaces
+  - authorizing sprint: `P.4`
+- `HKR-017`
+  - prior text: the shared provider-harness contract ended at the accepted
+    `Phase N` verification baseline, leaving Codex `notify`, `Stop`,
+    `resume`, and `fork` outside the retained harness surface
+  - current text: `Phase P` extends the same shared provider-harness contract
+    for the retained missing lifecycle surfaces; `P.1` closes the Codex side
+    by proving `notify` on the approved fixture-backed harness and recording
+    evidence-backed dispositions for `Stop`, `resume`, and `fork` on that
+    same shared harness shape
+  - authorizing sprint: `P.1`
+- `HKR-017`
+  - prior text: the shared provider-harness contract ended at the accepted
+    `Phase N` verification baseline, leaving Gemini `AfterAgent` outside the
+    retained harness surface
+  - current text: `Phase P` extends the same shared provider-harness contract
+    for the retained missing lifecycle surfaces; `P.2` closes the Gemini side
+    by promoting `AfterAgent` into the maintained approved fixture/model/test
+    harness and aligning the Gemini API doc and traceability to that retained
+    surface
+  - authorizing sprint: `P.2`
+- `HKR-010`
+  - prior text: spawn/tool-gate behavior was implemented for the Claude runtime path, while cross-provider normalized runtime parity remained deferred
+  - current text: `Phase O` closed the Codex and Gemini normalized-runtime
+    parity work needed to return this requirement to `Implemented` on those
+    approved provider surfaces
+  - authorizing phase: `Phase O`
+  - O.4 amendment: Codex proved the approved normalized-runtime gate path and
+    made the cross-provider closure partial
+  - O.5/O.6 amendment: Gemini completed the remaining approved parity and O.6
+    proved the final cross-provider plugin-path and observability shape
+  - P.4 amendment: the retained lifecycle seam extension does not, by itself,
+    close provider runtime parity for Codex `notify` or Gemini `AfterAgent`;
+    `P.5` and `P.6` still own the provider-runtime closure for those newly
+    retained lifecycle surfaces
+- `DEF-019`
+  - prior text: the canonical product, runtime, binary, service, and docs name
+    shall converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias only
+  - current text: the canonical product, runtime, binary, service, and docs
+    name converge on `sc-hooks`, while `hooks` remains a supported
+    convenience CLI alias delivered through the install/cutover alias wrapper
+  - authorizing sprint: `P.8`
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`
+  - current text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` may then extend the retained
+    lifecycle inventory through the same sealed normalization seam for Codex
+    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only until accepted harness evidence proves they
+    are exercisable retained runtime surfaces. `P.5` closes Codex retained
+    lifecycle runtime parity for the only retained live stop-family surface,
+    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
+    and `fork` remain disposition-only non-exercisable rows from `P.1`.
+    `P.6` closes Gemini retained lifecycle runtime parity for the live
+    `AfterAgent` stop-family surface through the shared Rust runtime path.
+  - authorizing sprint: `P.5`
+- `HKR-006`
+  - prior text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` may then extend the retained
+    lifecycle inventory through the same sealed normalization seam for Codex
+    `notify` and Gemini `AfterAgent`, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only until accepted harness evidence proves they
+    are exercisable retained runtime surfaces. `P.5` closes Codex retained
+    lifecycle runtime parity for the only retained live stop-family surface,
+    `notify`, through the shared Rust runtime path; Codex `Stop`, `resume`,
+    and `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - current text: `Phase O` is the approved runtime-normalization phase for
+    Codex and Gemini on the approved `Phase N` surfaces only; Cursor remains
+    deferred under `HKR-007`. `Phase P` then completes the retained Gemini
+    lifecycle runtime parity for the live `AfterAgent` stop-family surface
+    through the shared Rust runtime path, while Codex `Stop`, `resume`, and
+    `fork` remain disposition-only non-exercisable rows from `P.1`.
+  - authorizing sprint: `P.6`
+- `HKR-010`
+  - prior text: `Phase O` closed the Codex and Gemini normalized-runtime
+    parity work needed to return this requirement to `Implemented` on those
+    approved provider surfaces
+  - current text: `Phase O` closed the Codex and Gemini normalized-runtime
+    parity work needed to return this requirement to `Implemented` on those
+    approved provider surfaces. The retained lifecycle seam extension does
+    not, by itself, close provider runtime parity for Codex `notify` or
+    Gemini `AfterAgent`; `P.5` and `P.6` still own the provider-runtime
+    closure for those newly retained lifecycle surfaces. `P.5` adds no new
+    Codex gate surface beyond the existing normalized host path and closes
+    Codex runtime parity for the retained `notify` stop-family surface while
+    leaving the already-closed gate behavior from `Phase O` unchanged. `P.6`
+    adds no new Gemini gate surface beyond the existing normalized host path
+    and closes Gemini runtime parity for the live `AfterAgent` stop-family
+    surface.
+  - authorizing sprints: `P.5`, `P.6`
+- `OBS-002`
+  - prior text: earlier observability output used the pre-service-layout file path
+    `.sc-hooks/logs/sc-hooks.log.jsonl`
+  - current text: observability output uses the service-scoped file-sink layout
+    `.sc-hooks/observability/logs/sc-hooks.log.jsonl`
+  - authorizing sprint: `SC-OBS-INTEGRATION-1-FIX-R1`

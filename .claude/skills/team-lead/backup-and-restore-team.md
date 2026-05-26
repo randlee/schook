@@ -1,157 +1,166 @@
-# Team Backup and Restore Procedure
-
-Follow this procedure when Step 1 of the team-lead skill detects a session ID
-mismatch (i.e., a full team restore is required).
-
 ---
+name: backup-and-restore-team
+version: 0.2.0
+description: Procedure for backing up and restoring the schook ATM team. Referenced by the team-lead skill when a session ID mismatch is detected.
+---
+
+# Team Backup And Restore Procedure
+
+Follow this procedure when Step 1 of the `team-lead` skill detects a session id
+mismatch and a full team restore is required. This is the startup or `clear`
+path where the live `SESSION_ID` changed and no longer matches
+`leadSessionId`.
+
+Do not use this procedure for same-session compaction or resume when the
+session id still matches. Use `/restore-team-communications` for that lighter
+repair path.
 
 ## Step 2 — Backup Current State
 
-Always backup before modifying the team:
+Always back up before modifying the team:
 
 ```bash
-atm teams backup <team-name>
-# Note the backup path from output, e.g.:
-# Backup created: ~/.claude/teams/.backups/<team-name>/<timestamp>
+atm teams backup schook
 ```
 
-Also backup the Claude Code project task list (separate bucket):
+Also back up the Claude Code project task list separately:
 
 ```bash
-BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
-cp -r ~/.claude/tasks/<repo-name>/ "$BACKUP_PATH/tasks-cc"
+BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/schook/*/ | head -1)
+cp -r ~/.claude/tasks/schook/ "$BACKUP_PATH/tasks-cc"
 echo "CC task list backed up to $BACKUP_PATH/tasks-cc"
 ```
 
-> **Note**: `atm teams backup` captures `~/.claude/tasks/<team-name>/` (ATM sprint
-> tasks) but NOT `~/.claude/tasks/<repo-name>/` (Claude Code task tools — keyed to
-> repo name, not team name).
-> These are two separate buckets — issue #650 tracks fixing this in the CLI.
-
----
+Note: `atm teams backup` captures ATM team tasks under `~/.claude/tasks/schook/`
+when present, including the repo-local Claude Code task bucket
+`~/.claude/tasks/schook/`.
 
 ## Step 3 — Clear Stale Team State
 
-```bash
-# 1. Clear any active team context in this session
-TeamDelete  # tool call — may say "No team name found", that is OK
-
-# 2. Remove the stale <team-name> directory so TeamCreate uses the correct name
-rm -rf ~/.claude/teams/<team-name>
+```text
+TeamDelete
 ```
 
-> **Warning**: If `TeamDelete` reports it cleaned up a team named `<team-name>`,
-> do NOT `rm -rf` — the directory is already gone.
+Then remove the stale team directory so the next create uses the correct name:
 
----
+```bash
+rm -rf ~/.claude/teams/schook
+```
+
+If `TeamDelete` already removed the directory, the `rm -rf` is harmless.
 
 ## Step 4 — Create Team
 
+```text
+TeamCreate(team_name="schook", description="schook ATM development team", agent_type="team-lead")
 ```
-TeamCreate(team_name="<team-name>", description="ATM development team", agent_type="team-lead")
-```
 
-**Verify**: `team_name` in the response MUST be `"<team-name>"`.
-If it is any other name, **stop immediately** — do not proceed.
+Verify that the returned team name is exactly `schook`. If it is not, stop.
 
----
+Note: `/restore-team-communications` reuses this same `TeamCreate` primitive
+when communications are broken after compaction or resume, but that path should
+prove the failure first and avoid this destructive backup/delete/restore flow
+unless the lighter repair fails.
 
-## Step 5 — Restore Team Members and Inboxes
+## Step 5 — Restore Team Members And Inboxes
 
 ```bash
-atm teams restore <team-name> --from ~/.claude/teams/.backups/<team-name>/<timestamp>
-# Expected: N member(s) added, N inbox file(s) restored
+atm teams restore schook --from ~/.claude/teams/.backups/schook/<timestamp>
 ```
 
-Verify members and remove any ghosts:
+Verify members:
 
 ```bash
 atm members
 ```
 
-Remove unexpected members (until `atm teams remove-member` ships — issue #649):
+If unexpected ghost members exist, trim the config manually:
 
-```python
+```bash
 python3 -c "
 import json
-path = '/Users/randlee/.claude/teams/<team-name>/config.json'
-with open(path) as f: cfg = json.load(f)
-keep = ['team-lead', 'chook', 'arch-gtm', 'arch-ctask']
+path = '$HOME/.claude/teams/schook/config.json'
+with open(path) as f:
+    cfg = json.load(f)
+keep = ['team-lead', 'chook', 'quality-mgr']
 cfg['members'] = [m for m in cfg['members'] if m['name'] in keep]
-with open(path, 'w') as f: json.dump(cfg, f, indent=2)
+with open(path, 'w') as f:
+    json.dump(cfg, f, indent=2)
 print('Members:', [m['name'] for m in cfg['members']])
 "
 ```
 
----
+Adjust the `keep` list if additional named teammates are intentionally active.
 
 ## Step 6 — Restore Claude Code Task List
 
 ```bash
-BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/<team-name>/*/ | head -1)
+BACKUP_PATH=$(ls -td ~/.claude/teams/.backups/schook/*/ | head -1)
 if [ -d "$BACKUP_PATH/tasks-cc" ]; then
-  cp "$BACKUP_PATH/tasks-cc/"*.json ~/.claude/tasks/<repo-name>/ 2>/dev/null || true
-  MAX_ID=$(ls ~/.claude/tasks/<repo-name>/*.json 2>/dev/null \
+  mkdir -p ~/.claude/tasks/schook
+  cp "$BACKUP_PATH/tasks-cc/"*.json ~/.claude/tasks/schook/ 2>/dev/null || true
+  MAX_ID=$(ls ~/.claude/tasks/schook/*.json 2>/dev/null \
     | xargs -I{} basename {} .json \
     | sort -n | tail -1)
-  [ -n "$MAX_ID" ] && echo -n "$MAX_ID" > ~/.claude/tasks/<repo-name>/.highwatermark
+  [ -n "$MAX_ID" ] && echo -n "$MAX_ID" > ~/.claude/tasks/schook/.highwatermark
   echo "Task list restored. Highwatermark: $MAX_ID"
 else
   echo "No tasks-cc/ in backup — task list not restored."
 fi
 ```
 
-> The Claude Code UI task panel will not show restored tasks until one task is
-> created via `TaskCreate`. Create a real task to trigger the panel refresh.
-
-> **Known bug** (issue #651): `atm teams restore` sets `.highwatermark` to
-> `min_id - 1` instead of `max_id`. The script above corrects this manually.
-
----
+The Claude Code UI task panel may not show restored tasks until one task is
+created through the task tool.
 
 ## Step 7 — Verify Team Health
 
 ```bash
-atm members          # confirm expected members
-atm inbox            # check for unread messages
-atm gh pr list       # open PRs and CI status
+atm members
+atm inbox
+atm gh pr list
 ```
 
----
+Communication verification is also mandatory:
+1. `SendMessage` to another Claude teammate to prove Claude-side routing works.
+2. `atm send` to a non-Claude model to prove ATM mailbox routing works.
+3. `atm send` to Codex and confirm the Codex-side nudge fires.
 
 ## Step 8 — Read Project Context
 
-1. Read `docs/project-plan.md` — focus on current phase and open tasks
-2. Check `TaskList` — recreate pending tasks via `TaskCreate` if list is empty
+1. Read `docs/project-plan.md`.
+2. Recreate pending tasks if the task list is empty.
 3. Output a concise project summary:
-   - Current phase and status
-   - Open PRs
-   - Active teammates and their last known task
-   - Next sprint(s) ready to execute
-
----
+   - current phase and status
+   - open PRs
+   - active teammates and their last known task
+   - next sprint or sprints ready to execute
 
 ## Step 9 — Notify Teammates
 
 ```bash
-atm send chook "New session (session-id: <SESSION_ID>). Team <team-name> restored. Please acknowledge and confirm status."
+atm send chook "New session (session-id: <SESSION_ID>). Team schook restored. Please acknowledge and confirm status."
 ```
 
-If no response within ~60s, nudge via tmux:
+If no response arrives within about 60 seconds, nudge via tmux. Preferred
+structured nudge payload when task metadata is available:
+
+```text
+<atm><action>read atm</action><action>ack <TASK-ID></action><action>execute assigned task</action><when idle="immediate" busy="after-current-task"/><console announce="concise" pause="false"/></atm>
+```
+
+Fallback plain-text nudge:
 
 ```bash
 tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_title}'
-tmux send-keys -t <pane-id> "You have unread ATM messages. Run: atm read --team <team-name>" Enter
+tmux send-keys -t <pane-id> "read atm for task <TASK-ID> and complete it before stopping" Enter
 ```
-
----
 
 ## Common Failure Modes
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `TeamCreate` returns random name | `~/.claude/teams/<team-name>` still exists | `rm -rf ~/.claude/teams/<team-name>` then retry |
-| `TeamDelete` says "No team name found" | Fresh session, no active team context | Expected — proceed |
-| `TaskList` returns empty after restore | Highwatermark mismatch | Set manually + create one task via `TaskCreate` |
-| `atm send` fails "Agent not found" | Member lost after restore overwrite | `atm teams add-member <team-name> <name> ...` |
-| Self-send (team-lead → team-lead) | Teammate wrong `ATM_IDENTITY` | Relaunch with `ATM_IDENTITY=<correct-name>` |
+| `TeamCreate` returns random name | `~/.claude/teams/schook` still exists | remove the directory and retry |
+| `TeamDelete` says no team name found | fresh session with no active team context | expected, proceed |
+| task list looks empty after restore | highwatermark mismatch or UI stale state | set `.highwatermark`, then create one real task |
+| `atm send` fails with agent not found | member missing after restore | add the member back to the team |
+| self-send or wrong identity routing | teammate launched with wrong `ATM_IDENTITY` | relaunch with the correct identity |
