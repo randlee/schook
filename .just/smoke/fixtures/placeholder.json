@@ -1,0 +1,4 @@
+{
+  "kind": "q2-offline-placeholder",
+  "purpose": "Materialize the repo-owned offline smoke fixture path before Q.3-Q.5 add provider-specific accepted-baseline records."
+}

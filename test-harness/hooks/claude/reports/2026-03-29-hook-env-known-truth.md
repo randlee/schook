@@ -48,10 +48,15 @@ Additional baseline observation during this pass:
 
 Baseline shell env before launching Claude for this pass:
 
+Note: the `CLAUDE_MCP_CONFIG` and `CLAUDE_TEMPLATES_ROOT` values below are
+capture-machine-specific shell baselines from the source workstation. Their
+presence was verified for this run, but the absolute path values are not
+portable expectations for other environments.
+
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 - `CLAUDE_CODE_TASK_LIST_ID=agent-team-mail`
 - `CLAUDE_MCP_CONFIG=$HOME/.config/claude/mcp.json`
-- `CLAUDE_TEMPLATES_ROOT=$HOME/Documents/p3-documentation/.templates/nuget-package`
+- `CLAUDE_TEMPLATES_ROOT=<templates-root>`
 
 Observed across the hook env snapshots in this pass:
 
