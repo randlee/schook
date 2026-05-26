@@ -1,7 +1,7 @@
 ---
 id: Q.1
 title: openshell Evaluation
-status: planned
+status: completed
 branch: feature/pQ-s1-openshell-evaluation
 worktree: ../schook-worktrees/feature/pQ-s1-openshell-evaluation
 target: integrate/phase-Q
@@ -27,6 +27,7 @@ target: integrate/phase-Q
 ## Exact Targets
 
 - `docs/phase-Q/openshell-evaluation.md`
+- `docs/phase-Q/sprint-Q1.md`
 - `docs/plan-phase-Q.md`
 
 ## Deliverables
@@ -81,3 +82,28 @@ follow_on_for_q2: <one literal next step list>
 - Does `docs/phase-Q/openshell-evaluation.md` contain all four required
   fields: `recommendation`, `smoke_runner_impact`, `ci_impact`,
   `follow_on_for_q2`?
+
+## Sprint QA Checklist Answers
+
+- No requirement IDs changed status in `Q.1`; this sprint only froze the
+  execution recommendation that `Q.2` consumes.
+- The explicitly rejected path was introducing `openshell` as either a
+  replacement or supplement for the smoke runner. `Q.2` proceeds on the
+  documented `reject_for_now` basis instead of keeping the shell choice open.
+- Owned write scope:
+  - `docs/phase-Q/openshell-evaluation.md`
+  - `docs/phase-Q/sprint-Q1.md`
+  - `docs/plan-phase-Q.md`
+- Validation proof:
+  - `git diff --check` PASS
+  - the recommendation contract is fully present in
+    `docs/phase-Q/openshell-evaluation.md`, so `Q.2` can consume it directly
+    without revisiting the execution-model choice
+- Follow-on work unblocked:
+  - `Q.2` may proceed immediately on the repo-owned `just` + Python smoke
+    dispatcher path
+  - offline CI smoke fixtures remain under `.just/smoke/fixtures/`
+  - no `openshell` dependency is required for the `Phase Q` smoke baseline
+- Yes. `docs/phase-Q/openshell-evaluation.md` now has the required
+  `recommendation`, `smoke_runner_impact`, `ci_impact`, and
+  `follow_on_for_q2` fields, plus the required title frontmatter.

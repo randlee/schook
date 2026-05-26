@@ -1,7 +1,7 @@
 ---
 id: Q.4
 title: Codex Smoke Tests
-status: planned
+status: completed
 branch: feature/pQ-s4-codex-smoke
 worktree: ../schook-worktrees/feature/pQ-s4-codex-smoke
 target: integrate/phase-Q
@@ -86,3 +86,23 @@ Required Codex smoke coverage:
 - Which files or docs are the owned write scope for the sprint?
 - What validation proves the Codex live runtime path end to end?
 - What follow-on work remains separate from smoke coverage?
+
+## Sprint QA Checklist Answers
+
+- `HKR-019` gained the Codex smoke closure for retained live runtime behavior;
+  no Cursor or opencode requirement IDs changed here.
+- Added Codex smoke coverage for install validation, `SessionStart`,
+  `PreToolUse`, and retained idle/notify lifecycle proof. New Codex
+  harness/doc-model work and new runtime-surface expansion remain out of
+  scope.
+- Owned write scope:
+  - `.just/smoke/codex.py`
+  - `.just/smoke/fixtures/codex/`
+  - `docs/phase-Q/smoke-codex.md`
+  - `docs/phase-Q/sprint-Q4.md`
+- End-to-end proof comes from `just smoke codex live` plus
+  `cargo test --workspace`, with the live run verifying installed hook wiring,
+  dispatch logs, idle marker output, and the retained notify/idle path.
+- Remaining separate follow-on work is limited to `Q.3` Claude smoke, `Q.5`
+  Gemini smoke, and any future Codex harness/doc-model or runtime expansion
+  beyond the retained surfaces.
