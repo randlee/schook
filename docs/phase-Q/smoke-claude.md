@@ -6,8 +6,8 @@ Accepted baseline:
 - smoke contract owner: `Q.3`
 - command: `just smoke claude live`
 - timestamp (UTC): `2026-05-26T01:08:22Z`
-- repo root: `/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s3-claude-smoke`
-- runtime root: `/Users/randlee/.local/share/sc-hooks/runtime-layout`
+- repo root: `<repo-root>`
+- runtime root: `<runtime-root>`
 
 Observed install proof:
 
@@ -22,7 +22,7 @@ Observed live path:
 - one new session record was written under `~/.sc-hooks/state/`
 - the terminal Claude session record ended with:
   - `provider = "claude"`
-  - `ai_root_dir = "/Users/randlee/Documents/github/schook-worktrees/feature/pQ-s3-claude-smoke"`
+  - `ai_root_dir` matched the active `<repo-root>`
   - `agent_state = "ended"`
   - `last_hook_event = "SessionEnd"`
 

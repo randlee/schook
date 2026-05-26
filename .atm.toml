@@ -23,6 +23,10 @@ seconds = 60
 [rmux]
 session = "atm-dev"
 
+# NOTE: the pane `dir` values below are intentionally machine-local. They point
+# at the active schook checkout on this computer and are not expected to be
+# portable across hosts.
+
 [[rmux.windows]]
 name = "schook"
 layout = "even-horizontal"

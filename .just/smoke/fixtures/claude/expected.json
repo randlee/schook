@@ -10,6 +10,6 @@
   ],
   "required_post_tool_event": "Bash",
   "required_live_output": "OK",
-  "observability_log_path": "~/.local/share/sc-hooks/runtime-layout/.sc-hooks/observability/logs/sc-hooks.log.jsonl",
-  "state_root": "~/.sc-hooks/state"
+  "observability_log_env": "SC_HOOKS_AUDIT_PATH",
+  "state_root_env": "SC_HOOKS_STATE_DIR"
 }
