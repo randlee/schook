@@ -5,6 +5,8 @@ Raw and normalized run artifacts are written here by the harness.
 Phase 1 creates the directory structure and hook writers. Later phases add
 approved capture runs.
 
-> Note: raw/ files contain machine-local absolute paths recorded from live
-> runs. These are intentionally unredacted and are not portable across
-> environments.
+Capture artifacts in this tree may include verbatim machine-local paths such as
+home directories, temp locations, and worktree roots from the session where
+the capture was recorded. Those path literals are expected evidence artifacts,
+not portable contract requirements. In particular, `raw/` files are
+intentionally unredacted and are not portable across environments.
