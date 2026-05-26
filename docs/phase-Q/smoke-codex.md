@@ -6,8 +6,10 @@ Accepted baseline:
 - smoke contract owner: `Q.4`
 - command: `just smoke codex live`
 - timestamp (UTC): `2026-05-26T01:16:12Z`
-- repo root: `<repo-root>`
-- runtime root: `<runtime-root>`
+- repo root: `<repo-root>` (intentional portability placeholder, not a
+  literal substitution token)
+- runtime root: `<runtime-root>` (intentional portability placeholder, not a
+  literal substitution token)
 
 Observed install proof:
 
