@@ -33,13 +33,14 @@ Top-level architectural decisions use stable `ADR-SHK-*` identifiers.
 | `ADR-SHK-007` | Parallel planning sprints keep shared readiness ledgers read-only in sprint branches; the integration author is the sole writer for accepted rows and final verdict updates. Introduced by `Phase N` planning; in force from merge at `8891c3d`. |
 | `ADR-SHK-008` | Provider runtime normalization passes through one sealed `ProviderHookNormalizer` boundary enforced by `sc-lint-boundary`; provider-local fields may not bypass that seam without new approved fixture evidence. Introduced by `Phase O` planning and now in force for the approved Codex and Gemini runtime surfaces. |
 | `ADR-SHK-009` | `Phase P` may extend the existing `CanonicalHook` / provider-hook typed inventory only through the same PR that updates `docs/architecture.md`, the boundary records, and the authoritative mapping table; no sprint may add retained lifecycle surfaces through ad hoc provider-specific runtime paths or uncited enum growth. |
+| `ADR-SHK-010` | `Phase Q` may add one curated smoke-execution surface plus Cursor Agent/opencode harness-doc-model expansion without authorizing new runtime parity work; smoke and provider-harness follow-on artifacts must remain explicit, repo-owned, and separate from generic runtime-path claims. |
 
 Crate-local ADR delegation:
 - crate-local `ADR-SHK-CLI-*`, `ADR-SHK-CORE-*`, and `ADR-SHK-SDK-*` IDs are
   defined in the crate architecture docs under `docs/sc-hooks-cli/`,
   `docs/sc-hooks-core/`, and `docs/sc-hooks-sdk/`
 - those crate-local ADRs are subordinate to the product-level `ADR-SHK-001`
-  through `ADR-SHK-009` decisions in this document
+  through `ADR-SHK-010` decisions in this document
 
 ## 2. Current System Boundary
 
@@ -468,8 +469,18 @@ Still deferred beyond that harness-planning expansion:
 
 - Codex runtime adapters
 - Gemini runtime adapters
-- Cursor Agent harness capture
 - Cursor-targeting runtime work
+- opencode runtime work
+
+Later approved harness-only expansion:
+
+- `Phase Q` may add Cursor Agent and opencode to the permanent provider
+  harness contract with approved fixtures, provider-local models, harness
+  tests, and current provider hook API docs
+- that follow-on reuses the same provider-harness layout pattern documented in
+  section `9.2d`
+- that follow-on does not by itself authorize provider runtime normalization,
+  plugin parity, or machine cutover for Cursor Agent or opencode
 
 ### 9.2b Planned Provider-Normalization Boundary
 
@@ -522,7 +533,42 @@ This contract keeps the permanent harness reusable across providers while
 allowing provider-local schema differences inside the provider models and
 provider evidence docs.
 
-### 9.2a Planned Version-Bump Detection Boundary
+`Phase Q` reuses this same external harness contract shape for Cursor Agent and
+opencode as harness-only providers:
+
+- `test-harness/hooks/<provider>/` remains the authoritative provider evidence
+  tree
+- the harness sprint for each provider also creates the matching
+  `test_harness/hooks/<provider>/` Python package root before the later
+  doc/model sprint closes provider-local payload models
+- `test_harness/hooks/<provider>/models/` remains the provider-local Pydantic
+  model entrypoint
+- provider hook API docs remain under `docs/hook-api/`
+- no new provider runtime claim is implied until a later phase explicitly
+  authorizes runtime work
+
+### 9.2e Planned Smoke Execution Surface
+
+`ADR-SHK-010` governs the `Phase Q` smoke boundary:
+
+- the public operator surface is one curated `just smoke` entrypoint rather
+  than ad hoc shell snippets
+- the repo-owned implementation path is `.just/run_smoke.py` plus
+  `.just/smoke/`
+- generic CI runs the smoke gate in an explicit offline replay or dry-run mode
+  and therefore does not require Claude, Codex, or Gemini CLIs on stock CI
+  runners
+- repo-owned offline smoke assets live under `.just/smoke/fixtures/`
+- accepted-baseline live provider smoke records are tracked separately under
+  `docs/phase-Q/`
+- the smoke surface remains separate from both `just test` and `just lint`
+- CI owns the smoke gate once `Q.2` lands
+- provider-specific smoke records live under `docs/phase-Q/`
+- smoke coverage proves the already supported live runtime path for Claude,
+  Codex, and Gemini; it does not authorize new provider runtime scope on its
+  own
+
+### 9.2f Planned Version-Bump Detection Boundary
 
 The hook harness must also track which AI CLI version produced the latest
 approved schema-drift artifacts.
@@ -646,22 +692,52 @@ Planned fail posture by crate:
 | `plugins/tool-output-gates` | fail-closed | fenced-JSON and blocking-output violations must stop the tool result before it reaches the caller |
 | `plugins/atm-extension` | fail-open | ATM routing enrichment should not make the generic hook host unusable when ATM context is absent or degraded |
 
-### 9.4 Cursor Follow-On Boundary
+### 9.4 Cursor Harness-Only Follow-On Boundary
 
-Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`, but the
-current architecture does not yet include:
+Cursor Agent is documented in `docs/hook-api/cursor-agent-hook-api.md`.
+`Phase Q` may add the following harness-only Cursor surfaces:
 
-- Cursor harness capture
+- approved Cursor fixtures under `test-harness/hooks/cursor-agent/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/cursor-agent/fixtures/approved/manifest.json`
+- the `test_harness/hooks/cursor_agent/` Python package root during the
+  harness sprint, before payload models land
+- provider-local Cursor models under `test_harness/hooks/cursor_agent/models/`
+- Cursor harness tests
+- a current Cursor provider API doc
+
+`Phase Q` does not include:
+
 - Cursor-targeting runtime crates
-- Cursor hook payloads as an implementation dependency
+- Cursor runtime normalization
+- Cursor plugin parity
+- Cursor machine cutover
 
-Planning targets only for a later approved Cursor pass:
+Any future Cursor runtime work remains a later explicitly approved follow-on
+after the harness/doc-model baseline closes.
 
-- `plugins/cursor-agent-gates`
-- `plugins/cursor-agent-relay`
+### 9.5 opencode Harness-Only Follow-On Boundary
 
-Those remain later follow-on work after the Claude ATM baseline is captured,
-reviewed, revised, and implemented.
+`Phase Q` may also add `opencode` as a harness-only provider:
+
+- approved opencode fixtures under `test-harness/hooks/opencode/`
+- a non-empty approved fixture manifest under
+  `test-harness/hooks/opencode/fixtures/approved/manifest.json`
+- the `test_harness/hooks/opencode/` Python package root during the harness
+  sprint, before payload models land
+- provider-local opencode models under `test_harness/hooks/opencode/models/`
+- opencode harness tests
+- a current opencode provider API doc
+
+`Phase Q` does not include:
+
+- opencode-targeting runtime crates
+- opencode runtime normalization
+- opencode plugin parity
+- opencode machine cutover
+
+Any future opencode runtime work remains a later explicitly approved follow-on
+after the harness/doc-model baseline closes.
 
 ## 10. Observability Phase Design Boundary
 
