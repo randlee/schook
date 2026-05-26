@@ -4,7 +4,8 @@
 
 This document records the current Cursor Agent provider evidence that matters
 to the maintained `sc-hooks` harness. It is intentionally separate from the
-Claude and Codex documents because the current evidence still comes from a
+Claude and Codex documents because Cursor Agent is now a harness-backed,
+harness-only provider target whose retained evidence still comes from a
 different combination of local CLI behavior and public Cursor hook
 documentation rather than from repo-owned live hook capture.
 
