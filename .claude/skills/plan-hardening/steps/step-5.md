@@ -8,8 +8,8 @@
 sc-compose render \
   --root .claude/skills/plan-hardening \
   --file 03-consistency-hardening.xml.j2 \
-  --var-file /tmp/plan-hardening-vars.json \
-  --output /tmp/step-5-message.xml
+  --var-file <tmp-vars-file> \
+  --output <tmp-message-file>
 ```
 
 The vars file or rendered task must include `step-4` fenced JSON as the
@@ -25,7 +25,7 @@ It must also carry current round metadata:
 **2. Send to `chook`**
 
 ```bash
-atm send chook --team schook --stdin < /tmp/step-5-message.xml
+atm send chook --team schook --stdin < <tmp-message-file>
 ```
 
 **3. Check the response**
@@ -36,7 +36,7 @@ The expected output shape is specified inside
 Do not proceed to Step 6 until that fenced JSON is present and well formed.
 If the response is incomplete or malformed, send a correction request to
 `chook` immediately.
-Save the extracted fenced JSON to `/tmp/step-5.json`.
+Save the extracted fenced JSON to `<tmp-output-file>`.
 
 **4. Route by status**
 
