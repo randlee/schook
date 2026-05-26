@@ -90,6 +90,7 @@ entrypoint yet:
 
 - Cursor Agent
 - opencode
+  - retained approved-reference surface: `session.idle`
 
 Run one non-interactive Claude surface:
 
