@@ -37,11 +37,13 @@ Only drill into individual `gh run view` calls if you need failure details for a
 ## Render Command
 
 The template path is relative — must run from the **schook repo root** (not a worktree).
+Use an OS-appropriate temp file path for the rendered JSON; the example below
+uses `<tmp-report-file>` as a placeholder.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-echo '<json>' > /tmp/sprint-report.json
-sc-compose render skills/sprint-report/report.md.j2 --var-file /tmp/sprint-report.json
+echo '<json>' > <tmp-report-file>
+sc-compose render skills/sprint-report/report.md.j2 --var-file <tmp-report-file>
 ```
 
 ## --table (default)
