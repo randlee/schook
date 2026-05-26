@@ -4,12 +4,16 @@
 
 **1. Render the message**
 
+Use OS-appropriate temp file paths for the vars file, rendered XML, and saved
+response artifacts. The examples below use placeholders such as
+`<tmp-vars-file>` and `<tmp-step-3-message>`.
+
 ```bash
 sc-compose render \
   --root .claude/skills/plan-hardening \
   --file 02-sprint-scope-hardening.xml.j2 \
-  --var-file /tmp/plan-hardening-vars.json \
-  --output /tmp/step-3-message.xml
+  --var-file <tmp-vars-file> \
+  --output <tmp-step-3-message>
 ```
 
 The vars file or rendered task must include `step-2` fenced JSON as the
@@ -25,7 +29,7 @@ It must also carry current round metadata:
 **2. Send to `chook`**
 
 ```bash
-atm send chook --team schook --stdin < /tmp/step-3-message.xml
+atm send chook --team schook --stdin < <tmp-step-3-message>
 ```
 
 **3. Check the response**
@@ -36,7 +40,7 @@ The expected output shape is specified inside
 Do not proceed to Step 4 until that fenced JSON is present and well formed.
 If the response is incomplete or malformed, send a correction request to
 `chook` immediately.
-Save the extracted fenced JSON to `/tmp/step-3.json`.
+Save the extracted fenced JSON to `<tmp-step-3-json>`.
 
 **4. Route by status**
 
