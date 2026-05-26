@@ -1,7 +1,7 @@
 ---
 id: Q.5
 title: Gemini Smoke Tests
-status: planned
+status: completed
 branch: feature/pQ-s5-gemini-smoke
 worktree: ../schook-worktrees/feature/pQ-s5-gemini-smoke
 target: integrate/phase-Q
@@ -27,6 +27,8 @@ target: integrate/phase-Q
 - `.just/smoke/gemini.py`
 - `.just/smoke/fixtures/gemini/`
 - `docs/phase-Q/smoke-gemini.md`
+- `docs/phase-Q/sprint-Q5.md`
+- `docs/requirements.md`
 - `docs/traceability.md`
 
 ## Deliverables
@@ -92,3 +94,31 @@ Required Gemini smoke coverage:
 - What follow-on work remains separate from smoke coverage?
 - Does `docs/traceability.md` now name `Q.5` as the single owner that closes
   the `HKR-019` smoke-surface row?
+
+## Sprint QA Checklist Answers
+
+- `HKR-019` gained its final provider-specific smoke closure here, and
+  `docs/traceability.md` now names `Q.5` as the single owning sprint that
+  closes the last Phase Q smoke row. No Cursor or opencode requirement IDs
+  changed in this sprint.
+- Added Gemini smoke coverage for install validation, `SessionStart`,
+  `BeforeAgent`, the retained `PreToolUse(Agent)` observability proof, and the
+  accepted-baseline `SessionEnd` state closure. New Gemini runtime-surface
+  expansion and harness/doc-model work remain out of scope.
+- Owned write scope:
+  - `.just/smoke/gemini.py`
+  - `.just/smoke/fixtures/gemini/`
+  - `docs/phase-Q/smoke-gemini.md`
+  - `docs/phase-Q/sprint-Q5.md`
+  - `docs/requirements.md`
+  - `docs/traceability.md`
+- End-to-end proof comes from `just smoke gemini live` plus
+  `cargo test --workspace`, with the live run verifying installed hook wiring,
+  the retained runtime dispatch path, the terminal Gemini state record, and
+  `dispatch.complete` observability for `SessionStart`, `PreToolUse(Agent)`,
+  and `SessionEnd`.
+- Remaining follow-on work stays separate from smoke coverage: earlier Claude
+  and Codex smoke sprints, any future Gemini runtime-surface expansion, and
+  Gemini harness/doc-model work owned outside Phase Q smoke.
+- Yes. `docs/traceability.md` now records `Q.5` as the single owner that
+  closes the final `HKR-019` smoke-surface row.
