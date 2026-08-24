@@ -46,9 +46,17 @@ shell out to atm").
   plugin protocol; boundaries entry per `boundaries/` conventions)
 - Parity harness: every R1/R2 corpus fixture replayed through the Rust
   plugin must produce **byte-identical observable behavior** to the
-  Python entry points — same daemon requests (captured via a stub
-  endpoint), same stdout JSON (e.g. the Claude block shape), same exit
-  codes. Divergence is a failing test, not a judgment call.
+  Python entry points, where the comparison is precisely defined as:
+  same daemon requests (captured via a stub endpoint), same stdout JSON
+  (e.g. the Claude block shape), same exit codes, compared
+  byte-for-byte **after masking the call-time-dependent fields the wire
+  types carry — `pid` and every timestamp field
+  (`TeamMemberHeartbeatRequest.observed_at` and any other
+  `IsoTimestamp`)** — with the masked-field list enumerated in the
+  harness and asserted non-empty per request type (so a new
+  nondeterministic field fails loudly instead of being silently
+  compared). Divergence outside the masked set is a failing test, not a
+  judgment call.
 
 ## Acceptance Criteria
 
@@ -63,9 +71,11 @@ shell out to atm").
    (grep gate).
 5. `atm-extension` untouched (the load-bearing boundary from "Design
    decisions frozen here" is gated, not just asserted): `git diff
-   develop... -- plugins/atm-extension/` is empty at PR time, and the
-   boundaries lint still shows `atm-extension` with no atm-core
-   dependency.
+   develop... -- plugins/atm-extension/` is empty at PR time — the
+   diff-empty check is the **sole** enforcement mechanism (schook's
+   `sc-lint-boundary` does attribute-based source lints, not Cargo
+   dependency-graph analysis, so no lint gate exists for this property
+   and none is claimed).
 
 ## Out of Scope
 

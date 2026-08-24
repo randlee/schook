@@ -38,21 +38,33 @@ dependency chain is longer and must not gate heartbeats).
   heartbeat and the queue-get pull. The generator always emits exactly
   one Stop entry invoking that script; which halves are active is
   controlled by the env vars the generated entry carries, driven by the
-  config keys below (`SC_ATM_QUEUE_GET=0` in this sprint — heartbeat
-  half only; R.2b flips it). No second Stop entry, no generator fork.
-- **Config surface (normative skeleton)** — one TOML table plus
-  1:1 env overrides; the generator maps each key onto the env vars the
-  AQ2.5 scripts document (cross-repo alignment item: key names below
-  track AQ2.5's env names once its dev lands; AQ2.5 is authoritative on
-  the script-side names):
+  config keys below. **Per-provider queue-get gating (Codex has no
+  injection surface — draining its FIFO would discard nudges with no
+  way to deliver them, per AQ2.5's disclosed gap)**: the `queue_get`
+  key applies to Claude only; the Codex generator NEVER emits the
+  queue-get env, unconditionally, until a Codex injection surface
+  exists (no config can enable it). This sprint ships Claude
+  `queue_get = false` (heartbeat half only); R.2b flips the Claude
+  default. No second Stop entry, no generator fork.
+- **Config surface (normative skeleton)** — one TOML table plus 1:1 env
+  overrides. **Naming honesty**: these names are **originated here, by
+  schook**, inside the repo's existing canonical `SC_HOOKS_*` namespace
+  (`docs/cross-platform-guidelines.md` already defines
+  `SC_HOOKS_STATE_DIR`); AQ2.5's doc names no env vars, and the
+  production baseline's `SCHOOK_CODEX_IDLE_*` names are superseded at
+  migration. Cross-repo alignment item: atm-core AQ2.5 dev must adopt
+  these names (or alias them) in its `scripts/hooks/` entry points —
+  tracked as an explicit coordination task, not assumed:
 
   ```toml
   [atm-liveness]
-  state_root = "~/.local/share/sc-hooks/atm-liveness" # SC_ATM_STATE_ROOT
-  idle_debounce_seconds = 60      # SC_ATM_IDLE_DEBOUNCE_SECONDS
-  daemon_timeout_ms = 500         # SC_ATM_DAEMON_TIMEOUT_MS
-  autostart_timer = true          # SC_ATM_AUTOSTART_TIMER
-  queue_get = false               # SC_ATM_QUEUE_GET (R.2b default: true)
+  # default: "${SC_HOOKS_STATE_DIR}/atm-liveness"
+  state_root = ""                 # SC_HOOKS_ATM_STATE_ROOT
+  idle_debounce_seconds = 60      # SC_HOOKS_ATM_IDLE_DEBOUNCE_SECONDS
+  daemon_timeout_ms = 500         # SC_HOOKS_ATM_DAEMON_TIMEOUT_MS
+  autostart_timer = true          # SC_HOOKS_ATM_AUTOSTART_TIMER
+  queue_get = false               # SC_HOOKS_ATM_QUEUE_GET — Claude only;
+                                  # Codex: never emitted (see above)
   ```
 
   No hidden state files; any state file written atomically.

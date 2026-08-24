@@ -37,9 +37,14 @@ implementation in service.
 1. Live parity evidence on one host, Claude **and** Codex: heartbeats and
    (where the atm-core chain has landed) queue-get pulls observed via the
    plugin path, transcripts retained — same live-verify bar as R2 AC 4.
-2. Grep gate: no generated or in-repo config references the Python entry
-   points after cutover generation; the corpus and parity harness are
-   retained (they remain the plugin's regression suite).
+2. Retirement gate — stated **structurally**, since AQ2.5's concrete
+   script filenames don't exist at plan time: after cutover generation,
+   no `sc-hooks install`-generated Claude/Codex entry has a
+   `command`/`args` field resolving to any path under atm-core's
+   `scripts/hooks/` (the exact lexical pattern is finalized in this
+   sprint once AQ2.5's real paths exist, and recorded in the runbook);
+   the corpus and parity harness are retained (they remain the plugin's
+   regression suite).
 3. Rollback path exercised once in a fixture tree (install → flip →
    rollback → Python entries restored).
 4. `just lint` + CI lanes green.
@@ -48,3 +53,7 @@ implementation in service.
 
 - Deleting the R1 corpus or parity harness (permanent regression assets).
 - Any change to atm-core contracts.
+- Windows per-host cutover: the runbook covers POSIX hosts only —
+  Codex/hermes are not used on Windows and no Windows Claude host runs
+  these hooks today; explicitly deferred until one exists (code-level
+  Windows CI parity is unaffected and stays gated by the repo's lanes).
