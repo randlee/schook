@@ -18,7 +18,8 @@ shell out to atm").
 
 ## Hard Dependencies
 
-- R2 merged (wiring + replay tests exist; the corpus is the gate).
+- R.2a and R.2b merged (wiring + replay tests exist for both halves;
+  the corpus is the gate).
 
 ## Design decisions frozen here
 
@@ -60,6 +61,11 @@ shell out to atm").
    dependency builds on all of them.
 4. No `Command::new("atm")`/subprocess-to-atm anywhere in the plugin
    (grep gate).
+5. `atm-extension` untouched (the load-bearing boundary from "Design
+   decisions frozen here" is gated, not just asserted): `git diff
+   develop... -- plugins/atm-extension/` is empty at PR time, and the
+   boundaries lint still shows `atm-extension` with no atm-core
+   dependency.
 
 ## Out of Scope
 

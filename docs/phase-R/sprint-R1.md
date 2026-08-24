@@ -30,11 +30,14 @@ target: integrate/phase-R
 - `docs/phase-P/canonical-hook-mapping.md` (~:19)
 - `docs/requirements.md` (`HKR-006` acceptance condition 5) +
   `docs/traceability.md` (`HKR-006` row)
-- new: `test-harness` fixture set (repo-convention location) holding the
-  corpus: Claude `Stop` / `PreToolUse` / `SessionEnd`; Codex `Stop` /
-  `PreToolUse` / `notify` (agent-turn-complete) — each payload recorded
-  from a live session, secrets/paths sanitized, with provenance notes
-  (provider version, capture date, host)
+- new: corpus fixtures under the existing per-provider capture
+  convention — `test-harness/hooks/claude/captures/atm-liveness/` and
+  `test-harness/hooks/codex/captures/atm-liveness/` — holding: Claude
+  `Stop` / `PreToolUse` / `SessionEnd`; Codex `Stop` / `PreToolUse` /
+  `notify` (agent-turn-complete) — each payload recorded from a live
+  session (the existing `test_live_capture.py` tooling), secrets/paths
+  sanitized, with provenance notes (provider version, capture date,
+  host)
 
 ## Acceptance Criteria
 

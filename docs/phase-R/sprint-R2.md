@@ -1,66 +1,93 @@
 ---
-id: R.2
-title: Python Wiring — Install Generation, Config, Observability
+id: R.2a
+title: Python Wiring — Heartbeat Half (Install Generation, Config, Observability)
 status: planned
-branch: feature/pR-s2-python-wiring
-worktree: ../schook-worktrees/feature/pR-s2-python-wiring
+branch: feature/pR-s2a-heartbeat-wiring
+worktree: ../schook-worktrees/feature/pR-s2a-heartbeat-wiring
 target: integrate/phase-R
 ---
 
-# Sprint R.2 — Python Wiring: Install Generation, Config Surface, Observability
+# Sprint R.2a — Python Wiring: Heartbeat Half
 
 ## Goal
 
 Make the atm-core-owned Python hook entry points first-class citizens of
-schook's dispatch surface — installable via `sc-hooks install`, configured
-through one surface, observable through sc-observability — **without
-duplicating a line of their logic**. atm-core AQ2.5 owns the scripts and
-JSON contracts; schook owns the wiring.
+schook's dispatch surface for the **heartbeat pipeline** — installable via
+`sc-hooks install`, configured through one surface, observable through
+sc-observability — **without duplicating a line of their logic**.
+atm-core AQ2.5 owns the scripts and JSON contracts; schook owns the
+wiring. Queue-get wiring is R.2b (split per PLAN-SCOPE-001: its external
+dependency chain is longer and must not gate heartbeats).
 
 ## Hard Dependencies
 
 - R1 corpus merged.
 - **External**: atm-core AQ2.5 deliverables 1–2 landed (heartbeat CLI +
-  `scripts/hooks/` entry points). The queue-get wiring half additionally
-  waits on atm-core's AQ1 → AQ2 → AQ2.5 chain; this sprint lands the
-  heartbeat half first and activates queue-get wiring when its external
-  dependency merges (split noted, no schook-side redesign either way).
+  `scripts/hooks/` entry points). Nothing else — the daemon Heartbeat
+  route already exists.
 
 ## Exact Targets
 
 - `sc-hooks install` generation: Claude `settings.json` entries
-  (`PreToolUse` → active heartbeat, `Stop` → debounced idle, `SessionEnd`
-  → session-ended; `Stop` → queue-get pull for bare-CLI members) and the
-  Codex `hooks.json` equivalents, all invoking the atm-core entry points
-  by their documented paths — generated, never hand-maintained.
-- One config surface (repo-convention TOML + env overrides) for the knobs
-  AQ2.5 defines as env-overridable (state root, debounce seconds,
-  timeouts); no hidden state files; any state file written atomically.
-- Observability: hook invocations and failures land in the sc-hooks JSONL
-  log per `docs/observability-contract.md`; a hook failure is visible but
-  NEVER blocks the agent (fail-open is asserted by test).
-- Replay tests: the R1 corpus is driven through the wired entry points
-  (stub `atm` binary recording invocations); assertions cover emitted
-  CLI calls, exit codes, and the never-block-on-empty rule.
+  (`PreToolUse` → active heartbeat, `Stop` → the single AQ2.5 Stop
+  script, `SessionEnd` → session-ended) and the Codex `hooks.json`
+  equivalents, all invoking the atm-core entry points by their
+  documented paths — generated, never hand-maintained.
+  **Stop-entry activation contract (single-script, per AQ2.5)**: AQ2.5
+  ships ONE Claude Stop script that does both the debounced-idle
+  heartbeat and the queue-get pull. The generator always emits exactly
+  one Stop entry invoking that script; which halves are active is
+  controlled by the env vars the generated entry carries, driven by the
+  config keys below (`SC_ATM_QUEUE_GET=0` in this sprint — heartbeat
+  half only; R.2b flips it). No second Stop entry, no generator fork.
+- **Config surface (normative skeleton)** — one TOML table plus
+  1:1 env overrides; the generator maps each key onto the env vars the
+  AQ2.5 scripts document (cross-repo alignment item: key names below
+  track AQ2.5's env names once its dev lands; AQ2.5 is authoritative on
+  the script-side names):
+
+  ```toml
+  [atm-liveness]
+  state_root = "~/.local/share/sc-hooks/atm-liveness" # SC_ATM_STATE_ROOT
+  idle_debounce_seconds = 60      # SC_ATM_IDLE_DEBOUNCE_SECONDS
+  daemon_timeout_ms = 500         # SC_ATM_DAEMON_TIMEOUT_MS
+  autostart_timer = true          # SC_ATM_AUTOSTART_TIMER
+  queue_get = false               # SC_ATM_QUEUE_GET (R.2b default: true)
+  ```
+
+  No hidden state files; any state file written atomically.
+- Observability: hook invocations and failures land in the sc-hooks
+  JSONL log per `docs/observability-contract.md`; a hook failure is
+  visible but NEVER blocks the agent (fail-open asserted by test).
+- Replay tests: the R1 heartbeat-relevant corpus driven through the
+  wired entry points (stub `atm` binary recording invocations);
+  assertions cover emitted CLI calls, env propagation from the config
+  keys, and exit codes.
 
 ## Acceptance Criteria
 
 1. `sc-hooks install` on a clean fixture tree produces Claude + Codex
-   entries that invoke the atm-core entry points; re-running is
-   idempotent.
-2. Replay of the full R1 corpus: expected `atm` invocations and exit
-   codes for every fixture; daemon-unreachable simulation exits 0 within
-   the bounded timeout for every entry point.
-3. Cross-platform: tests green on the repo's lanes; every subprocess
+   entries that invoke the atm-core entry points with the configured
+   env; exactly one Stop entry per provider; re-running is idempotent.
+2. Replay of the heartbeat corpus: expected `atm _internal-heartbeat`
+   invocations and exit codes for every fixture; with `queue_get =
+   false` no queue-get invocation occurs on any Stop fixture;
+   daemon-unreachable simulation exits 0 within `daemon_timeout_ms` for
+   every entry point.
+3. Config round-trip: every TOML key above reaches the hook process as
+   its documented env var; env override beats TOML (test per key).
+4. Cross-platform: tests green on the repo's lanes; every subprocess
    capture and file I/O uses explicit `encoding="utf-8"`; no glibc-only
    strftime.
-4. Live evidence on one host (Claude + Codex): heartbeats observed at the
-   atm daemon (`RuntimeHealth` via `atm doctor` or equivalent), transcript
-   retained.
-5. `just lint` + CI lanes green.
+5. Live evidence on one host (Claude + Codex): heartbeats observed at
+   the atm daemon (`RuntimeHealth` via `atm doctor` or equivalent),
+   transcript retained.
+6. `just lint` + CI lanes green.
 
 ## Out of Scope
 
+- Queue-get wiring, evidence, and the `queue_get = true` default —
+  **R.2b** (explicit non-closure; not a silent carry-forward).
 - Editing anything under atm-core's `scripts/hooks/` (cross-repo PR if a
   contract gap is found — AQ2.5 is authoritative).
 - Per-host migration of the existing `~/.codex/scripts/` installation

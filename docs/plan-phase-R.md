@@ -83,15 +83,21 @@ follow R2.
 | Sprint | Title | Depends |
 |---|---|---|
 | R1 | Codex Stop reclassification (#168) + verified payload replay corpus | — |
-| R2 | Python wiring: install generation, config surface, observability (atm entry points; contracts owned by AQ2.5) | must_follow R1 · external: AQ2.5 heartbeat half (queue-get wiring gated on AQ1→AQ2→AQ2.5) |
-| R3 | Rust plugin `schook-atm`: heartbeat + queue-get via atm-core library link; byte-parity replay gate over the R1/R2 corpus | must_follow R2 |
+| R2a | Python wiring, heartbeat half: install generation (single Stop entry, `queue_get = false`), config surface, observability | must_follow R1 · external: AQ2.5 deliverables 1–2 only |
+| R2b | Python wiring, queue-get half: `queue_get` default flip + pull coverage/evidence | must_follow R2a · external: full AQ1→AQ2→AQ2.5 chain |
+| R3 | Rust plugin `schook-atm`: heartbeat + queue-get via atm-core library link; byte-parity replay gate over the R1/R2 corpus | must_follow R2a, R2b |
 | R4 | Cutover + Python retirement: per-host dispatcher flip (ops-documented), live parity evidence (Claude + Codex), grep gate | must_follow R3 |
 
 Branch pattern: `feature/pR-sN-<slug>` off `integrate/phase-R`, PR target
 `integrate/phase-R`; phase completion PR `integrate/phase-R` → `develop`.
+R2a/R2b split rationale (PLAN-SCOPE-001): the queue-get half's external
+dependency chain is longer and not yet started — heartbeats must never
+gate on it.
 
 ## QA history
 
 | Round | Reviewer(s) | Commit | Verdict | Notes |
 |---|---|---|---|---|
-| 0 | — (initial draft, fenix) | (this commit) | DRAFT | Subject confirmed by Rand 2026-08-24 (liveness/heartbeat + delivery-trigger pipeline, per `schook-liveness-plan-handoff.md`). Hardening rounds pending. |
+| 0 | — (initial draft, fenix) | `f3563d5` | DRAFT | Subject confirmed by Rand 2026-08-24 (liveness/heartbeat + delivery-trigger pipeline, per `schook-liveness-plan-handoff.md`). |
+| 0 | guidelines pass (sonnet, per plan-scope-reviewer contract) | `f3563d5` | PASS | Three items forwarded to scope review (split-early, production-ready gating, code samples). |
+| 1 | plan-scope-reviewer contract (sonnet) | `f3563d5` | FAIL — 1 Blocking (PLAN-SCOPE-001: R2 bundled the heartbeat half with the queue-get half whose external AQ1→AQ2→AQ2.5 chain is not started — split-early trigger), 3 Important (002: config TOML/env schema had no signature; 003: single-Stop-script activation mechanism unspecified — how install emits/suppresses the queue-get branch; 004: R3's "atm-extension untouched" claim had no AC gate), 1 minor (corpus location unnamed) | Fixed in round-1 fix commit: R2 split into R.2a (heartbeat; `queue_get = false`; external dep = AQ2.5 deliverables 1–2 only) and R.2b (default flip + pull evidence; external dep = full chain); normative `[atm-liveness]` TOML skeleton with 1:1 env names (AQ2.5 authoritative on script-side names — alignment item recorded); single-Stop-entry contract with env-driven half activation (`SC_ATM_QUEUE_GET`); R3 AC 5 diff-empty + boundaries-lint gate on `plugins/atm-extension/`; corpus path fixed to `test-harness/hooks/{claude,codex}/captures/atm-liveness/`. |
